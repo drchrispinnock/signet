@@ -26,6 +26,7 @@ final class WalletViewModel {
     var selectedWalletID: Wallet.ID?
     var isPresentingCreateWallet = false
     var isPresentingRenameWallet = false
+    var isPresentingReceive = false
 
     private(set) var domains: [String] = []
     private(set) var assets: [AssetBalance] = []
@@ -34,10 +35,14 @@ final class WalletViewModel {
     private(set) var isCreatingWallet = false
     private(set) var errorMessage: String?
 
+    /// Watches the configured node for the status bar.
+    let nodeMonitor: NodeMonitor
+
     /// The node the app talks to. Changing it swaps the chain service and reloads the dashboard.
     var network: Network {
         didSet {
             guard network != oldValue else { return }
+            nodeMonitor.network = network
             chain = chainFactory(network)
             state.networkName = network.name
             persistState()
@@ -50,9 +55,26 @@ final class WalletViewModel {
 
     private var chain: any ChainService
     private let chainFactory: @Sendable (Network) -> any ChainService
+
+    /// The directory the wallet files live in, when the stores are file-backed.
+    private(set) var walletDirectory: URL?
+    private let directorySettings: WalletDirectorySettings?
+    private let backupSettings: BackupSettings?
+
+    /// Result of the most recent backup attempt, for Settings.
+    private(set) var lastBackup: (date: Date, outcome: WalletBackup.Outcome)?
+    private(set) var lastBackupError: String?
+    var backupDirectory: URL? { backupSettings?.directory }
+    var backupGenerations: Int { backupSettings?.generations ?? BackupSettings.defaultGenerations }
+    var isUsingDefaultBackupDirectory: Bool {
+        guard let backupSettings else { return true }
+        return backupSettings.directory.standardizedFileURL == backupSettings.defaultDirectory.standardizedFileURL
+    }
+    var defaultBackupDirectory: URL? { backupSettings?.defaultDirectory }
+    private let storeFactory: (@Sendable (URL) -> (wallets: any WalletStore, state: any AppStateStore))?
     private let keyGenerator: KeyGenerator
-    private let walletStore: any WalletStore
-    private let stateStore: any AppStateStore
+    private var walletStore: any WalletStore
+    private var stateStore: any AppStateStore
     private var state: AppState
     /// An octez-client directory to offer for import, or `nil` to never offer.
     private let importSource: URL?
@@ -70,14 +92,33 @@ final class WalletViewModel {
         keyGenerator: KeyGenerator = KeyGenerator(),
         walletStore: any WalletStore = InMemoryWalletStore(),
         importSource: URL? = nil,
-        stateStore: any AppStateStore = InMemoryAppStateStore()
+        stateStore: any AppStateStore = InMemoryAppStateStore(),
+        directorySettings: WalletDirectorySettings? = nil,
+        storeFactory: (@Sendable (URL) -> (wallets: any WalletStore, state: any AppStateStore))? = nil,
+        backupSettings: BackupSettings? = nil,
+        nodeProbe: NodeMonitor.Probe? = nil
     ) {
+        self.backupSettings = backupSettings
         let factory: @Sendable (Network) -> any ChainService = chainFactory ?? { _ in chain ?? MockChainService() }
+        // File-backed mode: build both stores for the configured directory.
+        var walletStore = walletStore
+        var stateStore = stateStore
+        var directory: URL?
+        if let directorySettings, let storeFactory {
+            directory = directorySettings.current
+            let stores = storeFactory(directory!)
+            walletStore = stores.wallets
+            stateStore = stores.state
+        }
+        self.walletDirectory = directory
+        self.directorySettings = directorySettings
+        self.storeFactory = storeFactory
         let state = stateStore.load()
         self.stateStore = stateStore
         self.state = state
         let network = Network.named(state.networkName) ?? .mainnet
         self.network = network
+        self.nodeMonitor = NodeMonitor(network: network, probe: nodeProbe)
         self.chainFactory = factory
         self.chain = factory(network)
         self.keyGenerator = keyGenerator
@@ -102,11 +143,76 @@ final class WalletViewModel {
         self.selectedWalletID = loaded.first { $0.alias == remembered }?.id ?? loaded.first?.id
         self.errorMessage = loadError
         self.importableWalletCount = Self.countImportable(at: importSource, excluding: loaded)
+
+        // Startup backup of the key files.
+        Task { await backUp() }
+    }
+
+    /// Copies the wallet files to the backup directory, keeping the configured number of generations.
+    /// Runs off the main actor; results land in `lastBackup` / `lastBackupError`.
+    func backUp(force: Bool = false) async {
+        guard let backupSettings, let walletDirectory else { return }
+        let job = WalletBackup(walletDirectory: walletDirectory, backupDirectory: backupSettings.directory, generations: backupSettings.generations)
+        do {
+            let outcome = try await Task.detached(priority: .utility) { try job.run(force: force) }.value
+            lastBackup = (Date(), outcome)
+            lastBackupError = nil
+        } catch {
+            lastBackupError = error.localizedDescription
+            NSLog("Signet: backup failed: %@", error.localizedDescription)
+        }
+    }
+
+    func setBackupDirectory(_ url: URL) {
+        backupSettings?.setDirectory(url)
+        Task { await backUp() }
+    }
+
+    func setBackupGenerations(_ count: Int) {
+        backupSettings?.setGenerations(count)
+        Task { await backUp() }
     }
 
     var selectedWallet: Wallet? {
         wallets.first { $0.id == selectedWalletID } ?? wallets.first
     }
+
+    /// Points the app at a different wallet directory: rebuilds the stores, reloads the wallets and
+    /// restores whatever that directory remembers. The choice is kept in preferences.
+    func changeWalletDirectory(to url: URL) {
+        guard let storeFactory, let directorySettings else { return }
+        let directory = url.standardizedFileURL
+        guard directory != walletDirectory?.standardizedFileURL else { return }
+        directorySettings.set(directory)
+        let stores = storeFactory(directory)
+        walletStore = stores.wallets
+        stateStore = stores.state
+        walletDirectory = directory
+        state = stateStore.load()
+
+        do {
+            wallets = try walletStore.load()
+            errorMessage = nil
+        } catch {
+            wallets = []
+            errorMessage = "Could not load wallets: \(error.localizedDescription)"
+        }
+        selectedWalletID = wallets.first { $0.alias == state.selectedWalletAlias }?.id ?? wallets.first?.id
+        if let remembered = Network.named(state.networkName), remembered != network { network = remembered }
+        importableWalletCount = Self.countImportable(at: importSource, excluding: wallets)
+        assets = []
+        domains = []
+        nfts = []
+        Task { await refresh() }
+        Task { await backUp() }
+    }
+
+    var isUsingDefaultWalletDirectory: Bool {
+        guard let directorySettings, let walletDirectory else { return true }
+        return walletDirectory.standardizedFileURL == directorySettings.defaultDirectory.standardizedFileURL
+    }
+
+    var defaultWalletDirectory: URL? { directorySettings?.defaultDirectory }
 
     /// Re-reads the store, e.g. after octez-client added a key.
     func reloadWallets() {
@@ -181,6 +287,7 @@ final class WalletViewModel {
         try walletStore.add(wallet, secretKey: material.secretKey)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
+        await backUp()
     }
 
     /// Copies wallets from the octez-client directory into Signet's own. Returns how many were added.
@@ -216,6 +323,7 @@ final class WalletViewModel {
         wallets = try walletStore.load()
         selectedWalletID = name
         rememberSelection()
+        Task { await backUp() }
     }
 
     private func rememberSelection() {

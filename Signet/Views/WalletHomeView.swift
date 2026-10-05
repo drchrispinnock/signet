@@ -6,12 +6,46 @@ struct WalletHomeView: View {
     @Bindable var model: WalletViewModel
 
     var body: some View {
+        VStack(spacing: 0) {
+            content
+                .padding(24)
+            Divider()
+            NodeStatusBar(monitor: model.nodeMonitor)
+        }
+        .frame(minWidth: 480, minHeight: 720)
+        .task {
+            model.nodeMonitor.start()
+            await model.refresh()
+        }
+        .sheet(isPresented: $model.isPresentingCreateWallet) {
+            CreateWalletSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingRenameWallet) {
+            RenameWalletSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingReceive) {
+            if let wallet = model.selectedWallet {
+                ReceiveSheet(wallet: wallet, domains: model.domains)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let message = model.errorMessage {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .padding(8)
+                    .padding(.bottom, 28)
+            }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 24) {
             if let wallet = model.selectedWallet {
                 HStack(alignment: .top) {
                     WalletIdentityView(model: model, wallet: wallet)
                     Spacer()
-                    if model.network != .mainnet {
+                    if !model.network.isMainnet {
                         Text(model.network.name)
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 8)
@@ -22,29 +56,12 @@ struct WalletHomeView: View {
                     }
                     AppMenuButton(model: model)
                 }
-                ActionButtonsView()
+                ActionButtonsView(model: model)
                 AssetListView(assets: model.assets)
                 Divider()
                 NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
             } else {
                 NoWalletsView(model: model)
-            }
-        }
-        .padding(24)
-        .frame(minWidth: 480, minHeight: 720)
-        .task { await model.refresh() }
-        .sheet(isPresented: $model.isPresentingCreateWallet) {
-            CreateWalletSheet(model: model)
-        }
-        .sheet(isPresented: $model.isPresentingRenameWallet) {
-            RenameWalletSheet(model: model)
-        }
-        .overlay(alignment: .bottom) {
-            if let message = model.errorMessage {
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .padding(8)
             }
         }
     }

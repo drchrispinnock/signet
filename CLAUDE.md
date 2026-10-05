@@ -47,6 +47,13 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   joining entries by alias, appending only, replacing files atomically and holding `wallet_lock`
   while writing. A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
   unencrypted, encrypted, on a ledger, remote or absent. Only unencrypted secrets can be used.
+  The directory can be changed in Settings; that pointer is the one thing kept in UserDefaults
+  (`WalletDirectorySettings`), because it cannot live inside the directory it names. Switching
+  rebuilds both stores through the `storeFactory` the app passes to the view model.
+  `WalletBackup` copies the wallet files (plus `state`) into a timestamped generation under
+  `~/.signet_backups` on launch, after key creation/rename and on directory change, skipping
+  when unchanged and keeping the newest N (default 10); folder and N are `BackupSettings` in
+  UserDefaults and editable in Settings.
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys) the
   welcome screen offers to import `~/.tezos-client` when one exists: an exact file copy the first
   time, a merge of missing aliases afterwards (also available from the burger menu). The app is
@@ -57,6 +64,9 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   are written to the client directory as `unencrypted:` entries, like octez-client's default.
 - **`WalletViewModel`** is a `@MainActor @Observable` class owning the wallet list, the
   selected wallet and the loaded balances, domains and NFTs, and `createWallet(alias:scheme:)`.
+- **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
+  classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
+  connection); `NodeStatusBar` pins it to the bottom of the window. `evaluate` is pure for tests.
 - **Balances.** The node's `balance` is only the spendable part. `TezBalance` carries spendable,
   staked, unstaked-frozen and unstaked-finalizable tez; the tez row shows the total (the node's
   `full_balance`) and expands into those lines. Fetched via Taquito's RPC client for tz1 to tz4
@@ -66,7 +76,8 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   Domains name stacked beneath the address, fetched live from the Tezos Domains GraphQL API by
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
-  `ActionButtonsView` (Send, Receive, Buy, Sell), `AssetListView` (tez, then Etherlink, then
+  `ActionButtonsView` (Send, Receive, Buy, Sell; Receive opens `ReceiveSheet` with a Core Image QR
+  code of the address, the others are disabled until their flows exist), `AssetListView` (tez, then Etherlink, then
   other tokens) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
   decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
   over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` is reached from the hamburger menu, the
