@@ -32,8 +32,12 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Signet/Signet.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.0"   # overwritten from git tags by scripts/stamp-version.sh
         CURRENT_PROJECT_VERSION: "1"
+    postBuildScripts:
+      - name: Stamp version from git
+        path: scripts/stamp-version.sh
+        basedOnDependencyAnalysis: false
   SignetTests:
     type: bundle.unit-test
     platform: macOS

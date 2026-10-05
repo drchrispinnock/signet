@@ -34,6 +34,12 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
 
 ## Releases
 
+The app version comes from git: `scripts/stamp-version.sh` runs as a post-build phase and writes
+`git describe --tags` (minus the `v`) into `CFBundleShortVersionString` and the commit count into
+`CFBundleVersion`, so the About panel shows `0.2` on the tag and `0.2-3-g<sha>` afterwards. Tag a
+release before building it. Copyright and the About credits live in `Signet/Info.plist` and
+`Signet/Resources/Credits.rtf`.
+
 `scripts/release.sh [version]` archives a Release build, signs it with `$DEVELOPER_ID` if set
 (ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`.
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which does the same on a macOS runner and

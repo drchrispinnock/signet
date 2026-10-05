@@ -71,6 +71,7 @@
 		F0231794744CC54F6F39B989 /* taquito-bridge.js in Resources */ = {isa = PBXBuildFile; fileRef = FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */; };
 		F26C76D739108A6AA2B3ACC9 /* ReceiveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525C79C726F273E9E3375452 /* ReceiveSheet.swift */; };
 		F69C430DC456544A2DC19040 /* RenameWalletSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */; };
+		FCD773F3D301A0DD69BD99EC /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = C3A48078F3336DCF0514ED8D /* Credits.rtf */; };
 		FDCC5A239632D223F09CE02A /* WalletHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */; };
 /* End PBXBuildFile section */
 
@@ -139,6 +140,7 @@
 		BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezosDomainsTests.swift; sourceTree = "<group>"; };
 		BFC7070B3A5754283DA58F7D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C010E1B71F572FFBE46D1233 /* ChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChainService.swift; sourceTree = "<group>"; };
+		C3A48078F3336DCF0514ED8D /* Credits.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressTests.swift; sourceTree = "<group>"; };
 		CD834C06F49658A295BADA09 /* AppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateStore.swift; sourceTree = "<group>"; };
 		D55C4D86A1145ACAF063447D /* WalletBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletBackup.swift; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 			isa = PBXGroup;
 			children = (
 				DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */,
+				C3A48078F3336DCF0514ED8D /* Credits.rtf */,
 				FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */,
 			);
 			path = Resources;
@@ -305,6 +308,7 @@
 			buildPhases = (
 				BCED166A0793B1D1FDBBD914 /* Sources */,
 				35B4CDAE10B40980393C0FB3 /* Resources */,
+				5136BC79A1CBDB3E646973A2 /* Stamp version from git */,
 			);
 			buildRules = (
 			);
@@ -378,11 +382,34 @@
 			buildActionMask = 2147483647;
 			files = (
 				BEBA52C6B05825C81E3B0223 /* Assets.xcassets in Resources */,
+				FCD773F3D301A0DD69BD99EC /* Credits.rtf in Resources */,
 				F0231794744CC54F6F39B989 /* taquito-bridge.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		5136BC79A1CBDB3E646973A2 /* Stamp version from git */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp version from git";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/sh\n# Xcode post-build phase: stamp the built Info.plist with the version from git.\n#   CFBundleShortVersionString = git describe --tags, without the leading \"v\"\n#                                (e.g. 0.2 on the tag, 0.2-3-g58b56be three commits later, \"-dirty\" if uncommitted)\n#   CFBundleVersion            = number of commits on this branch (monotonic build number)\n# Falls back to whatever the project set when git is unavailable (e.g. building from a tarball).\nset -eu\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n[ -f \"$PLIST\" ] || exit 0\nif ! git -C \"$SRCROOT\" rev-parse --git-dir >/dev/null 2>&1; then\n  echo \"note: not a git checkout; leaving version as configured\"\n  exit 0\nfi\nVERSION=\"$(git -C \"$SRCROOT\" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')\"\nBUILD=\"$(git -C \"$SRCROOT\" rev-list --count HEAD 2>/dev/null || echo 1)\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\necho \"Stamped Signet $VERSION (build $BUILD)\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		BCED166A0793B1D1FDBBD914 /* Sources */ = {
@@ -486,7 +513,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
 				PRODUCT_NAME = Signet;
 				SDKROOT = macosx;
@@ -667,7 +694,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
 				PRODUCT_NAME = Signet;
 				SDKROOT = macosx;
