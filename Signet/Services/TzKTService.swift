@@ -108,3 +108,27 @@ struct TzKTService: Sendable {
 private extension String {
     var nonEmpty: String? { isEmpty ? nil : self }
 }
+
+extension TzKTService {
+    /// TzProfiles data as TzKT indexes it (`extras.profile`), falling back to TzKT's own alias.
+    func accountProfile(for address: Address) async throws -> AccountProfile? {
+        var request = URLRequest(url: baseURL.appendingPathComponent("v1/accounts/\(address.value)"))
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if http.statusCode == 204 || http.statusCode == 404 { return nil }
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return Self.profile(from: data)
+    }
+
+    static func profile(from data: Data) -> AccountProfile? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let profile = (object["extras"] as? [String: Any])?["profile"] as? [String: Any]
+        let name = (profile?["alias"] as? String) ?? (object["alias"] as? String)
+        let twitter = profile?["twitter"] as? String
+        let description = profile?["description"] as? String
+        guard name != nil || twitter != nil || description != nil else { return nil }
+        return AccountProfile(name: name?.trimmingCharacters(in: .whitespaces), twitter: twitter, description: description)
+    }
+}

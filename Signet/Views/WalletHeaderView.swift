@@ -40,24 +40,22 @@ struct WalletIdentityView: View {
     /// The alias doubles as the wallet switcher.
     private var walletPicker: some View {
         Menu {
-            ForEach(model.wallets) { candidate in
-                Button {
-                    model.select(candidate)
-                } label: {
-                    if candidate.id == wallet.id {
-                        Label(walletTitle(candidate), systemImage: "checkmark")
-                    } else {
-                        Text(walletTitle(candidate))
-                    }
-                }
+            let mine = model.wallets.filter { $0.keyKind != .none }
+            let book = model.wallets.filter { $0.keyKind == .none }
+            if !mine.isEmpty {
+                Section("My wallets") { ForEach(mine) { pickerItem($0) } }
+            }
+            if !book.isEmpty {
+                Section("Address book") { ForEach(book) { pickerItem($0) } }
             }
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Text(wallet.alias)
                     .font(.title2.weight(.semibold))
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                if wallet.keyKind == .none { watchOnlyTag }
             }
         }
         .menuStyle(.borderlessButton)
@@ -65,6 +63,28 @@ struct WalletIdentityView: View {
         .fixedSize()
         .help("Switch wallet")
         .accessibilityLabel("Wallet \(wallet.alias). Switch wallet")
+    }
+
+    private var watchOnlyTag: some View {
+        Label("Watch only", systemImage: "eye")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("Signet has no key for this address; you can watch it and send to it.")
+    }
+
+    private func pickerItem(_ candidate: Wallet) -> some View {
+        Button {
+            model.select(candidate)
+        } label: {
+            if candidate.id == wallet.id {
+                Label(walletTitle(candidate), systemImage: "checkmark")
+            } else {
+                Text(walletTitle(candidate))
+            }
+        }
     }
 
     private func walletTitle(_ wallet: Wallet) -> String {
@@ -91,6 +111,8 @@ struct AppMenuButton: View {
         Menu {
             Button("Create wallet…") { model.isPresentingCreateWallet = true }
                 .keyboardShortcut("n", modifiers: .command)
+            Button("Add address…") { model.isPresentingAddAddress = true }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Rename wallet…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
             Button("Reload wallets") { model.reloadWallets() }

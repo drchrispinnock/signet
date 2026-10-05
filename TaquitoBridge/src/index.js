@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.3.0";
+  return "0.5.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -107,12 +107,73 @@ export async function getTezBalances(rpcUrl, address) {
       throw e;
     }
   };
-  const [spendable, staked, unstakedFrozen, unstakedFinalizable, full] = await Promise.all([
+  // full_balance is the one field the node refuses (HTTP 500, "missing_key" storage error) for
+  // an account the chain has never seen; report that as exists: false instead of throwing.
+  const fullOrMissing = async () => {
+    try {
+      const value = await rpc.getFullBalance(address);
+      return { full: value == null ? "0" : value.toString(10), exists: true };
+    } catch (e) {
+      const text = String(e?.message ?? e) + JSON.stringify(e?.body ?? e?.errors ?? "");
+      if (text.includes("missing_key") || text.includes("storage_error")) return { full: null, exists: false };
+      if (text.includes("BigNumber Error")) return { full: "0", exists: true };
+      throw e;
+    }
+  };
+  const [spendable, staked, unstakedFrozen, unstakedFinalizable, fullInfo] = await Promise.all([
     zeroIfMissing(() => rpc.getSpendable(address)),
     zeroIfMissing(() => rpc.getStakedBalance(address)),
     zeroIfMissing(() => rpc.getUnstakedFrozenBalance(address)),
     zeroIfMissing(() => rpc.getUnstakedFinalizableBalance(address)),
-    zeroIfMissing(() => rpc.getFullBalance(address)),
+    fullOrMissing(),
   ]);
-  return { spendable, staked, unstakedFrozen, unstakedFinalizable, full };
+  return { spendable, staked, unstakedFrozen, unstakedFinalizable, full: fullInfo.full, exists: fullInfo.exists };
+}
+
+// ---- Transfers -------------------------------------------------------------------------------
+
+/** A signer that can identify the source but never sign: enough for estimation. */
+function readOnlySigner(publicKey, address) {
+  return {
+    publicKey: async () => publicKey,
+    publicKeyHash: async () => address,
+    secretKey: async () => undefined,
+    sign: async () => { throw new Error("read-only signer cannot sign"); },
+  };
+}
+
+/** Fee, burn and total for sending `amountMutez` from `source` to `destination`. No secret needed. */
+export async function estimateTransfer(rpcUrl, source, publicKey, destination, amountMutez) {
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(readOnlySigner(publicKey, source));
+  const est = await tk.estimate.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
+  return {
+    feeMutez: String(est.suggestedFeeMutez),
+    burnMutez: String(est.burnFeeMutez),
+    totalCostMutez: String(est.totalCost),
+    gasLimit: est.gasLimit,
+    storageLimit: est.storageLimit,
+  };
+}
+
+const pendingOperations = new Map();
+
+/** Signs and injects a transfer with `secretKey` (base58, unencrypted). Returns the operation hash. */
+export async function sendTransfer(rpcUrl, secretKey, destination, amountMutez) {
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(new InMemorySigner(secretKey));
+  const op = await tk.contract.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
+  pendingOperations.set(op.hash, op);
+  return { hash: op.hash };
+}
+
+/** Waits for `confirmations` blocks on an operation sent in this session. Returns the block level. */
+export async function waitForConfirmation(hash, confirmations = 1) {
+  const op = pendingOperations.get(hash);
+  if (!op) throw new Error(`unknown operation ${hash}`);
+  try {
+    return await op.confirmation(confirmations);
+  } finally {
+    pendingOperations.delete(hash);
+  }
 }

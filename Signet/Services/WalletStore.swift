@@ -5,6 +5,8 @@ protocol WalletStore: Sendable {
     func load() throws -> [Wallet]
     /// Adds a wallet and its secret key. Fails if the alias is already taken.
     func add(_ wallet: Wallet, secretKey: String) throws
+    /// Adds an address we hold no key for (address book). Fails if the alias is already taken.
+    func addWatchOnly(_ wallet: Wallet) throws
     /// The base58 secret key, or `nil` if it is not held in clear (encrypted, ledger, remote, watch-only).
     func secretKey(for wallet: Wallet) throws -> String?
     /// Changes an alias everywhere it appears. Fails if the new alias is already taken.
@@ -33,6 +35,16 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
             guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
             wallets.append(wallet)
             secrets[wallet.alias] = secretKey
+        }
+    }
+
+    func addWatchOnly(_ wallet: Wallet) throws {
+        try lock.withLock {
+            guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
+            var entry = wallet
+            entry.keyKind = .none
+            entry.publicKey = nil
+            wallets.append(entry)
         }
     }
 

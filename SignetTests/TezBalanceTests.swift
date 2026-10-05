@@ -42,3 +42,29 @@ struct TezBalanceTests {
         #expect(abs((viaTaquito.total - viaRPC.total) as NSDecimalNumber as! Double) < 100)
     }
 }
+
+@MainActor
+struct AccountNotOnChainTests {
+    struct MissingChain: TestChainService {
+        func tezBalance(for address: Address) async throws -> TezBalance { throw ChainError.accountNotOnChain(address) }
+        func domains(for address: Address) async throws -> [String] { ["ghost.tez"] }
+    }
+
+    @Test func flagsTheAccountInsteadOfFailing() async {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MissingChain())
+        await model.refresh()
+        #expect(model.accountNotOnChain)
+        #expect(model.assets.isEmpty)
+        #expect(model.errorMessage == nil)
+        #expect(model.domains == ["ghost.tez"])  // other lookups still run
+    }
+
+    /// A brand-new key has certainly never been funded, so both paths must report it as absent.
+    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    func freshAddressIsReportedAsNotOnChain() async throws {
+        let fresh = Address(try await KeyGenerator().generate(scheme: .tz1).address)
+        let service = TaquitoChainService(network: .mainnet)
+        await #expect(throws: ChainError.accountNotOnChain(fresh)) { _ = try await service.tezBalance(for: fresh) }
+        await #expect(throws: ChainError.accountNotOnChain(fresh)) { _ = try await service.directTezBalance(for: fresh) }
+    }
+}

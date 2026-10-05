@@ -98,6 +98,19 @@ struct TezosClientStore: WalletStore {
         }
     }
 
+    func addWatchOnly(_ wallet: Wallet) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        try withWalletLock {
+            var hashes = try readRaw(Self.publicKeyHashesFile)
+            let taken = try [hashes, readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile)]
+                .contains { $0.contains { ($0["name"] as? String) == wallet.alias } }
+            guard !taken else { throw StoreError.aliasExists(wallet.alias) }
+            hashes.append(["name": wallet.alias, "value": wallet.address.value])
+            try write(hashes, to: Self.publicKeyHashesFile)
+        }
+    }
+
     func rename(alias: String, to newAlias: String) throws {
         try withWalletLock {
             var files = try [Self.publicKeyHashesFile, Self.publicKeysFile, Self.secretKeysFile].map { ($0, try readRaw($0)) }

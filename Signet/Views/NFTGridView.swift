@@ -26,7 +26,8 @@ struct NFTGridView: View {
                 Text(isLoading ? "Loading…" : "No NFTs in this wallet.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 24)
             } else {
                 ScrollView(.vertical) {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
@@ -38,7 +39,7 @@ struct NFTGridView: View {
                 }
             }
         }
-        .frame(minHeight: 180, idealHeight: 300)
+        .frame(maxWidth: .infinity, minHeight: 180, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

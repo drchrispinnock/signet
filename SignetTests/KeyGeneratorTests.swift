@@ -151,13 +151,9 @@ struct SelectionPersistenceTests {
 @MainActor
 struct NetworkSettingsTests {
     /// A chain service that reports which network it was built for.
-    struct Probe: ChainService {
+    struct Probe: TestChainService {
         let network: Network
         func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: network == .mainnet ? 1 : 2) }
-        func etherlinkBalance(for address: Address) async throws -> Decimal { 0 }
-        func tokenBalances(for address: Address) async throws -> [AssetBalance] { [] }
-        func domains(for address: Address) async throws -> [String] { [] }
-        func nfts(for address: Address) async throws -> [NFT] { [] }
     }
 
     @Test func defaultsToMainnetAndSwitchingRebuildsTheChainService() async throws {

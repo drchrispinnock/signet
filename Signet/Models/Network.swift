@@ -14,8 +14,6 @@ struct Network: Hashable, Identifiable, Sendable {
     let tezosDomainsURL: URL?
     /// TzKT indexer base URL (tokens, NFTs), or `nil` where none is available.
     let tzktURL: URL?
-    /// TzKT avatar service (TzProfiles logos, known-account logos, identicon fallback), or `nil`.
-    let avatarURL: URL?
 
     var isMainnet: Bool { chain == "mainnet" }
 
@@ -24,25 +22,35 @@ struct Network: Hashable, Identifiable, Sendable {
         chain: "mainnet",
         rpcURL: URL(string: "https://rpc.tzbeta.net")!,
         tezosDomainsURL: URL(string: "https://api.tezos.domains/graphql")!,
-        tzktURL: URL(string: "https://api.tzkt.io")!,
-        avatarURL: URL(string: "https://services.tzkt.io/v1/avatars/")!
+        tzktURL: URL(string: "https://api.tzkt.io")!
     )
     static let shadownet = Network(
         name: "Shadownet",
         chain: "shadownet",
         rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
-        avatarURL: nil
+        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!
     )
 
-    /// The avatar image for `address` on this network, as TzKT shows it, or `nil` without a service.
-    func avatarURL(for address: Address) -> URL? {
-        avatarURL.flatMap { URL(string: address.value, relativeTo: $0)?.absoluteURL }
-    }
+
+    static let bakingnet = Network(
+        name: "Bakingnet",
+        chain: "bakingnet",
+        rpcURL: URL(string: "https://rpc.bakingnet.teztnets.com")!,
+        tezosDomainsURL: nil,
+        tzktURL: URL(string: "https://api.bakingnet.tzkt.io")!
+    )
+    /// The current protocol-proposal testnet (Ushuaianet at the time of writing).
+    static let currentnet = Network(
+        name: "Currentnet",
+        chain: "currentnet",
+        rpcURL: URL(string: "https://rpc.currentnet.teztnets.com")!,
+        tezosDomainsURL: nil,
+        tzktURL: nil
+    )
 
     /// Networks offered in Settings, in display order.
-    static let all: [Network] = [.mainnet, .shadownet]
+    static let all: [Network] = [.mainnet, .shadownet, .bakingnet, .currentnet]
 
     static func named(_ name: String?) -> Network? {
         all.first { $0.name == name }

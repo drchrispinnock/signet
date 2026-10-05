@@ -17,3 +17,6 @@ Signet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Node (Taquito bridge)
 node_modules/
+
+# Release artefacts
+dist/

@@ -21,6 +21,7 @@ struct TaquitoChainService: ChainService {
             return try await directTezBalance(for: address)
         }
         let result = try await bridge.call("getTezBalances", [network.rpcURL.absoluteString, address.value])
+        if result["exists"] == .bool(false) { throw ChainError.accountNotOnChain(address) }
         guard let balance = TezBalance(
             mutezSpendable: result["spendable"]?.stringValue,
             staked: result["staked"]?.stringValue,
@@ -34,6 +35,12 @@ struct TaquitoChainService: ChainService {
 
     /// The same breakdown straight from the node: `/context/contracts/<pkh>/{spendable,staked_balance,...}`.
     func directTezBalance(for address: Address) async throws -> TezBalance {
+        // full_balance is refused with a "missing_key" storage error for accounts the chain has never seen.
+        do {
+            _ = try await rpcMutez("full_balance", for: address)
+        } catch let error as RPCError where error.body.contains("missing_key") || error.body.contains("storage_error") {
+            throw ChainError.accountNotOnChain(address)
+        }
         async let spendable = rpcMutez("spendable", for: address)
         async let staked = rpcMutez("staked_balance", for: address)
         async let frozen = rpcMutez("unstaked_frozen_balance", for: address)
@@ -49,7 +56,8 @@ struct TaquitoChainService: ChainService {
         let url = network.rpcURL.appendingPathComponent("chains/main/blocks/head/context/contracts/\(address.value)/\(field)")
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "RPC error for \(address.shortened()) \(field): \(String(data: data, encoding: .utf8) ?? "")"])
+            throw RPCError(status: (response as? HTTPURLResponse)?.statusCode ?? 0, field: field, address: address,
+                           body: String(data: data, encoding: .utf8) ?? "")
         }
         guard let text = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? String else {
             throw URLError(.cannotParseResponse)
@@ -59,6 +67,42 @@ struct TaquitoChainService: ChainService {
 
     func etherlinkBalance(for address: Address) async throws -> Decimal {
         try await fallback.etherlinkBalance(for: address)
+    }
+
+    func resolveDomain(_ name: String) async throws -> Address? {
+        guard let endpoint = network.tezosDomainsURL else { return nil }
+        return try await TezosDomainsService(endpoint: endpoint, session: session).resolve(name: name)
+    }
+
+    /// Always mainnet: TzProfiles are mainnet identities regardless of the network in use.
+    func accountProfile(for address: Address) async throws -> AccountProfile? {
+        try await TzKTService(baseURL: Profiles.profileIndexer, session: session).accountProfile(for: address)
+    }
+
+    func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Wallet “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        let result = try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)])
+        guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue),
+              let burn = Mutez.toTez(result["burnMutez"]?.stringValue),
+              let total = Mutez.toTez(result["totalCostMutez"]?.stringValue)
+        else { throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: result))") }
+        return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn,
+                                gasLimit: Int(result["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(result["storageLimit"]?.doubleValue ?? 0))
+    }
+
+    func sendTransfer(from wallet: Wallet, secretKey: String, to destination: Address, amount: Decimal) async throws -> String {
+        let result = try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, secretKey, destination.value, Mutez.fromTez(amount)])
+        guard let hash = result["hash"]?.stringValue else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected send payload: \(String(describing: result))")
+        }
+        return hash
+    }
+
+    func waitForConfirmation(of operationHash: String) async throws -> Int {
+        let result = try await bridge.call("waitForConfirmation", [operationHash, 1])
+        return Int(result.doubleValue ?? 0)
     }
 
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
@@ -88,5 +132,17 @@ struct TaquitoChainService: ChainService {
             NSLog("TzKT NFT lookup failed for % %@", address.value, error.localizedDescription)
             return []
         }
+    }
+}
+
+/// A non-2xx answer from the node's RPC, with the body kept for classification.
+struct RPCError: LocalizedError {
+    let status: Int
+    let field: String
+    let address: Address
+    let body: String
+
+    var errorDescription: String? {
+        "RPC error \(status) for \(address.shortened()) \(field): \(body.prefix(200))"
     }
 }

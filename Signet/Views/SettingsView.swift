@@ -7,6 +7,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            appearanceSection
             nodeSection
             if let directory = model.walletDirectory {
                 walletDirectorySection(directory)
@@ -16,11 +17,25 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 640)
+        .frame(width: 480, height: 780)
         .navigationTitle("Settings")
+        .appliesStoredAppearance()
     }
 
     // MARK: Sections
+
+    @AppStorage(Appearance.key) private var appearance: Appearance = .system
+
+    private var appearanceSection: some View {
+        Section {
+            Picker("Appearance", selection: $appearance) {
+                ForEach(Appearance.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
 
     private var nodeSection: some View {
         Section {

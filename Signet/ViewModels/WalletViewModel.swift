@@ -8,12 +8,16 @@ final class WalletViewModel {
     enum WalletError: LocalizedError {
         case emptyAlias
         case aliasExists(String)
+        case addressExists(String)
+        case invalidAddress
         case unsupportedScheme(AddressScheme)
 
         var errorDescription: String? {
             switch self {
             case .emptyAlias: "Give the wallet a name."
             case .aliasExists(let alias): "A wallet named “\(alias)” already exists."
+            case .addressExists(let alias): "That address is already in the list as “\(alias)”."
+            case .invalidAddress: "That is not a valid Tezos address."
             case .unsupportedScheme(let scheme): scheme.unavailableReason ?? "\(scheme.rawValue) is not supported yet."
             }
         }
@@ -27,11 +31,16 @@ final class WalletViewModel {
     var isPresentingCreateWallet = false
     var isPresentingRenameWallet = false
     var isPresentingReceive = false
+    var isPresentingAddAddress = false
+    var isPresentingSend = false
 
     private(set) var domains: [String] = []
     private(set) var assets: [AssetBalance] = []
+    private(set) var tezBalance: TezBalance?
     private(set) var nfts: [NFT] = []
     private(set) var isLoading = false
+    /// True when the node has no record of the selected address (never funded on this network).
+    private(set) var accountNotOnChain = false
     private(set) var isCreatingWallet = false
     private(set) var errorMessage: String?
 
@@ -234,6 +243,7 @@ final class WalletViewModel {
         }
         isLoading = true
         errorMessage = nil
+        accountNotOnChain = false
         defer { isLoading = false }
 
         let address = wallet.address
@@ -245,6 +255,7 @@ final class WalletViewModel {
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
+            self.tezBalance = tezBalance
             if Self.showsEtherlinkBalance {
                 let etherlink = try await chain.etherlinkBalance(for: address)
                 list.append(AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: etherlink))
@@ -256,6 +267,12 @@ final class WalletViewModel {
             assets = list
             domains = try await names
             nfts = try await collectibles
+        } catch ChainError.accountNotOnChain {
+            guard address == selectedWallet?.address else { return }
+            accountNotOnChain = true
+            assets = []
+            domains = (try? await chain.domains(for: address)) ?? []
+            nfts = (try? await chain.nfts(for: address)) ?? []
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -268,6 +285,8 @@ final class WalletViewModel {
         domains = []
         assets = []
         nfts = []
+        tezBalance = nil
+        accountNotOnChain = false
         Task { await refresh() }
     }
 
@@ -309,6 +328,35 @@ final class WalletViewModel {
         guard store.hasWallets, let candidates = try? store.load() else { return 0 }
         let known = Set(existing.map(\.alias))
         return candidates.filter { !known.contains($0.alias) }.count
+    }
+
+    /// Adds an address book entry: an alias for an address we hold no key for.
+    func addWatchOnlyWallet(alias: String, address rawAddress: String) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = Address(rawAddress.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard address.isValidAccount else { throw WalletError.invalidAddress }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
+
+        let wallet = Wallet(alias: name, address: address, keyKind: .none)
+        try walletStore.addWatchOnly(wallet)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
+    }
+
+    /// The live chain service, for flows that run their own lookups (Send).
+    var chainService: any ChainService { chain }
+
+    /// The clear-text secret key for one of our wallets, read from the store on demand.
+    func secretKey(for wallet: Wallet) throws -> String? {
+        try walletStore.secretKey(for: wallet)
+    }
+
+    /// Tezos Domains names for any address, for previews while typing.
+    func domainNames(for address: Address) async -> [String] {
+        (try? await chain.domains(for: address)) ?? []
     }
 
     /// Renames the selected wallet's alias in the store and keeps it selected.

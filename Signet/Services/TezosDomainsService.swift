@@ -41,6 +41,30 @@ struct TezosDomainsService: Sendable {
         return decoded.data?.reverseRecord?.domain?.name
     }
 
+    /// The address a `.tez` name points at, or `nil` if the name is unregistered or has no address.
+    func resolve(name: String) async throws -> Address? {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        let query = "query($name: String!) { domain(name: $name) { address } }"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": ["name": name.lowercased()]])
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw DomainsError.badResponse("HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+        }
+        let decoded = try JSONDecoder().decode(ForwardResponse.self, from: data)
+        return decoded.data?.domain?.address.map(Address.init)
+    }
+
+    private struct ForwardResponse: Decodable {
+        struct Payload: Decodable {
+            struct Domain: Decodable { let address: String? }
+            let domain: Domain?
+        }
+        let data: Payload?
+    }
+
     private struct Response: Decodable {
         struct Payload: Decodable {
             struct ReverseRecord: Decodable {

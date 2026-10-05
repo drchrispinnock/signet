@@ -32,6 +32,15 @@ xcodebuild -project Signet.xcodeproj -scheme Signet -destination 'platform=macOS
 
 Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), not XCTest.
 
+## Releases
+
+`scripts/release.sh [version]` archives a Release build, signs it with `$DEVELOPER_ID` if set
+(ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`.
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which does the same on a macOS runner and
+attaches the zip to a GitHub release; signing and notarisation switch on when the repository
+secrets described in the workflow exist. The app is only ad-hoc signed until a Developer ID
+certificate is configured, so downloads will trip Gatekeeper for ordinary users.
+
 ## Architecture
 
 - **Models** (`Signet/Models`) are plain `Sendable` value types. A `Wallet` is one `Address`
@@ -64,18 +73,31 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   are written to the client directory as `unencrypted:` entries, like octez-client's default.
 - **`WalletViewModel`** is a `@MainActor @Observable` class owning the wallet list, the
   selected wallet and the loaded balances, domains and NFTs, and `createWallet(alias:scheme:)`.
+- **Send.** `SendSheet` + `SendViewModel`: recipient is an address, a `.tez` name (forward lookup via
+  `TezosDomainsService.resolve`) or a pick from our wallets/address book; the confirm step shows
+  sender → recipient with avatars, the recipient named from our records (verified) or from the
+  TzProfiles data TzKT carries in `extras.profile` ("Not verified"), plus fee/allocation/total from
+  `estimateTransfer`, which runs in the bridge with a read-only signer so no secret is needed to
+  estimate. `sendTransfer` hands the clear-text secret to Taquito's `InMemorySigner` for the one
+  operation (native signing is a planned improvement); `waitForConfirmation` waits one block.
+  Only `KeyKind.unencrypted` wallets can send today.
+- **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
+  `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
   classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
   connection); `NodeStatusBar` pins it to the bottom of the window. `evaluate` is pure for tests.
 - **Balances.** The node's `balance` is only the spendable part. `TezBalance` carries spendable,
   staked, unstaked-frozen and unstaked-finalizable tez; the tez row shows the total (the node's
   `full_balance`) and expands into those lines. Fetched via Taquito's RPC client for tz1 to tz4
-  and by direct RPC for tz5/tz6. `refresh()` fans out all loads concurrently.
+  and by direct RPC for tz5/tz6. The node refuses `full_balance` with a 500 "missing_key" storage
+  error for an account it has never seen; both paths map that to `ChainError.accountNotOnChain`,
+  which the dashboard shows as "Key not found on chain" in place of the balance rows. `refresh()` fans out all loads concurrently.
 - **Views** map one-to-one onto the sketch: `WalletHomeView` composes `WalletHeaderView`
   (the alias is a dropdown that switches wallets; shortened address with copy button; Tezos
   Domains name stacked beneath the address, a round `AccountAvatarView` on the left fed by TzKT's
   avatar service `services.tzkt.io/v1/avatars/<address>` (TzProfiles or known-account logo, else
-  an identicon; WebP, decoded by ImageIO) via `Network.avatarURL(for:)`, fetched live from the Tezos Domains GraphQL API by
+  an identicon; WebP, decoded by ImageIO) via `Profiles.avatarURL(for:)`; avatars and TzProfiles names always come from mainnet
+  services whatever network is selected, because a TzProfile is a mainnet identity), fetched live from the Tezos Domains GraphQL API by
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy, Sell; Receive opens `ReceiveSheet` with a Core Image QR
@@ -83,7 +105,11 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   other tokens) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
   decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
   over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` is reached from the hamburger menu, the
-  File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard.
+  File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
+  (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
+  `public_key_hashs` only, validated by `Address.isValidAccount` (base58 checksum, so tz5/tz6 and
+  KT1 pass without Taquito). The wallet dropdown shows these under "Address book" and the header
+  tags them "Watch only".
 - The project builds with Swift 6 language mode and complete strict concurrency; keep new types
   `Sendable` and UI work on the main actor.
 

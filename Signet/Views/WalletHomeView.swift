@@ -9,10 +9,12 @@ struct WalletHomeView: View {
         VStack(spacing: 0) {
             content
                 .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             Divider()
             NodeStatusBar(monitor: model.nodeMonitor)
         }
         .frame(minWidth: 480, minHeight: 720)
+        .appliesStoredAppearance()
         .task {
             model.nodeMonitor.start()
             await model.refresh()
@@ -22,6 +24,14 @@ struct WalletHomeView: View {
         }
         .sheet(isPresented: $model.isPresentingRenameWallet) {
             RenameWalletSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingAddAddress) {
+            AddAddressSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingSend) {
+            if let wallet = model.selectedWallet {
+                SendSheet(model: model, sender: wallet)
+            }
         }
         .sheet(isPresented: $model.isPresentingReceive) {
             if let wallet = model.selectedWallet {
@@ -57,7 +67,11 @@ struct WalletHomeView: View {
                     AppMenuButton(model: model)
                 }
                 ActionButtonsView(model: model)
-                AssetListView(assets: model.assets)
+                if model.accountNotOnChain {
+                    AccountNotOnChainView(network: model.network)
+                } else {
+                    AssetListView(assets: model.assets)
+                }
                 Divider()
                 NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
             } else {

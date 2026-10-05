@@ -1,15 +1,19 @@
 import SwiftUI
 
-/// Round avatar for an address, from TzKT's avatar service (TzProfiles logo, known-account logo,
-/// or an identicon). Falls back to a neutral placeholder on networks without the service.
+/// Round avatar for an address from TzKT's avatar service (TzProfiles logo, known-account logo,
+/// or an identicon). Always mainnet: a TzProfile is a mainnet identity.
 struct AccountAvatarView: View {
     let address: Address
-    let network: Network
     var size: CGFloat = 44
+
+    init(address: Address, network: Network? = nil, size: CGFloat = 44) {
+        self.address = address
+        self.size = size
+    }
 
     var body: some View {
         Group {
-            if let url = network.avatarURL(for: address) {
+            if let url = Profiles.avatarURL(for: address) {
                 RemoteImage(urls: [url]) { image in
                     Image(nsImage: image).resizable().scaledToFill()
                 } placeholder: { _ in
@@ -36,6 +40,6 @@ struct AccountAvatarView: View {
 }
 
 #Preview {
-    AccountAvatarView(address: Address("tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"), network: .mainnet, size: 64)
+    AccountAvatarView(address: Address("tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"), size: 64)
         .padding()
 }

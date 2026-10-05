@@ -49,3 +49,41 @@ enum TezosPrefix {
     static let blsk: [UInt8] = [3, 150, 192, 40]
     static let blpk: [UInt8] = [6, 149, 135, 204]
 }
+
+extension Base58 {
+    private static let digitValues: [UInt8: UInt8] = {
+        var map: [UInt8: UInt8] = [:]
+        for (i, c) in alphabet.enumerated() { map[c] = UInt8(i) }
+        return map
+    }()
+
+    /// Decodes base58 text to bytes, or `nil` on a bad character.
+    static func decode(_ string: String) -> [UInt8]? {
+        var zeros = 0
+        for c in string.utf8 { if c == UInt8(ascii: "1") { zeros += 1 } else { break } }
+
+        var bytes: [UInt8] = []  // little-endian base-256 digits
+        for c in string.utf8.dropFirst(zeros) {
+            guard var carry = digitValues[c].map(Int.init) else { return nil }
+            for i in bytes.indices {
+                carry += Int(bytes[i]) * 58
+                bytes[i] = UInt8(carry & 0xff)
+                carry >>= 8
+            }
+            while carry > 0 {
+                bytes.append(UInt8(carry & 0xff))
+                carry >>= 8
+            }
+        }
+        return [UInt8](repeating: 0, count: zeros) + bytes.reversed()
+    }
+
+    /// Decodes and verifies the 4-byte double-SHA256 checksum; returns the payload including prefix.
+    static func checkDecode(_ string: String) -> [UInt8]? {
+        guard let bytes = decode(string), bytes.count > 4 else { return nil }
+        let body = Array(bytes.dropLast(4))
+        let checksum = Array(bytes.suffix(4))
+        let expected = Array(SHA256.hash(data: Data(SHA256.hash(data: Data(body)))).prefix(4))
+        return checksum == expected ? body : nil
+    }
+}
