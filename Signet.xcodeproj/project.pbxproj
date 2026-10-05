@@ -1,0 +1,570 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */; };
+		10516DDFD3C74F49D141E4A6 /* ActionButtonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB238C502C752F4198363525 /* ActionButtonsView.swift */; };
+		13354E2B7B8C14D263838D0A /* AssetBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82891C504DD66214B765AF83 /* AssetBalance.swift */; };
+		187F8A19861109D189ACEEA7 /* WalletHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075C70E256C22BF792C133B6 /* WalletHomeView.swift */; };
+		31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */; };
+		352781EAEFD67868E1C159A5 /* NFTGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278776717D4BD5F05FF06B65 /* NFTGridView.swift */; };
+		353C2A8477261BC9E54ED68A /* Address.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC5AEA37DB0C4CC4A507E78 /* Address.swift */; };
+		3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */; };
+		4AED8C1726FA50A22393D834 /* NFT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D36824F9FB49AF03A6D12F1 /* NFT.swift */; };
+		549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */; };
+		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
+		883F4ADFF59858290E77FF20 /* CreateWalletSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F999353F1C6082368B01FE9C /* CreateWalletSheet.swift */; };
+		896C54EFB54D417EF6A58C50 /* MockChainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926EF7412E238A0CC14FA791 /* MockChainService.swift */; };
+		899D3FBBD2AB375399DCFD4E /* Network.swift in Sources */ = {isa = PBXBuildFile; fileRef = 445064DD790420A57A0362DD /* Network.swift */; };
+		8D9405F75AAB8B8C0884DA0B /* AddressScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDEC38EDE514E7EC1A935DF1 /* AddressScheme.swift */; };
+		8F09FED640570EB136F0362B /* ChainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010E1B71F572FFBE46D1233 /* ChainService.swift */; };
+		90193F86F97E3A6EFCF5D397 /* KeyMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */; };
+		9384F5734C7FA30F1AAAF719 /* Wallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83A465432E9E915B374F22E /* Wallet.swift */; };
+		B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9682C459E924F07DEF53FC3 /* Theme.swift */; };
+		BB762E536DA58062274B723C /* TaquitoChainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */; };
+		BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */; };
+		BEBA52C6B05825C81E3B0223 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */; };
+		C0B1728E1DC77C41A2360C37 /* SignetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */; };
+		C3AEE7B758748C0997C2FFDD /* Base58.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F7142388FBD9770414F6F0 /* Base58.swift */; };
+		D1119DFB6539DFF9B599B0CA /* WalletStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B591F4ED8860E9761BCAEC /* WalletStore.swift */; };
+		D1E697F33E916872C42393AF /* TaquitoBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14BE215CE24A40FB22C3584 /* TaquitoBridge.swift */; };
+		DE1AE0B35065AA27F298E372 /* SecretKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA69EFA0AED8CF06FBD8109 /* SecretKeyStore.swift */; };
+		EFDB94E16FD6390A50E7CBE2 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8A25CB62696FFB8F173814 /* JSONValue.swift */; };
+		F0231794744CC54F6F39B989 /* taquito-bridge.js in Resources */ = {isa = PBXBuildFile; fileRef = FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */; };
+		FDCC5A239632D223F09CE02A /* WalletHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8BE3DE692F75761E42BF99A8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 67554F7521F02DFA4AC9B904 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 20A0A6CE7CD9B3C31B94B030;
+			remoteInfo = Signet;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		075C70E256C22BF792C133B6 /* WalletHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHomeView.swift; sourceTree = "<group>"; };
+		0B8A25CB62696FFB8F173814 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		0FC5AEA37DB0C4CC4A507E78 /* Address.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Address.swift; sourceTree = "<group>"; };
+		17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGenerator.swift; sourceTree = "<group>"; };
+		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
+		278776717D4BD5F05FF06B65 /* NFTGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTGridView.swift; sourceTree = "<group>"; };
+		389A75014E3B2DEFD52F2274 /* Signet.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Signet.entitlements; sourceTree = "<group>"; };
+		445064DD790420A57A0362DD /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
+		4DA69EFA0AED8CF06FBD8109 /* SecretKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretKeyStore.swift; sourceTree = "<group>"; };
+		52C145BB526DC161273EB9F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		558CDF12CE81034B95FF02F4 /* SignetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoBridgeTests.swift; sourceTree = "<group>"; };
+		80E99E461133439B04A22C8A /* Signet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Signet.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		82891C504DD66214B765AF83 /* AssetBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetBalance.swift; sourceTree = "<group>"; };
+		8D36824F9FB49AF03A6D12F1 /* NFT.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFT.swift; sourceTree = "<group>"; };
+		926EF7412E238A0CC14FA791 /* MockChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChainService.swift; sourceTree = "<group>"; };
+		954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyMaterial.swift; sourceTree = "<group>"; };
+		9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignetApp.swift; sourceTree = "<group>"; };
+		A8F7142388FBD9770414F6F0 /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
+		B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletViewModel.swift; sourceTree = "<group>"; };
+		B83A465432E9E915B374F22E /* Wallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Wallet.swift; sourceTree = "<group>"; };
+		B8B591F4ED8860E9761BCAEC /* WalletStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletStore.swift; sourceTree = "<group>"; };
+		C010E1B71F572FFBE46D1233 /* ChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChainService.swift; sourceTree = "<group>"; };
+		CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressTests.swift; sourceTree = "<group>"; };
+		D9682C459E924F07DEF53FC3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGeneratorTests.swift; sourceTree = "<group>"; };
+		E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHeaderView.swift; sourceTree = "<group>"; };
+		F14BE215CE24A40FB22C3584 /* TaquitoBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoBridge.swift; sourceTree = "<group>"; };
+		F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetListView.swift; sourceTree = "<group>"; };
+		F999353F1C6082368B01FE9C /* CreateWalletSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateWalletSheet.swift; sourceTree = "<group>"; };
+		FB238C502C752F4198363525 /* ActionButtonsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonsView.swift; sourceTree = "<group>"; };
+		FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "taquito-bridge.js"; sourceTree = "<group>"; };
+		FDEC38EDE514E7EC1A935DF1 /* AddressScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressScheme.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		007C04DA9CCA7D5369849DE3 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FB238C502C752F4198363525 /* ActionButtonsView.swift */,
+				F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */,
+				F999353F1C6082368B01FE9C /* CreateWalletSheet.swift */,
+				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
+				D9682C459E924F07DEF53FC3 /* Theme.swift */,
+				E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */,
+				075C70E256C22BF792C133B6 /* WalletHomeView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		1CFDE713252FD3D3FD5C800A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0FC5AEA37DB0C4CC4A507E78 /* Address.swift */,
+				FDEC38EDE514E7EC1A935DF1 /* AddressScheme.swift */,
+				82891C504DD66214B765AF83 /* AssetBalance.swift */,
+				A8F7142388FBD9770414F6F0 /* Base58.swift */,
+				954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */,
+				445064DD790420A57A0362DD /* Network.swift */,
+				8D36824F9FB49AF03A6D12F1 /* NFT.swift */,
+				B83A465432E9E915B374F22E /* Wallet.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		34E38B8CD3E85C79D0DDE13D = {
+			isa = PBXGroup;
+			children = (
+				BA857D8DBB8898C281739BD6 /* Signet */,
+				50021F037ECE27D2FB40FF16 /* SignetTests */,
+				F2367709A2DDF62BDA536E06 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		50021F037ECE27D2FB40FF16 /* SignetTests */ = {
+			isa = PBXGroup;
+			children = (
+				CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */,
+				E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */,
+				728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */,
+			);
+			path = SignetTests;
+			sourceTree = "<group>";
+		};
+		58A5683662DA0C6A652B07D2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */,
+				FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		BA857D8DBB8898C281739BD6 /* Signet */ = {
+			isa = PBXGroup;
+			children = (
+				52C145BB526DC161273EB9F7 /* Info.plist */,
+				389A75014E3B2DEFD52F2274 /* Signet.entitlements */,
+				9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */,
+				1CFDE713252FD3D3FD5C800A /* Models */,
+				58A5683662DA0C6A652B07D2 /* Resources */,
+				C0376BE86D00E92CD14CD922 /* Services */,
+				CE3C6FEB2FB3E37BB278363A /* ViewModels */,
+				007C04DA9CCA7D5369849DE3 /* Views */,
+			);
+			path = Signet;
+			sourceTree = "<group>";
+		};
+		C0376BE86D00E92CD14CD922 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				C010E1B71F572FFBE46D1233 /* ChainService.swift */,
+				0B8A25CB62696FFB8F173814 /* JSONValue.swift */,
+				17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */,
+				926EF7412E238A0CC14FA791 /* MockChainService.swift */,
+				4DA69EFA0AED8CF06FBD8109 /* SecretKeyStore.swift */,
+				F14BE215CE24A40FB22C3584 /* TaquitoBridge.swift */,
+				1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */,
+				B8B591F4ED8860E9761BCAEC /* WalletStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		CE3C6FEB2FB3E37BB278363A /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		F2367709A2DDF62BDA536E06 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				80E99E461133439B04A22C8A /* Signet.app */,
+				558CDF12CE81034B95FF02F4 /* SignetTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		20A0A6CE7CD9B3C31B94B030 /* Signet */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 551EE9AECEE4C818E112F0C8 /* Build configuration list for PBXNativeTarget "Signet" */;
+			buildPhases = (
+				BCED166A0793B1D1FDBBD914 /* Sources */,
+				35B4CDAE10B40980393C0FB3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Signet;
+			packageProductDependencies = (
+			);
+			productName = Signet;
+			productReference = 80E99E461133439B04A22C8A /* Signet.app */;
+			productType = "com.apple.product-type.application";
+		};
+		31991C13D9C4FB1CFD57E0C2 /* SignetTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9AED97E22DAAEF52201E9194 /* Build configuration list for PBXNativeTarget "SignetTests" */;
+			buildPhases = (
+				F4726522E578362FE9F6DE22 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				70063DDD4DB8F2BC672E82DF /* PBXTargetDependency */,
+			);
+			name = SignetTests;
+			packageProductDependencies = (
+			);
+			productName = SignetTests;
+			productReference = 558CDF12CE81034B95FF02F4 /* SignetTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		67554F7521F02DFA4AC9B904 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					20A0A6CE7CD9B3C31B94B030 = {
+						ProvisioningStyle = Automatic;
+					};
+					31991C13D9C4FB1CFD57E0C2 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 1F085F61B1F984A947AAC73A /* Build configuration list for PBXProject "Signet" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 34E38B8CD3E85C79D0DDE13D;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F2367709A2DDF62BDA536E06 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				20A0A6CE7CD9B3C31B94B030 /* Signet */,
+				31991C13D9C4FB1CFD57E0C2 /* SignetTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		35B4CDAE10B40980393C0FB3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEBA52C6B05825C81E3B0223 /* Assets.xcassets in Resources */,
+				F0231794744CC54F6F39B989 /* taquito-bridge.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BCED166A0793B1D1FDBBD914 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10516DDFD3C74F49D141E4A6 /* ActionButtonsView.swift in Sources */,
+				353C2A8477261BC9E54ED68A /* Address.swift in Sources */,
+				8D9405F75AAB8B8C0884DA0B /* AddressScheme.swift in Sources */,
+				13354E2B7B8C14D263838D0A /* AssetBalance.swift in Sources */,
+				3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */,
+				C3AEE7B758748C0997C2FFDD /* Base58.swift in Sources */,
+				8F09FED640570EB136F0362B /* ChainService.swift in Sources */,
+				883F4ADFF59858290E77FF20 /* CreateWalletSheet.swift in Sources */,
+				EFDB94E16FD6390A50E7CBE2 /* JSONValue.swift in Sources */,
+				549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */,
+				90193F86F97E3A6EFCF5D397 /* KeyMaterial.swift in Sources */,
+				896C54EFB54D417EF6A58C50 /* MockChainService.swift in Sources */,
+				4AED8C1726FA50A22393D834 /* NFT.swift in Sources */,
+				352781EAEFD67868E1C159A5 /* NFTGridView.swift in Sources */,
+				899D3FBBD2AB375399DCFD4E /* Network.swift in Sources */,
+				DE1AE0B35065AA27F298E372 /* SecretKeyStore.swift in Sources */,
+				C0B1728E1DC77C41A2360C37 /* SignetApp.swift in Sources */,
+				D1E697F33E916872C42393AF /* TaquitoBridge.swift in Sources */,
+				BB762E536DA58062274B723C /* TaquitoChainService.swift in Sources */,
+				B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */,
+				9384F5734C7FA30F1AAAF719 /* Wallet.swift in Sources */,
+				FDCC5A239632D223F09CE02A /* WalletHeaderView.swift in Sources */,
+				187F8A19861109D189ACEEA7 /* WalletHomeView.swift in Sources */,
+				D1119DFB6539DFF9B599B0CA /* WalletStore.swift in Sources */,
+				085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F4726522E578362FE9F6DE22 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */,
+				6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */,
+				BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		70063DDD4DB8F2BC672E82DF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 20A0A6CE7CD9B3C31B94B030 /* Signet */;
+			targetProxy = 8BE3DE692F75761E42BF99A8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1B628F141A271015EB0D2AB1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Signet/Signet.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Signet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
+				PRODUCT_NAME = Signet;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		360C3F1576ED19DD13BDFEAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		63C239A470D2B45D6F46AC04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Signet.app/Contents/MacOS/Signet";
+			};
+			name = Release;
+		};
+		72154F76305840443E6AD6A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		8FB5FA583D9E31E7EB27187C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Signet.app/Contents/MacOS/Signet";
+			};
+			name = Debug;
+		};
+		AF4740FD19F89456B5D91F7A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Signet/Signet.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Signet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
+				PRODUCT_NAME = Signet;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1F085F61B1F984A947AAC73A /* Build configuration list for PBXProject "Signet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				360C3F1576ED19DD13BDFEAC /* Debug */,
+				72154F76305840443E6AD6A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		551EE9AECEE4C818E112F0C8 /* Build configuration list for PBXNativeTarget "Signet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1B628F141A271015EB0D2AB1 /* Debug */,
+				AF4740FD19F89456B5D91F7A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9AED97E22DAAEF52201E9194 /* Build configuration list for PBXNativeTarget "SignetTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8FB5FA583D9E31E7EB27187C /* Debug */,
+				63C239A470D2B45D6F46AC04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 67554F7521F02DFA4AC9B904 /* Project object */;
+}

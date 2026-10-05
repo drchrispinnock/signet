@@ -1,0 +1,19 @@
+{
+  "name": "signet-taquito-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bundles Taquito into a single script that Signet loads in JavaScriptCore.",
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --minify --outfile=../Signet/Resources/taquito-bridge.js",
+    "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js"
+  },
+  "devDependencies": {
+    "@taquito/taquito": "^25.0.0",
+    "@taquito/utils": "^25.0.0",
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "@taquito/signer": "^25.0.0",
+    "buffer": "^6.0.3"
+  }
+}
