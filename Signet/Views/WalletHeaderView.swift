@@ -8,6 +8,13 @@ struct WalletIdentityView: View {
     @State private var copied = false
 
     var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            AccountAvatarView(address: wallet.address, network: model.network, size: 48)
+            identity
+        }
+    }
+
+    private var identity: some View {
         VStack(alignment: .leading, spacing: 4) {
             walletPicker
             HStack(spacing: 6) {

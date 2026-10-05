@@ -73,7 +73,9 @@ Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), no
   and by direct RPC for tz5/tz6. `refresh()` fans out all loads concurrently.
 - **Views** map one-to-one onto the sketch: `WalletHomeView` composes `WalletHeaderView`
   (the alias is a dropdown that switches wallets; shortened address with copy button; Tezos
-  Domains name stacked beneath the address, fetched live from the Tezos Domains GraphQL API by
+  Domains name stacked beneath the address, a round `AccountAvatarView` on the left fed by TzKT's
+  avatar service `services.tzkt.io/v1/avatars/<address>` (TzProfiles or known-account logo, else
+  an identicon; WebP, decoded by ImageIO) via `Network.avatarURL(for:)`, fetched live from the Tezos Domains GraphQL API by
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy, Sell; Receive opens `ReceiveSheet` with a Core Image QR

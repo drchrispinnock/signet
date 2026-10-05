@@ -14,6 +14,8 @@ struct Network: Hashable, Identifiable, Sendable {
     let tezosDomainsURL: URL?
     /// TzKT indexer base URL (tokens, NFTs), or `nil` where none is available.
     let tzktURL: URL?
+    /// TzKT avatar service (TzProfiles logos, known-account logos, identicon fallback), or `nil`.
+    let avatarURL: URL?
 
     var isMainnet: Bool { chain == "mainnet" }
 
@@ -22,15 +24,22 @@ struct Network: Hashable, Identifiable, Sendable {
         chain: "mainnet",
         rpcURL: URL(string: "https://rpc.tzbeta.net")!,
         tezosDomainsURL: URL(string: "https://api.tezos.domains/graphql")!,
-        tzktURL: URL(string: "https://api.tzkt.io")!
+        tzktURL: URL(string: "https://api.tzkt.io")!,
+        avatarURL: URL(string: "https://services.tzkt.io/v1/avatars/")!
     )
     static let shadownet = Network(
         name: "Shadownet",
         chain: "shadownet",
         rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!
+        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
+        avatarURL: nil
     )
+
+    /// The avatar image for `address` on this network, as TzKT shows it, or `nil` without a service.
+    func avatarURL(for address: Address) -> URL? {
+        avatarURL.flatMap { URL(string: address.value, relativeTo: $0)?.absoluteURL }
+    }
 
     /// Networks offered in Settings, in display order.
     static let all: [Network] = [.mainnet, .shadownet]
