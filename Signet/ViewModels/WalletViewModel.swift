@@ -354,6 +354,12 @@ final class WalletViewModel {
         try walletStore.secretKey(for: wallet)
     }
 
+    /// The TzProfiles name (via TzKT, always mainnet) for any address, or `nil` if it has none.
+    func profileName(for address: Address) async -> String? {
+        let name = (try? await chain.accountProfile(for: address))??.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (name?.isEmpty ?? true) ? nil : name
+    }
+
     /// Tezos Domains names for any address, for previews while typing.
     func domainNames(for address: Address) async -> [String] {
         (try? await chain.domains(for: address)) ?? []

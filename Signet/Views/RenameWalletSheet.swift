@@ -7,6 +7,7 @@ struct RenameWalletSheet: View {
 
     @State private var alias: String
     @State private var errorMessage: String?
+    @State private var isSyncing = false
     @FocusState private var aliasFocused: Bool
 
     init(model: WalletViewModel) {
@@ -23,9 +24,20 @@ struct RenameWalletSheet: View {
                 .font(.title2.weight(.semibold))
 
             Form {
-                TextField("Name", text: $alias)
-                    .focused($aliasFocused)
-                    .onSubmit { if canRename { rename() } }
+                HStack {
+                    TextField("Name", text: $alias)
+                        .focused($aliasFocused)
+                        .onSubmit { if canRename { rename() } }
+                    Button(action: syncWithProfile) {
+                        if isSyncing {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("Sync with TzProfile", systemImage: "person.crop.circle.badge.checkmark")
+                        }
+                    }
+                    .disabled(isSyncing)
+                    .help("Fetch the name this address publishes in its TzProfile")
+                }
                 if let wallet = model.selectedWallet {
                     LabeledContent("Address", value: wallet.address.shortened())
                         .font(.body.monospaced())
@@ -56,6 +68,20 @@ struct RenameWalletSheet: View {
         .padding(20)
         .frame(width: 440)
         .onAppear { aliasFocused = true }
+    }
+
+    private func syncWithProfile() {
+        guard let wallet = model.selectedWallet else { return }
+        errorMessage = nil
+        isSyncing = true
+        Task {
+            defer { isSyncing = false }
+            if let name = await model.profileName(for: wallet.address) {
+                alias = name
+            } else {
+                errorMessage = "This address has no TzProfile name."
+            }
+        }
     }
 
     private func rename() {

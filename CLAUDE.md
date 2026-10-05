@@ -64,8 +64,8 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   when unchanged and keeping the newest N (default 10); folder and N are `BackupSettings` in
   UserDefaults and editable in Settings.
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys) the
-  welcome screen offers to import `~/.tezos-client` when one exists: an exact file copy the first
-  time, a merge of missing aliases afterwards (also available from the burger menu). The app is
+  welcome screen offers to import `~/.tezos-client` when one exists (an exact file copy). The merge
+  path in `TezosClientStore.importWallets` remains but is not exposed in the menu. The app is
   deliberately not sandboxed so it can reach both directories.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
   those secrets never enter JavaScript; tz2 and tz4 are generated in the bridge with the same
@@ -108,8 +108,9 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
   `public_key_hashs` only, validated by `Address.isValidAccount` (base58 checksum, so tz5/tz6 and
-  KT1 pass without Taquito). The wallet dropdown shows these under "Address book" and the header
-  tags them "Watch only".
+  KT1 pass without Taquito). Adding an address offers its TzProfiles name as the alias, and Rename has
+  "Sync with TzProfile" (both via `WalletViewModel.profileName(for:)`). The wallet dropdown shows
+  these under "Address book" and the header tags them "Watch only".
 - The project builds with Swift 6 language mode and complete strict concurrency; keep new types
   `Sendable` and UI work on the main actor.
 

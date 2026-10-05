@@ -82,3 +82,12 @@ struct AddressBookViewModelTests {
         #expect(model.wallets.count == 2)
     }
 }
+
+@MainActor
+struct ProfileNameTests {
+    @Test func profileNameComesFromTheChainServiceOrIsNil() async {
+        let model = WalletViewModel(chain: MockChainService())
+        #expect(await model.profileName(for: MockChainService.captainStake) == "Captain Stake")
+        #expect(await model.profileName(for: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")) == nil)
+    }
+}

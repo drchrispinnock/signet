@@ -116,9 +116,6 @@ struct AppMenuButton: View {
             Button("Rename wallet…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
             Button("Reload wallets") { model.reloadWallets() }
-            if model.importableWalletCount > 0 {
-                Button("Import from octez-client…") { try? model.importFromOctezClient() }
-            }
             Divider()
             SettingsLink { Text("Settings…") }
                 .keyboardShortcut(",", modifiers: .command)

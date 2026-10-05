@@ -1,4 +1,10 @@
-# Signet
+<p align="center">
+  <img src="docs/images/signet-256.png" width="160" alt="Signet: a gold signet ring engraved with the Tezos ꜩ">
+</p>
+
+<h1 align="center">Signet</h1>
+
+<p align="center">A Tezos wallet for the Mac.</p>
 
 We are writing a wallet using Claude.AI for Tezos. It is for Macs only.
 ChatGPT made the Macintosh App icon.

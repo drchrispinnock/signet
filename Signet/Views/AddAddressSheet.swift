@@ -8,6 +8,7 @@ struct AddAddressSheet: View {
     @State private var alias = ""
     @State private var address = ""
     @State private var previewDomains: [String] = []
+    @State private var suggestedName: String?
     @State private var errorMessage: String?
     @State private var isAdding = false
     @FocusState private var focus: Field?
@@ -24,8 +25,14 @@ struct AddAddressSheet: View {
                 .font(.title2.weight(.semibold))
 
             Form {
-                TextField("Name", text: $alias, prompt: Text("e.g. Alice"))
-                    .focused($focus, equals: .alias)
+                HStack {
+                    TextField("Name", text: $alias, prompt: Text("e.g. Alice"))
+                        .focused($focus, equals: .alias)
+                    if let suggestedName, suggestedName != alias.trimmingCharacters(in: .whitespaces) {
+                        Button("Use “\(suggestedName)”") { alias = suggestedName }
+                            .help("Name from the account's TzProfile")
+                    }
+                }
                 TextField("Address", text: $address, prompt: Text("tz1… or KT1…"))
                     .font(.body.monospaced())
                     .focused($focus, equals: .address)
@@ -39,6 +46,9 @@ struct AddAddressSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(trimmedAddress.shortened())
                                     .font(.callout.monospaced())
+                                if let suggestedName {
+                                    Text(suggestedName).font(.callout)
+                                }
                                 ForEach(previewDomains, id: \.self) { domain in
                                     Text(domain).font(.callout).foregroundStyle(.secondary)
                                 }
@@ -84,10 +94,16 @@ struct AddAddressSheet: View {
         .onAppear { focus = .alias }
         .task(id: address) {
             previewDomains = []
+            suggestedName = nil
             guard addressLooksValid else { return }
             try? await Task.sleep(for: .milliseconds(300))  // debounce typing
             guard !Task.isCancelled else { return }
-            previewDomains = await model.domainNames(for: trimmedAddress)
+            async let domains = model.domainNames(for: trimmedAddress)
+            async let profile = model.profileName(for: trimmedAddress)
+            previewDomains = await domains
+            suggestedName = await profile
+            // Offer the TzProfiles name as the alias when the user has not typed one yet.
+            if let suggestedName, alias.trimmingCharacters(in: .whitespaces).isEmpty { alias = suggestedName }
         }
     }
 
