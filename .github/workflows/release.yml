@@ -11,6 +11,10 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      # The secrets context cannot be used in step `if`s, so surface presence as job env.
+      HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.DEVELOPER_ID != '' }}
+      HAS_NOTARY: ${{ secrets.NOTARY_APPLE_ID != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,7 +26,7 @@ jobs:
       - name: Import Developer ID certificate
         # Optional. Add DEVELOPER_ID_P12 (base64 .p12), DEVELOPER_ID_P12_PASSWORD and
         # DEVELOPER_ID (the identity name) as repository secrets to sign for distribution.
-        if: ${{ secrets.DEVELOPER_ID_P12 != '' }}
+        if: env.HAS_DEVELOPER_ID == 'true'
         env:
           P12: ${{ secrets.DEVELOPER_ID_P12 }}
           P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
@@ -34,10 +38,11 @@ jobs:
           security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
           rm cert.p12
+          echo "DEVELOPER_ID=${{ secrets.DEVELOPER_ID }}" >> "$GITHUB_ENV"
 
       - name: Store notarisation credentials
         # Optional. NOTARY_APPLE_ID, NOTARY_TEAM_ID and NOTARY_PASSWORD (an app-specific password).
-        if: ${{ secrets.NOTARY_APPLE_ID != '' }}
+        if: env.HAS_DEVELOPER_ID == 'true' && env.HAS_NOTARY == 'true'
         run: |
           xcrun notarytool store-credentials signet-notary \
             --apple-id "${{ secrets.NOTARY_APPLE_ID }}" \
@@ -46,8 +51,6 @@ jobs:
           echo "NOTARY_PROFILE=signet-notary" >> "$GITHUB_ENV"
 
       - name: Build release zip
-        env:
-          DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
         run: scripts/release.sh "${GITHUB_REF_NAME#v}"
 
       - name: Create GitHub release
