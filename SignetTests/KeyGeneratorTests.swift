@@ -58,9 +58,8 @@ struct KeyGeneratorTests {
 @MainActor
 struct WalletCreationTests {
     @Test func createWalletStoresKeyAndSelectsIt() async throws {
-        let secrets = InMemorySecretKeyStore()
         let store = InMemoryWalletStore()
-        let model = WalletViewModel(chain: MockChainService(), secretKeys: secrets, walletStore: store)
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
         #expect(model.wallets.isEmpty)
         #expect(model.selectedWallet == nil)
 
@@ -69,13 +68,14 @@ struct WalletCreationTests {
         let wallet = try #require(model.selectedWallet)
         #expect(wallet.alias == "Savings")
         #expect(wallet.scheme == .tz3)
+        #expect(wallet.keyKind == .unencrypted)
         #expect(wallet.address.value.hasPrefix("tz3"))
         #expect(wallet.publicKey?.hasPrefix("p2pk") == true)
-        #expect(try secrets.secretKey(for: wallet.address)?.hasPrefix("p2sk") == true)
+        #expect(try store.secretKey(for: wallet)?.hasPrefix("p2sk") == true)
         #expect(try store.load() == [wallet])
     }
 
-    @Test func rejectsEmptyAliasAndUnsupportedSchemes() async {
+    @Test func rejectsEmptyAliasDuplicatesAndUnsupportedSchemes() async throws {
         let model = WalletViewModel(chain: MockChainService())
         await #expect(throws: WalletViewModel.WalletError.self) {
             try await model.createWallet(alias: "   ", scheme: .tz1)
@@ -83,6 +83,103 @@ struct WalletCreationTests {
         await #expect(throws: WalletViewModel.WalletError.self) {
             try await model.createWallet(alias: "Quantum", scheme: .tz5)
         }
-        #expect(model.wallets.isEmpty)
+        try await model.createWallet(alias: "Main", scheme: .tz1)
+        await #expect(throws: WalletViewModel.WalletError.self) {
+            try await model.createWallet(alias: "Main", scheme: .tz1)
+        }
+        #expect(model.wallets.count == 1)
+    }
+}
+
+@MainActor
+struct WalletRenameTests {
+    @Test func renameUpdatesStoreAndKeepsSelection() async throws {
+        let store = InMemoryWalletStore()
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
+        try await model.createWallet(alias: "Main", scheme: .tz1)
+        try await model.createWallet(alias: "Savings", scheme: .tz1)
+        let savings = try #require(model.selectedWallet)
+        #expect(savings.alias == "Savings")
+
+        try model.renameSelectedWallet(to: " Rainy Day ")
+
+        #expect(model.selectedWallet?.alias == "Rainy Day")
+        #expect(model.selectedWallet?.address == savings.address)
+        #expect(try store.load().map(\.alias) == ["Main", "Rainy Day"])
+        #expect(try store.secretKey(for: model.selectedWallet!) != nil)
+
+        #expect(throws: WalletViewModel.WalletError.self) { try model.renameSelectedWallet(to: "Main") }
+        #expect(throws: WalletViewModel.WalletError.self) { try model.renameSelectedWallet(to: "  ") }
+    }
+}
+
+@MainActor
+struct SelectionPersistenceTests {
+    @Test func restoresLastSelectedWalletAcrossLaunches() async throws {
+        let defaults = InMemoryAppStateStore()
+        let store = InMemoryWalletStore()
+        let first = WalletViewModel(chain: MockChainService(), walletStore: store, stateStore: defaults)
+        try await first.createWallet(alias: "Main", scheme: .tz1)
+        try await first.createWallet(alias: "Savings", scheme: .tz1)
+        let main = try #require(first.wallets.first { $0.alias == "Main" })
+        first.select(main)
+        #expect(first.selectedWallet?.alias == "Main")
+
+        // "Relaunch": a new model over the same store and defaults.
+        let second = WalletViewModel(chain: MockChainService(), walletStore: store, stateStore: defaults)
+        #expect(second.selectedWallet?.alias == "Main")
+    }
+
+    @Test func followsRenamesAndFallsBackWhenAliasIsGone() async throws {
+        let defaults = InMemoryAppStateStore()
+        let store = InMemoryWalletStore()
+        let first = WalletViewModel(chain: MockChainService(), walletStore: store, stateStore: defaults)
+        try await first.createWallet(alias: "Main", scheme: .tz1)
+        try await first.createWallet(alias: "Savings", scheme: .tz1)
+        try first.renameSelectedWallet(to: "Rainy Day")
+
+        let second = WalletViewModel(chain: MockChainService(), walletStore: store, stateStore: defaults)
+        #expect(second.selectedWallet?.alias == "Rainy Day")
+
+        // A remembered alias that no longer exists falls back to the first wallet.
+        try defaults.save(AppState(selectedWalletAlias: "Vanished"))
+        let third = WalletViewModel(chain: MockChainService(), walletStore: store, stateStore: defaults)
+        #expect(third.selectedWallet?.alias == "Main")
+    }
+}
+
+@MainActor
+struct NetworkSettingsTests {
+    /// A chain service that reports which network it was built for.
+    struct Probe: ChainService {
+        let network: Network
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: network == .mainnet ? 1 : 2) }
+        func etherlinkBalance(for address: Address) async throws -> Decimal { 0 }
+        func tokenBalances(for address: Address) async throws -> [AssetBalance] { [] }
+        func domains(for address: Address) async throws -> [String] { [] }
+        func nfts(for address: Address) async throws -> [NFT] { [] }
+    }
+
+    @Test func defaultsToMainnetAndSwitchingRebuildsTheChainService() async throws {
+        let defaults = InMemoryAppStateStore()
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets,
+                                    chainFactory: { Probe(network: $0) }, stateStore: defaults)
+        #expect(model.network == .mainnet)
+        await model.refresh()
+        #expect(model.assets.first?.amount == 1)
+
+        model.network = .shadownet
+        await model.refresh()
+        #expect(model.assets.first?.amount == 2)
+        #expect(defaults.load().networkName == "Shadownet")
+    }
+
+    @Test func restoresTheChosenNetworkOnLaunch() {
+        let defaults = InMemoryAppStateStore(AppState(networkName: "Shadownet"))
+        let model = WalletViewModel(chain: MockChainService(), stateStore: defaults)
+        #expect(model.network == .shadownet)
+
+        try? defaults.save(AppState(networkName: "Nonsense"))
+        #expect(WalletViewModel(chain: MockChainService(), stateStore: defaults).network == .mainnet)
     }
 }

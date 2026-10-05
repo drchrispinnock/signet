@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct SignetApp: App {
     @State private var model = WalletViewModel(
-        chain: TaquitoChainService(),
+        chainFactory: { network in TaquitoChainService(network: network) },
         keyGenerator: KeyGenerator(),
-        secretKeys: KeychainSecretKeyStore(),
-        walletStore: FileWalletStore()
+        walletStore: TezosClientStore(),
+        importSource: TezosClientStore.octezClientDirectory,
+        stateStore: FileAppStateStore()
     )
 
     var body: some Scene {
@@ -16,9 +17,13 @@ struct SignetApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Create address…") { model.isPresentingCreateWallet = true }
+                Button("Create wallet…") { model.isPresentingCreateWallet = true }
                     .keyboardShortcut("n", modifiers: .command)
             }
+        }
+
+        Settings {
+            SettingsView(model: model)
         }
     }
 }

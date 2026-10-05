@@ -82,9 +82,17 @@ struct AppMenuButton: View {
 
     var body: some View {
         Menu {
-            Button("Create address…") { model.isPresentingCreateWallet = true }
+            Button("Create wallet…") { model.isPresentingCreateWallet = true }
                 .keyboardShortcut("n", modifiers: .command)
+            Button("Rename wallet…") { model.isPresentingRenameWallet = true }
+                .disabled(model.selectedWallet == nil)
+            Button("Reload wallets") { model.reloadWallets() }
+            if model.importableWalletCount > 0 {
+                Button("Import from octez-client…") { try? model.importFromOctezClient() }
+            }
             Divider()
+            SettingsLink { Text("Settings…") }
+                .keyboardShortcut(",", modifiers: .command)
             Button("Refresh") { Task { await model.refresh() } }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(model.selectedWallet == nil)

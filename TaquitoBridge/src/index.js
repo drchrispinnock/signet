@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.2.0";
+  return "0.3.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -86,4 +86,33 @@ export async function generateKeyPair(scheme) {
 export async function keyInfoFromSecretKey(secretKey) {
   const signer = new InMemorySigner(secretKey);
   return { publicKey: await signer.publicKey(), address: await signer.publicKeyHash() };
+}
+
+// ---- Balances --------------------------------------------------------------------------------
+
+/**
+ * Full picture of an account's tez, all in mutez as decimal strings:
+ * spendable + staked + unstakedFrozen + unstakedFinalizable = full.
+ */
+export async function getTezBalances(rpcUrl, address) {
+  const rpc = toolkit(rpcUrl).rpc;
+  // Accounts the chain has never seen return null for the staking fields, which Taquito turns
+  // into a BigNumber error; treat anything unreadable as 0 so such accounts still show a balance.
+  const zeroIfMissing = async (call) => {
+    try {
+      const value = await call();
+      return value == null ? "0" : value.toString(10);
+    } catch (e) {
+      if (String(e?.message ?? e).includes("BigNumber Error")) return "0";
+      throw e;
+    }
+  };
+  const [spendable, staked, unstakedFrozen, unstakedFinalizable, full] = await Promise.all([
+    zeroIfMissing(() => rpc.getSpendable(address)),
+    zeroIfMissing(() => rpc.getStakedBalance(address)),
+    zeroIfMissing(() => rpc.getUnstakedFrozenBalance(address)),
+    zeroIfMissing(() => rpc.getUnstakedFinalizableBalance(address)),
+    zeroIfMissing(() => rpc.getFullBalance(address)),
+  ]);
+  return { spendable, staked, unstakedFrozen, unstakedFinalizable, full };
 }

@@ -3,8 +3,8 @@ import Foundation
 /// Static data matching the sketch in spec/EXAMPLE.png. Used for previews and until live
 /// chain access lands.
 struct MockChainService: ChainService {
-    func tezBalance(for address: Address) async throws -> Decimal {
-        Decimal(string: "4361.43")!
+    func tezBalance(for address: Address) async throws -> TezBalance {
+        TezBalance(spendable: Decimal(string: "1361.43")!, staked: 3000)
     }
 
     func etherlinkBalance(for address: Address) async throws -> Decimal {
@@ -20,6 +20,6 @@ struct MockChainService: ChainService {
     }
 
     func nfts(for address: Address) async throws -> [NFT] {
-        (1...6).map { NFT(id: "mock-\($0)", name: "NFT \($0)", thumbnailURL: nil) }
+        (1...6).map { NFT(id: "mock:\($0)", contract: "KT1mock", tokenId: "\($0)", name: "NFT \($0)", balance: 1, thumbnailURL: nil) }
     }
 }

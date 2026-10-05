@@ -1,47 +1,59 @@
 import Foundation
 
-/// Persists the list of wallets (aliases, addresses, public keys). Secret keys are never here.
+/// Where wallets and their secret keys live.
 protocol WalletStore: Sendable {
     func load() throws -> [Wallet]
-    func save(_ wallets: [Wallet]) throws
+    /// Adds a wallet and its secret key. Fails if the alias is already taken.
+    func add(_ wallet: Wallet, secretKey: String) throws
+    /// The base58 secret key, or `nil` if it is not held in clear (encrypted, ledger, remote, watch-only).
+    func secretKey(for wallet: Wallet) throws -> String?
+    /// Changes an alias everywhere it appears. Fails if the new alias is already taken.
+    func rename(alias: String, to newAlias: String) throws
+    /// Brings in wallets from an octez-client style directory, skipping aliases already present.
+    /// Returns how many were added.
+    func importWallets(from directory: URL) throws -> Int
 }
 
-/// JSON file in the app's Application Support directory.
-struct FileWalletStore: WalletStore {
-    let url: URL
-
-    init(url: URL? = nil) {
-        if let url {
-            self.url = url
-        } else {
-            let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            self.url = support.appendingPathComponent("Signet", isDirectory: true).appendingPathComponent("wallets.json")
-        }
-    }
-
-    func load() throws -> [Wallet] {
-        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode([Wallet].self, from: data)
-    }
-
-    func save(_ wallets: [Wallet]) throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(wallets).write(to: url, options: .atomic)
-    }
-}
-
-/// For previews and tests.
+/// For previews and tests. Nothing is persisted.
 final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
+    enum StoreError: Error { case aliasExists(String), unknownAlias(String) }
+
     private let lock = NSLock()
     private var wallets: [Wallet]
+    private var secrets: [String: String] = [:]
 
     init(wallets: [Wallet] = []) {
         self.wallets = wallets
     }
 
     func load() throws -> [Wallet] { lock.withLock { wallets } }
-    func save(_ wallets: [Wallet]) throws { lock.withLock { self.wallets = wallets } }
+
+    func add(_ wallet: Wallet, secretKey: String) throws {
+        try lock.withLock {
+            guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
+            wallets.append(wallet)
+            secrets[wallet.alias] = secretKey
+        }
+    }
+
+    func secretKey(for wallet: Wallet) throws -> String? { lock.withLock { secrets[wallet.alias] } }
+
+    func importWallets(from directory: URL) throws -> Int {
+        let incoming = try TezosClientStore(directory: directory).load()
+        return lock.withLock {
+            let existing = Set(wallets.map(\.alias))
+            let additions = incoming.filter { !existing.contains($0.alias) }
+            wallets.append(contentsOf: additions)
+            return additions.count
+        }
+    }
+
+    func rename(alias: String, to newAlias: String) throws {
+        try lock.withLock {
+            guard !wallets.contains(where: { $0.alias == newAlias }) else { throw StoreError.aliasExists(newAlias) }
+            guard let index = wallets.firstIndex(where: { $0.alias == alias }) else { throw StoreError.unknownAlias(alias) }
+            wallets[index].alias = newAlias
+            if let secret = secrets.removeValue(forKey: alias) { secrets[newAlias] = secret }
+        }
+    }
 }

@@ -7,7 +7,7 @@ import Testing
 struct TaquitoBridgeTests {
     @Test func bundleLoadsAndReportsVersion() async throws {
         let version = try await TaquitoBridge.shared.call("version")
-        #expect(version == .string("0.1.0"))
+        #expect(version == .string("0.3.0"))
     }
 
     @Test(arguments: [
@@ -34,7 +34,8 @@ struct TaquitoBridgeTests {
         let service = TaquitoChainService(network: .shadownet)
         // Any valid address works since the RPC returns 0 for unknown accounts; this only checks the round trip.
         let balance = try await service.tezBalance(for: Address("tz1a4GT7THHaGDiTxgXoatDWcZfJ5j29z5RC"))
-        #expect(balance >= 0)
+        #expect(balance.total >= 0)
+        #expect(balance.total >= balance.spendable)
     }
 }
 
