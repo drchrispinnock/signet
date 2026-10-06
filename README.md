@@ -16,7 +16,7 @@ get to ledger support too.
 
 ### Why are you doing this then?
 
-Simple because I haven't attempted a project in Swift using AI before. All the code is written by Claude. Codex is auditing it. It is an exercise in using AI for software development. The winter nights are drawing in. The TV offerings on Netflix and Prime are not what they used to be. Also having a nice shiny wallet for Tezos on the Mac won't hurt anyone.
+Simply because I haven't attempted a project in Swift using AI before. All the code is written by Claude. Codex is auditing it. It is an exercise in using AI for software development. The winter nights are drawing in. The TV offerings on Netflix and Prime are not what they used to be. Also having a nice shiny wallet for Tezos on the Mac won't hurt anyone.
 
 ### Will it steal my keys?
 
