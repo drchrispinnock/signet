@@ -37,8 +37,9 @@ struct MockChainService: ChainService {
         return TransferEstimate(fee: Decimal(string: "0.000521")!, burn: burn, total: amount + Decimal(string: "0.000521")! + burn, gasLimit: 169, storageLimit: burn > 0 ? 257 : 0)
     }
 
-    func sendTransfer(from wallet: Wallet, secretKey: String, to destination: Address, amount: Decimal) async throws -> String {
-        "ooMockOperationHash1111111111111111111111111111111111"
+    func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String {
+        if wallet.keyKind == .encrypted, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        return "ooMockOperationHash1111111111111111111111111111111111"
     }
 
     func waitForConfirmation(of operationHash: String) async throws -> Int {

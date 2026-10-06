@@ -90,7 +90,7 @@ struct TezosClientStore: WalletStore {
 
             hashes.append(["name": wallet.alias, "value": wallet.address.value])
             publicKeys.append(["name": wallet.alias, "value": ["locator": "unencrypted:\(publicKey)", "key": publicKey]])
-            secretKeys.append(["name": wallet.alias, "value": "unencrypted:\(secretKey)"])
+            secretKeys.append(["name": wallet.alias, "value": KeyKind.locator(forSecretKey: secretKey)])
 
             try write(hashes, to: Self.publicKeyHashesFile)
             try write(publicKeys, to: Self.publicKeysFile)
@@ -161,12 +161,15 @@ struct TezosClientStore: WalletStore {
         }
     }
 
+    /// The base58 secret key for `unencrypted:` and `encrypted:` entries (the caller supplies the
+    /// password for the latter); `nil` for ledger, remote and watch-only aliases.
     func secretKey(for wallet: Wallet) throws -> String? {
         let secretKeys = try index(readEntries(Self.secretKeysFile))
         guard let locator = secretKeys[wallet.alias] as? String else { return nil }
-        let prefix = "unencrypted:"
-        guard locator.hasPrefix(prefix) else { return nil }
-        return String(locator.dropFirst(prefix.count))
+        for prefix in ["unencrypted:", "encrypted:"] where locator.hasPrefix(prefix) {
+            return String(locator.dropFirst(prefix.count))
+        }
+        return nil
     }
 
     // MARK: - Parsing

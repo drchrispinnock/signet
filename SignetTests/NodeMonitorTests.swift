@@ -73,3 +73,12 @@ struct NodeMonitorTests {
     }
 }
 
+
+struct FaucetTests {
+    @Test func testnetsHaveFaucetsAndMainnetDoesNot() {
+        #expect(Network.mainnet.faucetURL == nil)
+        for network in Network.all where !network.isMainnet {
+            #expect(network.faucetURL?.host()?.hasPrefix("faucet.") == true, Comment(rawValue: network.name))
+        }
+    }
+}

@@ -60,13 +60,15 @@ struct TezosClientStoreTests {
         #expect(watch.keyKind == KeyKind.none)
     }
 
-    @Test func secretKeyOnlyForUnencryptedEntries() throws {
+    @Test func secretKeyForClearAndEncryptedEntriesOnly() throws {
         let dir = try makeDirectory()
         try writeFixture(in: dir)
         let store = TezosClientStore(directory: dir)
         let wallets = try store.load()
         #expect(try store.secretKey(for: wallets[0]) == "edskALICE")
-        #expect(try store.secretKey(for: wallets[1]) == nil)
+        // Encrypted keys come back too (the caller supplies the password); ledger and watch-only do not.
+        #expect(try store.secretKey(for: wallets[1]) == "edeskBOB")
+        #expect(try store.secretKey(for: wallets[2]) == nil)
         #expect(try store.secretKey(for: wallets[3]) == nil)
     }
 

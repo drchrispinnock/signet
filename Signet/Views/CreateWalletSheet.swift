@@ -7,11 +7,26 @@ struct CreateWalletSheet: View {
 
     @State private var alias = "My Wallet"
     @State private var scheme: AddressScheme = .tz1
+    @State private var encrypt: Bool
+    @State private var password = ""
+    @State private var confirmPassword = ""
     @State private var errorMessage: String?
     @FocusState private var aliasFocused: Bool
 
+    init(model: WalletViewModel) {
+        self.model = model
+        // Real money defaults to encrypted; testnets default to convenience.
+        _encrypt = State(initialValue: model.network.isMainnet)
+    }
+
     private var trimmedAlias: String { alias.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var canCreate: Bool { !trimmedAlias.isEmpty && scheme.isSupported && !model.isCreatingWallet }
+    private var passwordProblem: String? {
+        guard encrypt else { return nil }
+        if password.count < WalletViewModel.minimumPassphraseLength { return "Use at least \(WalletViewModel.minimumPassphraseLength) characters." }
+        if password != confirmPassword { return "The passwords do not match." }
+        return nil
+    }
+    private var canCreate: Bool { !trimmedAlias.isEmpty && scheme.isSupported && !model.isCreatingWallet && passwordProblem == nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -27,7 +42,22 @@ struct CreateWalletSheet: View {
                     SchemePicker(selection: $scheme)
                 }
 
-                Text("The key is generated on this Mac and saved to ~/.signet in octez-client's format, so octez-client can use it too.")
+                Toggle("Encrypt with a password", isOn: $encrypt)
+                if encrypt {
+                    SecureField("Password", text: $password)
+                    SecureField("Confirm password", text: $confirmPassword)
+                    if let passwordProblem, !password.isEmpty {
+                        Text(passwordProblem).font(.callout).foregroundStyle(.secondary)
+                    }
+                    Text("You will be asked for this password every time the key signs. It cannot be recovered; if you lose it the key is lost.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("Unencrypted keys are stored on disk unprotected. Anyone who can read ~/.signet can spend from this wallet.", systemImage: "exclamationmark.triangle")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                }
+                Text("The key is saved to ~/.signet in octez-client's format, so octez-client can use it too.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -63,7 +93,7 @@ struct CreateWalletSheet: View {
         errorMessage = nil
         Task {
             do {
-                try await model.createWallet(alias: trimmedAlias, scheme: scheme)
+                try await model.createWallet(alias: trimmedAlias, scheme: scheme, passphrase: encrypt ? password : nil)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription

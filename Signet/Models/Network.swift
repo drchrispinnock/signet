@@ -14,6 +14,8 @@ struct Network: Hashable, Identifiable, Sendable {
     let tezosDomainsURL: URL?
     /// TzKT indexer base URL (tokens, NFTs), or `nil` where none is available.
     let tzktURL: URL?
+    /// Testnet faucet, or `nil` on mainnet (from teztnets.json).
+    var faucetURL: URL? = nil
 
     var isMainnet: Bool { chain == "mainnet" }
 
@@ -29,7 +31,8 @@ struct Network: Hashable, Identifiable, Sendable {
         chain: "shadownet",
         rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!
+        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
+        faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!
     )
 
 
@@ -38,7 +41,8 @@ struct Network: Hashable, Identifiable, Sendable {
         chain: "bakingnet",
         rpcURL: URL(string: "https://rpc.bakingnet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: URL(string: "https://api.bakingnet.tzkt.io")!
+        tzktURL: URL(string: "https://api.bakingnet.tzkt.io")!,
+        faucetURL: URL(string: "https://faucet.bakingnet.teztnets.com")!
     )
     /// The current protocol-proposal testnet (Ushuaianet at the time of writing).
     static let currentnet = Network(
@@ -46,7 +50,8 @@ struct Network: Hashable, Identifiable, Sendable {
         chain: "currentnet",
         rpcURL: URL(string: "https://rpc.currentnet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: nil
+        tzktURL: nil,
+        faucetURL: URL(string: "https://faucet.currentnet.teztnets.com")!
     )
 
     /// Networks offered in Settings, in display order.

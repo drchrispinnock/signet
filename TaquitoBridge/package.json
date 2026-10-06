@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@taquito/signer": "^25.0.0",
+    "@tezos-x/octez.connect-wallet": "^5.0.4",
     "buffer": "^6.0.3"
   }
 }

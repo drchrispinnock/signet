@@ -53,6 +53,15 @@ struct KeyGenerator: Sendable {
         }
     }
 
+    /// Encrypts a clear-text secret key with `passphrase` in octez-client's format (edesk/spesk/p2esk/BLesk).
+    func encrypt(secretKey: String, passphrase: String) async throws -> String {
+        let result = try await bridge.call("encryptSecretKey", [secretKey, passphrase])
+        guard let encrypted = result.stringValue, KeyKind.encryptedKeyPrefixes.contains(String(encrypted.prefix(5))) else {
+            throw KeyError.badBridgeResponse(String(describing: result))
+        }
+        return encrypted
+    }
+
     /// Derives the tz address for a base58 public key. Public data only.
     func address(for publicKey: String) async throws -> String {
         let result = try await bridge.call("addressFromPublicKey", [publicKey])

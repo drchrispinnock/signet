@@ -28,6 +28,13 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingAddAddress) {
             AddAddressSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingConnectDApp) {
+            ConnectDAppSheet(model: model)
+        }
+        .sheet(item: Binding(get: { model.dapps.current }, set: { _ in })) { request in
+            DAppRequestSheet(model: model, request: request)
+                .interactiveDismissDisabled()
+        }
         .sheet(isPresented: $model.isPresentingSend) {
             if let wallet = model.selectedWallet {
                 SendSheet(model: model, sender: wallet)
@@ -68,7 +75,7 @@ struct WalletHomeView: View {
                 }
                 ActionButtonsView(model: model)
                 if model.accountNotOnChain {
-                    AccountNotOnChainView(network: model.network)
+                    AccountNotOnChainView(model: model, wallet: wallet)
                 } else {
                     AssetListView(assets: model.assets)
                 }

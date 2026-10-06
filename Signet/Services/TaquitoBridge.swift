@@ -36,6 +36,21 @@ final class TaquitoBridge: @unchecked Sendable {
     private var timers: [Int: DispatchWorkItem] = [:]
     private var fetches: [Int: URLSessionDataTask] = [:]
 
+    /// Backing store for the Octez Connect SDK. Set before the first call that loads the bundle.
+    var storage: any BridgeStorage {
+        get { lock.withLock { _storage } }
+        set { lock.withLock { _storage = newValue } }
+    }
+    private var _storage: any BridgeStorage = OctezConnectStorage()
+
+    /// Receives JSON events pushed from JavaScript (dApp requests). Called on the bridge queue.
+    var eventHandler: (@Sendable (String) -> Void)? {
+        get { lock.withLock { _eventHandler } }
+        set { lock.withLock { _eventHandler = newValue } }
+    }
+    private var _eventHandler: (@Sendable (String) -> Void)?
+    private let lock = NSLock()
+
     init(session: URLSession = .shared) {
         self.session = session
     }
@@ -149,10 +164,42 @@ final class TaquitoBridge: @unchecked Sendable {
         return context
     }
 
+    /// Last few hundred console lines from JavaScript, newest last. Handy when the system log is
+    /// not available (tests, support).
+    var consoleLines: [String] { lock.withLock { _consoleLines } }
+    private var _consoleLines: [String] = []
+
     private func installConsole(in context: JSContext) {
-        let log: @convention(block) (String) -> Void = { NSLog("TaquitoBridge: %@", $0) }
+        let log: @convention(block) (String, String) -> Void = { [weak self] level, text in
+            NSLog("TaquitoBridge % %@", level, text)
+            self?.record("[\(level)] \(text)")
+        }
         context.setObject(log, forKeyedSubscript: "__signet_log" as NSString)
-        context.evaluateScript("var console = { log: __signet_log, info: __signet_log, warn: __signet_log, error: __signet_log, debug: function(){} };")
+        context.evaluateScript("""
+        var console = (function () {
+          function fmt(args) { return Array.prototype.map.call(args, function (a) {
+            if (a instanceof Error) return a.message + (a.stack ? "\\n" + a.stack : "");
+            if (typeof a === "object") { try { return JSON.stringify(a); } catch (e) { return String(a); } }
+            return String(a);
+          }).join(" "); }
+          return {
+            log: function () { __signet_log("log", fmt(arguments)); },
+            info: function () { __signet_log("info", fmt(arguments)); },
+            warn: function () { __signet_log("warn", fmt(arguments)); },
+            error: function () { __signet_log("error", fmt(arguments)); },
+            debug: function () { __signet_log("debug", fmt(arguments)); },
+            trace: function () { __signet_log("trace", fmt(arguments)); },
+            group: function () { __signet_log("group", fmt(arguments)); },
+            groupCollapsed: function () { __signet_log("group", fmt(arguments)); },
+            groupEnd: function () {},
+            table: function () { __signet_log("table", fmt(arguments)); },
+            dir: function () { __signet_log("dir", fmt(arguments)); },
+            assert: function (ok) { if (!ok) __signet_log("assert", fmt(Array.prototype.slice.call(arguments, 1))); },
+            count: function () {}, countReset: function () {},
+            time: function () {}, timeEnd: function () {}, timeLog: function () {},
+          };
+        })();
+        """)
     }
 
     private func installNatives(in context: JSContext) {
@@ -183,6 +230,14 @@ final class TaquitoBridge: @unchecked Sendable {
             self?.fetches.removeValue(forKey: id)?.cancel()
         }
 
+        let storageGet: @convention(block) (String) -> Any = { [weak self] key in self?.storage.get(key) ?? NSNull() }
+        let storageSet: @convention(block) (String, String) -> Void = { [weak self] key, value in self?.storage.set(key, value) }
+        let storageDelete: @convention(block) (String) -> Void = { [weak self] key in self?.storage.delete(key) }
+        let event: @convention(block) (String) -> Void = { [weak self] json in self?.eventHandler?(json) }
+        native.setObject(storageGet, forKeyedSubscript: "storageGet" as NSString)
+        native.setObject(storageSet, forKeyedSubscript: "storageSet" as NSString)
+        native.setObject(storageDelete, forKeyedSubscript: "storageDelete" as NSString)
+        native.setObject(event, forKeyedSubscript: "octezConnectEvent" as NSString)
         native.setObject(setTimer, forKeyedSubscript: "setTimer" as NSString)
         native.setObject(clearTimer, forKeyedSubscript: "clearTimer" as NSString)
         native.setObject(randomBytes, forKeyedSubscript: "randomBytes" as NSString)
@@ -195,6 +250,7 @@ final class TaquitoBridge: @unchecked Sendable {
 
     private func startFetch(id: Int, urlString: String, method: String, headersJSON: String, body: JSValue?) {
         dispatchPrecondition(condition: .onQueue(queue))
+        trace("fetch #\(id) \(method) \(urlString)")
         guard let url = URL(string: urlString) else {
             finishFetch(id: id, error: "Invalid URL: \(urlString)")
             return
@@ -231,7 +287,49 @@ final class TaquitoBridge: @unchecked Sendable {
         task.resume()
     }
 
+    /// Appends a line to `consoleLines` from Swift (fetch tracing).
+    private func trace(_ line: String) {
+        record("[host] \(line)")
+    }
+
+    /// Lets Swift code leave a line in the bridge log next to the JavaScript traffic.
+    func note(_ line: String) {
+        record("[app] \(line)")
+    }
+
+    /// Rolling log of bridge activity for support: `~/Library/Logs/Signet/bridge.log`.
+    static let logFileURL: URL = {
+        let dir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Logs/Signet", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("bridge.log")
+    }()
+    private lazy var logHandle: FileHandle? = {
+        let url = Self.logFileURL
+        if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > 5_000_000 {
+            try? FileManager.default.removeItem(at: url)
+        }
+        if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
+        let handle = try? FileHandle(forWritingTo: url)
+        try? handle?.seekToEnd()
+        return handle
+    }()
+    private static let stamp: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "HH:mm:ss.SSS"; return f
+    }()
+
+    private func record(_ line: String) {
+        lock.withLock {
+            _consoleLines.append(line)
+            if _consoleLines.count > 300 { _consoleLines.removeFirst(_consoleLines.count - 300) }
+            if let data = "\(Self.stamp.string(from: Date())) \(line)\n".data(using: .utf8) {
+                try? logHandle?.write(contentsOf: data)
+            }
+        }
+    }
+
     private func finishFetch(id: Int, status: Int = 0, statusText: String = "", headersJSON: String = "{}", body: String = "", error: String? = nil) {
+        trace("fetch #\(id) ← \(error ?? "\(status) \(body.prefix(body.contains("next_batch") ? 3000 : 160))")")
         context?.objectForKeyedSubscript("__signet_fetchDone")?.call(withArguments: [
             id, status, statusText, headersJSON, body, error ?? NSNull(),
         ])

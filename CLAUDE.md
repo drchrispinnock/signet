@@ -76,7 +76,12 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
   those secrets never enter JavaScript; tz2 and tz4 are generated in the bridge with the same
   `@noble/curves` code Taquito signs with (BLS secrets are little-endian on the wire). New keys
-  are written to the client directory as `unencrypted:` entries, like octez-client's default.
+  are written as `unencrypted:` entries, or as octez-format `encrypted:` entries (edesk/spesk/
+  p2esk/BLesk: 8-byte salt, PBKDF2-HMAC-SHA512 ×32768, NaCl secretbox, zero nonce) when the user
+  sets a password; the bridge's `encryptSecretKey` does the encryption and Taquito's
+  `InMemorySigner(key, passphrase)` opens it. Create wallet defaults to encrypted on mainnet and
+  clear on testnets and warns that clear keys are unprotected on disk. Send asks for the password
+  on the confirm step for encrypted senders; a wrong one surfaces as `ChainError.wrongPassphrase`.
 - **`WalletViewModel`** is a `@MainActor @Observable` class owning the wallet list, the
   selected wallet and the loaded balances, domains and NFTs, and `createWallet(alias:scheme:)`.
 - **Send.** `SendSheet` + `SendViewModel`: recipient is an address, a `.tez` name (forward lookup via
@@ -86,7 +91,15 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   `estimateTransfer`, which runs in the bridge with a read-only signer so no secret is needed to
   estimate. `sendTransfer` hands the clear-text secret to Taquito's `InMemorySigner` for the one
   operation (native signing is a planned improvement); `waitForConfirmation` waits one block.
-  Only `KeyKind.unencrypted` wallets can send today.
+  Clear-text and encrypted keys can send; ledger and remote signers cannot yet.
+- **dApps (Octez Connect / TZIP-10).** The Beacon-fork wallet SDK runs inside the bridge
+  (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
+  (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
+  Pairing is Umami-style: the user pastes the dApp's "pair wallet on another device" code
+  (`ConnectDAppSheet`, burger menu, Cmd-Shift-D). `DAppConnectionManager` parses requests
+  (`DAppRequest`), queues them, and `DAppRequestSheet` approves/rejects: permission (pick a wallet),
+  operation (Taquito `contract.batch` from the partial operations, password for encrypted keys),
+  sign_payload (`InMemorySigner.sign`). dApp network types map to ours via `DAppRequest.network`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
@@ -97,7 +110,11 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   `full_balance`) and expands into those lines. Fetched via Taquito's RPC client for tz1 to tz4
   and by direct RPC for tz5/tz6. The node refuses `full_balance` with a 500 "missing_key" storage
   error for an account it has never seen; both paths map that to `ChainError.accountNotOnChain`,
-  which the dashboard shows as "Key not found on chain" in place of the balance rows. `refresh()` fans out all loads concurrently.
+  which the dashboard shows as "Key not found on chain" in place of the balance rows, with a
+  "Get test tez" button on testnets and a Receive/buy prompt on mainnet. `FaucetService` speaks the
+  teztnets faucet API directly (`/info`, `/challenge`, SHA-256 proof-of-work, `/verify`, as the
+  `get-tez` CLI does, no captcha); `WalletViewModel.requestTestTez` drives it and polls until the
+  account appears. Faucet URLs are `Network.faucetURL` from teztnets.json. `refresh()` fans out all loads concurrently.
 - **Views** map one-to-one onto the sketch: `WalletHomeView` composes `WalletHeaderView`
   (the alias is a dropdown that switches wallets; shortened address with copy button; Tezos
   Domains name stacked beneath the address, a round `AccountAvatarView` on the left fed by TzKT's

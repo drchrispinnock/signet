@@ -43,7 +43,6 @@ struct ActionButtonsView: View {
         if model.accountNotOnChain { return "This address has no tez on \(model.network.name), so there is nothing to send." }
         switch wallet.keyKind {
         case .ledger: return "This wallet's key is on a Ledger. Signing with Ledger is not supported yet; pick a wallet whose key Signet holds."
-        case .encrypted: return "This wallet's key is passphrase-encrypted. Encrypted keys are not supported yet; pick a wallet with a clear-text key."
         case .remote: return "This wallet signs through a remote signer, which Signet does not support yet."
         default: return "Signet cannot sign for this wallet yet."
         }

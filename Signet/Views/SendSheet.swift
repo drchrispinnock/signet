@@ -216,6 +216,15 @@ struct ConfirmTransferView: View {
             .scrollDisabled(true)
         }
 
+        if send.needsPassphrase {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill").foregroundStyle(.secondary)
+                SecureField("Password for “\(send.sender.alias)”", text: $send.passphrase)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { if !send.passphrase.isEmpty { Task { await send.send() } } }
+            }
+        }
+
         if let error = send.errorMessage {
             Text(error).font(.callout).foregroundStyle(.red)
         }
@@ -231,7 +240,7 @@ struct ConfirmTransferView: View {
             Button("Confirm and Send") { Task { await send.send() } }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(send.step == .sending || send.isBusy)
+                .disabled(send.step == .sending || send.isBusy || (send.needsPassphrase && send.passphrase.isEmpty))
         }
     }
 

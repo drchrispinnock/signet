@@ -117,6 +117,9 @@ struct AppMenuButton: View {
                 .disabled(model.selectedWallet == nil)
             Button("Reload wallets") { model.reloadWallets() }
             Divider()
+            Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+            Divider()
             SettingsLink { Text("Settings…") }
                 .keyboardShortcut(",", modifiers: .command)
             Button("Refresh") { Task { await model.refresh() } }

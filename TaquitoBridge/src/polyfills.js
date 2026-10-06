@@ -174,3 +174,165 @@ g.__signet_fetchDone = (id, status, statusText, headersJSON, bodyText, errorMess
   }
   req.resolve(new Response(bodyText, { status, statusText, headers: JSON.parse(headersJSON || "{}"), url: req.url }));
 };
+
+// ---- Browser globals the Octez Connect SDK touches -----------------------------------------------
+// Enough of window/document/navigator/location for the wallet SDK to initialise; the PostMessage
+// (browser-extension) transport finds no listeners and stays idle, which is what we want.
+if (typeof g.location === "undefined") {
+  g.location = { origin: "signet://app", href: "signet://app/", protocol: "signet:", host: "app", hostname: "app", pathname: "/", search: "", hash: "" };
+}
+if (typeof g.navigator === "undefined") {
+  g.navigator = { userAgent: "Signet (macOS; JavaScriptCore)", onLine: true, language: "en", platform: "MacIntel" };
+}
+if (typeof g.document === "undefined") {
+  g.document = {
+    visibilityState: "visible",
+    hidden: false,
+    readyState: "complete",
+    addEventListener() {},
+    removeEventListener() {},
+    createElement() { return { style: {}, setAttribute() {}, appendChild() {}, remove() {} }; },
+    getElementById() { return null; },
+    querySelector() { return null; },
+    body: { appendChild() {}, removeChild() {} },
+    head: { appendChild() {}, removeChild() {} },
+  };
+}
+const noop = () => {};
+if (typeof g.addEventListener !== "function") g.addEventListener = noop;
+if (typeof g.removeEventListener !== "function") g.removeEventListener = noop;
+if (typeof g.dispatchEvent !== "function") g.dispatchEvent = () => true;
+if (typeof g.postMessage !== "function") g.postMessage = noop;
+if (typeof g.CustomEvent === "undefined") {
+  g.CustomEvent = class CustomEvent { constructor(type, init) { this.type = type; this.detail = init?.detail; } };
+}
+if (typeof g.Event === "undefined") {
+  g.Event = class Event { constructor(type) { this.type = type; } };
+}
+
+// ---- More Web APIs the relay transport may use ----------------------------------------------------
+if (typeof g.AbortSignal === "undefined") {
+  // Expose the signal class used by our AbortController, plus AbortSignal.timeout().
+  g.AbortSignal = Object.getPrototypeOf(new g.AbortController().signal).constructor;
+}
+if (typeof g.AbortSignal.timeout !== "function") {
+  g.AbortSignal.timeout = (ms) => {
+    const controller = new g.AbortController();
+    g.setTimeout(() => controller.abort(new Error("The operation timed out.")), ms);
+    return controller.signal;
+  };
+}
+if (typeof g.AbortSignal.any !== "function") {
+  g.AbortSignal.any = (signals) => {
+    const controller = new g.AbortController();
+    for (const s of signals) {
+      if (s.aborted) { controller.abort(s.reason); break; }
+      s.addEventListener("abort", () => controller.abort(s.reason));
+    }
+    return controller.signal;
+  };
+}
+if (typeof g.crypto.randomUUID !== "function") {
+  g.crypto.randomUUID = () => {
+    const b = g.crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  };
+}
+if (typeof g.Request === "undefined") {
+  g.Request = class Request {
+    constructor(input, init = {}) {
+      this.url = typeof input === "string" ? input : input?.url ?? String(input);
+      this.method = (init.method || "GET").toUpperCase();
+      this.headers = new g.Headers(init.headers);
+      this.body = init.body ?? null;
+      this.signal = init.signal ?? null;
+    }
+  };
+}
+if (typeof g.performance === "undefined") {
+  g.performance = { now: () => Date.now() };
+}
+if (typeof g.structuredClone !== "function") {
+  g.structuredClone = (v) => JSON.parse(JSON.stringify(v));
+}
+
+// ---- URL and URLSearchParams ----------------------------------------------------------------------
+// JavaScriptCore has neither. The relay client builds every query string with URLSearchParams.
+if (typeof g.URLSearchParams === "undefined") {
+  const enc = (s) => encodeURIComponent(s).replace(/%20/g, "+");
+  const dec = (s) => decodeURIComponent(s.replace(/\+/g, " "));
+  g.URLSearchParams = class URLSearchParams {
+    constructor(init) {
+      this._list = [];
+      if (init == null) return;
+      if (typeof init === "string") {
+        for (const part of init.replace(/^\?/, "").split("&")) {
+          if (!part) continue;
+          const i = part.indexOf("=");
+          this._list.push(i < 0 ? [dec(part), ""] : [dec(part.slice(0, i)), dec(part.slice(i + 1))]);
+        }
+      } else if (init instanceof URLSearchParams) {
+        this._list = init._list.map(([k, v]) => [k, v]);
+      } else if (Array.isArray(init)) {
+        for (const [k, v] of init) this._list.push([String(k), String(v)]);
+      } else {
+        for (const [k, v] of Object.entries(init)) this._list.push([String(k), String(v)]);
+      }
+    }
+    append(k, v) { this._list.push([String(k), String(v)]); }
+    delete(k) { this._list = this._list.filter(([key]) => key !== k); }
+    get(k) { const hit = this._list.find(([key]) => key === k); return hit ? hit[1] : null; }
+    getAll(k) { return this._list.filter(([key]) => key === k).map(([, v]) => v); }
+    has(k) { return this._list.some(([key]) => key === k); }
+    set(k, v) { this.delete(k); this.append(k, v); }
+    sort() { this._list.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)); }
+    forEach(fn, thisArg) { for (const [k, v] of this._list) fn.call(thisArg, v, k, this); }
+    keys() { return this._list.map(([k]) => k)[Symbol.iterator](); }
+    values() { return this._list.map(([, v]) => v)[Symbol.iterator](); }
+    entries() { return this._list.map(([k, v]) => [k, v])[Symbol.iterator](); }
+    [Symbol.iterator]() { return this.entries(); }
+    get size() { return this._list.length; }
+    toString() { return this._list.map(([k, v]) => `${enc(k)}=${enc(v)}`).join("&"); }
+  };
+}
+if (typeof g.URL === "undefined") {
+  const RE = /^([a-zA-Z][a-zA-Z0-9+.-]*):(?:\/\/(?:([^@/?#]*)@)?(\[[^\]]*\]|[^:/?#]*)(?::(\d*))?)?([^?#]*)(\?[^#]*)?(#.*)?$/;
+  g.URL = class URL {
+    constructor(input, base) {
+      let text = String(input);
+      if (!RE.test(text) && base !== undefined) {
+        const b = new URL(base);
+        if (text.startsWith("//")) text = `${b.protocol}${text}`;
+        else if (text.startsWith("/")) text = `${b.origin}${text}`;
+        else if (text.startsWith("?")) text = `${b.origin}${b.pathname}${text}`;
+        else if (text.startsWith("#")) text = `${b.origin}${b.pathname}${b.search}${text}`;
+        else text = `${b.origin}${b.pathname.replace(/[^/]*$/, "")}${text}`;
+      }
+      const m = RE.exec(text);
+      if (!m) throw new TypeError(`Invalid URL: ${input}`);
+      this.protocol = `${m[1].toLowerCase()}:`;
+      const userinfo = m[2] ?? "";
+      this.username = userinfo.split(":")[0] ?? "";
+      this.password = userinfo.includes(":") ? userinfo.slice(userinfo.indexOf(":") + 1) : "";
+      this.hostname = (m[3] ?? "").toLowerCase();
+      this.port = m[4] ?? "";
+      this.pathname = m[5] || (m[3] !== undefined ? "/" : "");
+      this.search = m[6] && m[6] !== "?" ? m[6] : "";
+      this.hash = m[7] && m[7] !== "#" ? m[7] : "";
+      this.searchParams = new g.URLSearchParams(this.search);
+    }
+    get host() { return this.port ? `${this.hostname}:${this.port}` : this.hostname; }
+    get origin() { return this.hostname ? `${this.protocol}//${this.host}` : "null"; }
+    get href() {
+      const search = this.searchParams.size ? `?${this.searchParams.toString()}` : "";
+      const auth = this.username ? `${this.username}${this.password ? ":" + this.password : ""}@` : "";
+      return `${this.protocol}//${auth}${this.host}${this.pathname}${search}${this.hash}`;
+    }
+    toString() { return this.href; }
+    toJSON() { return this.href; }
+    static canParse(u, b) { try { new URL(u, b); return true; } catch { return false; } }
+  };
+}

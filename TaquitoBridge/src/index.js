@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.5.0";
+  return "0.7.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -83,8 +83,8 @@ export async function generateKeyPair(scheme) {
 }
 
 /** Public key and address for a base58 secret key. Used by tests to verify Swift-encoded keys. */
-export async function keyInfoFromSecretKey(secretKey) {
-  const signer = new InMemorySigner(secretKey);
+export async function keyInfoFromSecretKey(secretKey, passphrase) {
+  const signer = new InMemorySigner(secretKey, passphrase || undefined);
   return { publicKey: await signer.publicKey(), address: await signer.publicKeyHash() };
 }
 
@@ -159,9 +159,9 @@ export async function estimateTransfer(rpcUrl, source, publicKey, destination, a
 const pendingOperations = new Map();
 
 /** Signs and injects a transfer with `secretKey` (base58, unencrypted). Returns the operation hash. */
-export async function sendTransfer(rpcUrl, secretKey, destination, amountMutez) {
+export async function sendTransfer(rpcUrl, secretKey, passphrase, destination, amountMutez) {
   const tk = new TezosToolkit(rpcUrl);
-  tk.setSignerProvider(new InMemorySigner(secretKey));
+  tk.setSignerProvider(new InMemorySigner(secretKey, passphrase || undefined));
   const op = await tk.contract.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
   pendingOperations.set(op.hash, op);
   return { hash: op.hash };
@@ -176,4 +176,44 @@ export async function waitForConfirmation(hash, confirmations = 1) {
   } finally {
     pendingOperations.delete(hash);
   }
+}
+
+// ---- Encrypted secret keys (octez-client format) ---------------------------------------------
+// edesk / spesk / p2esk / BLesk = base58check(prefix ‖ salt[8] ‖ secretbox(key = PBKDF2-HMAC-SHA512(
+// passphrase, salt, 32768 rounds, 32 bytes), nonce = 24 zero bytes, plaintext = raw secret)).
+// Mirrors Taquito's decrypt path above and octez's src/lib_signer_backends/encrypted.ml.
+
+import { b58DecodeAndCheckPrefix } from "@taquito/utils";
+import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
+import { sha512 } from "@noble/hashes/sha2.js";
+import { secretBox } from "@stablelib/nacl";
+
+const ENCRYPTED_PREFIX_FOR = {
+  [PrefixV2.Ed25519Seed]: PrefixV2.Ed25519EncryptedSeed,
+  [PrefixV2.Secp256k1SecretKey]: PrefixV2.Secp256k1EncryptedSecretKey,
+  [PrefixV2.P256SecretKey]: PrefixV2.P256EncryptedSecretKey,
+  [PrefixV2.BLS12_381SecretKey]: PrefixV2.BLS12_381EncryptedSecretKey,
+};
+
+/** Encrypts a clear-text base58 secret key (edsk seed, spsk, p2sk, BLsk) with `passphrase`. */
+export function encryptSecretKey(secretKey, passphrase) {
+  if (!passphrase) throw new Error("encryptSecretKey: passphrase is required");
+  const [raw, prefix] = b58DecodeAndCheckPrefix(secretKey, Object.keys(ENCRYPTED_PREFIX_FOR));
+  const salt = crypto.getRandomValues(new Uint8Array(8));
+  const key = pbkdf2(sha512, passphrase, salt, { c: 32768, dkLen: 32 });
+  const box = secretBox(key, new Uint8Array(24), raw);
+  const payload = new Uint8Array(salt.length + box.length);
+  payload.set(salt, 0);
+  payload.set(box, salt.length);
+  return b58Encode(payload, ENCRYPTED_PREFIX_FOR[prefix]);
+}
+
+// ---- Octez Connect (dApp connections) --------------------------------------------------------
+export * from "./octezconnect.js";
+
+/** Diagnostic: proves console output reaches the host. */
+export function bridgeEcho(message) {
+  console.log("echo:", message);
+  console.warn("echo-warn:", message);
+  return { echoed: message, consoleType: typeof console, logType: typeof console.log };
 }

@@ -92,8 +92,16 @@ struct TaquitoChainService: ChainService {
                                 gasLimit: Int(result["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(result["storageLimit"]?.doubleValue ?? 0))
     }
 
-    func sendTransfer(from wallet: Wallet, secretKey: String, to destination: Address, amount: Decimal) async throws -> String {
-        let result = try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, secretKey, destination.value, Mutez.fromTez(amount)])
+    func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String {
+        let result: JSONValue
+        do {
+            result = try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", destination.value, Mutez.fromTez(amount)])
+        } catch let error as TaquitoBridge.BridgeError {
+            if case .javaScript(let message) = error, message.contains("decrypt") || message.contains("passphrase") {
+                throw ChainError.wrongPassphrase
+            }
+            throw error
+        }
         guard let hash = result["hash"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected send payload: \(String(describing: result))")
         }

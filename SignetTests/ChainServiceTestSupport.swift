@@ -13,6 +13,6 @@ extension TestChainService {
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
         TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0)
     }
-    func sendTransfer(from wallet: Wallet, secretKey: String, to destination: Address, amount: Decimal) async throws -> String { "ooTest" }
+    func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String { "ooTest" }
     func waitForConfirmation(of operationHash: String) async throws -> Int { 1 }
 }

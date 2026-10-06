@@ -19,6 +19,7 @@ final class SendViewModel {
         case insufficientFunds(available: Decimal)
         case noSecretKey
         case sendingToSelf
+        case passphraseRequired
 
         var errorDescription: String? {
             switch self {
@@ -27,6 +28,7 @@ final class SendViewModel {
             case .insufficientFunds(let available): "Not enough spendable tez. Available: \(AssetBalance.format(available, symbol: "tz"))."
             case .noSecretKey: "Signet has no usable secret key for this wallet."
             case .sendingToSelf: "That is this wallet's own address."
+            case .passphraseRequired: "Enter the password for this wallet's key."
             }
         }
     }
@@ -54,6 +56,9 @@ final class SendViewModel {
 
     var recipientText = "" { didSet { if recipientText != oldValue { recipientChanged() } } }
     var amountText = ""
+    /// Password for an encrypted sender key; asked for on the confirm step.
+    var passphrase = ""
+    var needsPassphrase: Bool { sender.keyKind == .encrypted }
     private(set) var recipient: Recipient?
     private(set) var isResolving = false
     private(set) var suggestions: [Wallet] = []
@@ -183,8 +188,10 @@ final class SendViewModel {
         defer { isBusy = false }
         do {
             guard let secretKey = try secretKeyProvider(sender) else { throw SendError.noSecretKey }
+            if needsPassphrase, passphrase.isEmpty { throw SendError.passphraseRequired }
             step = .sending
-            let hash = try await chain.sendTransfer(from: sender, secretKey: secretKey, to: recipient.address, amount: amount)
+            let hash = try await chain.sendTransfer(from: sender, secretKey: secretKey, passphrase: needsPassphrase ? passphrase : nil,
+                                                    to: recipient.address, amount: amount)
             step = .sent(hash: hash)
             let level = try await chain.waitForConfirmation(of: hash)
             step = .confirmed(hash: hash, level: level)

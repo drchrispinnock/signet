@@ -7,7 +7,7 @@ protocol WalletStore: Sendable {
     func add(_ wallet: Wallet, secretKey: String) throws
     /// Adds an address we hold no key for (address book). Fails if the alias is already taken.
     func addWatchOnly(_ wallet: Wallet) throws
-    /// The base58 secret key, or `nil` if it is not held in clear (encrypted, ledger, remote, watch-only).
+    /// The base58 secret key for clear-text and encrypted entries (encrypted ones need the password), else `nil`.
     func secretKey(for wallet: Wallet) throws -> String?
     /// Changes an alias everywhere it appears. Fails if the new alias is already taken.
     func rename(alias: String, to newAlias: String) throws

@@ -11,6 +11,7 @@ final class WalletViewModel {
         case addressExists(String)
         case invalidAddress
         case unsupportedScheme(AddressScheme)
+        case passphraseTooShort
 
         var errorDescription: String? {
             switch self {
@@ -18,6 +19,7 @@ final class WalletViewModel {
             case .aliasExists(let alias): "A wallet named “\(alias)” already exists."
             case .addressExists(let alias): "That address is already in the list as “\(alias)”."
             case .invalidAddress: "That is not a valid Tezos address."
+            case .passphraseTooShort: "Use a password of at least \(WalletViewModel.minimumPassphraseLength) characters."
             case .unsupportedScheme(let scheme): scheme.unavailableReason ?? "\(scheme.rawValue) is not supported yet."
             }
         }
@@ -33,6 +35,10 @@ final class WalletViewModel {
     var isPresentingReceive = false
     var isPresentingAddAddress = false
     var isPresentingSend = false
+    var isPresentingConnectDApp = false
+
+    /// dApp connections over Octez Connect (TZIP-10).
+    private(set) var dapps: DAppConnectionManager!
 
     private(set) var domains: [String] = []
     private(set) var assets: [AssetBalance] = []
@@ -41,6 +47,15 @@ final class WalletViewModel {
     private(set) var isLoading = false
     /// True when the node has no record of the selected address (never funded on this network).
     private(set) var accountNotOnChain = false
+
+    enum FaucetStatus: Equatable {
+        case idle
+        case solving(done: Int, total: Int)
+        case sent(hash: String)
+        case failed(String)
+    }
+    private(set) var faucetStatus: FaucetStatus = .idle
+    static let faucetAmountTez: Double = 100
     private(set) var isCreatingWallet = false
     private(set) var errorMessage: String?
 
@@ -105,7 +120,9 @@ final class WalletViewModel {
         directorySettings: WalletDirectorySettings? = nil,
         storeFactory: (@Sendable (URL) -> (wallets: any WalletStore, state: any AppStateStore))? = nil,
         backupSettings: BackupSettings? = nil,
-        nodeProbe: NodeMonitor.Probe? = nil
+        nodeProbe: NodeMonitor.Probe? = nil,
+        dappStorage: (any BridgeStorage)? = nil,
+        startDApps: Bool = false
     ) {
         self.backupSettings = backupSettings
         let factory: @Sendable (Network) -> any ChainService = chainFactory ?? { _ in chain ?? MockChainService() }
@@ -155,6 +172,15 @@ final class WalletViewModel {
 
         // Startup backup of the key files.
         Task { await backUp() }
+
+        self.dapps = DAppConnectionManager(
+            storage: dappStorage ?? InMemoryBridgeStorage(),
+            wallets: { [unowned self] in self.wallets },
+            secretKey: { [unowned self] wallet in try self.walletStore.secretKey(for: wallet) }
+        )
+        if startDApps, !self.wallets.isEmpty {
+            Task { await dapps.start() }
+        }
     }
 
     /// Copies the wallet files to the backup directory, keeping the configured number of generations.
@@ -287,11 +313,15 @@ final class WalletViewModel {
         nfts = []
         tezBalance = nil
         accountNotOnChain = false
+        faucetStatus = .idle
         Task { await refresh() }
     }
 
-    /// Generates a key for `scheme`, writes it to the store, and adds and selects the new wallet.
-    func createWallet(alias: String, scheme: AddressScheme) async throws {
+    nonisolated static let minimumPassphraseLength = 8
+
+    /// Generates a key for `scheme`, writes it to the store (encrypted with `passphrase` when given),
+    /// and adds and selects the new wallet.
+    func createWallet(alias: String, scheme: AddressScheme, passphrase: String? = nil) async throws {
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw WalletError.emptyAlias }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
@@ -300,10 +330,17 @@ final class WalletViewModel {
         isCreatingWallet = true
         defer { isCreatingWallet = false }
 
+        if let passphrase, passphrase.count < Self.minimumPassphraseLength { throw WalletError.passphraseTooShort }
         let material = try await keyGenerator.generate(scheme: scheme)
+        var secretKey = material.secretKey
+        var kind = KeyKind.unencrypted
+        if let passphrase {
+            secretKey = try await keyGenerator.encrypt(secretKey: material.secretKey, passphrase: passphrase)
+            kind = .encrypted
+        }
         let wallet = Wallet(alias: name, address: Address(material.address), scheme: scheme,
-                            publicKey: material.publicKey, keyKind: .unencrypted)
-        try walletStore.add(wallet, secretKey: material.secretKey)
+                            publicKey: material.publicKey, keyKind: kind)
+        try walletStore.add(wallet, secretKey: secretKey)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
         await backUp()
@@ -344,6 +381,33 @@ final class WalletViewModel {
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
         await backUp()
+    }
+
+    /// Asks the current testnet's faucet to fund the selected address, then polls until the
+    /// account appears on chain.
+    func requestTestTez() async {
+        guard let wallet = selectedWallet, let faucetURL = network.faucetURL else { return }
+        let address = wallet.address
+        faucetStatus = .solving(done: 0, total: 1)
+        let service = FaucetService(baseURL: faucetURL)
+        do {
+            let hash = try await Task.detached(priority: .userInitiated) {
+                try await service.requestTez(to: address, amount: Self.faucetAmountTez) { done, total in
+                    Task { @MainActor in
+                        if case .solving = self.faucetStatus { self.faucetStatus = .solving(done: done, total: total) }
+                    }
+                }
+            }.value
+            faucetStatus = .sent(hash: hash)
+            // The faucet's transfer needs a block; refresh until the account shows up (or give up quietly).
+            for _ in 0..<12 where selectedWallet?.address == address {
+                try? await Task.sleep(for: .seconds(5))
+                await refresh()
+                if !accountNotOnChain { faucetStatus = .idle; break }
+            }
+        } catch {
+            faucetStatus = .failed(error.localizedDescription)
+        }
     }
 
     /// The live chain service, for flows that run their own lookups (Send).

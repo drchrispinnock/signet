@@ -5,5 +5,9 @@
 	<!-- Not sandboxed: the wallet reads and writes ~/.tezos-client like octez-client does. -->
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- JavaScriptCore needs its JIT under the hardened runtime; without it the Taquito bridge
+	     (and especially PBKDF2 for encrypted keys) runs interpreted and is orders of magnitude slower. -->
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
 </dict>
 </plist>

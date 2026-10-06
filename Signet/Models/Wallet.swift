@@ -29,7 +29,17 @@ enum KeyKind: String, Codable, Sendable {
         }
     }
 
-    var canSign: Bool { self == .unencrypted }
+    /// Kinds Signet can sign with: clear-text keys, and encrypted keys once the user supplies the password.
+    var canSign: Bool { self == .unencrypted || self == .encrypted }
+
+    /// Base58 prefixes of octez-encrypted secret keys.
+    static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk"]
+
+    /// The `secret_keys` locator for a base58 secret key: `encrypted:` for edesk-style keys, else `unencrypted:`.
+    static func locator(forSecretKey key: String) -> String {
+        let prefix = String(key.prefix(5))
+        return (encryptedKeyPrefixes.contains(prefix) ? "encrypted:" : "unencrypted:") + key
+    }
 }
 
 /// One address with the alias the user gave it: an octez-client alias. The app holds many
