@@ -9,8 +9,19 @@
 We are writing a wallet using Claude.AI for Tezos. It is for Macs only.
 ChatGPT made the Macintosh App icon.
 
-This is very very new software. There is absolutely no warranty. If it breaks
-you get to keep ALL the pieces. Use at your own risk. Currently all keys 
-generated are passwordless and unencrypted. We will get to it. We will also
+*Disclaimer:* This is very very new software. There is absolutely no warranty. If it breaks you get to keep ALL the pieces. Use at your own risk. Currently all keys generated are passwordless and unencrypted. We will get to it. We will also
 get to ledger support too.
 
+## Frequently Asked Questions
+
+### Why are you doing this then?
+
+Simple because I haven't attempted a project in Swift using AI before. All the code is written by Claude. Codex is auditing it. It is an exercise in using AI for software development. The winter nights are drawing in. The TV offerings on Netflix and Prime are not what they used to be. Also having a nice shiny wallet for Tezos on the Mac won't hurt anyone.
+
+### Will it steal my keys?
+
+Probably not. Codex will be checking what Claude is doing. But of course, you can read the sources too.
+
+### Will you be adding XYZ feature any time soon?
+
+Ping me and we can queue it up. Work on this will be between other things and might fall right down the stack.
