@@ -52,6 +52,12 @@ struct Network: Hashable, Identifiable, Sendable {
         return explorerURL.host() == "tzkt.io" ? explorerURL.appendingPathComponent(hash) : URL(string: "\(explorerURL.absoluteString)/#op/\(hash)")
     }
 
+    /// Where to look a contract up, if this network has an explorer.
+    func explorerURL(contract address: String) -> URL? {
+        guard let explorerURL else { return nil }
+        return explorerURL.host() == "tzkt.io" ? explorerURL.appendingPathComponent(address) : URL(string: "\(explorerURL.absoluteString)/#contract/\(address)")
+    }
+
     var isMainnet: Bool { chain == "mainnet" }
     var isUsingDefaultNode: Bool { rpcURL == defaultRPCURL }
 

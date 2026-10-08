@@ -216,8 +216,15 @@ struct TaquitoChainService: ChainService {
         return proof
     }
 
+    /// Fungible tokens from TzKT. Indexer trouble is logged and shown as an empty list.
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
-        try await fallback.tokenBalances(for: address)
+        guard let tzkt = network.tzktURL else { return [] }
+        do {
+            return try await TzKTService(baseURL: tzkt, session: session).fungibleTokens(for: address)
+        } catch {
+            NSLog("TzKT token lookup failed for %@: %@", address.value, error.localizedDescription)
+            return []
+        }
     }
 
     /// The address's published Tezos Domains name, if any. A lookup failure is logged and

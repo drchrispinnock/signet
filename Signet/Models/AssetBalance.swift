@@ -23,6 +23,10 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
     let amount: Decimal
     /// How `amount` splits up, if there is anything to show.
     var details: [Detail] = []
+    /// The token's logo, one URL per gateway to try (tokens only).
+    var iconURLs: [URL] = []
+    /// `fa1.2` / `fa2` for tokens.
+    var standard: String?
 
     var formattedAmount: String { Self.format(amount, symbol: symbol) }
 

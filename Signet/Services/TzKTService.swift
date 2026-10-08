@@ -21,6 +21,8 @@ struct TzKTService: Sendable {
                 let thumbnailUri: String?
                 let displayUri: String?
                 let artifactUri: String?
+                /// Fungible tokens often put their logo here instead of thumbnailUri.
+                let icon: String?
                 let formats: [Format]?
 
                 struct Format: Decodable, Sendable {
@@ -67,6 +69,36 @@ struct TzKTService: Sendable {
     /// NFTs are tokens with no decimal places and some image to show.
     func nfts(for address: Address) async throws -> [NFT] {
         Self.nfts(from: try await tokenBalances(for: address))
+    }
+
+    /// Fungible (DeFi) tokens: anything with decimal places, or an FA1.2 token (always fungible).
+    /// Tokens with zero decimals and no image, such as Tezos Domains, are neither NFT nor asset.
+    func fungibleTokens(for address: Address) async throws -> [AssetBalance] {
+        Self.fungibleTokens(from: try await tokenBalances(for: address))
+    }
+
+    static func fungibleTokens(from balances: [TokenBalance]) -> [AssetBalance] {
+        balances.compactMap { row in
+            let metadata = row.token.metadata
+            let decimals = metadata?.decimalPlaces ?? 0
+            guard decimals > 0 || row.token.standard?.lowercased() == "fa1.2" else { return nil }
+            guard let raw = Decimal(string: row.balance) else { return nil }
+            let amount = raw / pow(Decimal(10), decimals)
+            let contract = row.token.contract.address
+            let symbol = metadata?.symbol?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
+            let name = metadata?.name?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
+            let icons = [metadata?.thumbnailUri, metadata?.icon, metadata?.displayUri].compactMap { $0 }.flatMap(IPFS.candidateURLs(for:))
+            return AssetBalance(
+                id: "\(contract):\(row.token.tokenId)",
+                kind: .token(contract: contract, tokenId: row.token.tokenId),
+                name: name ?? symbol ?? Address(contract).shortened(),
+                symbol: symbol ?? name ?? "",
+                amount: amount,
+                iconURLs: icons,
+                standard: row.token.standard
+            )
+        }
+        .sorted { $0.amount > $1.amount }
     }
 
     static func nfts(from balances: [TokenBalance]) -> [NFT] {

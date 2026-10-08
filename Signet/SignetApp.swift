@@ -25,12 +25,13 @@ struct SignetApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Create account…") { model.isPresentingCreateWallet = true }
-                    .keyboardShortcut("n", modifiers: .command)
+                Button("Create Backup") { Task { await model.backUp(force: true) } }
+                    .disabled(model.backupDirectory == nil)
             }
             // The same actions as the burger menu, in the menu bar.
             CommandMenu("Operations") {
                 Button("Create account…") { model.isPresentingCreateWallet = true }
+                    .keyboardShortcut("n", modifiers: .command)
                 Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Button("Rename account…") { model.isPresentingRenameWallet = true }

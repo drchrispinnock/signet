@@ -48,15 +48,23 @@ actor ImageLoader {
     }
 
     /// Decodes at most `maxPixelSize` on the long edge so a grid of large artworks stays cheap.
+    /// ImageIO does not read SVG (common for token logos), so those go through NSImage instead.
     nonisolated static func downsample(_ data: Data, maxPixelSize: Int) -> NSImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return svg(data) }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
-        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return svg(data) }
         return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    /// An SVG document as a (vector) NSImage, or `nil` if the data is not one.
+    nonisolated static func svg(_ data: Data) -> NSImage? {
+        guard let head = String(data: data.prefix(512), encoding: .utf8)?.lowercased(), head.contains("<svg") || head.contains("<?xml") else { return nil }
+        guard let image = NSImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
+        return image
     }
 }

@@ -14,11 +14,13 @@ struct ActivityTabsView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 320)
+            .frame(maxWidth: 400)
 
             switch model.activityTab {
             case .transactions:
                 TransactionListView(model: model)
+            case .assets:
+                TokenListView(tokens: model.tokens, isLoading: model.isLoading, network: model.network)
             case .nfts:
                 NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
             }

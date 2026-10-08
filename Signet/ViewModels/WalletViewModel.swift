@@ -46,6 +46,8 @@ final class WalletViewModel {
 
     private(set) var domains: [String] = []
     private(set) var assets: [AssetBalance] = []
+    /// Fungible (DeFi) tokens, shown on the Assets tab rather than in the balance list.
+    private(set) var tokens: [AssetBalance] = []
     private(set) var tezBalance: TezBalance?
     private(set) var nfts: [NFT] = []
     private(set) var transactions: [TezosTransaction] = []
@@ -54,6 +56,7 @@ final class WalletViewModel {
 
     enum ActivityTab: String, CaseIterable, Identifiable {
         case transactions = "Recent transactions"
+        case assets = "Assets"
         case nfts = "NFTs"
         var id: String { rawValue }
     }
@@ -380,11 +383,12 @@ final class WalletViewModel {
                 let etherlink = try await chain.etherlinkBalance(for: address)
                 list.append(AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: etherlink))
             }
-            list.append(contentsOf: try await tokens)
+            let tokenList = try await tokens
 
             // Drop the results if the user switched wallets while we were loading.
             guard address == selectedWallet?.address else { return }
             assets = list
+            self.tokens = tokenList
             domains = try await names
             nfts = try await collectibles
             transactions = try await history
@@ -393,6 +397,7 @@ final class WalletViewModel {
             guard address == selectedWallet?.address else { return }
             accountNotOnChain = true
             assets = []
+            tokens = (try? await chain.tokenBalances(for: address)) ?? []
             domains = (try? await chain.domains(for: address)) ?? []
             nfts = (try? await chain.nfts(for: address)) ?? []
             transactions = []
@@ -407,6 +412,7 @@ final class WalletViewModel {
         rememberSelection()
         domains = []
         assets = []
+        tokens = []
         nfts = []
         transactions = []
         delegateInfo = nil

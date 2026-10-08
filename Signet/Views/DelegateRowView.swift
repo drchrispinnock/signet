@@ -39,8 +39,12 @@ struct DelegateRowView: View {
         } else {
             ZStack {
                 Circle().fill(.quaternary)
-                Image(systemName: model.delegateInfo?.isBaker == true ? "server.rack" : "person.crop.circle.badge.questionmark")
-                    .foregroundStyle(.secondary)
+                if model.delegateInfo?.isBaker == true {
+                    Text("👨‍🍳").font(.title2)
+                } else {
+                    Image(systemName: "person.crop.circle.badge.questionmark")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

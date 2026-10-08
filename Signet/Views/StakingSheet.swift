@@ -95,7 +95,7 @@ struct StakingSheet: View {
             Section("Delegation") {
                 if let info {
                     if info.isBaker {
-                        Label(canOperate ? "This account is a baker (self-delegated). Manage it under Baking in the menu." : "This address is a baker (self-delegated).", systemImage: "server.rack")
+                        Label { Text(canOperate ? "This account is a baker (self-delegated). Manage it under Baking in the menu." : "This address is a baker (self-delegated).") } icon: { Text("👨‍🍳") }
                     } else if let delegate = info.delegate {
                         LabeledContent("Delegate") {
                             HStack(spacing: 8) {

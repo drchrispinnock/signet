@@ -152,7 +152,7 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   carry the same items (Create account, Connect Ledger, Rename account | Add address | Connect to
-  dApp, Baking | Settings, Refresh); keep them in step. File has Create account (Cmd-N).
+  dApp, Baking | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
@@ -183,7 +183,11 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
   into `TezosTransaction`; rows show the counterparty's avatar and name, our alias with a green seal
-  when it is one of ours, else TzKT's alias, via `WalletViewModel.displayName`) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
+  when it is one of ours, else TzKT's alias, via `WalletViewModel.displayName`), `TokenListView`
+  (the Assets tab: fungible/DeFi tokens from the same TzKT `/v1/tokens/balances` call via
+  `TzKTService.fungibleTokens`: anything with decimal places or FA1.2, amount divided by the
+  decimals, logo from thumbnailUri/icon, kept in `WalletViewModel.tokens`, not in the top balance
+  list) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
   decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
   over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` is reached from the hamburger menu, the
   File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`

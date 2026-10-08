@@ -13,7 +13,12 @@ struct MockChainService: ChainService {
     }
 
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
-        []
+        guard address == Self.captainStake else { return [] }
+        return [
+            AssetBalance(id: "KT1FfjhvJZppBFQuUzNAdFPR1Z2jpD4XiXrF:0", kind: .token(contract: "KT1FfjhvJZppBFQuUzNAdFPR1Z2jpD4XiXrF", tokenId: "0"), name: "Aubergine", symbol: "GINE", amount: 30_000, standard: "fa2"),
+            AssetBalance(id: "KT1MZg99PxMDEENwB4Fi64xkqAVh5d1rv8Z9:0", kind: .token(contract: "KT1MZg99PxMDEENwB4Fi64xkqAVh5d1rv8Z9", tokenId: "0"), name: "Tezos Pepe", symbol: "PEPE", amount: 5_000, standard: "fa2"),
+            AssetBalance(id: "KT1VaEsVNiBoA56eToEK6n6BcPgh1tdx9eXi:0", kind: .token(contract: "KT1VaEsVNiBoA56eToEK6n6BcPgh1tdx9eXi", tokenId: "0"), name: "Temple Key", symbol: "TKEY", amount: Decimal(string: "1.047540545999871429")!, standard: "fa2"),
+        ]
     }
 
     func domains(for address: Address) async throws -> [String] {

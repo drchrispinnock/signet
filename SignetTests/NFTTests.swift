@@ -7,7 +7,8 @@ struct IPFSTests {
     @Test(arguments: [
         ("ipfs://QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc", "https://ipfs.filebase.io/ipfs/QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc"),
         ("ipfs://QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP/?fxhash=opPk", "https://ipfs.filebase.io/ipfs/QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP/?fxhash=opPk"),
-        ("https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9", "https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9"),
+        ("https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9", "https://ipfs.filebase.io/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9"),
+        ("https://i.pinimg.com/originals/81/ec/8e/x.jpg", "https://i.pinimg.com/originals/81/ec/8e/x.jpg"),
     ])
     func rewritesToGateway(uri: String, expected: String) {
         #expect(IPFS.httpURL(for: uri)?.absoluteString == expected)
@@ -18,6 +19,25 @@ struct IPFSTests {
         #expect(ipfs.count == IPFS.gateways.count)
         #expect(ipfs.map(\.host) == IPFS.gateways.map(\.host))
         #expect(IPFS.candidateURLs(for: "https://example.com/x.png").count == 1)
+    }
+
+    @Test func widensOtherGatewayURLsToOurs() {
+        let subdomain = IPFS.candidateURLs(for: "https://bafybeigqka2ynrib6ytxku3nvakork5smsxni5xdqro56kd7ecsfos7z7a.ipfs.dweb.link/")
+        #expect(subdomain.first?.absoluteString == "https://ipfs.filebase.io/ipfs/bafybeigqka2ynrib6ytxku3nvakork5smsxni5xdqro56kd7ecsfos7z7a")
+        #expect(subdomain.count == IPFS.gateways.count + 1)
+        #expect(subdomain.last?.host() == "bafybeigqka2ynrib6ytxku3nvakork5smsxni5xdqro56kd7ecsfos7z7a.ipfs.dweb.link")
+
+        let path = IPFS.candidateURLs(for: "https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9")
+        #expect(path.first?.absoluteString == "https://ipfs.filebase.io/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9")
+        #expect(path.count == IPFS.gateways.count)   // pinata is already one of ours
+        #expect(IPFS.candidateURLs(for: "https://i.pinimg.com/originals/81/ec/8e/x.jpg").count == 1)
+    }
+
+    @Test func decodesSVGLogos() throws {
+        let svg = Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="18" fill="purple"/></svg>"#.utf8)
+        let image = try #require(ImageLoader.downsample(svg, maxPixelSize: 100))
+        #expect(image.size.width > 0)
+        #expect(ImageLoader.downsample(Data("not an image".utf8), maxPixelSize: 100) == nil)
     }
 
     @Test func rejectsOtherSchemes() {
