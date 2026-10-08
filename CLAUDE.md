@@ -231,8 +231,14 @@ automatic download is off by default. The updater is not started under the test 
   only once a `signet_desktop` entry with `deepLink: "signet://"` is merged upstream. `DAppConnectionManager` parses requests
   (`DAppRequest`), queues them, and `DAppRequestSheet` approves/rejects: permission (pick a wallet),
   operation (Taquito `contract.batch` from the partial operations, password for encrypted keys,
-  Ledger approval on the device), sign_payload (`signer.sign`). Wrong password or a Ledger that is
-  not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
+  Ledger approval on the device), sign_payload (`signer.sign`). A sign_payload is only accepted
+  when its type is `micheline` and the hex is `05` followed by exactly one well-formed Micheline
+  expression (`MichelineBinary`, a strict reader of the binary encoding; the bridge's
+  `micheline.js` is its twin): the signature is over the raw bytes, so `03…` would be an
+  operation signature the dApp could inject. `DAppSignPayload.refusal` rejects anything else
+  before it is queued (the dApp gets `SIGNATURE_TYPE_NOT_SUPPORTED`) and the bridge's
+  `octezConnectSign` applies the same rule.
+  Wrong password or a Ledger that is not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

@@ -116,7 +116,7 @@ struct DAppRequestSheet: View {
                     .frame(maxHeight: 140)
                 }
                 passphraseField(for: source)
-                Text("Signing proves you control this account. Only sign messages you understand from dApps you trust.")
+                Text("Signing proves you control this account. Only sign messages you understand from dApps you trust. Signet signs packed Michelson messages only, never operations.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             .formStyle(.grouped).scrollDisabled(true)
@@ -223,25 +223,10 @@ struct DAppRequestSheet: View {
     /// Micheline string payloads (0x0501 + length + UTF-8) are shown as text; anything else as hex.
     private func decodedPayload(_ payload: String, signingType: String) -> String {
         if signingType == "micheline", payload.hasPrefix("0501"), payload.count > 12,
-           let bytes = Base58Hex.bytes(fromHex: String(payload.dropFirst(12))),
+           let bytes = Hex.bytes(fromHex: String(payload.dropFirst(12))),
            let text = String(bytes: bytes, encoding: .utf8) {
             return text
         }
         return payload
-    }
-}
-
-enum Base58Hex {
-    static func bytes(fromHex hex: String) -> [UInt8]? {
-        guard hex.count % 2 == 0 else { return nil }
-        var out: [UInt8] = []
-        var index = hex.startIndex
-        while index < hex.endIndex {
-            let next = hex.index(index, offsetBy: 2)
-            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
-            out.append(byte)
-            index = next
-        }
-        return out
     }
 }

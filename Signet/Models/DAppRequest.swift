@@ -68,6 +68,12 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
         }
     }
 
+    /// Why a sign_payload request must be refused, or `nil` when it is safe to put in front of the user.
+    var signRefusal: String? {
+        guard case .signPayload(_, _, _, let signingType, let payload) = self else { return nil }
+        return DAppSignPayload.refusal(signingType: signingType, payload: payload)
+    }
+
     /// Which of our networks a request's network refers to, or `nil` if we cannot serve it.
     static func network(forType type: String, rpcURL: URL?) -> Network? {
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
@@ -103,4 +109,34 @@ struct DAppPermission: Identifiable, Hashable, Sendable {
     let connectedAt: Date?
 
     var id: String { accountIdentifier + ":" + senderId }
+}
+
+/// What Signet is willing to sign for a dApp's sign_payload request.
+///
+/// A signature is over the Blake2b hash of the raw bytes, and the chain signs operations the same
+/// way with a `03` watermark in front, so a "message" whose hex starts with `03` is an operation
+/// signature a dApp could inject. Only the `micheline` type is accepted, and only when the bytes
+/// start with `05`, the packed-data prefix no chain operation uses, and decode as exactly one
+/// Micheline expression with nothing left over; that is the form every dApp produces for
+/// "Tezos Signed Message" and TZIP-17 permits. The `operation` and `raw` types are
+/// refused outright. The bridge applies the same rule before signing.
+enum DAppSignPayload {
+    static let maxHexLength = 64 * 1024
+
+    static func refusal(signingType: String, payload: String) -> String? {
+        guard signingType == "micheline" else {
+            return "Signet only signs “micheline” messages, not “\(signingType)”, because other types could be operations."
+        }
+        guard payload.count.isMultiple(of: 2), !payload.isEmpty, payload.allSatisfy(\.isHexDigit) else {
+            return "The message is not valid hex."
+        }
+        guard payload.count <= maxHexLength else { return "The message is too long to sign." }
+        guard payload.hasPrefix("05") else {
+            return "The message is not packed Michelson data (it does not start with 05), so it could be an operation."
+        }
+        guard MichelineBinary.isPackedExpression(hex: payload) else {
+            return "The message is not one complete packed Michelson expression."
+        }
+        return nil
+    }
 }

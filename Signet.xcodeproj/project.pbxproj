@@ -56,6 +56,7 @@
 		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
 		78A3D78FBA369C156627C515 /* LedgerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */; };
 		78CE24F5EAB7F18B76FA8B5C /* TezosDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */; };
+		797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7E3944EC2E0534678CCBD8 /* Micheline.swift */; };
 		7B96FA319FEEBEDB31EDBAE1 /* TezosClientStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A237F56680C24625B031AEF /* TezosClientStoreTests.swift */; };
 		7F077A5907D72A9379B6A1AD /* DAppPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */; };
 		87EF0C514614D59FEC8B90B8 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = EC49F06EDD571F1736674E8F /* Sparkle */; };
@@ -195,6 +196,7 @@
 		79F498AB6E54AD10BF1747A6 /* TransactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionTests.swift; sourceTree = "<group>"; };
 		7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StakingSheet.swift; sourceTree = "<group>"; };
 		7CC270D9AC39835A78941A29 /* Staking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Staking.swift; sourceTree = "<group>"; };
+		7D7E3944EC2E0534678CCBD8 /* Micheline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Micheline.swift; sourceTree = "<group>"; };
 		809437E1132C36D982D2418B /* AvatarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarTests.swift; sourceTree = "<group>"; };
 		80E99E461133439B04A22C8A /* Signet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Signet.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		822144910E1FB03FD7D270CA /* QRCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeTests.swift; sourceTree = "<group>"; };
@@ -323,6 +325,7 @@
 				42FFEDDCB3BE24F2E5C54DE0 /* Governance.swift */,
 				954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */,
 				3C28E33024C38536C06397DB /* LedgerKey.swift */,
+				7D7E3944EC2E0534678CCBD8 /* Micheline.swift */,
 				445064DD790420A57A0362DD /* Network.swift */,
 				8D36824F9FB49AF03A6D12F1 /* NFT.swift */,
 				7CC270D9AC39835A78941A29 /* Staking.swift */,
@@ -625,6 +628,7 @@
 				B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */,
 				A7EAFA11BB89D10581112187 /* LedgerKey.swift in Sources */,
 				78A3D78FBA369C156627C515 /* LedgerService.swift in Sources */,
+				797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */,
 				896C54EFB54D417EF6A58C50 /* MockChainService.swift in Sources */,
 				C257244EDCE03ED2A3659C37 /* MtPelerin.swift in Sources */,
 				4AED8C1726FA50A22393D834 /* NFT.swift in Sources */,

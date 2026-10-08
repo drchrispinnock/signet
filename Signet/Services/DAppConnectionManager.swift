@@ -10,12 +10,14 @@ final class DAppConnectionManager {
         case notOurWallet(Address)
         case noUsableKey(String)
         case unsupportedNetwork(String)
+        case refusedPayload(String)
 
         var errorDescription: String? {
             switch self {
             case .notOurWallet(let address): "The dApp asked for \(address.shortened()), which is not one of your accounts."
             case .noUsableKey(let alias): "Signet cannot sign with “\(alias)” (no key on disk or Ledger)."
             case .unsupportedNetwork(let type): "The dApp wants the “\(type)” network, which Signet does not have."
+            case .refusedPayload(let why): why
             }
         }
     }
@@ -122,6 +124,10 @@ final class DAppConnectionManager {
             Task { await respondError(id: id, errorType: "NOT_GRANTED_ERROR"); lastError = "Unsupported dApp request: \(type)" }
             return
         }
+        if let why = request.signRefusal {
+            Task { await respondError(id: request.id, errorType: "SIGNATURE_TYPE_NOT_SUPPORTED"); lastError = "Refused a signing request from “\(request.app.name)”: \(why)" }
+            return
+        }
         pending.append(request)
     }
 
@@ -175,8 +181,9 @@ final class DAppConnectionManager {
     func approveSignature(_ request: DAppRequest, passphrase: String?) async {
         guard case .signPayload(let id, _, let source, let signingType, let payload) = request else { return }
         do {
+            if let why = request.signRefusal { throw ConnectError.refusedPayload(why) }
             let (_, signer) = try signer(for: source, passphrase: passphrase)
-            let result = try await bridge.call("octezConnectSign", [signer.bridgeSpec, payload])
+            let result = try await bridge.call("octezConnectSign", [signer.bridgeSpec, payload, signingType])
             guard let signature = result["signature"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no signature") }
             await respond(["type": "sign_payload_response", "id": id, "signingType": signingType, "signature": signature])
             lastOutcome = "Signed a message for “\(request.app.name)”"

@@ -182,8 +182,26 @@ export async function octezConnectExecute(rpcUrl, signerSpec, operationsJson) {
   return { hash: op.hash };
 }
 
+/**
+ * Why a sign_payload request must not be signed, or null. Signing hashes the raw bytes, and so
+ * does the chain for operations (with a 03 watermark in front), so hex starting with 03 is an
+ * operation signature. Only `micheline` payloads starting with 05, the packed-data prefix no
+ * operation uses, and that decode as exactly one Micheline expression, are signed. Swift applies
+ * the same rule before the request is shown.
+ */
+export function signPayloadRefusal(signingType, payload) {
+  if (signingType !== "micheline") return `Signet only signs "micheline" messages, not "${signingType}"`;
+  if (typeof payload !== "string" || payload.length === 0 || payload.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(payload)) return "the message is not valid hex";
+  if (payload.length > 64 * 1024) return "the message is too long";
+  if (!payload.startsWith("05")) return "the message is not packed Michelson data (no 05 prefix), so it could be an operation";
+  if (!isPackedMicheline(payload)) return "the message is not one complete packed Michelson expression";
+  return null;
+}
+
 /** Signs a payload for a sign_payload request. `payload` is the hex the dApp sent. */
-export async function octezConnectSign(signerSpec, payload) {
+export async function octezConnectSign(signerSpec, payload, signingType) {
+  const why = signPayloadRefusal(signingType, payload);
+  if (why) throw new Error(`refused to sign: ${why}`);
   const signer = await signerFor(signerSpec);
   const { prefixSig } = await signer.sign(payload);
   return { signature: prefixSig };
@@ -228,6 +246,7 @@ export async function octezConnectStop() {
 
 // ---- Diagnostics -------------------------------------------------------------------------------
 import { getKeypairFromSeed, createSenderSessionKey, createReceiverSessionKey, encryptCryptoboxPayload, decryptCryptoboxPayload, sealCryptobox, openCryptobox, toHex, getHexHash } from "@tezos-x/octez.connect-utils";
+import { isPackedMicheline } from "./micheline.js";
 
 /**
  * Round-trips the SDK's own crypto inside this runtime: a "dApp" keypair seals a pairing payload
