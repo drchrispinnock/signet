@@ -4,6 +4,7 @@ import SwiftUI
 /// App settings: which node to talk to, where the wallet files live, and how they are backed up.
 struct SettingsView: View {
     @Bindable var model: WalletViewModel
+    @Bindable var updater: UpdaterService
     @State private var editingNetworkName = ""
 
     var body: some View {
@@ -17,6 +18,7 @@ struct SettingsView: View {
             if let backupDirectory = model.backupDirectory {
                 backupSection(backupDirectory)
             }
+            updatesSection
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 900)
@@ -38,6 +40,28 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
+        }
+    }
+
+    private var updatesSection: some View {
+        Section {
+            Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
+            Toggle("Download and install them automatically", isOn: $updater.automaticallyDownloadsUpdates)
+                .disabled(!updater.automaticallyChecksForUpdates)
+            LabeledContent("Last checked") {
+                HStack {
+                    Text(updater.lastUpdateCheckDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Never")
+                        .foregroundStyle(.secondary)
+                    Button("Check Now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                }
+            }
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("New releases are fetched from GitHub and verified against the key built into the app before they are installed. Only Signet itself is replaced; your accounts stay in the wallet folder.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -243,5 +267,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(model: .preview())
+    SettingsView(model: .preview(), updater: UpdaterService(starting: false))
 }

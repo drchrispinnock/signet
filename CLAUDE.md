@@ -43,7 +43,8 @@ release before building it. Copyright and the About credits live in `Signet/Info
 `Signet/Resources/Credits.rtf`.
 
 `scripts/release.sh [version]` archives a Release build, signs it with `$DEVELOPER_ID` if set
-(ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`.
+(ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`
+plus `dist/appcast.xml`, the Sparkle feed for that one release (see Updates below).
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which does the same on a macOS runner and
 attaches the zip to a GitHub release; signing and notarisation switch on when the repository
 secrets described in the workflow exist. Since 0.4.2 those secrets are set, so tagged releases
@@ -52,6 +53,25 @@ are Developer ID signed and notarised (identity `Developer ID Application: Chris
 `scratch/APPLEID.md` (git-ignored). The codesign identity is only valid when Apple's Developer
 ID G2 intermediate certificate is in the keychain; the workflow imports it, and it had to be
 added by hand on the development Mac.
+
+**Updates (Sparkle).** The app updates itself the way iTerm2 and NetNewsWire do: the Sparkle 2
+package (`packages:` in `project.yml`) checks `SUFeedURL` from `Info.plist`, which is
+`https://github.com/drchrispinnock/signet/releases/latest/download/appcast.xml`, so the feed is
+simply the `appcast.xml` asset of the newest GitHub release. `release.sh` makes it with
+`generate_appcast` from the resolved package (`build/packages/artifacts/sparkle/Sparkle/bin`):
+one item whose enclosure points at the zip on that release's page, release notes embedded from
+`dist/Signet-<version>.md` when present (the workflow writes GitHub's generated notes there),
+signed with the EdDSA key. The public half is `SUPublicEDKey` in `Info.plist`; the private half
+lives in the development Mac's login keychain (made by Sparkle's `generate_keys`) and must also
+be the `SPARKLE_PRIVATE_KEY` repository secret (`generate_keys -x file`, then
+`gh secret set SPARKLE_PRIVATE_KEY < file`). Without the secret the workflow still releases but
+attaches no appcast, so that release is never offered as an update. Sparkle verifies the EdDSA
+signature and the Developer ID signature of every download. `sparkle:version` is
+`CFBundleVersion`, the commit count, so it only ever grows. In the app `UpdaterService`
+(`Signet/Services`) wraps `SPUStandardUpdaterController`; "Check for Updates…" sits under the
+app menu, and Settings has an Updates section (automatic check, automatic download, last
+checked, Check Now). `SUEnableAutomaticChecks` is on so Sparkle skips its first-run prompt;
+automatic download is off by default. The updater is not started under the test host.
 
 ## Architecture
 

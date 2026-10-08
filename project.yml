@@ -6,6 +6,12 @@ options:
   xcodeVersion: "27.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
+packages:
+  # Self-updating (Check for Updates…), as iTerm2 and NetNewsWire do. The app checks the
+  # appcast named by SUFeedURL in Info.plist; releases are signed by generate_appcast.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.10.0"
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -24,6 +30,8 @@ targets:
           - "Resources/taquito-bridge.js"
       - path: Signet/Resources/taquito-bridge.js
         buildPhase: resources
+    dependencies:
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.tezos.signet

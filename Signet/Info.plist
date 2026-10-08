@@ -4,6 +4,16 @@
 <dict>
 	<key>LSMultipleInstancesProhibited</key>
 	<true/>
+	<!-- Sparkle: the appcast is attached to every GitHub release; this URL always serves the latest one. -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/drchrispinnock/signet/releases/latest/download/appcast.xml</string>
+	<!-- Updates are signed with the EdDSA key generate_keys made; the private half is in the keychain
+	     and in the SPARKLE_PRIVATE_KEY repository secret. -->
+	<key>SUPublicEDKey</key>
+	<string>yvDejjls+XRXvF1DRPwvbTD48lSBoeo9/hqs4j0OGRg=</string>
+	<!-- Check daily without asking first; Settings has the switch. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
