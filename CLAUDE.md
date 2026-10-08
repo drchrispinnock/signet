@@ -31,6 +31,8 @@ xcodebuild -project Signet.xcodeproj -scheme Signet -destination 'platform=macOS
 ```
 
 Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), not XCTest.
+Quit any running Signet first: the app sets `LSMultipleInstancesProhibited`, so the test host
+(Signet.app itself) cannot launch while one is open and xcodebuild reports "Could not launch".
 
 ## Releases
 
