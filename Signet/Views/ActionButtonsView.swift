@@ -21,7 +21,9 @@ struct ActionButtonsView: View {
         [
             Action(title: "Send", symbol: "arrow.up", enabled: canSign && !model.accountNotOnChain) { model.isPresentingSend = true },
             Action(title: "Receive", symbol: "arrow.down", enabled: model.selectedWallet != nil && !isWatchOnly) { model.isPresentingReceive = true },
-            Action(title: "Buy", symbol: "plus", enabled: false) {},
+            model.network.faucetURL != nil
+                ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
+                : Action(title: "Buy", symbol: "plus", enabled: false) {},
             Action(title: "Sell", symbol: "minus", enabled: false) {},
         ]
     }

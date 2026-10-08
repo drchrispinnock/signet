@@ -298,8 +298,8 @@ private struct TransferResultView: View {
     private func operationLink(_ hash: String) -> some View {
         HStack(spacing: 8) {
             Text(hash).font(.callout.monospaced()).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
-            if network.isMainnet, let url = URL(string: "https://tzkt.io/\(hash)") {
-                Link("View on TzKT", destination: url).font(.callout)
+            if let url = network.explorerURL(operation: hash) {
+                Link("View in explorer", destination: url).font(.callout)
             }
         }
     }

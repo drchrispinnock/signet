@@ -11,10 +11,10 @@ struct NodeStatusBar: View {
                 .frame(width: 9, height: 9)
                 .overlay(Circle().strokeBorder(.black.opacity(0.15)))
                 .accessibilityHidden(true)
-            Text(monitor.network.name)
-                .fontWeight(.medium)
-            Text(monitor.network.rpcURL.host() ?? monitor.network.rpcURL.absoluteString)
+            Text("Node:")
                 .foregroundStyle(.secondary)
+            Text(monitor.network.rpcURL.host() ?? monitor.network.rpcURL.absoluteString)
+                .fontWeight(.medium)
             if let level = monitor.status.level {
                 Text("level \(level.formatted())")
                     .foregroundStyle(.secondary)
@@ -34,7 +34,7 @@ struct NodeStatusBar: View {
         .onTapGesture { Task { await monitor.checkNow() } }
         .help(helpText)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Node \(monitor.network.name): \(monitor.status.summary)")
+        .accessibilityLabel("Node \(monitor.network.rpcURL.host() ?? ""): \(monitor.status.summary)")
     }
 
     private var color: Color {

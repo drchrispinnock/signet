@@ -30,23 +30,9 @@ struct AccountNotOnChainView: View {
             }
 
             HStack(spacing: 8) {
-                if let faucet = network.faucetURL {
-                    switch model.faucetStatus {
-                    case .idle, .failed:
-                        Button("Get \(Int(WalletViewModel.faucetAmountTez)) test tez") { Task { await model.requestTestTez() } }
-                            .buttonStyle(.borderedProminent)
-                    case .solving(let done, let total):
-                        ProgressView(value: Double(done), total: Double(max(total, 1)))
-                            .frame(width: 140)
-                        Text("Solving faucet challenge \(min(done + 1, total)) of \(total)…")
-                            .font(.callout).foregroundStyle(.secondary)
-                    case .sent:
-                        ProgressView().controlSize(.small)
-                        Text("Tez sent, waiting for the next block…")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-                    Button("Open faucet site…") { NSWorkspace.shared.open(faucet) }
-                        .buttonStyle(.link)
+                if network.faucetURL != nil {
+                    Button("Get test tez…") { model.isPresentingFaucet = true }
+                        .buttonStyle(.borderedProminent)
                     Button(copied ? "Address copied" : "Copy address", systemImage: copied ? "checkmark" : "doc.on.doc", action: copyAddress)
                 } else {
                     Button("Show address to receive tez…") { model.isPresentingReceive = true }
@@ -58,9 +44,6 @@ struct AccountNotOnChainView: View {
             }
             .padding(.leading, 60)
 
-            if case .failed(let message) = model.faucetStatus {
-                Text(message).font(.callout).foregroundStyle(.red).padding(.leading, 60)
-            }
         }
         .accessibilityElement(children: .contain)
     }

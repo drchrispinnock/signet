@@ -35,19 +35,44 @@ struct FaucetService: Sendable {
     typealias Progress = @Sendable (_ done: Int, _ total: Int) -> Void
 
     let baseURL: URL
+    let kind: Network.FaucetKind
     let session: URLSession
 
-    init(baseURL: URL, session: URLSession = .shared) {
+    init(baseURL: URL, kind: Network.FaucetKind = .teztnets, session: URLSession = .shared) {
         self.baseURL = baseURL
+        self.kind = kind
         self.session = session
     }
 
+    /// Convenience for a network's own faucet.
+    init?(network: Network, session: URLSession = .shared) {
+        guard let url = network.faucetURL else { return nil }
+        self.init(baseURL: url, kind: network.faucetKind, session: session)
+    }
+
     func info() async throws -> Info {
-        try JSONDecoder().decode(Info.self, from: try await request("info", body: nil))
+        let data = try await request("info", body: nil)
+        switch kind {
+        case .teztnets:
+            return try JSONDecoder().decode(Info.self, from: data)
+        case .pqpark:
+            // {"address": "tz1…", "balance": 96587895.65, "defaultAmount": 100}; no stated limits.
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let defaultAmount = (object?["defaultAmount"] as? NSNumber)?.doubleValue ?? 100
+            return Info(faucetAddress: object?["address"] as? String ?? "", challengesEnabled: false,
+                        minTez: 1, maxTez: max(defaultAmount * 10, 1000))
+        }
     }
 
     /// Asks the faucet to send `amount` tez to `address`. Returns the operation hash.
     func requestTez(to address: Address, amount: Double, progress: Progress? = nil) async throws -> String {
+        if kind == .pqpark {
+            let reply = try await request("send", body: ["to": address.value, "amount": amount])
+            guard let object = try JSONSerialization.jsonObject(with: reply) as? [String: Any], let hash = object["hash"] as? String else {
+                throw FaucetError.unexpectedReply
+            }
+            return hash
+        }
         let info = try await info()
         let amount = min(max(amount, info.minTez), info.maxTez)
         var payload: [String: Any] = ["address": address.value, "amount": amount]
@@ -101,7 +126,8 @@ struct FaucetService: Sendable {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw FaucetError.unexpectedReply }
         guard (200..<300).contains(http.statusCode) else {
-            let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let message = (object?["message"] ?? object?["error"]) as? String
             throw FaucetError.server(message ?? "HTTP \(http.statusCode)")
         }
         return data

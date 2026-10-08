@@ -5,7 +5,7 @@ struct CreateWalletSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var alias = "My Wallet"
+    @State private var alias: String
     @State private var scheme: AddressScheme = .tz1
     @State private var encrypt: Bool
     @State private var password = ""
@@ -17,6 +17,7 @@ struct CreateWalletSheet: View {
         self.model = model
         // Real money defaults to encrypted; testnets default to convenience.
         _encrypt = State(initialValue: model.network.isMainnet)
+        _alias = State(initialValue: model.suggestedAlias())
     }
 
     private var trimmedAlias: String { alias.trimmingCharacters(in: .whitespacesAndNewlines) }

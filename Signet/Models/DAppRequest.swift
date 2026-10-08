@@ -70,7 +70,8 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
 
     /// Which of our networks a request's network refers to, or `nil` if we cannot serve it.
     static func network(forType type: String, rpcURL: URL?) -> Network? {
-        if let match = Network.all.first(where: { $0.chain == type.lowercased() }) { return match }
+        // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
+        if let match = Network.all.first(where: { $0.chain == type.lowercased() && $0.chain != "custom" }) { return match }
         if type.lowercased() == "custom", let rpcURL {
             if let known = Network.all.first(where: { $0.rpcURL.host() == rpcURL.host() }) { return known }
             return Network(name: "Custom (\(rpcURL.host() ?? rpcURL.absoluteString))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)

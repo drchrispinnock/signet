@@ -38,3 +38,35 @@ struct PostQuantumSendTests {
         #expect(level > 0)
     }
 }
+
+/// The same story on Quantumnet, whose faucet accepts tz5 and whose blocks are 6 s apart.
+struct QuantumnetPostQuantumSendTests {
+    @Test(.tags(.network), .timeLimit(.minutes(4)))
+    func tz5WalletCanReceiveAndSendOnQuantumnet() async throws {
+        let quantum = try await KeyGenerator().generate(scheme: .tz5)
+        let wallet = Wallet(alias: "pq-test", address: Address(quantum.address), scheme: .tz5, publicKey: quantum.publicKey, keyKind: .unencrypted)
+        let chain = TaquitoChainService(network: .quantumnet)
+
+        let faucet = try #require(FaucetService(network: .quantumnet))
+        let fundingHash = try await faucet.requestTez(to: wallet.address, amount: 2)
+        #expect(fundingHash.hasPrefix("o"))
+
+        var balance: TezBalance?
+        for _ in 0..<30 {
+            try await Task.sleep(for: .seconds(4))
+            if let b = try? await chain.tezBalance(for: wallet.address), b.spendable > 0 { balance = b; break }
+        }
+        let funded = try #require(balance, "faucet transfer to the tz5 address never showed up")
+        #expect(funded.spendable >= 2)
+
+        let destination = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        let estimate = try await chain.estimateTransfer(from: wallet, to: destination, amount: Decimal(string: "0.5")!)
+        #expect(estimate.fee > 0)
+
+        let hash = try await chain.sendTransfer(from: wallet, secretKey: quantum.secretKey, passphrase: nil, to: destination, amount: Decimal(string: "0.5")!)
+        #expect(hash.hasPrefix("o"))
+        let level = try await chain.waitForConfirmation(of: hash)
+        #expect(level > 0)
+        print("tz5 send on Quantumnet confirmed in block \(level): \(hash)")
+    }
+}

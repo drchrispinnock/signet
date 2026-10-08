@@ -8,6 +8,8 @@ protocol ChainService: Sendable {
     func tokenBalances(for address: Address) async throws -> [AssetBalance]
     func domains(for address: Address) async throws -> [String]
     func nfts(for address: Address) async throws -> [NFT]
+    /// Most recent operations touching the address, newest first.
+    func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction]
 
     /// Forward Tezos Domains lookup: `name.tez` → address, or `nil` if unregistered.
     func resolveDomain(_ name: String) async throws -> Address?

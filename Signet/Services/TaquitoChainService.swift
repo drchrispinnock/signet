@@ -69,6 +69,16 @@ struct TaquitoChainService: ChainService {
         try await fallback.etherlinkBalance(for: address)
     }
 
+    func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] {
+        guard let tzkt = network.tzktURL else { return [] }
+        do {
+            return try await TzKTService(baseURL: tzkt, session: session).recentOperations(for: address, limit: limit)
+        } catch {
+            NSLog("TzKT history lookup failed for %@: %@", address.value, error.localizedDescription)
+            return []
+        }
+    }
+
     func resolveDomain(_ name: String) async throws -> Address? {
         guard let endpoint = network.tezosDomainsURL else { return nil }
         return try await TezosDomainsService(endpoint: endpoint, session: session).resolve(name: name)

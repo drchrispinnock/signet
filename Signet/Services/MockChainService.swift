@@ -24,6 +24,20 @@ struct MockChainService: ChainService {
         (1...6).map { NFT(id: "mock:\($0)", contract: "KT1mock", tokenId: "\($0)", name: "NFT \($0)", balance: 1, thumbnailURL: nil) }
     }
 
+    func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] {
+        let now = Date()
+        return [
+            TezosTransaction(id: "1", hash: "ooAAA111", level: 9_000_010, timestamp: now.addingTimeInterval(-3_600), kind: .transaction, direction: .incoming,
+                             counterparty: Self.captainStake, counterpartyAlias: "Captain Stake", amount: 12.5, fee: 0, entrypoint: nil, isApplied: true),
+            TezosTransaction(id: "2", hash: "ooBBB222", level: 9_000_000, timestamp: now.addingTimeInterval(-86_400), kind: .transaction, direction: .outgoing,
+                             counterparty: Address("KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton"), counterpartyAlias: "objkt.com Marketplace", amount: 0, fee: 0.000521, entrypoint: "collect", isApplied: true),
+            TezosTransaction(id: "3", hash: "ooCCC333", level: 8_999_000, timestamp: now.addingTimeInterval(-3 * 86_400), kind: .delegation, direction: .outgoing,
+                             counterparty: Self.captainStake, counterpartyAlias: "Captain Stake", amount: 0, fee: 0.0003, entrypoint: nil, isApplied: true),
+            TezosTransaction(id: "4", hash: "ooDDD444", level: 8_990_000, timestamp: now.addingTimeInterval(-9 * 86_400), kind: .transaction, direction: .outgoing,
+                             counterparty: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), counterpartyAlias: nil, amount: 3, fee: 0.0004, entrypoint: nil, isApplied: false),
+        ]
+    }
+
     func resolveDomain(_ name: String) async throws -> Address? {
         name.lowercased() == "captstake.tez" ? Self.captainStake : nil
     }

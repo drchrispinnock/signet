@@ -36,6 +36,7 @@ final class WalletViewModel {
     var isPresentingAddAddress = false
     var isPresentingSend = false
     var isPresentingConnectDApp = false
+    var isPresentingFaucet = false
 
     /// dApp connections over Octez Connect (TZIP-10).
     private(set) var dapps: DAppConnectionManager!
@@ -44,6 +45,15 @@ final class WalletViewModel {
     private(set) var assets: [AssetBalance] = []
     private(set) var tezBalance: TezBalance?
     private(set) var nfts: [NFT] = []
+    private(set) var transactions: [TezosTransaction] = []
+    static let recentTransactionLimit = 25
+
+    enum ActivityTab: String, CaseIterable, Identifiable {
+        case transactions = "Recent transactions"
+        case nfts = "NFTs"
+        var id: String { rawValue }
+    }
+    var activityTab: ActivityTab = .transactions
     private(set) var isLoading = false
     /// True when the node has no record of the selected address (never funded on this network).
     private(set) var accountNotOnChain = false
@@ -52,6 +62,7 @@ final class WalletViewModel {
         case idle
         case solving(done: Int, total: Int)
         case sent(hash: String)
+        case received(hash: String)
         case failed(String)
     }
     private(set) var faucetStatus: FaucetStatus = .idle
@@ -62,18 +73,84 @@ final class WalletViewModel {
     /// Watches the configured node for the status bar.
     let nodeMonitor: NodeMonitor
 
-    /// The node the app talks to. Changing it swaps the chain service and reloads the dashboard.
+    /// The network and node the app talks to. Changing either swaps the chain service and
+    /// reloads the dashboard. Assign a `Network` straight from `Network.all` to use its default
+    /// node; `switchNetwork(to:)` applies the custom node saved for it, if any.
     var network: Network {
         didSet {
             guard network != oldValue else { return }
             nodeMonitor.network = network
             chain = chainFactory(network)
             state.networkName = network.name
+            var nodeURLs = state.nodeURLs ?? [:]
+            nodeURLs[network.name] = network.isUsingDefaultNode ? nil : network.rpcURL.absoluteString
+            state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
             persistState()
             assets = []
             domains = []
             nfts = []
             Task { await refresh() }
+        }
+    }
+
+    /// `base` with the custom node the user saved for it, or `base` itself.
+    func resolved(_ base: Network) -> Network {
+        Self.resolve(base, in: state)
+    }
+
+    private static func resolve(_ base: Network, in state: AppState) -> Network {
+        guard let saved = state.nodeURLs?[base.name], let url = Network.nodeURL(from: saved) else { return base }
+        return base.usingNode(url)
+    }
+
+    /// Switches to another network, talking to whatever node was last set for it.
+    func switchNetwork(to base: Network) {
+        network = resolved(base)
+    }
+
+    /// Points the current network at the node typed in Settings. False (and no change) when
+    /// the text is not a host or http(s) URL.
+    @discardableResult
+    func setNode(_ text: String) -> Bool {
+        setNode(text, for: network)
+    }
+
+    /// Goes back to the node we ship for the current network.
+    func useDefaultNode() {
+        useDefaultNode(for: network)
+    }
+
+    /// The node in use (saved or default) for any network, without switching to it.
+    func nodeURL(for base: Network) -> URL {
+        resolved(Network.named(base.name) ?? base).rpcURL
+    }
+
+    /// Saves the node for `base`. Applies immediately if `base` is the network in use.
+    @discardableResult
+    func setNode(_ text: String, for base: Network) -> Bool {
+        guard let url = Network.nodeURL(from: text) else { return false }
+        let template = Network.named(base.name) ?? base
+        if base.name == network.name {
+            network = template.usingNode(url)      // didSet persists it
+        } else {
+            var nodeURLs = state.nodeURLs ?? [:]
+            nodeURLs[base.name] = url == template.defaultRPCURL ? nil : url.absoluteString
+            state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
+            persistState()
+        }
+        return true
+    }
+
+    /// Goes back to the shipped node for `base`.
+    func useDefaultNode(for base: Network) {
+        let template = Network.named(base.name) ?? base
+        if base.name == network.name {
+            network = template.usingNode(template.defaultRPCURL)
+        } else {
+            var nodeURLs = state.nodeURLs ?? [:]
+            nodeURLs[base.name] = nil
+            state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
+            persistState()
         }
     }
 
@@ -142,7 +219,7 @@ final class WalletViewModel {
         let state = stateStore.load()
         self.stateStore = stateStore
         self.state = state
-        let network = Network.named(state.networkName) ?? .mainnet
+        let network = Self.resolve(Network.named(state.networkName) ?? .mainnet, in: state)
         self.network = network
         self.nodeMonitor = NodeMonitor(network: network, probe: nodeProbe)
         self.chainFactory = factory
@@ -233,7 +310,7 @@ final class WalletViewModel {
             errorMessage = "Could not load wallets: \(error.localizedDescription)"
         }
         selectedWalletID = wallets.first { $0.alias == state.selectedWalletAlias }?.id ?? wallets.first?.id
-        if let remembered = Network.named(state.networkName), remembered != network { network = remembered }
+        if let remembered = Network.named(state.networkName) { switchNetwork(to: remembered) }
         importableWalletCount = Self.countImportable(at: importSource, excluding: wallets)
         assets = []
         domains = []
@@ -278,6 +355,7 @@ final class WalletViewModel {
             async let tokens = chain.tokenBalances(for: address)
             async let names = chain.domains(for: address)
             async let collectibles = chain.nfts(for: address)
+            async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
@@ -293,12 +371,14 @@ final class WalletViewModel {
             assets = list
             domains = try await names
             nfts = try await collectibles
+            transactions = try await history
         } catch ChainError.accountNotOnChain {
             guard address == selectedWallet?.address else { return }
             accountNotOnChain = true
             assets = []
             domains = (try? await chain.domains(for: address)) ?? []
             nfts = (try? await chain.nfts(for: address)) ?? []
+            transactions = []
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -311,6 +391,7 @@ final class WalletViewModel {
         domains = []
         assets = []
         nfts = []
+        transactions = []
         tezBalance = nil
         accountNotOnChain = false
         faucetStatus = .idle
@@ -318,6 +399,15 @@ final class WalletViewModel {
     }
 
     nonisolated static let minimumPassphraseLength = 8
+
+    /// A default alias that is not already taken: "My Wallet", then "My Wallet 2", "My Wallet 3", …
+    func suggestedAlias(base: String = "My Wallet") -> String {
+        let taken = Set(wallets.map { $0.alias.lowercased() })
+        if !taken.contains(base.lowercased()) { return base }
+        var n = 2
+        while taken.contains("\(base) \(n)".lowercased()) { n += 1 }
+        return "\(base) \(n)"
+    }
 
     /// Generates a key for `scheme`, writes it to the store (encrypted with `passphrase` when given),
     /// and adds and selects the new wallet.
@@ -385,25 +475,25 @@ final class WalletViewModel {
 
     /// Asks the current testnet's faucet to fund the selected address, then polls until the
     /// account appears on chain.
-    func requestTestTez() async {
-        guard let wallet = selectedWallet, let faucetURL = network.faucetURL else { return }
+    func requestTestTez(amount: Double = WalletViewModel.faucetAmountTez) async {
+        guard let wallet = selectedWallet, let service = FaucetService(network: network) else { return }
         let address = wallet.address
         faucetStatus = .solving(done: 0, total: 1)
-        let service = FaucetService(baseURL: faucetURL)
         do {
             let hash = try await Task.detached(priority: .userInitiated) {
-                try await service.requestTez(to: address, amount: Self.faucetAmountTez) { done, total in
+                try await service.requestTez(to: address, amount: amount) { done, total in
                     Task { @MainActor in
                         if case .solving = self.faucetStatus { self.faucetStatus = .solving(done: done, total: total) }
                     }
                 }
             }.value
             faucetStatus = .sent(hash: hash)
-            // The faucet's transfer needs a block; refresh until the account shows up (or give up quietly).
+            // The faucet's transfer needs a block; refresh until the balance moves (or give up quietly).
+            let before = tezBalance?.spendable ?? 0
             for _ in 0..<12 where selectedWallet?.address == address {
                 try? await Task.sleep(for: .seconds(5))
                 await refresh()
-                if !accountNotOnChain { faucetStatus = .idle; break }
+                if !accountNotOnChain, (tezBalance?.spendable ?? 0) > before { faucetStatus = .received(hash: hash); break }
             }
         } catch {
             faucetStatus = .failed(error.localizedDescription)
@@ -416,6 +506,14 @@ final class WalletViewModel {
     /// The clear-text secret key for one of our wallets, read from the store on demand.
     func secretKey(for wallet: Wallet) throws -> String? {
         try walletStore.secretKey(for: wallet)
+    }
+
+    /// How to label an address in lists: our own alias (verified), else the indexer's name, else the
+    /// shortened address. The flag says whether the name came from our records.
+    func displayName(for address: Address, indexerAlias: String?) -> (name: String, isOurs: Bool) {
+        if let mine = wallets.first(where: { $0.address == address }) { return (mine.alias, true) }
+        if let alias = indexerAlias, !alias.isEmpty { return (alias, false) }
+        return (address.shortened(), false)
     }
 
     /// The TzProfiles name (via TzKT, always mainnet) for any address, or `nil` if it has none.

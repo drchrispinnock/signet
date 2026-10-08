@@ -1,9 +1,12 @@
 import Foundation
 
-/// UI state remembered between launches: which wallet was showing and which node was chosen.
+/// UI state remembered between launches: which wallet was showing, which network was chosen
+/// and any custom nodes.
 struct AppState: Codable, Equatable, Sendable {
     var selectedWalletAlias: String?
     var networkName: String?
+    /// Custom RPC nodes by network name, for networks where the user replaced the default.
+    var nodeURLs: [String: String]?
 }
 
 protocol AppStateStore: Sendable {

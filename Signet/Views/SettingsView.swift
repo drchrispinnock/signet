@@ -4,6 +4,7 @@ import SwiftUI
 /// App settings: which node to talk to, where the wallet files live, and how they are backed up.
 struct SettingsView: View {
     @Bindable var model: WalletViewModel
+    @State private var editingNetworkName = ""
 
     var body: some View {
         Form {
@@ -37,24 +38,86 @@ struct SettingsView: View {
         }
     }
 
+    /// The network is a dropdown; the node beneath it is free text so any RPC endpoint can
+    /// replace the default for that network. The text is applied on Return or with Apply.
+    @State private var nodeText = ""
+    @State private var nodeError: String?
+
     private var nodeSection: some View {
         Section {
-            Picker("Node", selection: $model.network) {
+            Picker("Network", selection: $editingNetworkName) {
                 ForEach(Network.all) { network in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(network.name)
-                        Text(network.rpcURL.absoluteString)
-                            .font(.callout.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                    .tag(network)
+                    Text(network.name + (network.name == model.network.name ? "  (in use)" : "")).tag(network.name)
                 }
             }
-            .pickerStyle(.radioGroup)
+            LabeledContent("Node") {
+                VStack(alignment: .trailing, spacing: 8) {
+                    TextField("Node", text: $nodeText)
+                        .font(.callout.monospaced())
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .onSubmit(applyNode)
+                        .frame(minWidth: 280)
+                    if let nodeError {
+                        Text(nodeError)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                    }
+                    HStack {
+                        Button("Use Default") {
+                            if let base = editingNetwork { model.useDefaultNode(for: base); syncNodeText() }
+                        }
+                        .disabled(editingNetwork.map { model.nodeURL(for: $0) == $0.defaultRPCURL } ?? true)
+                        Button("Apply", action: applyNode)
+                            .disabled(!nodeIsDirty)
+                    }
+                }
+            }
         } footer: {
-            Text("Balances and names are fetched from the selected network. More networks will be added later.")
+            Text(nodeFooter)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+        .onAppear { editingNetworkName = model.network.name; syncNodeText() }
+        .onChange(of: editingNetworkName) { syncNodeText() }
+        .onChange(of: model.network) { if editingNetworkName == model.network.name { syncNodeText() } }
+    }
+
+    private var editingNetwork: Network? { Network.named(editingNetworkName) }
+
+    private var nodeIsDirty: Bool {
+        guard let base = editingNetwork else { return false }
+        return Network.nodeURL(from: nodeText) != model.nodeURL(for: base)
+    }
+
+    private var nodeFooter: String {
+        guard let base = editingNetwork else { return "" }
+        var text = "The node Signet uses for \(base.name). Each network keeps its own; switch networks with the badge at the top of the main window."
+        if base.chain == "custom" {
+            text += " Custom is yours to point anywhere, for example a node you run yourself."
+        } else {
+            text += " The default is \(base.defaultRPCURL.absoluteString)."
+        }
+        if base.chain == "weeklynet" {
+            text += " Weeklynet restarts every Wednesday and its address carries that date, so the default follows the calendar."
+        }
+        return text
+    }
+
+    private func syncNodeText() {
+        if let base = editingNetwork {
+            nodeText = model.nodeURL(for: base).nodeDisplayTextStandalone
+        }
+        nodeError = nil
+    }
+
+    private func applyNode() {
+        guard let base = editingNetwork else { return }
+        if model.setNode(nodeText, for: base) {
+            nodeError = nil
+            syncNodeText()
+        } else {
+            nodeError = "Enter a host name such as rpc.tzbeta.net."
         }
     }
 

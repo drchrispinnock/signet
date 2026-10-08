@@ -37,3 +37,26 @@ struct FaucetServiceTests {
         #expect(hash.count == 51)
     }
 }
+
+struct QuantumnetTests {
+    @Test func quantumnetIsConfiguredOffTeztnets() {
+        let q = Network.quantumnet
+        #expect(q.rpcURL.absoluteString == "https://quantumnet.pqpark.dal.nomadic-labs.com/rpc")
+        #expect(q.tzktURL?.host() == "quantumnet-tzkt.pqpark.dal.nomadic-labs.com")
+        #expect(q.faucetKind == .pqpark)
+        #expect(q.explorerURL(operation: "ooX")?.absoluteString == "https://quantumnet-tzkt.pqpark.dal.nomadic-labs.com/#op/ooX")
+        #expect(Network.mainnet.explorerURL(operation: "ooX")?.absoluteString == "https://tzkt.io/ooX")
+        #expect(Network.shadownet.explorerURL(operation: "ooX") == nil)
+        #expect(Network.all.map(\.name).contains("Quantumnet"))
+    }
+
+    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    func quantumnetNodeFaucetAndIndexerAnswer() async throws {
+        let faucet = try #require(FaucetService(network: .quantumnet))
+        let info = try await faucet.info()
+        #expect(info.faucetAddress.hasPrefix("tz"))
+        #expect(info.minTez == 1)
+        let header = try await NodeMonitor.urlSessionProbe(Network.quantumnet.rpcURL.appendingPathComponent("chains/main/blocks/head/header"))
+        #expect(NodeMonitor.evaluate(.success(header), now: Date()).light != .red)
+    }
+}

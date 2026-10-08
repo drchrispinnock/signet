@@ -123,9 +123,13 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   services whatever network is selected, because a TzProfile is a mainnet identity), fetched live from the Tezos Domains GraphQL API by
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
-  `ActionButtonsView` (Send, Receive, Buy, Sell; Receive opens `ReceiveSheet` with a Core Image QR
-  code of the address, the others are disabled until their flows exist), `AssetListView` (tez, then Etherlink, then
-  other tokens) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
+  `ActionButtonsView` (Send, Receive, Buy/Get, Sell; Receive opens `ReceiveSheet` with a Core Image QR
+  code of the address; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
+  `WalletViewModel.requestTestTez(amount:)`; Buy and Sell are disabled until their flows exist), `AssetListView` (tez, then Etherlink, then
+  other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
+  operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
+  into `TezosTransaction`; rows show the counterparty's avatar and name, our alias with a green seal
+  when it is one of ours, else TzKT's alias, via `WalletViewModel.displayName`) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
   decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
   over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` is reached from the hamburger menu, the
   File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
@@ -147,14 +151,27 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   says so. tz6 (XMSS, public keys `xmpk`, stateful; octez keeps `xmss_slots`) is shown with a
   balance when present but cannot be created or signed with; Taquito rejects tz6 addresses, so
   `TaquitoChainService` fetches its balance by direct RPC.
+- Quantumnet (Nomadic Labs' post-quantum testnet, tz5 enabled, 6 s blocks) is not on teztnets.com:
+  RPC `quantumnet.pqpark.dal.nomadic-labs.com/rpc`, its own TzKT and explorer, and a PQPark faucet
+  (`Network.FaucetKind.pqpark`: `GET /info`, `POST /send {to, amount}`, no proof of work) which
+  `FaucetService` speaks alongside the teztnets protocol. `Network.explorerURL(operation:)` links
+  operations per network (tzkt.io on mainnet, the self-hosted TzKT on Quantumnet). Settings has a
+  network dropdown that picks whose node is being edited (not the network in use) and a Custom
+  network defaulting to `http://localhost:8732`; nodes are shown as full URLs.
 - The spec asks for Taquito "where possible". Taquito is TypeScript, so chain access goes
   through a JavaScript bundle run inside JavaScriptCore (see `TaquitoBridge/`). Keep private
   keys and signing in Swift; use the bridge for RPC, forging, encoding and metadata.
 - Etherlink is out of scope for now. The row is hidden behind `WalletViewModel.showsEtherlinkBalance`;
   the asset kind, logo asset and fetch path are kept so it can be switched back on.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
-  2026; Shadownet is the long-running public testnet and the bridge tests use it. The chosen
-  network and selected wallet are remembered in `~/.signet/state` (`FileAppStateStore`); `WalletViewModel.network` rebuilds the chain service via
+  2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
+  restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the
+  URL from the most recent Wednesday (UTC). Each `Network` has a `defaultRPCURL` and the `rpcURL`
+  in use: Settings shows the network as a dropdown with a free-text node field beneath it, and
+  `WalletViewModel.setNode` / `useDefaultNode` replace the node for the current network only.
+  Custom nodes are kept per network name in `AppState.nodeURLs`; `switchNetwork(to:)` applies
+  the saved one (assigning `network` directly uses whatever node the value carries). The chosen
+  network, node and selected wallet are remembered in `~/.signet/state` (`FileAppStateStore`); `WalletViewModel.network` rebuilds the chain service via
   `chainFactory` when it changes. `SettingsView` is the standard macOS Settings scene (Cmd-comma),
   also reachable from the burger menu. Current RPC URLs are listed at
   https://teztnets.com/teztnets.json.

@@ -28,6 +28,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingAddAddress) {
             AddAddressSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingFaucet) {
+            FaucetSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingConnectDApp) {
             ConnectDAppSheet(model: model)
         }
@@ -62,15 +65,7 @@ struct WalletHomeView: View {
                 HStack(alignment: .top) {
                     WalletIdentityView(model: model, wallet: wallet)
                     Spacer()
-                    if !model.network.isMainnet {
-                        Text(model.network.name)
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(.orange.opacity(0.2)))
-                            .foregroundStyle(.orange)
-                            .help("Connected to \(model.network.rpcURL.absoluteString)")
-                    }
+                    NetworkBadgeMenu(model: model)
                     AppMenuButton(model: model)
                 }
                 ActionButtonsView(model: model)
@@ -80,7 +75,7 @@ struct WalletHomeView: View {
                     AssetListView(assets: model.assets)
                 }
                 Divider()
-                NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
+                ActivityTabsView(model: model)
             } else {
                 NoWalletsView(model: model)
             }

@@ -8,6 +8,7 @@ extension TestChainService {
     func tokenBalances(for address: Address) async throws -> [AssetBalance] { [] }
     func domains(for address: Address) async throws -> [String] { [] }
     func nfts(for address: Address) async throws -> [NFT] { [] }
+    func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] { [] }
     func resolveDomain(_ name: String) async throws -> Address? { nil }
     func accountProfile(for address: Address) async throws -> AccountProfile? { nil }
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {

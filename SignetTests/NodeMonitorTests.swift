@@ -77,8 +77,52 @@ struct NodeMonitorTests {
 struct FaucetTests {
     @Test func testnetsHaveFaucetsAndMainnetDoesNot() {
         #expect(Network.mainnet.faucetURL == nil)
-        for network in Network.all where !network.isMainnet {
-            #expect(network.faucetURL?.host()?.hasPrefix("faucet.") == true, Comment(rawValue: network.name))
+        for network in Network.all where !network.isMainnet && network.chain != "custom" {
+            #expect(network.faucetURL?.host()?.contains("faucet") == true, Comment(rawValue: network.name))
         }
+    }
+}
+
+struct NodeTextTests {
+    @Test func bareHostsBecomeHTTPS() {
+        #expect(Network.nodeURL(from: "rpc.tzbeta.net")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: " rpc.tzbeta.net/ ")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: "https://rpc.shadownet.teztnets.com")?.host() == "rpc.shadownet.teztnets.com")
+        #expect(Network.nodeURL(from: "http://localhost:8732")?.absoluteString == "http://localhost:8732")
+        #expect(Network.nodeURL(from: "node.example.org:8732/tezos")?.absoluteString == "https://node.example.org:8732/tezos")
+        #expect(Network.nodeURL(from: "") == nil)
+        #expect(Network.nodeURL(from: "not a host") == nil)
+    }
+
+    @Test func displayTextIsTheFullURL() {
+        #expect(Network.mainnet.nodeDisplayText == "https://rpc.tzbeta.net")
+        #expect(Network.custom.nodeDisplayText == "http://localhost:8732")
+        #expect(Network.mainnet.usingNode(URL(string: "http://localhost:8732")!).nodeDisplayText == "http://localhost:8732")
+    }
+}
+
+@MainActor
+struct PerNetworkNodeTests {
+    @Test func editsAnotherNetworksNodeWithoutSwitching() {
+        let state = InMemoryAppStateStore()
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
+        #expect(model.network.name == "Mainnet")
+
+        #expect(model.setNode("rpc.shadownet.example.org", for: .shadownet))
+        #expect(model.network.name == "Mainnet")                       // still on mainnet
+        #expect(model.nodeURL(for: .shadownet).host() == "rpc.shadownet.example.org")
+        #expect(state.load().nodeURLs?["Shadownet"] == "https://rpc.shadownet.example.org")
+
+        model.switchNetwork(to: .shadownet)                              // the saved node comes along
+        #expect(model.network.rpcURL.host() == "rpc.shadownet.example.org")
+
+        model.useDefaultNode(for: .shadownet)
+        #expect(model.network.rpcURL == Network.shadownet.defaultRPCURL)
+        #expect(state.load().nodeURLs?["Shadownet"] == nil)
+
+        #expect(Network.all.contains { $0.name == "Custom" })
+        #expect(model.setNode("node.mine.example:8732", for: .custom))
+        #expect(model.nodeURL(for: .custom).absoluteString == "https://node.mine.example:8732")
+        #expect(!model.setNode("not a host", for: .custom))
     }
 }

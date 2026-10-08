@@ -178,4 +178,69 @@ struct NetworkSettingsTests {
         try? defaults.save(AppState(networkName: "Nonsense"))
         #expect(WalletViewModel(chain: MockChainService(), stateStore: defaults).network == .mainnet)
     }
+
+    @Test func customNodeIsRememberedPerNetworkAndRestored() {
+        let defaults = InMemoryAppStateStore()
+        let model = WalletViewModel(chain: MockChainService(), stateStore: defaults)
+        #expect(model.network.isUsingDefaultNode)
+
+        #expect(!model.setNode("not a url"))
+        #expect(model.network == .mainnet)
+        #expect(model.setNode(" https://rpc.example.org/ "))
+        #expect(model.network.rpcURL.absoluteString == "https://rpc.example.org")
+        #expect(model.network.name == "Mainnet")
+        #expect(!model.network.isUsingDefaultNode)
+        #expect(defaults.load().nodeURLs == ["Mainnet": "https://rpc.example.org"])
+
+        // Other networks keep their defaults; coming back to mainnet finds the custom node again.
+        model.switchNetwork(to: .shadownet)
+        #expect(model.network == .shadownet)
+        model.switchNetwork(to: .mainnet)
+        #expect(model.network.rpcURL.absoluteString == "https://rpc.example.org")
+
+        let relaunched = WalletViewModel(chain: MockChainService(), stateStore: defaults)
+        #expect(relaunched.network.rpcURL.absoluteString == "https://rpc.example.org")
+        relaunched.useDefaultNode()
+        #expect(relaunched.network == .mainnet)
+        #expect(defaults.load().nodeURLs == nil)
+    }
+}
+
+struct NetworkTests {
+    @Test func parsesNodeURLs() {
+        #expect(Network.nodeURL(from: "https://rpc.tzbeta.net/")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: "http://localhost:8732")?.absoluteString == "http://localhost:8732")
+        #expect(Network.nodeURL(from: "rpc.tzbeta.net")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: "ftp://rpc.tzbeta.net") == nil)
+        #expect(Network.nodeURL(from: "") == nil)
+    }
+
+    @Test func weeklynetFollowsTheMostRecentWednesday() throws {
+        let utc = TimeZone(identifier: "UTC")!
+        func date(_ string: String) throws -> Date {
+            let formatter = ISO8601DateFormatter()
+            formatter.timeZone = utc
+            return try #require(formatter.date(from: string))
+        }
+        #expect(Network.weeklynet(on: try date("2026-10-07T00:00:00Z")).rpcURL.absoluteString == "https://rpc.weeklynet-2026-10-07.teztnets.com")
+        #expect(Network.weeklynet(on: try date("2026-10-08T12:00:00Z")).rpcURL.absoluteString == "https://rpc.weeklynet-2026-10-07.teztnets.com")
+        #expect(Network.weeklynet(on: try date("2026-10-13T23:59:59Z")).rpcURL.absoluteString == "https://rpc.weeklynet-2026-10-07.teztnets.com")
+        #expect(Network.weeklynet(on: try date("2026-10-14T00:00:00Z")).faucetURL?.absoluteString == "https://faucet.weeklynet-2026-10-14.teztnets.com")
+        #expect(Network.named("Weeklynet")?.chain == "weeklynet")
+    }
+}
+
+
+@MainActor
+struct SuggestedAliasTests {
+    @Test func numbersTheDefaultAliasWhenTaken() async throws {
+        let model = WalletViewModel(chain: MockChainService())
+        #expect(model.suggestedAlias() == "My Wallet")
+        try await model.createWallet(alias: "My Wallet", scheme: .tz1)
+        #expect(model.suggestedAlias() == "My Wallet 2")
+        try await model.createWallet(alias: "my wallet 2", scheme: .tz1)  // case-insensitive
+        #expect(model.suggestedAlias() == "My Wallet 3")
+        try await model.createWallet(alias: "My Wallet 4", scheme: .tz1)
+        #expect(model.suggestedAlias() == "My Wallet 3")  // first free number, not max + 1
+    }
 }
