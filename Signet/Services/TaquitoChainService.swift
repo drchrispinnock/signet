@@ -119,8 +119,102 @@ struct TaquitoChainService: ChainService {
     }
 
     func waitForConfirmation(of operationHash: String) async throws -> Int {
-        let result = try await bridge.call("waitForConfirmation", [operationHash, 1])
-        return Int(result.doubleValue ?? 0)
+        do {
+            let result = try await bridge.call("waitForConfirmation", [operationHash, 1])
+            return Int(result.doubleValue ?? 0)
+        } catch let error as TaquitoBridge.BridgeError {
+            // Raw operations are not tracked by Taquito; watch the chain for them instead.
+            guard case .javaScript(let message) = error, message.contains("unknown operation") else { throw error }
+            let result = try await bridge.call("waitForRawOperation", [network.rpcURL.absoluteString, operationHash, 15])
+            return Int(result.doubleValue ?? 0)
+        }
+    }
+
+    func delegateInfo(for address: Address) async throws -> DelegateInfo {
+        let r = try await bridge.call("getDelegateInfo", [network.rpcURL.absoluteString, address.value])
+        var baker: DelegateInfo.Baker?
+        if let b = r["baker"], b != .null, b.objectValue != nil {
+            baker = DelegateInfo.Baker(
+                deactivated: b["deactivated"]?.boolValue ?? false,
+                gracePeriod: b["gracePeriod"]?.doubleValue.map(Int.init),
+                consensusKey: b["consensusKey"]?.stringValue.map(Address.init),
+                pendingConsensusKeys: b["pendingConsensusKeys"]?.arrayValue?.compactMap { $0["key"]?.stringValue.map(Address.init) } ?? [],
+                companionKey: b["companionKey"]?.stringValue.map(Address.init),
+                pendingCompanionKeys: b["pendingCompanionKeys"]?.arrayValue?.compactMap { $0["key"]?.stringValue.map(Address.init) } ?? []
+            )
+            if let p = b["stakingParameters"], let limit = p["limitMillionth"]?.doubleValue, let edge = p["edgeBillionth"]?.doubleValue {
+                baker?.stakingParameters = StakingParameters(limitMillionth: Int(limit), edgeBillionth: Int(edge))
+            }
+            baker?.pendingStakingParameters = b["pendingStakingParameters"]?.arrayValue?.compactMap { p in
+                guard let limit = p["limitMillionth"]?.doubleValue, let edge = p["edgeBillionth"]?.doubleValue else { return nil }
+                return StakingParameters(limitMillionth: Int(limit), edgeBillionth: Int(edge), cycle: p["cycle"]?.doubleValue.map(Int.init))
+            } ?? []
+        }
+        return DelegateInfo(delegate: r["delegate"]?.stringValue.map(Address.init), baker: baker, delegateAcceptsStaking: r["acceptsStaking"]?.boolValue)
+    }
+
+    func bakers(limit: Int) async throws -> [BakerCandidate] {
+        guard let tzkt = network.tzktURL else { return [] }
+        return try await TzKTService(baseURL: tzkt, session: session).bakers(limit: limit)
+    }
+
+    /// Operations Taquito cannot encode itself (keys of schemes it does not know) go through the node.
+    private func rawContents(for operation: StakingOperation) -> [[String: Any]]? {
+        switch operation {
+        case .updateConsensusKey(let pk, let proof) where !Self.taquitoEncodablePublicKey(pk):
+            return [["kind": "update_consensus_key", "pk": pk] .merging(proof.map { ["proof": $0] } ?? [:]) { $1 }]
+        case .updateCompanionKey(let pk, let proof) where !Self.taquitoEncodablePublicKey(pk):
+            return [["kind": "update_companion_key", "pk": pk].merging(proof.map { ["proof": $0] } ?? [:]) { $1 }]
+        default:
+            return nil
+        }
+    }
+
+    static func taquitoEncodablePublicKey(_ pk: String) -> Bool {
+        ["edpk", "sppk", "p2pk", "BLpk", "mdpk"].contains { pk.hasPrefix($0) }
+    }
+
+    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate {
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Wallet “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        if let contents = rawContents(for: operation) {
+            let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
+            let r = try await bridge.call("estimateRawOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, json])
+            let fee = Mutez.toTez(r["feeMutez"]?.stringValue) ?? 0
+            return TransferEstimate(fee: fee, burn: 0, total: fee, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: 0)
+        }
+        let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
+        let r = try await bridge.call("estimateStakingOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, operation.bridgeKind, arg])
+        guard let fee = Mutez.toTez(r["feeMutez"]?.stringValue), let burn = Mutez.toTez(r["burnMutez"]?.stringValue) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: r))")
+        }
+        let amount: Decimal = { if case .stake(let a) = operation { return a } else { return 0 } }()
+        return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(r["storageLimit"]?.doubleValue ?? 0))
+    }
+
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String {
+        let r: JSONValue
+        do {
+            if let contents = rawContents(for: operation) {
+                let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
+                r = try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", json])
+            } else {
+                let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
+                r = try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", operation.bridgeKind, arg])
+            }
+        } catch let error as TaquitoBridge.BridgeError {
+            if case .javaScript(let message) = error, message.contains("decrypt") || message.contains("passphrase") { throw ChainError.wrongPassphrase }
+            throw error
+        }
+        guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
+        return hash
+    }
+
+    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String {
+        let r = try await bridge.call("provePossession", [secretKey, passphrase ?? ""])
+        guard let proof = r["proof"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no proof returned") }
+        return proof
     }
 
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {

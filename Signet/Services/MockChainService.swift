@@ -59,4 +59,27 @@ struct MockChainService: ChainService {
     func waitForConfirmation(of operationHash: String) async throws -> Int {
         9_000_000
     }
+
+    func delegateInfo(for address: Address) async throws -> DelegateInfo {
+        if address == Self.captainStake {
+            return DelegateInfo(delegate: address, baker: .init(deactivated: false, gracePeriod: 1379, consensusKey: Address("tz4E128TU3t1TdLCJEY4oHg8gZzZNoNBknwh"), pendingConsensusKeys: [], companionKey: nil, pendingCompanionKeys: [], stakingParameters: StakingParameters(limitMillionth: 9_000_000, edgeBillionth: 10_000_000), pendingStakingParameters: []), delegateAcceptsStaking: true)
+        }
+        return DelegateInfo(delegate: Self.captainStake, baker: nil, delegateAcceptsStaking: true)
+    }
+
+    func bakers(limit: Int) async throws -> [BakerCandidate] {
+        [BakerCandidate(address: Self.captainStake, alias: "Captain Stake", stakingBalance: 136_876, delegators: 38, stakers: 15, acceptsStaking: true),
+         BakerCandidate(address: Address("tz3cqThj23Feu55KDynm7Vg81mCMpWDgzQZq"), alias: "Tezos Foundation Baker 1", stakingBalance: 24_666_552, delegators: 18, stakers: 4, acceptsStaking: true)]
+    }
+
+    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate {
+        TransferEstimate(fee: Decimal(string: "0.000421")!, burn: 0, total: Decimal(string: "0.000421")!, gasLimit: 200, storageLimit: 0)
+    }
+
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String {
+        if wallet.keyKind == .encrypted, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        return "ooMockStaking\(operation.bridgeKind)"
+    }
+
+    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String { "BLsigMockProof" }
 }

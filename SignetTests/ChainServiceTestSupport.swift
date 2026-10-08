@@ -16,4 +16,9 @@ extension TestChainService {
     }
     func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String { "ooTest" }
     func waitForConfirmation(of operationHash: String) async throws -> Int { 1 }
+    func delegateInfo(for address: Address) async throws -> DelegateInfo { DelegateInfo(delegate: nil, baker: nil, delegateAcceptsStaking: nil) }
+    func bakers(limit: Int) async throws -> [BakerCandidate] { [] }
+    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0) }
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String { "ooTest" }
+    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String { "BLsigTest" }
 }

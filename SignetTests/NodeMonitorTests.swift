@@ -126,3 +126,30 @@ struct PerNetworkNodeTests {
         #expect(!model.setNode("not a host", for: .custom))
     }
 }
+
+@MainActor
+struct NewHeadRefreshTests {
+    final class Level: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 100
+        var current: Int { lock.withLock { value } }
+        func set(_ v: Int) { lock.withLock { value = v } }
+    }
+
+    @Test func monitorReportsNewHeadsAfterTheFirst() async {
+        let level = Level()
+        let monitor = NodeMonitor(network: .mainnet) { _ in
+            let stamp = ISO8601DateFormatter().string(from: Date())
+            return (Data("{\"level\": \(level.current), \"timestamp\": \"\(stamp)\"}".utf8), 200, 0.1)
+        }
+        var seen: [Int] = []
+        monitor.onNewHead = { seen.append($0) }
+        await monitor.checkNow()          // first sighting: no callback
+        await monitor.checkNow()          // same level: no callback
+        level.set(101)
+        await monitor.checkNow()
+        level.set(103)
+        await monitor.checkNow()
+        #expect(seen == [101, 103])
+    }
+}

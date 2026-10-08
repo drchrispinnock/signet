@@ -119,6 +119,8 @@ struct AppMenuButton: View {
             Divider()
             Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
+            Button("Baking…") { model.isPresentingBaking = true }
+                .disabled(model.selectedWallet == nil)
             Divider()
             SettingsLink { Text("Settings…") }
                 .keyboardShortcut(",", modifiers: .command)

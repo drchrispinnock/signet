@@ -37,6 +37,8 @@ final class WalletViewModel {
     var isPresentingSend = false
     var isPresentingConnectDApp = false
     var isPresentingFaucet = false
+    var isPresentingStaking = false
+    var isPresentingBaking = false
 
     /// dApp connections over Octez Connect (TZIP-10).
     private(set) var dapps: DAppConnectionManager!
@@ -46,6 +48,7 @@ final class WalletViewModel {
     private(set) var tezBalance: TezBalance?
     private(set) var nfts: [NFT] = []
     private(set) var transactions: [TezosTransaction] = []
+    private(set) var delegateInfo: DelegateInfo?
     static let recentTransactionLimit = 25
 
     enum ActivityTab: String, CaseIterable, Identifiable {
@@ -258,6 +261,12 @@ final class WalletViewModel {
         if startDApps, !self.wallets.isEmpty {
             Task { await dapps.start() }
         }
+
+        // A new head means balances or history may have moved; refresh (not while one is running).
+        nodeMonitor.onNewHead = { [weak self] _ in
+            guard let self, !self.isLoading, self.selectedWallet != nil else { return }
+            Task { await self.refresh() }
+        }
     }
 
     /// Copies the wallet files to the backup directory, keeping the configured number of generations.
@@ -356,6 +365,7 @@ final class WalletViewModel {
             async let names = chain.domains(for: address)
             async let collectibles = chain.nfts(for: address)
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
+            async let delegation = chain.delegateInfo(for: address)
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
@@ -372,6 +382,7 @@ final class WalletViewModel {
             domains = try await names
             nfts = try await collectibles
             transactions = try await history
+            delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
             guard address == selectedWallet?.address else { return }
             accountNotOnChain = true
@@ -392,6 +403,7 @@ final class WalletViewModel {
         assets = []
         nfts = []
         transactions = []
+        delegateInfo = nil
         tezBalance = nil
         accountNotOnChain = false
         faucetStatus = .idle
@@ -498,6 +510,45 @@ final class WalletViewModel {
         } catch {
             faucetStatus = .failed(error.localizedDescription)
         }
+    }
+
+    /// Runs a staking-family operation for the selected wallet and waits one block.
+    /// Returns the operation hash and the block it landed in, then refreshes.
+    func performStaking(_ operation: StakingOperation, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard wallet.keyKind.canSign, let secretKey = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+        let hash = try await chain.performStaking(operation, from: wallet, secretKey: secretKey, passphrase: passphrase)
+        let level = try await chain.waitForConfirmation(of: hash)
+        await refreshAfterOperation()
+        return (hash, level)
+    }
+
+    /// Refreshes now and again a little later: the node confirms a block before the indexer has it,
+    /// so history fetched immediately after an operation often misses it.
+    func refreshAfterOperation() async {
+        await refresh()
+        Task { [weak self] in
+            for delay in [6, 15] {
+                try? await Task.sleep(for: .seconds(delay))
+                await self?.refresh()
+            }
+        }
+    }
+
+    /// Fee estimate for a staking-family operation from the selected wallet.
+    func estimateStaking(_ operation: StakingOperation) async throws -> TransferEstimate {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        return try await chain.estimateStaking(operation, from: wallet)
+    }
+
+    func bakers() async -> [BakerCandidate] {
+        (try? await chain.bakers(limit: 60)) ?? []
+    }
+
+    /// Proof of possession for one of our tz4 wallets (needed to make it a consensus or companion key).
+    func proofOfPossession(for wallet: Wallet, passphrase: String?) async throws -> String {
+        guard let secretKey = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+        return try await chain.proofOfPossession(secretKey: secretKey, passphrase: passphrase)
     }
 
     /// The live chain service, for flows that run their own lookups (Send).

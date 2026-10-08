@@ -28,6 +28,12 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingAddAddress) {
             AddAddressSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingStaking) {
+            StakingSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingBaking) {
+            BakingSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingFaucet) {
             FaucetSheet(model: model)
         }
@@ -73,6 +79,7 @@ struct WalletHomeView: View {
                     AccountNotOnChainView(model: model, wallet: wallet)
                 } else {
                     AssetListView(assets: model.assets)
+                    DelegateRowView(model: model)
                 }
                 Divider()
                 ActivityTabsView(model: model)

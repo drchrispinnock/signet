@@ -27,7 +27,7 @@ struct SendSheet: View {
             case .sent, .confirmed:
                 TransferResultView(send: send, network: model.network, onDone: {
                     dismiss()
-                    Task { await model.refresh() }
+                    Task { await model.refreshAfterOperation() }
                 })
             }
         }

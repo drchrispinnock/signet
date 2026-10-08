@@ -26,6 +26,7 @@ struct TezosDomainsService: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 15
         let query = "query($address: String!) { reverseRecord(address: $address) { domain { name } } }"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": ["address": address.value]])

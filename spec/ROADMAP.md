@@ -10,13 +10,18 @@
 
 0.5 - Buy (if possible)
 
-0.6 - Beacon support (if possible)
+0.6 - Import secret keys and phrases
 
-0.7 - Codex code audit
+0.7 - Beacon support (if possible)
+
+0.8 - Codex code audit
+
+Improvements
+- The key generation - the average user won't know which one to pick
+- We need to put a disclaimer at the beginning that this is alpha software
 
 Later
-Expert mode (TBA)
-
-- Hide baking menu
-- Hide test networks
+- Expert mode (TBA)
+- - Hide baking menu
+- - Hide test networks
 

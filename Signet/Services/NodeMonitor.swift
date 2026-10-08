@@ -60,10 +60,14 @@ final class NodeMonitor {
 
     private(set) var status: NodeStatus = .unknown
     private(set) var lastChecked: Date?
+    /// Called when a check sees a higher head level than the last one: something may have changed.
+    var onNewHead: ((Int) -> Void)?
+    private var lastLevel: Int?
     var network: Network {
         didSet {
             guard network != oldValue else { return }
             status = .unknown
+            lastLevel = nil
             restart()
         }
     }
@@ -109,6 +113,11 @@ final class NodeMonitor {
         }
         status = Self.evaluate(result, now: Date())
         lastChecked = Date()
+        if let level = status.level, level != lastLevel {
+            let isFirst = lastLevel == nil
+            lastLevel = level
+            if !isFirst { onNewHead?(level) }
+        }
     }
 
     /// Pure classification so it can be tested without a network.

@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.8.0";
+  return "0.10.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -229,4 +229,177 @@ export function bridgeEcho(message) {
   console.log("echo:", message);
   console.warn("echo-warn:", message);
   return { echoed: message, consoleType: typeof console, logType: typeof console.log };
+}
+
+// ---- Delegation, staking and baking -----------------------------------------------------------
+
+/** The account's delegate and, if it is a baker itself, its baker record. */
+export async function getDelegateInfo(rpcUrl, address) {
+  const base = rpcUrl.replace(/\/+$/, "");
+  const get = async (path) => {
+    const r = await fetch(`${base}${path}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`RPC ${r.status} for ${path}`);
+    return r.json();
+  };
+  const delegate = await get(`/chains/main/blocks/head/context/contracts/${address}/delegate`);
+  // Nodes answer 404 or (on some networks) a 500 storage error for accounts that are not bakers.
+  const record = await get(`/chains/main/blocks/head/context/delegates/${address}`).catch(() => null);
+  let baker = null;
+  if (record) {
+    const keyOf = (v) => (v == null ? null : typeof v === "string" ? v : v.pkh ?? v.key ?? null);
+    const pending = (v) => (Array.isArray(v) ? v.map((p) => ({ cycle: p.cycle, key: keyOf(p.pkh ?? p.key ?? p) })) : []);
+    baker = {
+      deactivated: !!record.deactivated,
+      gracePeriod: record.grace_period ?? null,
+      consensusKey: keyOf(record.active_consensus_key ?? record.consensus_key?.active),
+      pendingConsensusKeys: pending(record.pending_consensus_keys ?? record.consensus_key?.pendings),
+      companionKey: keyOf(record.active_companion_key ?? record.companion_key?.active),
+      pendingCompanionKeys: pending(record.pending_companion_keys ?? record.companion_key?.pendings),
+      ownFullBalanceMutez: record.own_full_balance ?? null,
+      totalDelegatedStakeMutez: record.total_delegated_stake ?? null,
+      stakingParameters: null,
+      pendingStakingParameters: [],
+    };
+    const active = await get(`/chains/main/blocks/head/context/delegates/${address}/active_staking_parameters`).catch(() => null);
+    if (active) baker.stakingParameters = { limitMillionth: Number(active.limit_of_staking_over_baking_millionth ?? 0), edgeBillionth: Number(active.edge_of_baking_over_staking_billionth ?? 0) };
+    const pendingParams = await get(`/chains/main/blocks/head/context/delegates/${address}/pending_staking_parameters`).catch(() => null);
+    if (Array.isArray(pendingParams)) {
+      baker.pendingStakingParameters = pendingParams.map((p) => ({
+        cycle: p.cycle ?? null,
+        limitMillionth: Number(p.parameters?.limit_of_staking_over_baking_millionth ?? p.limit_of_staking_over_baking_millionth ?? 0),
+        edgeBillionth: Number(p.parameters?.edge_of_baking_over_staking_billionth ?? p.edge_of_baking_over_staking_billionth ?? 0),
+      }));
+    }
+  }
+  let acceptsStaking = null;
+  if (delegate) {
+    const params = await get(`/chains/main/blocks/head/context/delegates/${delegate}/active_staking_parameters`).catch(() => null);
+    if (params) acceptsStaking = Number(params.limit_of_staking_over_baking_millionth ?? 0) > 0;
+  }
+  return { delegate: delegate ?? null, isBaker: baker != null, baker, acceptsStaking };
+}
+
+function stakingCall(tk, kind, arg) {
+  switch (kind) {
+    case "setDelegate": return (p) => p.setDelegate({ delegate: arg.delegate || undefined, source: arg.source });
+    case "registerDelegate": return (p) => p.registerDelegate({});
+    case "stake": return (p) => p.stake({ amount: Number(arg.amountMutez), mutez: true });
+    case "unstake": return (p) => p.unstake({ amount: Number(arg.amountMutez), mutez: true });
+    case "finalizeUnstake": return (p) => p.finalizeUnstake({});
+    case "updateConsensusKey": return (p) => p.updateConsensusKey({ pk: arg.pk, ...(arg.proof ? { proof: arg.proof } : {}) });
+    case "updateCompanionKey": return (p) => p.updateCompanionKey({ pk: arg.pk, ...(arg.proof ? { proof: arg.proof } : {}) });
+    case "setDelegateParameters":
+      // A transaction to self with the set_delegate_parameters entrypoint: Pair limit (Pair edge Unit).
+      return (p) => p.transfer({
+        to: arg.source, amount: 0, mutez: true,
+        parameter: {
+          entrypoint: "set_delegate_parameters",
+          value: { prim: "Pair", args: [{ int: String(arg.limitMillionth) }, { prim: "Pair", args: [{ int: String(arg.edgeBillionth) }, { prim: "Unit" }] }] },
+        },
+      });
+    default: throw new Error(`unknown staking operation ${kind}`);
+  }
+}
+
+/** Fee/total for a staking-family operation, with a read-only signer (no secret needed). */
+export async function estimateStakingOperation(rpcUrl, source, publicKey, kind, argJson) {
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(readOnlySigner(publicKey, source));
+  const arg = JSON.parse(argJson || "{}");
+  const est = await stakingCall(tk, kind, { ...arg, source })(tk.estimate);
+  return { feeMutez: String(est.suggestedFeeMutez), burnMutez: String(est.burnFeeMutez), totalCostMutez: String(est.totalCost), gasLimit: est.gasLimit, storageLimit: est.storageLimit };
+}
+
+/** Signs and injects a staking-family operation. Returns the operation hash. */
+export async function sendStakingOperation(rpcUrl, secretKey, passphrase, kind, argJson) {
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(new InMemorySigner(secretKey, passphrase || undefined));
+  const arg = JSON.parse(argJson || "{}");
+  const op = await stakingCall(tk, kind, arg)(tk.contract);
+  pendingOperations.set(op.hash, op);
+  return { hash: op.hash };
+}
+
+/** BLS proof of possession for a tz4 key, required when it becomes a consensus or companion key. */
+export async function provePossession(secretKey, passphrase) {
+  const signer = new InMemorySigner(secretKey, passphrase || undefined);
+  if (typeof signer.provePossession !== "function") throw new Error("this key type cannot produce a proof of possession");
+  const proof = await signer.provePossession();
+  return { proof: typeof proof === "string" ? proof : proof?.prefixSig ?? proof?.sig ?? String(proof) };
+}
+
+// ---- Raw operations ---------------------------------------------------------------------------
+// For contents Taquito cannot build or forge itself (e.g. update_consensus_key with a tz6/XMSS key):
+// the node simulates, forges and preapplies; we only sign and inject.
+
+import { RpcClient } from "@taquito/rpc";
+
+const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;
+
+async function prepareRaw(rpcUrl, source, publicKey, contentsIn) {
+  const rpc = new RpcClient(rpcUrl);
+  const [branch, chainId, contract, protocols, managerKey] = await Promise.all([
+    rpc.getBlockHash(), rpc.getChainId(), rpc.getContract(source), rpc.getProtocols(), rpc.getManagerKey(source).catch(() => null),
+  ]);
+  let counter = Number(contract.counter) + 1;
+  const contents = [];
+  if (!managerKey) contents.push({ kind: "reveal", source, public_key: publicKey, fee: "0", counter: String(counter++), gas_limit: "10000", storage_limit: "0" });
+  for (const c of contentsIn) contents.push({ ...c, source, fee: "0", counter: String(counter++), gas_limit: "1040000", storage_limit: "60000" });
+
+  const sim = await rpc.simulateOperation({ operation: { branch, contents }, chain_id: chainId });
+  const results = sim.contents.map((c) => c.metadata?.operation_result ?? {});
+  const failed = results.find((r) => r.status && r.status !== "applied");
+  if (failed) throw new Error(`simulation failed: ${JSON.stringify(failed.errors ?? failed)}`);
+  let totalGas = 0;
+  const sized = contents.map((c, i) => {
+    const r = results[i];
+    const gas = Math.ceil(Number(r.consumed_milligas ?? 0) / 1000) + 100;
+    const storage = Number(r.paid_storage_size_diff ?? 0) + (r.allocated_destination_contract ? 257 : 0);
+    totalGas += gas;
+    return { ...c, gas_limit: String(gas), storage_limit: String(storage) };
+  });
+  const bytes = (await rpc.forgeOperations({ branch, contents: sized })).length / 2 + SIGNATURE_BYTES;
+  const fee = MINIMAL_FEE + FEE_PER_BYTE * (bytes + 8) + Math.ceil((NANOTEZ_PER_GAS * totalGas) / 1000) + 50;
+  sized[sized.length - 1].fee = String(fee);
+  const forged = await rpc.forgeOperations({ branch, contents: sized });
+  return { rpc, branch, contents: sized, forged, feeMutez: fee, protocol: protocols.protocol };
+}
+
+/** Fee for a raw operation, computed from the node's simulation. */
+export async function estimateRawOperation(rpcUrl, source, publicKey, contentsJson) {
+  const { feeMutez, contents } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
+  return { feeMutez: String(feeMutez), burnMutez: "0", totalCostMutez: String(feeMutez), gasLimit: contents.reduce((a, c) => a + Number(c.gas_limit), 0), storageLimit: 0 };
+}
+
+/** Signs and injects raw contents from `secretKey`'s account. Returns the operation hash. */
+export async function sendRawOperation(rpcUrl, secretKey, passphrase, contentsJson) {
+  const signer = new InMemorySigner(secretKey, passphrase || undefined);
+  const [source, publicKey] = await Promise.all([signer.publicKeyHash(), signer.publicKey()]);
+  const { rpc, branch, contents, forged, protocol } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
+  const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
+  const pre = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
+  const bad = pre.flatMap((p) => p.contents).map((c) => c.metadata?.operation_result).find((r) => r && r.status !== "applied");
+  if (bad) throw new Error(`preapply failed: ${JSON.stringify(bad.errors ?? bad)}`);
+  const hash = await rpc.injectOperation(sbytes);
+  return { hash };
+}
+
+/** Waits for a raw operation to appear in a block (manager operations live in validation pass 3). */
+export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {
+  const rpc = new RpcClient(rpcUrl);
+  let last = (await rpc.getBlockHeader()).level;
+  for (let seen = 0; seen < maxBlocks; ) {
+    const header = await rpc.getBlockHeader();
+    if (header.level > last) {
+      for (let level = last + 1; level <= header.level; level++) {
+        const block = await rpc.getBlock({ block: String(level) });
+        if ((block.operations?.[3] ?? []).some((op) => op.hash === hash)) return level;
+      }
+      seen += header.level - last;
+      last = header.level;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(`operation ${hash} not seen in ${maxBlocks} blocks`);
 }

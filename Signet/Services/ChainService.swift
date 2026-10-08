@@ -22,6 +22,15 @@ protocol ChainService: Sendable {
     func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String
     /// Waits for the operation to be included. Returns the block level.
     func waitForConfirmation(of operationHash: String) async throws -> Int
+
+    // Delegation, staking and baking.
+    func delegateInfo(for address: Address) async throws -> DelegateInfo
+    /// Bakers to offer in the picker, most popular first.
+    func bakers(limit: Int) async throws -> [BakerCandidate]
+    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String
+    /// BLS proof of possession for one of our tz4 keys.
+    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String
 }
 
 /// Errors the UI distinguishes from generic failures.

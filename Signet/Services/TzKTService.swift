@@ -52,6 +52,7 @@ struct TzKTService: Sendable {
         var request = URLRequest(url: components.url!)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"])
@@ -115,6 +116,7 @@ extension TzKTService {
         var request = URLRequest(url: baseURL.appendingPathComponent("v1/accounts/\(address.value)"))
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         if http.statusCode == 204 || http.statusCode == 404 { return nil }
@@ -145,6 +147,7 @@ extension TzKTService {
         var request = URLRequest(url: components.url!)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"])
@@ -202,4 +205,40 @@ extension TzKTService {
 
     typealias Kind = TezosTransaction.Kind
     typealias Direction = TezosTransaction.Direction
+}
+
+
+extension TzKTService {
+    /// Active bakers, most delegators first.
+    func bakers(limit: Int) async throws -> [BakerCandidate] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("v1/delegates"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "active", value: "true"),
+            URLQueryItem(name: "sort.desc", value: "numDelegators"),
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "select", value: "address,alias,stakingBalance,numDelegators,stakersCount,limitOfStakingOverBaking"),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return Self.parseBakers(data)
+    }
+
+    static func parseBakers(_ data: Data) -> [BakerCandidate] {
+        guard let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return rows.compactMap { row in
+            guard let address = row["address"] as? String else { return nil }
+            let limit = row["limitOfStakingOverBaking"] as? NSNumber
+            return BakerCandidate(
+                address: Address(address), alias: row["alias"] as? String,
+                stakingBalance: ((row["stakingBalance"] as? NSNumber)?.decimalValue ?? 0) / Mutez.perTez,
+                delegators: (row["numDelegators"] as? NSNumber)?.intValue ?? 0,
+                stakers: (row["stakersCount"] as? NSNumber)?.intValue ?? 0,
+                acceptsStaking: limit.map { $0.intValue > 0 }
+            )
+        }
+    }
 }

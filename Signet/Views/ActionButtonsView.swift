@@ -25,7 +25,7 @@ struct ActionButtonsView: View {
             model.network.faucetURL != nil
                 ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
                 : Action(title: "Buy", symbol: "plus", enabled: false) {},
-            Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: false) {},
+            Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: canSign && !model.accountNotOnChain) { model.isPresentingStaking = true },
         ]
     }
 

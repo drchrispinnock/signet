@@ -92,6 +92,24 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   estimate. `sendTransfer` hands the clear-text secret to Taquito's `InMemorySigner` for the one
   operation (native signing is a planned improvement); `waitForConfirmation` waits one block.
   Clear-text and encrypted keys can send; ledger and remote signers cannot yet.
+- **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, stake,
+  unstake, finalizeUnstake, updateConsensusKey, updateCompanionKey) is estimated with a read-only
+  signer and sent via the bridge's `estimateStakingOperation` / `sendStakingOperation` (Taquito
+  `contract.setDelegate/registerDelegate/stake/unstake/finalizeUnstake/updateConsensusKey/
+  updateCompanionKey`). `getDelegateInfo` reads the delegate and, for bakers, the delegate record
+  (consensus/companion keys, grace period) plus whether the delegate accepts stakers. tz4 keys need a
+  BLS proof of possession (`provePossession` via `InMemorySigner.provePossession`) to become
+  consensus or companion keys, so only our own tz4 wallets can be chosen for that. UI:
+  `DelegateRowView` under the balances, `StakingSheet` behind the Stake tile, `BakingSheet` from the
+  burger menu; `TzKTService.bakers` feeds the baker picker. Staking parameters (`StakingParameters`:
+  limit of staking over baking in millionths, edge of baking over staking in billionths) are read
+  from `active_staking_parameters`/`pending_staking_parameters` and set with a transaction to self
+  on the `set_delegate_parameters` entrypoint. Keys Taquito cannot encode (tz6 `xmpk`) go through
+  the bridge's raw path (`prepareRaw`/`sendRawOperation`/`waitForRawOperation`): the node simulates,
+  forges and preapplies, Signet signs with the baker's key; `TaquitoChainService.rawContents` picks
+  that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
+  Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, ledger,
+  remote) and the wording says so.
 - **dApps (Octez Connect / TZIP-10).** The Beacon-fork wallet SDK runs inside the bridge
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
