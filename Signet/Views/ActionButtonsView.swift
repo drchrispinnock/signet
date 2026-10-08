@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Send, Receive, Buy, Sell. Buttons whose flow does not exist yet are disabled.
+/// Send, Receive, Buy (Get on testnets), Stake. Selling is out of scope: it would mean handling bank
+/// accounts. Buttons whose flow does not exist yet are disabled.
 struct ActionButtonsView: View {
     @Bindable var model: WalletViewModel
 
@@ -24,7 +25,7 @@ struct ActionButtonsView: View {
             model.network.faucetURL != nil
                 ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
                 : Action(title: "Buy", symbol: "plus", enabled: false) {},
-            Action(title: "Sell", symbol: "minus", enabled: false) {},
+            Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: false) {},
         ]
     }
 

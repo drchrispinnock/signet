@@ -123,9 +123,9 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   services whatever network is selected, because a TzProfile is a mainnet identity), fetched live from the Tezos Domains GraphQL API by
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
-  `ActionButtonsView` (Send, Receive, Buy/Get, Sell; Receive opens `ReceiveSheet` with a Core Image QR
+  `ActionButtonsView` (Send, Receive, Buy/Get, Stake; Receive opens `ReceiveSheet` with a Core Image QR
   code of the address; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
-  `WalletViewModel.requestTestTez(amount:)`; Buy and Sell are disabled until their flows exist), `AssetListView` (tez, then Etherlink, then
+  `WalletViewModel.requestTestTez(amount:)`; Buy and Stake are disabled until their flows exist. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
   other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
   into `TezosTransaction`; rows show the counterparty's avatar and name, our alias with a green seal
