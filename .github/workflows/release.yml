@@ -62,9 +62,14 @@ jobs:
         # Created first (without assets) so its generated notes can go into the appcast.
         env:
           GH_TOKEN: ${{ github.token }}
+        # Safe to rerun: an existing release is kept (its notes included) rather than recreated.
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Signet $GITHUB_REF_NAME" --generate-notes
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Signet $GITHUB_REF_NAME" --generate-notes
+          else
+            echo "Release $GITHUB_REF_NAME already exists; reusing it"
+          fi
           mkdir -p dist
           gh release view "$GITHUB_REF_NAME" --json body --jq .body > "dist/Signet-${GITHUB_REF_NAME#v}.md"
 
@@ -77,6 +82,7 @@ jobs:
       - name: Attach assets
         env:
           GH_TOKEN: ${{ github.token }}
+        # --clobber so a rerun replaces the assets (the appcast's signature must match the zip it sits beside).
         run: |
-          gh release upload "$GITHUB_REF_NAME" dist/*.zip
-          if [ -f dist/appcast.xml ]; then gh release upload "$GITHUB_REF_NAME" dist/appcast.xml; fi
+          gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+          if [ -f dist/appcast.xml ]; then gh release upload "$GITHUB_REF_NAME" dist/appcast.xml --clobber; fi
