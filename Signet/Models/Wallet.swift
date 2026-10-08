@@ -33,7 +33,7 @@ enum KeyKind: String, Codable, Sendable {
     var canSign: Bool { self == .unencrypted || self == .encrypted }
 
     /// Base58 prefixes of octez-encrypted secret keys.
-    static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk"]
+    static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"]
 
     /// The `secret_keys` locator for a base58 secret key: `encrypted:` for edesk-style keys, else `unencrypted:`.
     static func locator(forSecretKey key: String) -> String {

@@ -139,11 +139,14 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
 
 ## Requirements and open decisions
 
-- Address schemes tz1 through tz4 are supported today. tz5 (ML-DSA-44, public keys `mdpk`) and tz6 (XMSS, public
-  keys `xmpk`, stateful; octez keeps `xmss_slots`) exist in octez-client and are shown with
-  balances when present in the client directory, but cannot be created or signed with here:
-  as of October 2026 neither Taquito 25 nor Apple CryptoKit supports them. Taquito rejects
-  tz5/tz6 addresses, so `TaquitoChainService` fetches their balances with a direct RPC call.
+- Address schemes tz1 through tz5 are supported. tz5 (ML-DSA-44, public keys `mdpk`, secret
+  `mdsk` = 2560-byte secret key ‖ 1312-byte public key, signatures `mdsig`) came with Taquito
+  25.1.0-beta0 (October 2026): keys are generated in the bridge with `@noble/post-quantum`
+  (CryptoKit has no ML-DSA-44) and signed by Taquito's `MLDSAKey` as pure ML-DSA over the Blake2b
+  digest, like Octez. tz5 is live on testnets but feature-flagged on mainnet; the create sheet
+  says so. tz6 (XMSS, public keys `xmpk`, stateful; octez keeps `xmss_slots`) is shown with a
+  balance when present but cannot be created or signed with; Taquito rejects tz6 addresses, so
+  `TaquitoChainService` fetches its balance by direct RPC.
 - The spec asks for Taquito "where possible". Taquito is TypeScript, so chain access goes
   through a JavaScript bundle run inside JavaScriptCore (see `TaquitoBridge/`). Keep private
   keys and signing in Swift; use the bridge for RPC, forging, encoding and metadata.

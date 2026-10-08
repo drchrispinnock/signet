@@ -28,10 +28,11 @@ struct AddressTests {
         #expect(Address("KT1BRd2ka5q2cPRdXALtXD1QZ38CPam2j1ye").scheme == nil)
     }
 
-    @Test func postQuantumSchemesAreKnownButUnsupported() {
-        #expect(AddressScheme.tz5.isSupported == false)
+    @Test func supportedSchemesIncludeMLDSAButNotXMSSYet() {
+        #expect(AddressScheme.tz5.isSupported)
+        #expect(AddressScheme.tz5.caveat != nil)
         #expect(AddressScheme.tz6.isSupported == false)
-        #expect(AddressScheme.allCases.filter(\.isSupported) == [.tz1, .tz2, .tz3, .tz4])
+        #expect(AddressScheme.allCases.filter(\.isSupported) == [.tz1, .tz2, .tz3, .tz4, .tz5])
     }
 }
 

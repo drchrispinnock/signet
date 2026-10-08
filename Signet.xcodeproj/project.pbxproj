@@ -84,6 +84,7 @@
 		F26C76D739108A6AA2B3ACC9 /* ReceiveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525C79C726F273E9E3375452 /* ReceiveSheet.swift */; };
 		F69C430DC456544A2DC19040 /* RenameWalletSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */; };
 		F8A1236DC9F093F43745C925 /* DAppStartupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5EC72CF05A4295B4E4DA2 /* DAppStartupTests.swift */; };
+		F90384B120EBF0588BDE29CB /* PostQuantumSendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */; };
 		FCD773F3D301A0DD69BD99EC /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = C3A48078F3336DCF0514ED8D /* Credits.rtf */; };
 		FDCC5A239632D223F09CE02A /* WalletHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */; };
 /* End PBXBuildFile section */
@@ -154,6 +155,7 @@
 		9B7EAC88691E2C2CC72CA41F /* AccountAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatarView.swift; sourceTree = "<group>"; };
 		A08240C17DFA7DF7CFF28B46 /* AccountNotOnChainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountNotOnChainView.swift; sourceTree = "<group>"; };
 		A10DBE16F18BCE91ECEC7739 /* QRCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCode.swift; sourceTree = "<group>"; };
+		A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostQuantumSendTests.swift; sourceTree = "<group>"; };
 		A8C3E5BA111A78690461B8D9 /* NFTTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTTests.swift; sourceTree = "<group>"; };
 		A8F7142388FBD9770414F6F0 /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
 		B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletViewModel.swift; sourceTree = "<group>"; };
@@ -254,6 +256,7 @@
 				49EBC889E951D255F516827F /* NodeMonitorTests.swift */,
 				201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */,
 				D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */,
+				A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */,
 				822144910E1FB03FD7D270CA /* QRCodeTests.swift */,
 				088C8CA0ACEDD480A9684481 /* SendTests.swift */,
 				728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */,
@@ -530,6 +533,7 @@
 				A4EAD7B70EFB608697E679E5 /* NodeMonitorTests.swift in Sources */,
 				1FD01BA37E823824E784F994 /* OctezConnectEndToEnd.swift in Sources */,
 				D5114AC1C526FA5C1E938482 /* OctezConnectPairingDiagnostic.swift in Sources */,
+				F90384B120EBF0588BDE29CB /* PostQuantumSendTests.swift in Sources */,
 				49007ED6467AA6F2D6205E8C /* QRCodeTests.swift in Sources */,
 				A739ED053C1344CED9AEB04E /* SendTests.swift in Sources */,
 				BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */,

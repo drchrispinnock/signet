@@ -8,12 +8,12 @@
     "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js"
   },
   "devDependencies": {
-    "@taquito/taquito": "^25.0.0",
-    "@taquito/utils": "^25.0.0",
+    "@taquito/taquito": "^25.1.0-beta0",
+    "@taquito/utils": "^25.1.0-beta0",
     "esbuild": "^0.28.2"
   },
   "dependencies": {
-    "@taquito/signer": "^25.0.0",
+    "@taquito/signer": "^25.1.0-beta0",
     "@tezos-x/octez.connect-wallet": "^5.0.4",
     "buffer": "^6.0.3"
   }

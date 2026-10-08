@@ -5,8 +5,8 @@ import Foundation
 ///
 /// tz1 (Ed25519) and tz3 (P-256) are generated with CryptoKit and encoded in Swift, so those
 /// secrets never enter the JavaScript runtime; only the public key is sent to the bridge to
-/// derive the address. tz2 (secp256k1) and tz4 (BLS12-381) have no CryptoKit support, so they
-/// are generated inside the Taquito bridge with the same curve library Taquito signs with.
+/// derive the address. tz2 (secp256k1), tz4 (BLS12-381) and tz5 (ML-DSA-44) have no CryptoKit
+/// support, so they are generated inside the Taquito bridge with the libraries Taquito signs with.
 struct KeyGenerator: Sendable {
     enum KeyError: LocalizedError {
         case unsupportedScheme(AddressScheme)
@@ -40,7 +40,9 @@ struct KeyGenerator: Sendable {
             let publicKey = Base58.checkEncode(prefix: TezosPrefix.p2pk, payload: Array(key.publicKey.compressedRepresentation))
             return KeyMaterial(scheme: .tz3, publicKey: publicKey, address: try await address(for: publicKey), secretKey: secret)
 
-        case .tz2, .tz4:
+        case .tz2, .tz4, .tz5:
+            // No CryptoKit support for secp256k1, BLS12-381 or ML-DSA-44: the bridge generates these
+            // with the same libraries Taquito signs with.
             let result = try await bridge.call("generateKeyPair", [scheme.rawValue])
             guard let secret = result["secretKey"]?.stringValue,
                   let publicKey = result["publicKey"]?.stringValue,
@@ -48,7 +50,7 @@ struct KeyGenerator: Sendable {
             else { throw KeyError.badBridgeResponse(String(describing: result)) }
             return KeyMaterial(scheme: scheme, publicKey: publicKey, address: address, secretKey: secret)
 
-        case .tz5, .tz6:
+        case .tz6:
             throw KeyError.unsupportedScheme(scheme)
         }
     }

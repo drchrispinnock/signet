@@ -32,17 +32,25 @@ enum AddressScheme: String, CaseIterable, Codable, Sendable {
     }
 
     /// Whether this app can currently generate keys and sign for the scheme.
+    /// tz5 (ML-DSA-44) arrived with Taquito 25.1 (beta); tz6 (XMSS) is still unsupported.
     var isSupported: Bool {
         switch self {
-        case .tz1, .tz2, .tz3, .tz4: true
-        case .tz5, .tz6: false
+        case .tz1, .tz2, .tz3, .tz4, .tz5: true
+        case .tz6: false
+        }
+    }
+
+    /// A warning worth showing when creating a key of this scheme.
+    var caveat: String? {
+        switch self {
+        case .tz5: "Post-quantum tz5 accounts are live on Shadownet and other testnets but still behind a feature flag on Mainnet, so a tz5 wallet cannot receive mainnet tez yet."
+        default: nil
         }
     }
 
     /// Shown in the UI next to schemes that cannot be created yet.
     var unavailableReason: String? {
         switch self {
-        case .tz5: "ML-DSA-44 keys are not yet supported by the wallet libraries. Use octez-client to create one; Signet will show it."
         case .tz6: "XMSS keys are stateful and not yet supported by the wallet libraries. Use octez-client to create one; Signet will show it."
         default: nil
         }

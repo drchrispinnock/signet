@@ -41,6 +41,11 @@ struct CreateWalletSheet: View {
                 LabeledContent("Key type") {
                     SchemePicker(selection: $scheme)
                 }
+                if let caveat = scheme.caveat {
+                    Label(caveat, systemImage: "info.circle")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
 
                 Toggle("Encrypt with a password", isOn: $encrypt)
                 if encrypt {

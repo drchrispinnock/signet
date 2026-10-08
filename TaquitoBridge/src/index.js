@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.7.0";
+  return "0.8.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -50,6 +50,7 @@ import { InMemorySigner } from "@taquito/signer";
 import { b58Encode, getPkhfromPk, PrefixV2 } from "@taquito/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bls12_381 } from "@noble/curves/bls12-381";
+import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 
 /** tz address for a base58 public key (edpk, sppk, p2pk, BLpk). */
 export function addressFromPublicKey(publicKey) {
@@ -69,6 +70,17 @@ export async function generateKeyPair(scheme) {
       // noble produces a big-endian scalar; Tezos serialises BLS secret keys little-endian.
       const sk = (bls12_381.utils.randomSecretKey ?? bls12_381.utils.randomPrivateKey)();
       secretKey = b58Encode(new Uint8Array(sk).reverse(), PrefixV2.BLS12_381SecretKey);
+      break;
+    }
+    case "tz5": {
+      // ML-DSA-44 (post-quantum). Octez's mdsk payload is secretKey (2560 bytes) ‖ publicKey (1312 bytes),
+      // which is what Taquito's MLDSAKey expects too.
+      const seed = crypto.getRandomValues(new Uint8Array(32));
+      const { secretKey: sk, publicKey: pk } = ml_dsa44.keygen(seed);
+      const payload = new Uint8Array(sk.length + pk.length);
+      payload.set(sk, 0);
+      payload.set(pk, sk.length);
+      secretKey = b58Encode(payload, PrefixV2.MLDSA44SecretKey);
       break;
     }
     default:
@@ -193,6 +205,7 @@ const ENCRYPTED_PREFIX_FOR = {
   [PrefixV2.Secp256k1SecretKey]: PrefixV2.Secp256k1EncryptedSecretKey,
   [PrefixV2.P256SecretKey]: PrefixV2.P256EncryptedSecretKey,
   [PrefixV2.BLS12_381SecretKey]: PrefixV2.BLS12_381EncryptedSecretKey,
+  [PrefixV2.MLDSA44SecretKey]: PrefixV2.MLDSA44EncryptedSecretKey,
 };
 
 /** Encrypts a clear-text base58 secret key (edsk seed, spsk, p2sk, BLsk) with `passphrase`. */

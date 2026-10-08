@@ -17,7 +17,7 @@ struct Base58Tests {
 struct KeyGeneratorTests {
     /// Every supported scheme must produce a key that Taquito's own signer decodes to the same
     /// public key and address we recorded. For tz1/tz3 this proves the Swift base58 encoding.
-    @Test(arguments: [AddressScheme.tz1, .tz2, .tz3, .tz4])
+    @Test(arguments: [AddressScheme.tz1, .tz2, .tz3, .tz4, .tz5])
     func generatesKeysTaquitoAgreesWith(scheme: AddressScheme) async throws {
         let material = try await KeyGenerator().generate(scheme: scheme)
 
@@ -32,7 +32,7 @@ struct KeyGeneratorTests {
 
     @Test func secretKeysUseTheExpectedPrefixes() async throws {
         let expected: [AddressScheme: (secret: String, public: String)] = [
-            .tz1: ("edsk", "edpk"), .tz2: ("spsk", "sppk"), .tz3: ("p2sk", "p2pk"), .tz4: ("BLsk", "BLpk"),
+            .tz1: ("edsk", "edpk"), .tz2: ("spsk", "sppk"), .tz3: ("p2sk", "p2pk"), .tz4: ("BLsk", "BLpk"), .tz5: ("mdsk", "mdpk"),
         ]
         for (scheme, prefixes) in expected {
             let material = try await KeyGenerator().generate(scheme: scheme)
@@ -47,7 +47,7 @@ struct KeyGeneratorTests {
         #expect(a.address != b.address)
     }
 
-    @Test(arguments: [AddressScheme.tz5, .tz6])
+    @Test(arguments: [AddressScheme.tz6])
     func refusesPostQuantumSchemes(scheme: AddressScheme) async {
         await #expect(throws: KeyGenerator.KeyError.self) {
             _ = try await KeyGenerator().generate(scheme: scheme)
@@ -81,7 +81,7 @@ struct WalletCreationTests {
             try await model.createWallet(alias: "   ", scheme: .tz1)
         }
         await #expect(throws: WalletViewModel.WalletError.self) {
-            try await model.createWallet(alias: "Quantum", scheme: .tz5)
+            try await model.createWallet(alias: "Quantum", scheme: .tz6)
         }
         try await model.createWallet(alias: "Main", scheme: .tz1)
         await #expect(throws: WalletViewModel.WalletError.self) {
