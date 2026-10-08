@@ -15,6 +15,7 @@ struct WalletHomeView: View {
         }
         .frame(minWidth: 480, minHeight: 720)
         .appliesStoredAppearance()
+        .showsLaunchDisclaimer()
         .task {
             model.nodeMonitor.start()
             await model.refresh()
@@ -119,19 +120,19 @@ struct NoWalletsView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
             if model.importableWalletCount > 0 {
-                Text("Found an octez-client wallet with \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "key" : "keys") in ~/.tezos-client. Import it into Signet?")
+                Text("Found an octez-client wallet with \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "account" : "accounts") in ~/.tezos-client. Import it into Signet?")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                Button("Import wallets") { importWallets() }
+                Button("Import accounts") { importWallets() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
-                Button("Create a new wallet instead…") { model.isPresentingCreateWallet = true }
+                Button("Create a new account instead…") { model.isPresentingCreateWallet = true }
                     .buttonStyle(.link)
                     .keyboardShortcut("n", modifiers: .command)
             } else {
-                Button("Create wallet…") { model.isPresentingCreateWallet = true }
+                Button("Create account…") { model.isPresentingCreateWallet = true }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut("n", modifiers: .command)
                 Button("Connect a Ledger instead…") { model.isPresentingConnectLedger = true }

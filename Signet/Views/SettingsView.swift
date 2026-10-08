@@ -18,7 +18,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 780)
+        .frame(width: 480, height: 810)
         .navigationTitle("Settings")
         .appliesStoredAppearance()
     }
@@ -26,6 +26,7 @@ struct SettingsView: View {
     // MARK: Sections
 
     @AppStorage(Appearance.key) private var appearance: Appearance = .system
+    @AppStorage(Disclaimer.key) private var showsDisclaimer = true
 
     private var appearanceSection: some View {
         Section {
@@ -35,6 +36,7 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
         }
     }
 

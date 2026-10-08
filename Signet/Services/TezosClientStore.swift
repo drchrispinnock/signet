@@ -23,7 +23,7 @@ struct TezosClientStore: WalletStore {
             switch self {
             case .aliasExists(let alias): "An alias named “\(alias)” already exists in the tezos-client directory."
             case .unknownAlias(let alias): "No alias named “\(alias)” exists in the tezos-client directory."
-            case .missingPublicKey(let alias): "Wallet “\(alias)” has no public key to write."
+            case .missingPublicKey(let alias): "Account “\(alias)” has no public key to write."
             case .malformed(let file, let detail): "\(file) in the tezos-client directory is malformed: \(detail)"
             }
         }

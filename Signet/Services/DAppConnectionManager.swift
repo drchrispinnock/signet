@@ -13,7 +13,7 @@ final class DAppConnectionManager {
 
         var errorDescription: String? {
             switch self {
-            case .notOurWallet(let address): "The dApp asked for \(address.shortened()), which is not one of your wallets."
+            case .notOurWallet(let address): "The dApp asked for \(address.shortened()), which is not one of your accounts."
             case .noUsableKey(let alias): "Signet cannot sign with “\(alias)” (no key on disk or Ledger)."
             case .unsupportedNetwork(let type): "The dApp wants the “\(type)” network, which Signet does not have."
             }

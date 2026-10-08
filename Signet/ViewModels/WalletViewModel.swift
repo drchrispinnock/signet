@@ -15,8 +15,8 @@ final class WalletViewModel {
 
         var errorDescription: String? {
             switch self {
-            case .emptyAlias: "Give the wallet a name."
-            case .aliasExists(let alias): "A wallet named “\(alias)” already exists."
+            case .emptyAlias: "Give the account a name."
+            case .aliasExists(let alias): "An account named “\(alias)” already exists."
             case .addressExists(let alias): "That address is already in the list as “\(alias)”."
             case .invalidAddress: "That is not a valid Tezos address."
             case .passphraseTooShort: "Use a password of at least \(WalletViewModel.minimumPassphraseLength) characters."
@@ -246,7 +246,7 @@ final class WalletViewModel {
                 loaded = try walletStore.load()
             } catch {
                 loaded = []
-                loadError = "Could not load wallets: \(error.localizedDescription)"
+                loadError = "Could not load accounts: \(error.localizedDescription)"
             }
         }
         self.wallets = loaded
@@ -322,7 +322,7 @@ final class WalletViewModel {
             errorMessage = nil
         } catch {
             wallets = []
-            errorMessage = "Could not load wallets: \(error.localizedDescription)"
+            errorMessage = "Could not load accounts: \(error.localizedDescription)"
         }
         selectedWalletID = wallets.first { $0.alias == state.selectedWalletAlias }?.id ?? wallets.first?.id
         if let remembered = Network.named(state.networkName) { switchNetwork(to: remembered) }
@@ -348,7 +348,7 @@ final class WalletViewModel {
             if selectedWallet == nil { selectedWalletID = wallets.first?.id }
             Task { await refresh() }
         } catch {
-            errorMessage = "Could not load wallets: \(error.localizedDescription)"
+            errorMessage = "Could not load accounts: \(error.localizedDescription)"
         }
     }
 
@@ -418,8 +418,8 @@ final class WalletViewModel {
 
     nonisolated static let minimumPassphraseLength = 8
 
-    /// A default alias that is not already taken: "My Wallet", then "My Wallet 2", "My Wallet 3", …
-    func suggestedAlias(base: String = "My Wallet") -> String {
+    /// A default alias that is not already taken: "My Account", then "My Account 2", "My Account 3", …
+    func suggestedAlias(base: String = "My Account") -> String {
         let taken = Set(wallets.map { $0.alias.lowercased() })
         if !taken.contains(base.lowercased()) { return base }
         var n = 2
@@ -646,7 +646,7 @@ final class WalletViewModel {
     }
 
     static let sampleWallets = [
-        Wallet(alias: "MyWallet", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), keyKind: .unencrypted),
+        Wallet(alias: "My Account", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), keyKind: .unencrypted),
         Wallet(alias: "Savings", address: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), keyKind: .encrypted),
     ]
 

@@ -31,11 +31,11 @@ struct CreateWalletSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Create wallet")
+            Text("Create account")
                 .font(.title2.weight(.semibold))
 
             Form {
-                TextField("Name", text: $alias, prompt: Text("My Wallet"))
+                TextField("Name", text: $alias, prompt: Text("My Account"))
                     .focused($aliasFocused)
                     .onSubmit { if canCreate { create() } }
 
@@ -59,7 +59,7 @@ struct CreateWalletSheet: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    Label("Unencrypted keys are stored on disk unprotected. Anyone who can read ~/.signet can spend from this wallet.", systemImage: "exclamationmark.triangle")
+                    Label("Unencrypted keys are stored on disk unprotected. Anyone who can read ~/.signet can spend from this account.", systemImage: "exclamationmark.triangle")
                         .font(.callout)
                         .foregroundStyle(.orange)
                 }

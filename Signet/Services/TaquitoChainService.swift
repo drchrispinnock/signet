@@ -91,7 +91,7 @@ struct TaquitoChainService: ChainService {
 
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
         guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Wallet “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
         }
         let result = try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)])
         guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue),
@@ -179,7 +179,7 @@ struct TaquitoChainService: ChainService {
 
     func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate {
         guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Wallet “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
         }
         if let contents = rawContents(for: operation) {
             let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!

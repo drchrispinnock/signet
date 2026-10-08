@@ -45,8 +45,8 @@ struct ActionButtonsView: View {
         if isWatchOnly { return "This is an address-book entry; Signet holds no key for it, so it cannot send." }
         if model.accountNotOnChain { return "This address has no tez on \(model.network.name), so there is nothing to send." }
         switch wallet.keyKind {
-        case .remote: return "This wallet signs through a remote signer, which Signet does not support yet."
-        default: return "Signet cannot sign for this wallet yet."
+        case .remote: return "This account signs through a remote signer, which Signet does not support yet."
+        default: return "Signet cannot sign for this account yet."
         }
     }
 

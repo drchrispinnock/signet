@@ -43,7 +43,7 @@ struct WalletIdentityView: View {
             let mine = model.wallets.filter { $0.keyKind != .none }
             let book = model.wallets.filter { $0.keyKind == .none }
             if !mine.isEmpty {
-                Section("My wallets") { ForEach(mine) { pickerItem($0) } }
+                Section("My accounts") { ForEach(mine) { pickerItem($0) } }
             }
             if !book.isEmpty {
                 Section("Address book") { ForEach(book) { pickerItem($0) } }
@@ -62,8 +62,8 @@ struct WalletIdentityView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Switch wallet")
-        .accessibilityLabel("Wallet \(wallet.alias). Switch wallet")
+        .help("Switch account")
+        .accessibilityLabel("Account \(wallet.alias). Switch account")
     }
 
     private var watchOnlyTag: some View {
@@ -120,15 +120,15 @@ struct AppMenuButton: View {
 
     var body: some View {
         Menu {
-            Button("Create wallet…") { model.isPresentingCreateWallet = true }
+            Button("Create account…") { model.isPresentingCreateWallet = true }
                 .keyboardShortcut("n", modifiers: .command)
-            Button("Add address…") { model.isPresentingAddAddress = true }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
-            Button("Rename wallet…") { model.isPresentingRenameWallet = true }
+            Button("Rename account…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
-            Button("Reload wallets") { model.reloadWallets() }
+            Divider()
+            Button("Add address…") { model.isPresentingAddAddress = true }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
             Divider()
             Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift])

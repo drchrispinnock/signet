@@ -20,7 +20,7 @@ struct RenameWalletSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Rename wallet")
+            Text("Rename account")
                 .font(.title2.weight(.semibold))
 
             Form {

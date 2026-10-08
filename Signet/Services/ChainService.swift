@@ -53,7 +53,7 @@ enum ChainError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .accountNotOnChain: "Key not found on chain"
-        case .wrongPassphrase: "Incorrect password for this wallet."
+        case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."
         case .ledgerAppNotOpen: "Open the Tezos app on your Ledger and try again."
         case .ledgerLocked: "Unlock your Ledger and try again."

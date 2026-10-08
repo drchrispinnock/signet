@@ -43,7 +43,7 @@ enum AddressScheme: String, CaseIterable, Codable, Sendable {
     /// A warning worth showing when creating a key of this scheme.
     var caveat: String? {
         switch self {
-        case .tz5: "Post-quantum tz5 accounts are live on Shadownet and other testnets but still behind a feature flag on Mainnet, so a tz5 wallet cannot receive mainnet tez yet."
+        case .tz5: "Post-quantum tz5 accounts are live on Shadownet and other testnets but still behind a feature flag on Mainnet, so a tz5 account cannot receive mainnet tez yet."
         default: nil
         }
     }

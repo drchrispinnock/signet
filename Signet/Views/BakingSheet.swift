@@ -94,7 +94,7 @@ struct BakingSheet: View {
                     if let grace = baker.gracePeriod { LabeledContent("Grace period until cycle", value: "\(grace)") }
                 } else {
                     Text(canOperate
-                         ? "This wallet is not a baker. Registering self-delegates it; baking rights need at least the protocol's minimum stake and a running baker daemon."
+                         ? "This account is not a baker. Registering self-delegates it; baking rights need at least the protocol's minimum stake and a running baker daemon."
                          : "This address is not a baker.")
                         .foregroundStyle(.secondary)
                     if canOperate { Button("Register as a baker…") { startConfirm(.registerAsBaker) } }
@@ -191,7 +191,7 @@ struct BakingSheet: View {
 
     private func keyPicker(_ role: KeyRole) -> some View {
         Form {
-            Picker("From your wallets", selection: $chosenKeyWallet) {
+            Picker("From your accounts", selection: $chosenKeyWallet) {
                 Text("Choose…").tag(Optional<Wallet>.none)
                 ForEach(eligibleWallets(role)) { w in
                     Text("\(w.alias)  \(w.address.shortened())  (\(w.scheme.rawValue)\(w.keyKind.canSign ? "" : ", public key only"))").tag(Optional(w))
@@ -204,7 +204,7 @@ struct BakingSheet: View {
             if proofNeeded {
                 if let w = chosenKeyWallet, w.scheme == .tz4, w.keyKind.canSign {
                     if w.keyKind == .encrypted { SecureField("Password for “\(w.alias)” (to prove possession)", text: $keyPassphrase) }
-                    else { Text("Signet will produce the BLS proof of possession from this wallet's key.").font(.callout).foregroundStyle(.secondary) }
+                    else { Text("Signet will produce the BLS proof of possession from this account's key.").font(.callout).foregroundStyle(.secondary) }
                 } else {
                     TextField("Proof of possession (BLsig…)", text: $pastedProof).font(.callout.monospaced()).autocorrectionDisabled()
                     Text("BLS keys must prove possession. Paste the proof made where the key lives, e.g. octez-client's BLS proof for that key.")

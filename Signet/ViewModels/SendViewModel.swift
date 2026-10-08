@@ -26,9 +26,9 @@ final class SendViewModel {
             case .noRecipient: "Enter a valid address or pick one from your list."
             case .invalidAmount: "Enter an amount in tez."
             case .insufficientFunds(let available): "Not enough spendable tez. Available: \(AssetBalance.format(available, symbol: "tz"))."
-            case .noSecretKey: "Signet has no usable secret key for this wallet."
-            case .sendingToSelf: "That is this wallet's own address."
-            case .passphraseRequired: "Enter the password for this wallet's key."
+            case .noSecretKey: "Signet has no usable secret key for this account."
+            case .sendingToSelf: "That is this account's own address."
+            case .passphraseRequired: "Enter the password for this account's key."
             }
         }
     }

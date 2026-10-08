@@ -235,12 +235,12 @@ struct NetworkTests {
 struct SuggestedAliasTests {
     @Test func numbersTheDefaultAliasWhenTaken() async throws {
         let model = WalletViewModel(chain: MockChainService())
-        #expect(model.suggestedAlias() == "My Wallet")
-        try await model.createWallet(alias: "My Wallet", scheme: .tz1)
-        #expect(model.suggestedAlias() == "My Wallet 2")
-        try await model.createWallet(alias: "my wallet 2", scheme: .tz1)  // case-insensitive
-        #expect(model.suggestedAlias() == "My Wallet 3")
-        try await model.createWallet(alias: "My Wallet 4", scheme: .tz1)
-        #expect(model.suggestedAlias() == "My Wallet 3")  // first free number, not max + 1
+        #expect(model.suggestedAlias() == "My Account")
+        try await model.createWallet(alias: "My Account", scheme: .tz1)
+        #expect(model.suggestedAlias() == "My Account 2")
+        try await model.createWallet(alias: "my account 2", scheme: .tz1)  // case-insensitive
+        #expect(model.suggestedAlias() == "My Account 3")
+        try await model.createWallet(alias: "My Account 4", scheme: .tz1)
+        #expect(model.suggestedAlias() == "My Account 3")  // first free number, not max + 1
     }
 }

@@ -25,8 +25,29 @@ struct SignetApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Create wallet…") { model.isPresentingCreateWallet = true }
+                Button("Create account…") { model.isPresentingCreateWallet = true }
                     .keyboardShortcut("n", modifiers: .command)
+            }
+            // The same actions as the burger menu, in the menu bar.
+            CommandMenu("Operations") {
+                Button("Create account…") { model.isPresentingCreateWallet = true }
+                Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Rename account…") { model.isPresentingRenameWallet = true }
+                    .disabled(model.selectedWallet == nil)
+                Divider()
+                Button("Add address…") { model.isPresentingAddAddress = true }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
+                Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Baking…") { model.isPresentingBaking = true }
+                    .disabled(model.selectedWallet == nil)
+                Divider()
+                SettingsLink { Text("Settings…") }
+                Button("Refresh") { Task { await model.refresh() } }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .disabled(model.selectedWallet == nil)
             }
         }
 

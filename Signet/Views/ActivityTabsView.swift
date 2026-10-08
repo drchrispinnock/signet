@@ -84,7 +84,7 @@ struct TransactionRowView: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption)
                             .foregroundStyle(.green)
-                            .help("One of your wallets or address-book entries")
+                            .help("One of your accounts or address-book entries")
                     }
                     if !transaction.isApplied {
                         Text("Failed")

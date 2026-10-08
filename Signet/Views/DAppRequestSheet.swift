@@ -62,7 +62,7 @@ struct DAppRequestSheet: View {
         switch request {
         case .permission(_, _, let networkType, let rpcURL, let scopes):
             Form {
-                Picker("Share wallet", selection: $chosenWallet) {
+                Picker("Share account", selection: $chosenWallet) {
                     ForEach(model.wallets.filter { $0.publicKey != nil && $0.keyKind.canSign }) { wallet in
                         Text("\(wallet.alias)  \(wallet.address.shortened())").tag(Optional(wallet))
                     }
@@ -73,7 +73,7 @@ struct DAppRequestSheet: View {
                     Label("Signet has no node for this network; operations from this dApp will fail.", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
-                Text("The dApp will see this wallet's address and public key, and can ask you to approve operations and signatures. Nothing happens without your approval here.")
+                Text("The dApp will see this account's address and public key, and can ask you to approve operations and signatures. Nothing happens without your approval here.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             .formStyle(.grouped).scrollDisabled(true)
@@ -116,7 +116,7 @@ struct DAppRequestSheet: View {
                     .frame(maxHeight: 140)
                 }
                 passphraseField(for: source)
-                Text("Signing proves you control this wallet. Only sign messages you understand from dApps you trust.")
+                Text("Signing proves you control this account. Only sign messages you understand from dApps you trust.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             .formStyle(.grouped).scrollDisabled(true)
@@ -127,14 +127,14 @@ struct DAppRequestSheet: View {
     }
 
     private func sourceRow(_ source: Address) -> some View {
-        LabeledContent("Wallet") {
+        LabeledContent("Account") {
             HStack(spacing: 8) {
                 AccountAvatarView(address: source, size: 22)
                 if let wallet = dapps.wallet(for: source) {
                     Text(wallet.alias)
                     Text(source.shortened()).font(.callout.monospaced()).foregroundStyle(.secondary)
                 } else {
-                    Label("\(source.shortened()) is not one of your wallets", systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    Label("\(source.shortened()) is not one of your accounts", systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                 }
             }
         }

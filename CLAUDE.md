@@ -51,7 +51,9 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
 
 - **Models** (`Signet/Models`) are plain `Sendable` value types. A `Wallet` is one `Address`
   plus the alias the user gave it, its scheme and public key; the app holds a list of wallets
-  and shows one at a time. `Base58.swift` holds Tezos base58check encoding and the byte prefixes. `AddressScheme` lists every tz prefix
+  and shows one at a time. In the UI these are called **accounts** ("Create account…", "My
+  accounts", default alias "My Account"); the code keeps the `Wallet` name. Say "account" in any
+  new user-facing text; "wallet" is reserved for the whole key directory and the app itself. `Base58.swift` holds Tezos base58check encoding and the byte prefixes. `AddressScheme` lists every tz prefix
   (tz1 through tz6) with an `isSupported` flag so unsupported schemes stay visible in the type
   system rather than being forgotten.
 - **`ChainService`** (`Signet/Services`) is the single protocol for everything read from the
@@ -148,6 +150,12 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
+- **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
+  carry the same items (Create account, Connect Ledger, Rename account | Add address | Connect to
+  dApp, Baking | Settings, Refresh); keep them in step. File has Create account (Cmd-N).
+- **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
+  software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
+  toggled in Settings under Appearance, turns it off. Suppressed under the test host.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
   classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
   connection); `NodeStatusBar` pins it to the bottom of the window. `evaluate` is pure for tests.

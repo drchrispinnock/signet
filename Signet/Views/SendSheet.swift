@@ -65,7 +65,7 @@ private struct ComposeTransferView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                TextField("To", text: $send.recipientText, prompt: Text("Address, name.tez, or a wallet from your list"))
+                TextField("To", text: $send.recipientText, prompt: Text("Address, name.tez, or an account from your list"))
                     .font(.body.monospaced())
                     .focused($focus, equals: .recipient)
                     .autocorrectionDisabled()
@@ -134,7 +134,7 @@ private struct ComposeTransferView: View {
                         Text(wallet.alias)
                         Text(wallet.address.shortened()).font(.callout.monospaced()).foregroundStyle(.secondary)
                         Spacer()
-                        Text(wallet.keyKind == KeyKind.none ? "Address book" : "My wallet")
+                        Text(wallet.keyKind == KeyKind.none ? "Address book" : "My account")
                             .font(.caption).foregroundStyle(.tertiary)
                     }
                     .padding(.vertical, 4)
@@ -150,7 +150,7 @@ private struct ComposeTransferView: View {
 @ViewBuilder
 func verificationTag(_ recipient: SendViewModel.Recipient) -> some View {
     if recipient.isVerified {
-        Label(recipient.wallet?.keyKind == KeyKind.none ? "Address book" : "My wallet", systemImage: "checkmark.seal.fill")
+        Label(recipient.wallet?.keyKind == KeyKind.none ? "Address book" : "My account", systemImage: "checkmark.seal.fill")
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(Capsule().fill(.green.opacity(0.15)))

@@ -27,7 +27,7 @@ struct StakingSheet: View {
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
-        case .remote: "Signet cannot sign for this wallet: it uses a remote signer."
+        case .remote: "Signet cannot sign for this account: it uses a remote signer."
         default: "Signet holds only this address's public key, so it can show but not change its delegation."
         }
     }
@@ -95,7 +95,7 @@ struct StakingSheet: View {
             Section("Delegation") {
                 if let info {
                     if info.isBaker {
-                        Label(canOperate ? "This wallet is a baker (self-delegated). Manage it under Baking in the menu." : "This address is a baker (self-delegated).", systemImage: "server.rack")
+                        Label(canOperate ? "This account is a baker (self-delegated). Manage it under Baking in the menu." : "This address is a baker (self-delegated).", systemImage: "server.rack")
                     } else if let delegate = info.delegate {
                         LabeledContent("Delegate") {
                             HStack(spacing: 8) {
@@ -111,7 +111,7 @@ struct StakingSheet: View {
                         }
                         .disabled(!canOperate)
                     } else {
-                        Text("Not delegated. Delegating lets a baker earn rewards with your balance; the tez never leave your wallet.")
+                        Text("Not delegated. Delegating lets a baker earn rewards with your balance; the tez never leave your account.")
                             .foregroundStyle(.secondary)
                         Button("Delegate…") { mode = .chooseDelegate }.disabled(!canOperate)
                     }
@@ -192,7 +192,7 @@ struct StakingSheet: View {
                 }
             }
             LabeledContent(kind == .stake ? "Spendable" : "Staked", value: AssetBalance.format(kind == .stake ? (balance?.spendable ?? 0) : (balance?.staked ?? 0), symbol: "tz"))
-            Text(kind == .stake ? "Staked tez stay in your wallet but are frozen and shared in your baker's risk." : "Unstaked tez become spendable after a few cycles; come back to finalize them.")
+            Text(kind == .stake ? "Staked tez stay in your account but are frozen and shared in your baker's risk." : "Unstaked tez become spendable after a few cycles; come back to finalize them.")
                 .font(.callout).foregroundStyle(.secondary)
         }
         .formStyle(.grouped).scrollDisabled(true)

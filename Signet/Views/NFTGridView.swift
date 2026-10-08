@@ -9,21 +9,9 @@ struct NFTGridView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("NFTs")
-                    .font(.headline)
-                if !nfts.isEmpty {
-                    Text("\(nfts.count)")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(.quaternary))
-                }
-                Spacer()
-            }
 
             if nfts.isEmpty {
-                Text(isLoading ? "Loading…" : "No NFTs in this wallet.")
+                Text(isLoading ? "Loading…" : "No NFTs in this account.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
