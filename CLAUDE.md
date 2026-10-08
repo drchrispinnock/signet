@@ -77,8 +77,10 @@ added by hand on the development Mac.
   `~/.signet_backups` on launch, after key creation/rename and on directory change, skipping
   when unchanged and keeping the newest N (default 10); folder and N are `BackupSettings` in
   UserDefaults and editable in Settings.
-  If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys) the
-  welcome screen offers to import `~/.tezos-client` when one exists (an exact file copy). The merge
+  If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys)
+  `NoWalletsView` offers four ways in: import `~/.tezos-client` when one exists (an exact file
+  copy, shown first and highlighted), create a new account, import an existing key or phrase, or
+  connect a Ledger. The merge
   path in `TezosClientStore.importWallets` remains but is not exposed in the menu. The app is
   deliberately not sandboxed so it can reach both directories.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
@@ -105,6 +107,30 @@ added by hand on the development Mac.
   `waitForConfirmation` waits one block. `ChainError.fromBridgeMessage` maps the bridge's error
   text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
   so every sheet words them the same way.
+- **Import (0.6).** "Import account…" (burger and Operations menus above Connect Ledger, welcome
+  screen, Cmd-Shift-I) opens `ImportAccountSheet` with two tabs, Secret key first (a `SecureField`). *Recovery phrase*: any BIP39
+  length (12 to 24 words), optional BIP39 passphrase, curve (ed25519 default, secp256k1, P-256,
+  BIP32-Ed25519) and HD path (default `44'/1729'/0'/0'`, account stepper), plus the legacy
+  fundraiser derivation (email + password); the address is previewed as you type and the key comes
+  from Taquito's `InMemorySigner.fromMnemonic` / `fromFundraiser` in the bridge (`keyFromMnemonic`,
+  `keyFromFundraiser`, `validateMnemonic`). *Secret key*: any base58 secret (edsk seed or 64-byte,
+  spsk, p2sk, BLsk, mdsk) or an octez-encrypted one (edesk… with its password; stored as is);
+  `inspectSecretKey` reports the address and reduces a 64-byte edsk to its seed so it can be
+  stored in octez format. Both paths end in `WalletViewModel.importAccount(alias:material:…)`,
+  which can encrypt the key for storage like Create account. `KeyImporter` is the protocol
+  (`BridgeKeyImporter`, `MockKeyImporter`).
+- **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
+  encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
+  bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
+  copied too), then the key masked with a reveal toggle and a Copy button. `WalletViewModel.
+  exportSecretKey(passphrase:)` returns `ExportedKey(clear:encrypted:)`; nothing is written anywhere.
+- **Forget (0.6).** "Forget account…" (both menus, under Add address) opens `ForgetAccountSheet`:
+  one warning for everything, a second one when Signet holds the secret key (clear or encrypted;
+  Ledger and watch-only entries get only the first), the password for encrypted keys (checked by
+  decrypting), and a note that earlier backups under the backup folder still hold the key.
+  `WalletStore.remove(alias:)` drops the alias from all three octez files like
+  `octez-client forget address --force`; `WalletViewModel.forgetSelectedWallet(passphrase:)` then
+  selects the next account and takes a backup of the pruned files.
 - **Ledger (0.4).** USB HID is native: `LedgerHID` (IOKit, vendor 0x2c97, usage page 0xFFA0,
   64-byte reports framed by `LedgerFraming`: channel 0x0101, tag 0x05, sequence, length) runs on
   its own run-loop thread, one exchange per device at a time, and answers on the bridge queue.
@@ -181,8 +207,8 @@ added by hand on the development Mac.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
-  carry the same items (Create account, Connect Ledger, Rename account | Add address | Connect to
-  dApp, Baking | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
+  carry the same items (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Forget account |
+  Connect to dApp | Baking, Governance when applicable | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
@@ -219,8 +245,9 @@ added by hand on the development Mac.
   decimals, logo from thumbnailUri/icon, kept in `WalletViewModel.tokens`, not in the top balance
   list) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
   decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
-  over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` is reached from the hamburger menu, the
-  File menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
+  over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` (key type is a dropdown of the supported
+  schemes, tz1 first and recommended; tz6 is not offered) is reached from the hamburger menu, the
+  Operations menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
   `public_key_hashs` only, validated by `Address.isValidAccount` (base58 checksum, so tz5/tz6 and
   KT1 pass without Taquito). Adding an address offers its TzProfiles name as the alias, and Rename has

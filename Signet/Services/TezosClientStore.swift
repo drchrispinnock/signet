@@ -136,6 +136,17 @@ struct TezosClientStore: WalletStore {
         }
     }
 
+    func remove(alias: String) throws {
+        try withWalletLock {
+            let files = try Self.walletFiles.map { ($0, try readRaw($0)) }
+            guard files.contains(where: { $0.1.contains { ($0["name"] as? String) == alias } }) else { throw StoreError.unknownAlias(alias) }
+            for (file, entries) in files {
+                let kept = entries.filter { ($0["name"] as? String) != alias }
+                if kept.count != entries.count { try write(kept, to: file) }
+            }
+        }
+    }
+
     func importWallets(from directory: URL) throws -> Int {
         let source = TezosClientStore(directory: directory)
         guard source.hasWallets else { return 0 }

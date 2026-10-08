@@ -5,7 +5,7 @@ import SwiftUI
 enum Disclaimer {
     static let key = "showsDisclaimer"
     static let title = "⚠️ Signet - Warning"
-    static let message = "Signet is very new software and should be used with care. Make sure you protect your keys with a password or use a Ledger."
+    static let message = "Signet is very new software and should be used with care. Make sure you protect your keys with a password or use a Ledger.\n\nYou can turn off this warning in the Settings."
 }
 
 /// Presents the disclaimer when the window first appears. OK carries on; Exit quits the app.

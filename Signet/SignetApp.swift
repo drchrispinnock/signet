@@ -6,6 +6,7 @@ struct SignetApp: App {
         chainFactory: { network in TaquitoChainService(network: network) },
         keyGenerator: KeyGenerator(),
         ledger: BridgeLedgerService(),
+        keyImporter: BridgeKeyImporter(),
         importSource: TezosClientStore.octezClientDirectory,
         directorySettings: WalletDirectorySettings(),
         storeFactory: { directory in
@@ -32,16 +33,23 @@ struct SignetApp: App {
             CommandMenu("Operations") {
                 Button("Create account…") { model.isPresentingCreateWallet = true }
                     .keyboardShortcut("n", modifiers: .command)
+                Button("Import account…") { model.isPresentingImportAccount = true }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
                 Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Button("Rename account…") { model.isPresentingRenameWallet = true }
                     .disabled(model.selectedWallet == nil)
+                Button("Export secret key…") { model.isPresentingExportKey = true }
+                    .disabled(!model.canExportSelectedKey)
                 Divider()
                 Button("Add address…") { model.isPresentingAddAddress = true }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Forget account…") { model.isPresentingForget = true }
+                    .disabled(model.selectedWallet == nil)
                 Divider()
                 Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Divider()
                 Button("Baking…") { model.isPresentingBaking = true }
                     .disabled(model.selectedWallet == nil)
                 if model.canGovern {

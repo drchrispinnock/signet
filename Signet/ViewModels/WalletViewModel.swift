@@ -40,6 +40,12 @@ final class WalletViewModel {
     var isPresentingStaking = false
     var isPresentingBaking = false
     var isPresentingConnectLedger = false
+    var isPresentingImportAccount = false
+    var isPresentingExportKey = false
+    var isPresentingForget = false
+
+    /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
+    var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     var isPresentingGovernance = false
     var isPresentingBuy = false
 
@@ -188,6 +194,8 @@ final class WalletViewModel {
     private let keyGenerator: KeyGenerator
     /// Ledger discovery and key derivation.
     let ledger: any LedgerService
+    /// Pasted secret keys and recovery phrases.
+    let keyImporter: any KeyImporter
     private(set) var isConnectingLedger = false
     private var walletStore: any WalletStore
     private var stateStore: any AppStateStore
@@ -207,6 +215,7 @@ final class WalletViewModel {
         chainFactory: (@Sendable (Network) -> any ChainService)? = nil,
         keyGenerator: KeyGenerator = KeyGenerator(),
         ledger: any LedgerService = MockLedgerService(),
+        keyImporter: any KeyImporter = MockKeyImporter(),
         walletStore: any WalletStore = InMemoryWalletStore(),
         importSource: URL? = nil,
         stateStore: any AppStateStore = InMemoryAppStateStore(),
@@ -242,6 +251,7 @@ final class WalletViewModel {
         self.chain = factory(network)
         self.keyGenerator = keyGenerator
         self.ledger = ledger
+        self.keyImporter = keyImporter
         self.walletStore = walletStore
         self.importSource = importSource
 
@@ -459,6 +469,72 @@ final class WalletViewModel {
         }
         let wallet = Wallet(alias: name, address: Address(material.address), scheme: scheme,
                             publicKey: material.publicKey, keyKind: kind)
+        try walletStore.add(wallet, secretKey: secretKey)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
+    }
+
+    /// Removes the selected account from the key store (secret key included). Encrypted keys must
+    /// be unlocked with `passphrase` first, so a key cannot be thrown away by someone who does not
+    /// know its password. Earlier backups keep their copies.
+    func forgetSelectedWallet(passphrase: String?) async throws {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        if wallet.keyKind == .encrypted {
+            guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
+            guard let stored = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+            _ = try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase)
+        }
+        try walletStore.remove(alias: wallet.alias)
+        wallets = (try? walletStore.load()) ?? wallets.filter { $0.id != wallet.id }
+        if let next = wallets.first {
+            select(next)
+        } else {
+            selectedWalletID = nil
+            rememberSelection()
+            domains = []; assets = []; tokens = []; nfts = []; transactions = []; delegateInfo = nil; tezBalance = nil
+        }
+        await backUp()
+    }
+
+    /// What Export puts on screen: the clear key, and the encrypted form when that is how it is stored.
+    struct ExportedKey: Equatable, Sendable {
+        let clear: String
+        let encrypted: String?
+    }
+
+    /// The selected account's secret key. Encrypted keys are opened with `passphrase`; a wrong one
+    /// surfaces as `ChainError.wrongPassphrase`.
+    func exportSecretKey(passphrase: String?) async throws -> ExportedKey {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let stored = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+        switch wallet.keyKind {
+        case .unencrypted:
+            return ExportedKey(clear: stored, encrypted: nil)
+        case .encrypted:
+            guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
+            return ExportedKey(clear: try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase), encrypted: stored)
+        default:
+            throw SendViewModel.SendError.noSecretKey
+        }
+    }
+
+    /// Adds an account from key material obtained elsewhere (a pasted key or a recovery phrase).
+    /// Stores it clear, or encrypted with `storePassphrase`; an already-encrypted key is kept as is.
+    func importAccount(alias: String, material: KeyMaterial, alreadyEncrypted: Bool = false, storePassphrase: String? = nil) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address.value == material.address }) { throw WalletError.addressExists(existing.alias) }
+
+        var secretKey = material.secretKey
+        var kind: KeyKind = alreadyEncrypted ? .encrypted : .unencrypted
+        if !alreadyEncrypted, let storePassphrase {
+            guard storePassphrase.count >= Self.minimumPassphraseLength else { throw WalletError.passphraseTooShort }
+            secretKey = try await keyGenerator.encrypt(secretKey: material.secretKey, passphrase: storePassphrase)
+            kind = .encrypted
+        }
+        let wallet = Wallet(alias: name, address: Address(material.address), scheme: material.scheme, publicKey: material.publicKey, keyKind: kind)
         try walletStore.add(wallet, secretKey: secretKey)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)

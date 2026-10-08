@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.13.0";
+  return "0.15.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -98,6 +98,66 @@ export async function generateKeyPair(scheme) {
 export async function keyInfoFromSecretKey(secretKey, passphrase) {
   const signer = new InMemorySigner(secretKey, passphrase || undefined);
   return { publicKey: await signer.publicKey(), address: await signer.publicKeyHash() };
+}
+
+// ---- Importing keys --------------------------------------------------------------------------------
+import * as bip39 from "@scure/bip39";
+import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
+
+/**
+ * Checks a pasted secret key and describes it: clear or octez-encrypted (needs `passphrase`),
+ * public key and address. A 64-byte ed25519 key (98-char edsk) is reduced to its 32-byte seed
+ * (54-char edsk) so it can be stored and encrypted in octez's format.
+ */
+export async function inspectSecretKey(secretKey, passphrase) {
+  const key = String(secretKey || "").trim();
+  if (!key) throw new Error("Paste a secret key.");
+  const encrypted = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"].some((p) => key.startsWith(p));
+  if (encrypted && !passphrase) return { encrypted: true, needsPassphrase: true };
+  const signer = new InMemorySigner(key, passphrase || undefined);
+  const [publicKey, address] = await Promise.all([signer.publicKey(), signer.publicKeyHash()]);
+  return { encrypted, needsPassphrase: false, publicKey, address, secretKey: encrypted ? key : normalizeSecretKey(key) };
+}
+
+/** A 64-byte ed25519 secret (98-char edsk, seed ‖ public key) as its 32-byte seed (54-char edsk); anything else unchanged. */
+function normalizeSecretKey(key) {
+  if (key.startsWith("edsk") && key.length === 98) {
+    const [raw] = b58DecodeAndCheckPrefix(key, [PrefixV2.Ed25519SecretKey]);
+    return b58Encode(raw.slice(0, 32), PrefixV2.Ed25519Seed);
+  }
+  return key;
+}
+
+/** The clear base58 secret behind an octez-encrypted key (edesk…), opened with `passphrase`. */
+export async function decryptSecretKey(secretKey, passphrase) {
+  const signer = new InMemorySigner(String(secretKey || "").trim(), passphrase || undefined);
+  return { secretKey: normalizeSecretKey(await signer.secretKey()) };
+}
+
+/** True when the words are a valid BIP39 English phrase (12, 15, 18, 21 or 24 words). */
+export function validateMnemonic(mnemonic) {
+  const words = String(mnemonic || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const unknown = words.filter((w) => !englishWordlist.includes(w));
+  return { valid: words.length > 0 && bip39.validateMnemonic(words.join(" "), englishWordlist), wordCount: words.length, unknownWords: unknown };
+}
+
+/**
+ * Derives a key from a recovery phrase: BIP39 seed (with optional passphrase), then the Tezos
+ * HD path (default 44'/1729'/0'/0') on the chosen curve (ed25519, secp256k1, p256, bip25519),
+ * exactly as Taquito, Temple and Kukai do. Returns base58 secret key, public key and address.
+ */
+export async function keyFromMnemonic(mnemonic, passphrase, derivationPath, curve) {
+  const words = String(mnemonic || "").trim().toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+  const signer = InMemorySigner.fromMnemonic({ mnemonic: words, password: passphrase || "", derivationPath: derivationPath || "44'/1729'/0'/0'", curve: curve || "ed25519" });
+  const [secretKey, publicKey, address] = await Promise.all([signer.secretKey(), signer.publicKey(), signer.publicKeyHash()]);
+  return { secretKey: normalizeSecretKey(secretKey), publicKey, address };
+}
+
+/** The legacy (fundraiser / non-HD) ed25519 derivation some old wallets used: mnemonic + email + password. */
+export async function keyFromFundraiser(email, password, mnemonic) {
+  const signer = InMemorySigner.fromFundraiser(email, password, String(mnemonic || "").trim().toLowerCase().split(/\s+/).join(" "));
+  const [secretKey, publicKey, address] = await Promise.all([signer.secretKey(), signer.publicKey(), signer.publicKeyHash()]);
+  return { secretKey: normalizeSecretKey(secretKey), publicKey, address };
 }
 
 // ---- Balances --------------------------------------------------------------------------------

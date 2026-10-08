@@ -27,11 +27,13 @@
 		24BFD9B2163DAC152D8E54F2 /* OctezConnectStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */; };
 		2642CCC0385340DBDBB000C6 /* IPFS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4B9106C1A9902CED9500D0 /* IPFS.swift */; };
 		28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A212889342C7C573BC835EB1 /* BakingSheet.swift */; };
+		297795808F6473E66D33DC6E /* KeyImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */; };
 		30B219AC144FC83867374797 /* BuySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00D9FA8FA790B44780BF4BA /* BuySheet.swift */; };
 		31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */; };
 		352781EAEFD67868E1C159A5 /* NFTGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278776717D4BD5F05FF06B65 /* NFTGridView.swift */; };
 		35314BD0A346AF35E1FD69A5 /* NFTTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8C3E5BA111A78690461B8D9 /* NFTTests.swift */; };
 		353C2A8477261BC9E54ED68A /* Address.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC5AEA37DB0C4CC4A507E78 /* Address.swift */; };
+		36269A0FC9448BFF2329945A /* ForgetAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */; };
 		37A603F12FFBF751DCE054D2 /* DisclaimerAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */; };
 		37B260A3EAD5C2E0004BF012 /* WalletDirectorySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E10999773090115B0585AAE /* WalletDirectorySettings.swift */; };
 		3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */; };
@@ -42,10 +44,12 @@
 		4F54FA31553D267CCB65ED14 /* TezBalanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */; };
 		549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */; };
 		557958E2DA023D11DAECD05E /* LedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A0D0255843FAE3AF79D460 /* LedgerTests.swift */; };
+		57A60E498D042D8AF11CD26B /* ExportKeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */; };
 		58532C6573A1A3FB460EA85A /* AppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD834C06F49658A295BADA09 /* AppStateStore.swift */; };
 		5988FB98D3C29FB3B442328B /* WalletBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507B55356D52C39CF790496A /* WalletBackupTests.swift */; };
 		603EA65D5F475993CF91B710 /* BuyProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C97CB8F610E2FEBAE942B50 /* BuyProvider.swift */; };
 		61427263DE2738E1B8AE3743 /* MtPelerinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */; };
+		6D5DD41FA174C1D5D5195EDB /* ImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */; };
 		6D72B36ED768416E56BD2AE0 /* Staking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC270D9AC39835A78941A29 /* Staking.swift */; };
 		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
 		78A3D78FBA369C156627C515 /* LedgerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */; };
@@ -70,6 +74,7 @@
 		A5A2409814B37E05C0876756 /* FaucetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05930E7B824730A8A1C63579 /* FaucetTests.swift */; };
 		A739ED053C1344CED9AEB04E /* SendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 088C8CA0ACEDD480A9684481 /* SendTests.swift */; };
 		A7EAFA11BB89D10581112187 /* LedgerKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C28E33024C38536C06397DB /* LedgerKey.swift */; };
+		A8605F0B652A3BDAA36F2C4D /* ImportAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */; };
 		A888988B53D51769A9E2D113 /* TezosClientStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741349B359248E0F53BDF375 /* TezosClientStore.swift */; };
 		B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B85C43802035F011273672C /* LedgerHID.swift */; };
 		B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9682C459E924F07DEF53FC3 /* Theme.swift */; };
@@ -164,6 +169,7 @@
 		52C145BB526DC161273EB9F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		53331E96FFD222A1898C7F83 /* ConnectDAppSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectDAppSheet.swift; sourceTree = "<group>"; };
 		53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclaimerAlert.swift; sourceTree = "<group>"; };
+		553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTests.swift; sourceTree = "<group>"; };
 		558CDF12CE81034B95FF02F4 /* SignetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAddressSheet.swift; sourceTree = "<group>"; };
 		5C368DB40E25AA303DD76D49 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
@@ -172,6 +178,7 @@
 		615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezBalanceTests.swift; sourceTree = "<group>"; };
 		68A977FC2E863E73A21EF39F /* SendViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendViewModel.swift; sourceTree = "<group>"; };
 		6DE66BABF3B38C10ECC20F5F /* MtPelerin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerin.swift; sourceTree = "<group>"; };
+		6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyImporter.swift; sourceTree = "<group>"; };
 		728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoBridgeTests.swift; sourceTree = "<group>"; };
 		72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerinTests.swift; sourceTree = "<group>"; };
 		741349B359248E0F53BDF375 /* TezosClientStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezosClientStore.swift; sourceTree = "<group>"; };
@@ -191,6 +198,7 @@
 		926EF7412E238A0CC14FA791 /* MockChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChainService.swift; sourceTree = "<group>"; };
 		94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerService.swift; sourceTree = "<group>"; };
 		954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyMaterial.swift; sourceTree = "<group>"; };
+		9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportAccountSheet.swift; sourceTree = "<group>"; };
 		9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignetApp.swift; sourceTree = "<group>"; };
 		9B7333B6F53BDA303AE19D83 /* DAppRequestSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppRequestSheet.swift; sourceTree = "<group>"; };
 		9B7EAC88691E2C2CC72CA41F /* AccountAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatarView.swift; sourceTree = "<group>"; };
@@ -203,6 +211,7 @@
 		A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostQuantumSendTests.swift; sourceTree = "<group>"; };
 		A8C3E5BA111A78690461B8D9 /* NFTTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTTests.swift; sourceTree = "<group>"; };
 		A8F7142388FBD9770414F6F0 /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
+		ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportKeySheet.swift; sourceTree = "<group>"; };
 		B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletViewModel.swift; sourceTree = "<group>"; };
 		B83A465432E9E915B374F22E /* Wallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Wallet.swift; sourceTree = "<group>"; };
 		B8B591F4ED8860E9761BCAEC /* WalletStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletStore.swift; sourceTree = "<group>"; };
@@ -222,6 +231,7 @@
 		DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGeneratorTests.swift; sourceTree = "<group>"; };
 		E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegateRowView.swift; sourceTree = "<group>"; };
+		E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgetAccountSheet.swift; sourceTree = "<group>"; };
 		E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHeaderView.swift; sourceTree = "<group>"; };
 		E70E02FF7663B97A85CBD8A8 /* DAppConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppConnectionManager.swift; sourceTree = "<group>"; };
 		EEF0AB14B65D2F2992D0B4B3 /* BuyWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyWebView.swift; sourceTree = "<group>"; };
@@ -257,8 +267,11 @@
 				9B7333B6F53BDA303AE19D83 /* DAppRequestSheet.swift */,
 				E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */,
 				53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */,
+				ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */,
 				FC918EF9B0EDD54D21EB48C3 /* FaucetSheet.swift */,
+				E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */,
 				3ED923E5AE3EE96BE5D624FB /* GovernanceSheet.swift */,
+				9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */,
 				F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */,
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
@@ -320,6 +333,7 @@
 				766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */,
 				05930E7B824730A8A1C63579 /* FaucetTests.swift */,
 				D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */,
+				553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */,
 				E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */,
 				41A0D0255843FAE3AF79D460 /* LedgerTests.swift */,
 				72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */,
@@ -381,6 +395,7 @@
 				4D4B9106C1A9902CED9500D0 /* IPFS.swift */,
 				0B8A25CB62696FFB8F173814 /* JSONValue.swift */,
 				17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */,
+				6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */,
 				9B85C43802035F011273672C /* LedgerHID.swift */,
 				94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */,
 				926EF7412E238A0CC14FA791 /* MockChainService.swift */,
@@ -561,14 +576,18 @@
 				3FA928776966346A3F440200 /* DAppRequestSheet.swift in Sources */,
 				FB5AA3515709B493AD2B8443 /* DelegateRowView.swift in Sources */,
 				37A603F12FFBF751DCE054D2 /* DisclaimerAlert.swift in Sources */,
+				57A60E498D042D8AF11CD26B /* ExportKeySheet.swift in Sources */,
 				DE6242C7123257F1E4BFA919 /* FaucetService.swift in Sources */,
 				9515CEF511EC5DEA4872F494 /* FaucetSheet.swift in Sources */,
+				36269A0FC9448BFF2329945A /* ForgetAccountSheet.swift in Sources */,
 				935E76739AC7B10A921AA114 /* Governance.swift in Sources */,
 				03F5124A485A957F26D00BD8 /* GovernanceSheet.swift in Sources */,
 				2642CCC0385340DBDBB000C6 /* IPFS.swift in Sources */,
 				98CA8BD06801D00E1E259F42 /* ImageLoader.swift in Sources */,
+				A8605F0B652A3BDAA36F2C4D /* ImportAccountSheet.swift in Sources */,
 				EFDB94E16FD6390A50E7CBE2 /* JSONValue.swift in Sources */,
 				549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */,
+				297795808F6473E66D33DC6E /* KeyImporter.swift in Sources */,
 				90193F86F97E3A6EFCF5D397 /* KeyMaterial.swift in Sources */,
 				B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */,
 				A7EAFA11BB89D10581112187 /* LedgerKey.swift in Sources */,
@@ -627,6 +646,7 @@
 				0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */,
 				A5A2409814B37E05C0876756 /* FaucetTests.swift in Sources */,
 				DD55FDBEC099D83C97895445 /* GovernanceTests.swift in Sources */,
+				6D5DD41FA174C1D5D5195EDB /* ImportTests.swift in Sources */,
 				6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */,
 				557958E2DA023D11DAECD05E /* LedgerTests.swift in Sources */,
 				61427263DE2738E1B8AE3743 /* MtPelerinTests.swift in Sources */,

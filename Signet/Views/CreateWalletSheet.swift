@@ -39,8 +39,10 @@ struct CreateWalletSheet: View {
                     .focused($aliasFocused)
                     .onSubmit { if canCreate { create() } }
 
-                LabeledContent("Key type") {
-                    SchemePicker(selection: $scheme)
+                Picker("Key type", selection: $scheme) {
+                    ForEach(AddressScheme.allCases.filter(\.isSupported), id: \.self) { option in
+                        Text(option == .tz1 ? "\(option.rawValue) · \(option.displayName) (recommended)" : "\(option.rawValue) · \(option.displayName)").tag(option)
+                    }
                 }
                 if let caveat = scheme.caveat {
                     Label(caveat, systemImage: "info.circle")
@@ -105,47 +107,6 @@ struct CreateWalletSheet: View {
                 errorMessage = error.localizedDescription
             }
         }
-    }
-}
-
-/// Radio list of address schemes. Unsupported schemes are shown greyed out and cannot be chosen;
-/// a macOS pop-up picker cannot disable individual items reliably, hence the custom control.
-struct SchemePicker: View {
-    @Binding var selection: AddressScheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(AddressScheme.allCases, id: \.self) { scheme in
-                Button {
-                    selection = scheme
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: selection == scheme ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(selection == scheme && scheme.isSupported ? Color.accentColor : .secondary)
-                        Text(scheme.rawValue)
-                            .font(.body.monospaced())
-                            .frame(width: 32, alignment: .leading)
-                        Text(scheme.displayName)
-                        if !scheme.isSupported {
-                            Text("not available")
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(.quaternary))
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!scheme.isSupported)
-                .foregroundStyle(scheme.isSupported ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
-                .help(scheme.unavailableReason ?? scheme.displayName)
-                .accessibilityLabel("\(scheme.rawValue) \(scheme.displayName)\(scheme.isSupported ? "" : ", not available")")
-                .accessibilityAddTraits(selection == scheme ? .isSelected : [])
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

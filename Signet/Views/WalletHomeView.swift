@@ -32,6 +32,15 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectLedger) {
             ConnectLedgerSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingImportAccount) {
+            ImportAccountSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingExportKey) {
+            ExportKeySheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingForget) {
+            ForgetAccountSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingStaking) {
             StakingSheet(model: model)
         }
@@ -114,8 +123,10 @@ struct NoWalletsView: View {
         }
     }
 
+    private var hasOctezWallet: Bool { model.importableWalletCount > 0 }
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
@@ -124,27 +135,43 @@ struct NoWalletsView: View {
             Text("Welcome to Signet, a Tezos Wallet for the Mac.")
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 360)
-            if model.importableWalletCount > 0 {
-                Text("Found an octez-client wallet with \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "account" : "accounts") in ~/.tezos-client. Import it into Signet?")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 360)
-                Button("Import accounts") { importWallets() }
-                    .buttonStyle(.borderedProminent)
+            Text("How would you like to start?")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 10) {
+                if hasOctezWallet {
+                    StartOption(
+                        title: "Import your octez-client wallet",
+                        detail: "Found \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "account" : "accounts") in ~/.tezos-client. Copies the files into ~/.signet; octez-client keeps working.",
+                        symbol: "square.and.arrow.down.on.square",
+                        prominent: true,
+                        action: importWallets
+                    )
                     .keyboardShortcut(.defaultAction)
-                Button("Create a new account instead…") { model.isPresentingCreateWallet = true }
-                    .buttonStyle(.link)
+                }
+                StartOption(
+                    title: "Create a new account",
+                    detail: "Generate a fresh key on this Mac, protected with a password.",
+                    symbol: "plus.circle",
+                    prominent: !hasOctezWallet
+                ) { model.isPresentingCreateWallet = true }
                     .keyboardShortcut("n", modifiers: .command)
-            } else {
-                Button("Create account…") { model.isPresentingCreateWallet = true }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut("n", modifiers: .command)
-                Button("Connect a Ledger instead…") { model.isPresentingConnectLedger = true }
-                    .buttonStyle(.link)
+                StartOption(
+                    title: "Import an existing account",
+                    detail: "From a secret key or a recovery phrase of 12 to 24 words.",
+                    symbol: "key.horizontal"
+                ) { model.isPresentingImportAccount = true }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
+                StartOption(
+                    title: "Connect a Ledger",
+                    detail: "Use a key that stays on your hardware wallet.",
+                    symbol: "lock.rectangle.stack"
+                ) { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
             }
+            .frame(maxWidth: 440)
+
             if let importError {
                 Text(importError)
                     .font(.callout)
@@ -154,6 +181,40 @@ struct NoWalletsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// One of the ways to start on a cold boot: an icon, a title, a line of detail and a chevron.
+private struct StartOption: View {
+    let title: String
+    let detail: String
+    let symbol: String
+    var prominent = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.title2)
+                    .frame(width: 32)
+                    .foregroundStyle(prominent ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body.weight(.semibold))
+                    Text(detail).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(prominent ? 0.14 : 0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(prominent ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.3), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title). \(detail)")
     }
 }
 

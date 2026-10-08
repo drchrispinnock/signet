@@ -7,7 +7,7 @@ import Testing
 struct TaquitoBridgeTests {
     @Test func bundleLoadsAndReportsVersion() async throws {
         let version = try await TaquitoBridge.shared.call("version")
-        #expect(version == .string("0.13.0"))
+        #expect(version == .string("0.15.0"))
     }
 
     @Test(arguments: [

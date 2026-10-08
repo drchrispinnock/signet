@@ -12,6 +12,8 @@ protocol WalletStore: Sendable {
     func secretKey(for wallet: Wallet) throws -> String?
     /// Changes an alias everywhere it appears. Fails if the new alias is already taken.
     func rename(alias: String, to newAlias: String) throws
+    /// Removes an alias from every file, secret key included (octez-client's `forget address … --force`).
+    func remove(alias: String) throws
     /// Brings in wallets from an octez-client style directory, skipping aliases already present.
     /// Returns how many were added.
     func importWallets(from directory: URL) throws -> Int
@@ -71,6 +73,14 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
             let additions = incoming.filter { !existing.contains($0.alias) }
             wallets.append(contentsOf: additions)
             return additions.count
+        }
+    }
+
+    func remove(alias: String) throws {
+        try lock.withLock {
+            guard wallets.contains(where: { $0.alias == alias }) else { throw StoreError.unknownAlias(alias) }
+            wallets.removeAll { $0.alias == alias }
+            secrets[alias] = nil
         }
     }
 
