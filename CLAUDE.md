@@ -61,7 +61,9 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   `{public_key_hashs,public_keys,secret_keys}` exactly as octez-client lays them out,
   joining entries by alias, appending only, replacing files atomically and holding `wallet_lock`
   while writing. A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
-  unencrypted, encrypted, on a ledger, remote or absent. Only unencrypted secrets can be used.
+  unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
+  (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
+  `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
   The directory can be changed in Settings; that pointer is the one thing kept in UserDefaults
   (`WalletDirectorySettings`), because it cannot live inside the directory it names. Switching
   rebuilds both stores through the `storeFactory` the app passes to the view model.
@@ -89,9 +91,34 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   sender → recipient with avatars, the recipient named from our records (verified) or from the
   TzProfiles data TzKT carries in `extras.profile` ("Not verified"), plus fee/allocation/total from
   `estimateTransfer`, which runs in the bridge with a read-only signer so no secret is needed to
-  estimate. `sendTransfer` hands the clear-text secret to Taquito's `InMemorySigner` for the one
-  operation (native signing is a planned improvement); `waitForConfirmation` waits one block.
-  Clear-text and encrypted keys can send; ledger and remote signers cannot yet.
+  estimate. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
+  `octezConnectExecute`/`octezConnectSign`) takes a `SigningKey`: `.secret(key, passphrase:)` or
+  `.ledger(LedgerKey, address:)`, serialised by `bridgeSpec` into the JSON the bridge's
+  `signerFor` (`src/signers.js`) turns into an `InMemorySigner` or a `LedgerSigner` for the one
+  operation. `WalletViewModel.signingKey(for:passphrase:)` builds it from the wallet's kind.
+  `waitForConfirmation` waits one block. `ChainError.fromBridgeMessage` maps the bridge's error
+  text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
+  so every sheet words them the same way.
+- **Ledger (0.4).** USB HID is native: `LedgerHID` (IOKit, vendor 0x2c97, usage page 0xFFA0,
+  64-byte reports framed by `LedgerFraming`: channel 0x0101, tag 0x05, sequence, length) runs on
+  its own run-loop thread, one exchange per device at a time, and answers on the bridge queue.
+  The bridge's `NativeLedgerTransport` (`src/ledger.js`) subclasses `@ledgerhq/hw-transport` over
+  `__signet.ledgerExchange` / `__signet.ledgerDevices`, and Taquito's `@taquito/ledger-signer`
+  does the APDUs (get public key with or without prompt, sign). The Tezos Wallet app on the device
+  shows each operation for approval, so the sheets show "Confirm on your Ledger…" while a
+  `.ledger` key signs (`LedgerPromptLabel`); exchanges wait up to five minutes. `LedgerKey` is
+  octez-client's `ledger://<root id>/<curve>/<path>` (curves ed25519, secp256k1, P-256, bip25519;
+  path relative to `44'/1729'`, `h` or `'` for hardened); existing octez ledger aliases load with
+  `Wallet.ledgerKey` and just work. "Connect Ledger…" (burger menu, welcome screen, Cmd-Shift-L)
+  opens `ConnectLedgerSheet`: polls `LedgerService.devices()` (the real one is
+  `BridgeLedgerService`, `MockLedgerService` for tests/previews), checks the app with
+  `ledgerAppVersion` (CLA 0x80 INS 0x00; the Baking app is refused), previews the address for
+  the chosen curve and account index without a prompt, and on Add derives it again with a prompt
+  so the user approves the address on the device before `connectLedger` writes the alias (root id =
+  the ed25519 address at `44'/1729'`, as octez names devices, so octez-client can use the entry).
+  Before signing, `ledgerSignerFor` checks the connected device derives the wallet's address and
+  fails with "does not hold this key" otherwise. Trezor is not supported: Taquito has no Trezor
+  signer and Trezor's SDK needs its Bridge daemon and a browser popup.
 - **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, stake,
   unstake, finalizeUnstake, updateConsensusKey, updateCompanionKey) is estimated with a read-only
   signer and sent via the bridge's `estimateStakingOperation` / `sendStakingOperation` (Taquito
@@ -108,16 +135,17 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   the bridge's raw path (`prepareRaw`/`sendRawOperation`/`waitForRawOperation`): the node simulates,
   forges and preapplies, Signet signs with the baker's key; `TaquitoChainService.rawContents` picks
   that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
-  Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, ledger,
-  remote) and the wording says so.
+  Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
+  and the wording says so; Ledger wallets operate normally with approval on the device.
 - **dApps (Octez Connect / TZIP-10).** The Beacon-fork wallet SDK runs inside the bridge
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
   Pairing is Umami-style: the user pastes the dApp's "pair wallet on another device" code
   (`ConnectDAppSheet`, burger menu, Cmd-Shift-D). `DAppConnectionManager` parses requests
   (`DAppRequest`), queues them, and `DAppRequestSheet` approves/rejects: permission (pick a wallet),
-  operation (Taquito `contract.batch` from the partial operations, password for encrypted keys),
-  sign_payload (`InMemorySigner.sign`). dApp network types map to ours via `DAppRequest.network`.
+  operation (Taquito `contract.batch` from the partial operations, password for encrypted keys,
+  Ledger approval on the device), sign_payload (`signer.sign`). Wrong password or a Ledger that is
+  not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
@@ -177,8 +205,10 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   network dropdown that picks whose node is being edited (not the network in use) and a Custom
   network defaulting to `http://localhost:8732`; nodes are shown as full URLs.
 - The spec asks for Taquito "where possible". Taquito is TypeScript, so chain access goes
-  through a JavaScript bundle run inside JavaScriptCore (see `TaquitoBridge/`). Keep private
-  keys and signing in Swift; use the bridge for RPC, forging, encoding and metadata.
+  through a JavaScript bundle run inside JavaScriptCore (see `TaquitoBridge/`). Key generation for
+  tz1/tz3 is in Swift; secrets enter the bridge only for the one operation they sign (Taquito's
+  `InMemorySigner`), and Ledger keys never leave the device. Use the bridge for RPC, forging,
+  encoding, metadata and the Ledger APDU protocol.
 - Etherlink is out of scope for now. The row is hidden behind `WalletViewModel.showsEtherlinkBalance`;
   the asset kind, logo asset and fetch path are kept so it can be switched back on.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
@@ -196,7 +226,8 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
 
 ## Taquito bridge
 
-`TaquitoBridge/` is a small npm package that bundles Taquito plus JavaScriptCore polyfills
+`TaquitoBridge/` is a small npm package that bundles Taquito (plus `@taquito/ledger-signer` and
+`@ledgerhq/hw-transport`) and JavaScriptCore polyfills
 (`src/polyfills.js`: timers, fetch, TextEncoder, crypto.getRandomValues, Buffer) into
 `Signet/Resources/taquito-bridge.js`, which is committed and shipped as an app resource.
 After changing anything under `TaquitoBridge/src` or bumping Taquito, rebuild it:
@@ -206,7 +237,8 @@ cd TaquitoBridge && npm install && npm run build      # minified; `npm run build
 ```
 
 On the Swift side `TaquitoBridge.swift` owns the `JSContext` on a serial queue, installs the
-`__signet` native object the polyfills call for timers, HTTP (URLSession) and randomness, and
+`__signet` native object the polyfills call for timers, HTTP (URLSession), randomness and Ledger
+HID exchanges (`LedgerHID`), and
 exposes `call(name, args)` which unwraps promises into a `Sendable` `JSONValue`. Promise
 callbacks must be attached with `invokeMethod("then", ...)`, never a bare `then.call`, or the
 continuation leaks and the caller hangs forever. `TaquitoChainService` uses the bridge for live

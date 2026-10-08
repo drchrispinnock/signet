@@ -29,8 +29,9 @@ enum KeyKind: String, Codable, Sendable {
         }
     }
 
-    /// Kinds Signet can sign with: clear-text keys, and encrypted keys once the user supplies the password.
-    var canSign: Bool { self == .unencrypted || self == .encrypted }
+    /// Kinds Signet can sign with: clear-text keys, encrypted keys once the user supplies the
+    /// password, and Ledger keys when the device is plugged in.
+    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger }
 
     /// Base58 prefixes of octez-encrypted secret keys.
     static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"]
@@ -54,12 +55,15 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     /// Base58 public key. `nil` when the client directory has no `public_keys` entry.
     var publicKey: String?
     var keyKind: KeyKind
+    /// Where the key lives on a Ledger, when `keyKind` is `.ledger` and the locator parsed.
+    var ledgerKey: LedgerKey?
 
-    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none) {
+    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil) {
         self.alias = alias
         self.address = address
         self.scheme = scheme ?? address.scheme ?? .tz1
         self.publicKey = publicKey
         self.keyKind = keyKind
+        self.ledgerKey = ledgerKey
     }
 }

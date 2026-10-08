@@ -5,6 +5,7 @@ struct SignetApp: App {
     @State private var model = WalletViewModel(
         chainFactory: { network in TaquitoChainService(network: network) },
         keyGenerator: KeyGenerator(),
+        ledger: BridgeLedgerService(),
         importSource: TezosClientStore.octezClientDirectory,
         directorySettings: WalletDirectorySettings(),
         storeFactory: { directory in

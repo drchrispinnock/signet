@@ -51,8 +51,8 @@ struct MockChainService: ChainService {
         return TransferEstimate(fee: Decimal(string: "0.000521")!, burn: burn, total: amount + Decimal(string: "0.000521")! + burn, gasLimit: 169, storageLimit: burn > 0 ? 257 : 0)
     }
 
-    func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String {
-        if wallet.keyKind == .encrypted, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return "ooMockOperationHash1111111111111111111111111111111111"
     }
 
@@ -76,10 +76,10 @@ struct MockChainService: ChainService {
         TransferEstimate(fee: Decimal(string: "0.000421")!, burn: 0, total: Decimal(string: "0.000421")!, gasLimit: 200, storageLimit: 0)
     }
 
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String {
-        if wallet.keyKind == .encrypted, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return "ooMockStaking\(operation.bridgeKind)"
     }
 
-    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String { "BLsigMockProof" }
+    func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigMockProof" }
 }

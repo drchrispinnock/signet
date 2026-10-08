@@ -83,13 +83,13 @@ struct QuantumnetStakingTests {
         let bakers = try await chain.bakers(limit: 10)
         let baker = try #require(bakers.first(where: { $0.acceptsStaking == true }) ?? bakers.first, "no bakers listed on Quantumnet")
 
-        let d = try await chain.performStaking(.delegate(to: baker.address), from: wallet, secretKey: material.secretKey, passphrase: nil)
+        let d = try await chain.performStaking(.delegate(to: baker.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil))
         _ = try await chain.waitForConfirmation(of: d)
         let delegated = try await chain.delegateInfo(for: wallet.address)
         #expect(delegated.delegate == baker.address)
 
         if delegated.delegateAcceptsStaking == true {
-            let s = try await chain.performStaking(.stake(5), from: wallet, secretKey: material.secretKey, passphrase: nil)
+            let s = try await chain.performStaking(.stake(5), from: wallet, signer: .secret(material.secretKey, passphrase: nil))
             _ = try await chain.waitForConfirmation(of: s)
             try await Task.sleep(for: .seconds(8))
             let after = try await chain.tezBalance(for: wallet.address)
@@ -98,7 +98,7 @@ struct QuantumnetStakingTests {
             print("baker \(baker.alias ?? baker.address.value) does not accept staking; skipped the stake step")
         }
 
-        let r = try await chain.performStaking(.registerAsBaker, from: wallet, secretKey: material.secretKey, passphrase: nil)
+        let r = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil))
         _ = try await chain.waitForConfirmation(of: r)
         let registered = try await chain.delegateInfo(for: wallet.address)
         #expect(registered.isBaker)
@@ -139,13 +139,13 @@ struct QuantumnetBakerParametersTests {
         for _ in 0..<30 { try await Task.sleep(for: .seconds(4)); if let b = try? await chain.tezBalance(for: wallet.address), b.spendable >= 20 { funded = true; break } }
         #expect(funded)
 
-        let reg = try await chain.performStaking(.registerAsBaker, from: wallet, secretKey: material.secretKey, passphrase: nil)
+        let reg = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil))
         _ = try await chain.waitForConfirmation(of: reg)
 
         let params = try #require(StakingParameters(limitMultiplier: 5, edgePercent: 10))
         let estimate = try await chain.estimateStaking(.setStakingParameters(params, source: wallet.address), from: wallet)
         #expect(estimate.fee > 0)
-        let setHash = try await chain.performStaking(.setStakingParameters(params, source: wallet.address), from: wallet, secretKey: material.secretKey, passphrase: nil)
+        let setHash = try await chain.performStaking(.setStakingParameters(params, source: wallet.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil))
         _ = try await chain.waitForConfirmation(of: setHash)
         try await Task.sleep(for: .seconds(4))
         let info = try await chain.delegateInfo(for: wallet.address)
@@ -159,7 +159,14 @@ struct QuantumnetBakerParametersTests {
            let xmpk = rows.compactMap({ ($0["value"] as? [String: Any])?["key"] as? String }).first(where: { $0.hasPrefix("xmpk") }) {
             let est = try await chain.estimateStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet)
             #expect(est.fee > 0)
-            let hash = try await chain.performStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet, secretKey: material.secretKey, passphrase: nil)
+            let hash: String
+            do {
+                hash = try await chain.performStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet, signer: .secret(material.secretKey, passphrase: nil))
+            } catch TaquitoBridge.BridgeError.javaScript(let message) where message.contains("consensus_key.active") {
+                // A consensus key serves one baker at a time; an earlier run of this test already took it.
+                print("xmpk \(xmpk.prefix(12))… is already another baker's consensus key; skipped the tz6 step")
+                return
+            }
             let level = try await chain.waitForConfirmation(of: hash)
             #expect(level > 0)
             try await Task.sleep(for: .seconds(4))

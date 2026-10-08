@@ -14,7 +14,7 @@ final class DAppConnectionManager {
         var errorDescription: String? {
             switch self {
             case .notOurWallet(let address): "The dApp asked for \(address.shortened()), which is not one of your wallets."
-            case .noUsableKey(let alias): "Signet cannot sign with “\(alias)” (no clear-text or encrypted key)."
+            case .noUsableKey(let alias): "Signet cannot sign with “\(alias)” (no key on disk or Ledger)."
             case .unsupportedNetwork(let type): "The dApp wants the “\(type)” network, which Signet does not have."
             }
         }
@@ -30,18 +30,18 @@ final class DAppConnectionManager {
     private let bridge: TaquitoBridge
     private let storage: any BridgeStorage
     private let walletsProvider: @MainActor () -> [Wallet]
-    private let secretKeyProvider: @MainActor (Wallet) throws -> String?
+    private let signerProvider: @MainActor (Wallet, String?) throws -> SigningKey?
 
     var current: DAppRequest? { pending.first }
 
     init(bridge: TaquitoBridge = .shared,
          storage: any BridgeStorage,
          wallets: @escaping @MainActor () -> [Wallet],
-         secretKey: @escaping @MainActor (Wallet) throws -> String?) {
+         signer: @escaping @MainActor (Wallet, String?) throws -> SigningKey?) {
         self.bridge = bridge
         self.storage = storage
         self.walletsProvider = wallets
-        self.secretKeyProvider = secretKey
+        self.signerProvider = signer
     }
 
     // MARK: Lifecycle
@@ -155,17 +155,17 @@ final class DAppConnectionManager {
     func approveOperation(_ request: DAppRequest, passphrase: String?) async {
         guard case .operation(let id, _, let networkType, let rpcURL, let source, let operationsJSON) = request else { return }
         do {
-            let (wallet, secretKey) = try signer(for: source)
+            let (wallet, signer) = try signer(for: source, passphrase: passphrase)
             guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
-            let result = try await bridge.call("octezConnectExecute", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", operationsJSON])
+            let result = try await bridge.call("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, operationsJSON])
             let hash = result["hash"]?.stringValue ?? ""
             await respond(["type": "operation_response", "id": id, "transactionHash": hash])
             lastOutcome = "Sent \(hash.prefix(12))… for “\(request.app.name)” from \(wallet.alias)"
             finish(request)
         } catch {
             lastError = Self.friendly(error)
-            // Wrong password: leave the request up so the user can retry.
-            if Self.isWrongPassphrase(error) { return }
+            // Wrong password or Ledger not ready: leave the request up so the user can retry.
+            if Self.isRetryable(error) { return }
             await respondError(id: id, errorType: "TRANSACTION_INVALID_ERROR")
             finish(request)
         }
@@ -174,15 +174,15 @@ final class DAppConnectionManager {
     func approveSignature(_ request: DAppRequest, passphrase: String?) async {
         guard case .signPayload(let id, _, let source, let signingType, let payload) = request else { return }
         do {
-            let (_, secretKey) = try signer(for: source)
-            let result = try await bridge.call("octezConnectSign", [secretKey, passphrase ?? "", payload])
+            let (_, signer) = try signer(for: source, passphrase: passphrase)
+            let result = try await bridge.call("octezConnectSign", [signer.bridgeSpec, payload])
             guard let signature = result["signature"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no signature") }
             await respond(["type": "sign_payload_response", "id": id, "signingType": signingType, "signature": signature])
             lastOutcome = "Signed a message for “\(request.app.name)”"
             finish(request)
         } catch {
             lastError = Self.friendly(error)
-            if Self.isWrongPassphrase(error) { return }
+            if Self.isRetryable(error) { return }
             await respondError(id: id, errorType: "SIGNATURE_TYPE_NOT_SUPPORTED")
             finish(request)
         }
@@ -200,11 +200,11 @@ final class DAppConnectionManager {
 
     // MARK: Helpers
 
-    /// The wallet for `source` and its base58 secret key (clear or encrypted).
-    private func signer(for source: Address) throws -> (Wallet, String) {
+    /// The wallet for `source` and what signs for it.
+    private func signer(for source: Address, passphrase: String?) throws -> (Wallet, SigningKey) {
         guard let wallet = walletsProvider().first(where: { $0.address == source }) else { throw ConnectError.notOurWallet(source) }
-        guard wallet.keyKind.canSign, let secretKey = try secretKeyProvider(wallet) else { throw ConnectError.noUsableKey(wallet.alias) }
-        return (wallet, secretKey)
+        guard wallet.keyKind.canSign, let signer = try signerProvider(wallet, passphrase) else { throw ConnectError.noUsableKey(wallet.alias) }
+        return (wallet, signer)
     }
 
     func wallet(for source: Address) -> Wallet? {
@@ -237,15 +237,22 @@ final class DAppConnectionManager {
         await respond(["type": "error", "id": id, "errorType": errorType])
     }
 
-    private static func isWrongPassphrase(_ error: Error) -> Bool {
-        if case TaquitoBridge.BridgeError.javaScript(let message) = error {
-            return message.contains("decrypt") || message.contains("passphrase")
+    private static func known(_ error: Error) -> ChainError? {
+        if let chain = error as? ChainError { return chain }
+        if case TaquitoBridge.BridgeError.javaScript(let message) = error { return ChainError.fromBridgeMessage(message) }
+        return nil
+    }
+
+    /// Errors the user can fix and try again without the dApp hearing about it.
+    private static func isRetryable(_ error: Error) -> Bool {
+        switch known(error) {
+        case .wrongPassphrase, .ledgerDeclined, .ledgerAppNotOpen, .ledgerLocked, .ledgerNotConnected: true
+        default: false
         }
-        return false
     }
 
     private static func friendly(_ error: Error) -> String {
-        isWrongPassphrase(error) ? ChainError.wrongPassphrase.localizedDescription : error.localizedDescription
+        known(error)?.localizedDescription ?? error.localizedDescription
     }
 }
 

@@ -1,16 +1,12 @@
 
-0.3 - Staking and Delegation.
-
-- Show the current delegate in the screen somewhere
-- Staking button goes to a menu - need to be able to delegate, change delegate, remove delegate. Stake, unstake and finalise (if possible).
-
-- In burger menu, Baking... goes to a menu where you can self-delegate, set the consensus key and companion key.
-
 0.4 - Ledger support
+
+- Wallet vs address vs account terminology
 
 0.5 - Buy (if possible)
 
 0.6 - Import secret keys and phrases
+Export secret keys safely
 
 0.7 - Beacon support (if possible)
 
@@ -19,9 +15,17 @@
 Improvements
 - The key generation - the average user won't know which one to pick
 - We need to put a disclaimer at the beginning that this is alpha software
+- YOu don't need the NFTs title on the NFTs tab - we have the tab heading now
+- When adding an address, allow .tez domains
+- Sign a message
+- Notorise something
+- We don't need the reload wallets option
 
 Later
 - Expert mode (TBA)
 - - Hide baking menu
 - - Hide test networks
-
+- Other assets tab
+- - tzBTC and friends
+- Etherlink/Tezos X
+- OctezJS

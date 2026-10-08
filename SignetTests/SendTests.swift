@@ -10,7 +10,7 @@ struct SendViewModelTests {
 
     private func makeModel(spendable: Decimal? = 100) -> SendViewModel {
         SendViewModel(sender: Self.me, wallets: [Self.me, Self.savings, Self.alice], chain: MockChainService(),
-                      spendable: spendable, secretKeyProvider: { _ in "edskSECRET" })
+                      spendable: spendable, signerProvider: { _, _ in .secret("edskSECRET", passphrase: nil) })
     }
 
     private func settle() async { try? await Task.sleep(for: .milliseconds(500)) }

@@ -56,6 +56,7 @@ struct WalletIdentityView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 if wallet.keyKind == .none { watchOnlyTag }
+                if wallet.keyKind == .ledger { ledgerTag }
             }
         }
         .menuStyle(.borderlessButton)
@@ -73,6 +74,16 @@ struct WalletIdentityView: View {
             .background(Capsule().fill(.quaternary))
             .foregroundStyle(.secondary)
             .help("Signet has no key for this address; you can watch it and send to it.")
+    }
+
+    private var ledgerTag: some View {
+        Label("Ledger", systemImage: "lock.rectangle.stack")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("This key lives on a Ledger\(wallet.ledgerKey.map { " (\($0.fullPath))" } ?? ""). Operations are approved on the device.")
     }
 
     private func pickerItem(_ candidate: Wallet) -> some View {
@@ -113,6 +124,8 @@ struct AppMenuButton: View {
                 .keyboardShortcut("n", modifiers: .command)
             Button("Add address…") { model.isPresentingAddAddress = true }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
             Button("Rename wallet…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
             Button("Reload wallets") { model.reloadWallets() }

@@ -28,6 +28,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingAddAddress) {
             AddAddressSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingConnectLedger) {
+            ConnectLedgerSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingStaking) {
             StakingSheet(model: model)
         }
@@ -131,6 +134,9 @@ struct NoWalletsView: View {
                 Button("Create wallet…") { model.isPresentingCreateWallet = true }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut("n", modifiers: .command)
+                Button("Connect a Ledger instead…") { model.isPresentingConnectLedger = true }
+                    .buttonStyle(.link)
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
             }
             if let importError {
                 Text(importError)

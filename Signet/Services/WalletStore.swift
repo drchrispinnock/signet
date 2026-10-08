@@ -3,8 +3,9 @@ import Foundation
 /// Where wallets and their secret keys live.
 protocol WalletStore: Sendable {
     func load() throws -> [Wallet]
-    /// Adds a wallet and its secret key. Fails if the alias is already taken.
-    func add(_ wallet: Wallet, secretKey: String) throws
+    /// Adds a wallet whose `secret_keys` entry is `locator` (`unencrypted:…`, `encrypted:…`,
+    /// `ledger://…`). Fails if the alias is already taken.
+    func add(_ wallet: Wallet, locator: String) throws
     /// Adds an address we hold no key for (address book). Fails if the alias is already taken.
     func addWatchOnly(_ wallet: Wallet) throws
     /// The base58 secret key for clear-text and encrypted entries (encrypted ones need the password), else `nil`.
@@ -14,6 +15,13 @@ protocol WalletStore: Sendable {
     /// Brings in wallets from an octez-client style directory, skipping aliases already present.
     /// Returns how many were added.
     func importWallets(from directory: URL) throws -> Int
+}
+
+extension WalletStore {
+    /// Adds a wallet and its base58 secret key (clear or octez-encrypted).
+    func add(_ wallet: Wallet, secretKey: String) throws {
+        try add(wallet, locator: KeyKind.locator(forSecretKey: secretKey))
+    }
 }
 
 /// For previews and tests. Nothing is persisted.
@@ -30,11 +38,11 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
 
     func load() throws -> [Wallet] { lock.withLock { wallets } }
 
-    func add(_ wallet: Wallet, secretKey: String) throws {
+    func add(_ wallet: Wallet, locator: String) throws {
         try lock.withLock {
             guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
             wallets.append(wallet)
-            secrets[wallet.alias] = secretKey
+            secrets[wallet.alias] = locator
         }
     }
 
@@ -48,7 +56,13 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
         }
     }
 
-    func secretKey(for wallet: Wallet) throws -> String? { lock.withLock { secrets[wallet.alias] } }
+    func secretKey(for wallet: Wallet) throws -> String? {
+        lock.withLock {
+            guard let locator = secrets[wallet.alias] else { return nil }
+            for prefix in ["unencrypted:", "encrypted:"] where locator.hasPrefix(prefix) { return String(locator.dropFirst(prefix.count)) }
+            return nil
+        }
+    }
 
     func importWallets(from directory: URL) throws -> Int {
         let incoming = try TezosClientStore(directory: directory).load()

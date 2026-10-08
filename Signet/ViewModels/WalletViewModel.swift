@@ -39,6 +39,7 @@ final class WalletViewModel {
     var isPresentingFaucet = false
     var isPresentingStaking = false
     var isPresentingBaking = false
+    var isPresentingConnectLedger = false
 
     /// dApp connections over Octez Connect (TZIP-10).
     private(set) var dapps: DAppConnectionManager!
@@ -177,6 +178,9 @@ final class WalletViewModel {
     var defaultBackupDirectory: URL? { backupSettings?.defaultDirectory }
     private let storeFactory: (@Sendable (URL) -> (wallets: any WalletStore, state: any AppStateStore))?
     private let keyGenerator: KeyGenerator
+    /// Ledger discovery and key derivation.
+    let ledger: any LedgerService
+    private(set) var isConnectingLedger = false
     private var walletStore: any WalletStore
     private var stateStore: any AppStateStore
     private var state: AppState
@@ -194,6 +198,7 @@ final class WalletViewModel {
         chain: (any ChainService)? = nil,
         chainFactory: (@Sendable (Network) -> any ChainService)? = nil,
         keyGenerator: KeyGenerator = KeyGenerator(),
+        ledger: any LedgerService = MockLedgerService(),
         walletStore: any WalletStore = InMemoryWalletStore(),
         importSource: URL? = nil,
         stateStore: any AppStateStore = InMemoryAppStateStore(),
@@ -228,6 +233,7 @@ final class WalletViewModel {
         self.chainFactory = factory
         self.chain = factory(network)
         self.keyGenerator = keyGenerator
+        self.ledger = ledger
         self.walletStore = walletStore
         self.importSource = importSource
 
@@ -256,7 +262,7 @@ final class WalletViewModel {
         self.dapps = DAppConnectionManager(
             storage: dappStorage ?? InMemoryBridgeStorage(),
             wallets: { [unowned self] in self.wallets },
-            secretKey: { [unowned self] wallet in try self.walletStore.secretKey(for: wallet) }
+            signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
         )
         if startDApps, !self.wallets.isEmpty {
             Task { await dapps.start() }
@@ -516,8 +522,8 @@ final class WalletViewModel {
     /// Returns the operation hash and the block it landed in, then refreshes.
     func performStaking(_ operation: StakingOperation, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
-        guard wallet.keyKind.canSign, let secretKey = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
-        let hash = try await chain.performStaking(operation, from: wallet, secretKey: secretKey, passphrase: passphrase)
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let hash = try await chain.performStaking(operation, from: wallet, signer: signer)
         let level = try await chain.waitForConfirmation(of: hash)
         await refreshAfterOperation()
         return (hash, level)
@@ -547,16 +553,49 @@ final class WalletViewModel {
 
     /// Proof of possession for one of our tz4 wallets (needed to make it a consensus or companion key).
     func proofOfPossession(for wallet: Wallet, passphrase: String?) async throws -> String {
-        guard let secretKey = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
-        return try await chain.proofOfPossession(secretKey: secretKey, passphrase: passphrase)
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        return try await chain.proofOfPossession(signer: signer)
     }
 
     /// The live chain service, for flows that run their own lookups (Send).
     var chainService: any ChainService { chain }
 
-    /// The clear-text secret key for one of our wallets, read from the store on demand.
-    func secretKey(for wallet: Wallet) throws -> String? {
-        try walletStore.secretKey(for: wallet)
+    /// What signs for one of our wallets: its secret key from the store (with `passphrase` if
+    /// encrypted) or its Ledger key. `nil` for watch-only and remote-signer aliases.
+    func signingKey(for wallet: Wallet, passphrase: String?) throws -> SigningKey? {
+        switch wallet.keyKind {
+        case .unencrypted, .encrypted:
+            guard let secretKey = try walletStore.secretKey(for: wallet) else { return nil }
+            return .secret(secretKey, passphrase: wallet.keyKind == .encrypted ? passphrase : nil)
+        case .ledger:
+            guard let key = wallet.ledgerKey else { return nil }
+            return .ledger(key, address: wallet.address)
+        case .remote, .unknown, .none:
+            return nil
+        }
+    }
+
+    /// Adds a key that lives on a Ledger. The device shows the address and the user approves it
+    /// there before anything is written; the entry is an octez-client `ledger://` alias, so
+    /// octez-client can use the same key.
+    func connectLedger(alias: String, deviceID: String, curve: LedgerCurve, account: Int) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        isConnectingLedger = true
+        defer { isConnectingLedger = false }
+
+        var key = LedgerKey(rootID: "", curve: curve, account: account)
+        let derived = try await ledger.address(deviceID: deviceID, key: key, prompt: true)
+        if let existing = wallets.first(where: { $0.address == derived.address }) { throw WalletError.addressExists(existing.alias) }
+        // octez names the device by its root key; fall back to the key's own address if the app refuses that path.
+        key.rootID = ((try? await ledger.rootAddress(deviceID: deviceID)) ?? derived.address).value
+
+        let wallet = Wallet(alias: name, address: derived.address, scheme: curve.scheme, publicKey: derived.publicKey, keyKind: .ledger, ledgerKey: key)
+        try walletStore.add(wallet, locator: key.locator)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
     }
 
     /// How to label an address in lists: our own alias (verified), else the indexer's name, else the

@@ -102,20 +102,23 @@ struct TaquitoChainService: ChainService {
                                 gasLimit: Int(result["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(result["storageLimit"]?.doubleValue ?? 0))
     }
 
-    func sendTransfer(from wallet: Wallet, secretKey: String, passphrase: String?, to destination: Address, amount: Decimal) async throws -> String {
-        let result: JSONValue
-        do {
-            result = try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", destination.value, Mutez.fromTez(amount)])
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, message.contains("decrypt") || message.contains("passphrase") {
-                throw ChainError.wrongPassphrase
-            }
-            throw error
-        }
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String {
+        let result = try await signing { try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, destination.value, Mutez.fromTez(amount)]) }
         guard let hash = result["hash"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected send payload: \(String(describing: result))")
         }
         return hash
+    }
+
+    /// Runs a bridge call that signs, turning the bridge's error text for wrong passwords and
+    /// Ledger trouble into `ChainError`s the UI can word properly.
+    private func signing(_ body: () async throws -> JSONValue) async throws -> JSONValue {
+        do {
+            return try await body()
+        } catch let error as TaquitoBridge.BridgeError {
+            if case .javaScript(let message) = error, let known = ChainError.fromBridgeMessage(message) { throw known }
+            throw error
+        }
     }
 
     func waitForConfirmation(of operationHash: String) async throws -> Int {
@@ -193,26 +196,22 @@ struct TaquitoChainService: ChainService {
         return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(r["storageLimit"]?.doubleValue ?? 0))
     }
 
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, secretKey: String, passphrase: String?) async throws -> String {
-        let r: JSONValue
-        do {
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+        let r = try await signing {
             if let contents = rawContents(for: operation) {
                 let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
-                r = try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", json])
+                return try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, json])
             } else {
                 let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-                r = try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, secretKey, passphrase ?? "", operation.bridgeKind, arg])
+                return try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg])
             }
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, message.contains("decrypt") || message.contains("passphrase") { throw ChainError.wrongPassphrase }
-            throw error
         }
         guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
         return hash
     }
 
-    func proofOfPossession(secretKey: String, passphrase: String?) async throws -> String {
-        let r = try await bridge.call("provePossession", [secretKey, passphrase ?? ""])
+    func proofOfPossession(signer: SigningKey) async throws -> String {
+        let r = try await signing { try await bridge.call("provePossession", [signer.bridgeSpec]) }
         guard let proof = r["proof"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no proof returned") }
         return proof
     }

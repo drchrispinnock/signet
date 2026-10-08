@@ -66,17 +66,22 @@ struct TezosClientStore: WalletStore {
 
         return hashes.compactMap { entry in
             guard let address = entry.value as? String else { return nil }
+            let locator = secretKeys[entry.name] as? String
             return Wallet(
                 alias: entry.name,
                 address: Address(address),
                 publicKey: Self.publicKey(from: publicKeys[entry.name]),
-                keyKind: KeyKind(locator: secretKeys[entry.name] as? String)
+                keyKind: KeyKind(locator: locator),
+                ledgerKey: locator.flatMap(LedgerKey.init(locator:))
             )
         }
     }
 
-    func add(_ wallet: Wallet, secretKey: String) throws {
+    func add(_ wallet: Wallet, locator: String) throws {
         guard let publicKey = wallet.publicKey else { throw StoreError.missingPublicKey(wallet.alias) }
+        // octez-client points the public key at the same place as the secret: the file for
+        // in-memory keys, the device for Ledger keys.
+        let publicKeyLocator = locator.lowercased().hasPrefix("ledger://") ? locator : "unencrypted:\(publicKey)"
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         try withWalletLock {
@@ -89,8 +94,8 @@ struct TezosClientStore: WalletStore {
             }
 
             hashes.append(["name": wallet.alias, "value": wallet.address.value])
-            publicKeys.append(["name": wallet.alias, "value": ["locator": "unencrypted:\(publicKey)", "key": publicKey]])
-            secretKeys.append(["name": wallet.alias, "value": KeyKind.locator(forSecretKey: secretKey)])
+            publicKeys.append(["name": wallet.alias, "value": ["locator": publicKeyLocator, "key": publicKey]])
+            secretKeys.append(["name": wallet.alias, "value": locator])
 
             try write(hashes, to: Self.publicKeyHashesFile)
             try write(publicKeys, to: Self.publicKeysFile)

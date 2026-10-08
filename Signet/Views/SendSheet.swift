@@ -13,7 +13,7 @@ struct SendSheet: View {
             wallets: model.wallets,
             chain: model.chainService,
             spendable: model.tezBalance?.spendable,
-            secretKeyProvider: { [model] wallet in try model.secretKey(for: wallet) }
+            signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) }
         ))
     }
 
@@ -231,8 +231,12 @@ struct ConfirmTransferView: View {
 
         HStack {
             if send.step == .sending {
-                ProgressView().controlSize(.small)
-                Text("Signing and sending…").font(.callout).foregroundStyle(.secondary)
+                if send.signsOnLedger {
+                    LedgerPromptLabel()
+                } else {
+                    ProgressView().controlSize(.small)
+                    Text("Signing and sending…").font(.callout).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Button("Back") { send.backToCompose() }

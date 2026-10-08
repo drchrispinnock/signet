@@ -180,10 +180,18 @@ struct DAppRequestSheet: View {
     }
 
     private var workingText: String {
+        let onLedger = sourceWallet?.keyKind == .ledger
         switch request {
-        case .operation: "Signing and sending…"
-        case .signPayload: "Signing…"
-        default: "Working…"
+        case .operation: return onLedger ? "Confirm on your Ledger…" : "Signing and sending…"
+        case .signPayload: return onLedger ? "Sign on your Ledger…" : "Signing…"
+        default: return "Working…"
+        }
+    }
+
+    private var sourceWallet: Wallet? {
+        switch request {
+        case .operation(_, _, _, _, let source, _), .signPayload(_, _, let source, _, _): dapps.wallet(for: source)
+        default: nil
         }
     }
 

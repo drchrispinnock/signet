@@ -2,8 +2,8 @@
 // global `TaquitoBridge` object inside JavaScriptCore. Keep the surface small and async-friendly:
 // Swift calls these functions and awaits the returned promises.
 //
-// Private keys never enter this runtime. Signing is done in Swift; this bundle only does RPC,
-// encoding and forging work.
+// Secret keys enter this runtime only for the single operation they sign (Taquito's
+// InMemorySigner); Ledger keys never leave the device. Everything else is RPC, encoding and forging.
 
 import "./polyfills.js";
 import { TezosToolkit } from "@taquito/taquito";
@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.10.0";
+  return "0.11.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -170,10 +170,10 @@ export async function estimateTransfer(rpcUrl, source, publicKey, destination, a
 
 const pendingOperations = new Map();
 
-/** Signs and injects a transfer with `secretKey` (base58, unencrypted). Returns the operation hash. */
-export async function sendTransfer(rpcUrl, secretKey, passphrase, destination, amountMutez) {
+/** Signs (in memory or on a Ledger, see signers.js) and injects a transfer. Returns the operation hash. */
+export async function sendTransfer(rpcUrl, signerSpec, destination, amountMutez) {
   const tk = new TezosToolkit(rpcUrl);
-  tk.setSignerProvider(new InMemorySigner(secretKey, passphrase || undefined));
+  tk.setSignerProvider(await signerFor(signerSpec));
   const op = await tk.contract.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
   pendingOperations.set(op.hash, op);
   return { hash: op.hash };
@@ -223,6 +223,10 @@ export function encryptSecretKey(secretKey, passphrase) {
 
 // ---- Octez Connect (dApp connections) --------------------------------------------------------
 export * from "./octezconnect.js";
+
+// ---- Ledger ------------------------------------------------------------------------------------
+import { signerFor } from "./signers.js";
+export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
 
 /** Diagnostic: proves console output reaches the host. */
 export function bridgeEcho(message) {
@@ -312,9 +316,9 @@ export async function estimateStakingOperation(rpcUrl, source, publicKey, kind, 
 }
 
 /** Signs and injects a staking-family operation. Returns the operation hash. */
-export async function sendStakingOperation(rpcUrl, secretKey, passphrase, kind, argJson) {
+export async function sendStakingOperation(rpcUrl, signerSpec, kind, argJson) {
   const tk = new TezosToolkit(rpcUrl);
-  tk.setSignerProvider(new InMemorySigner(secretKey, passphrase || undefined));
+  tk.setSignerProvider(await signerFor(signerSpec));
   const arg = JSON.parse(argJson || "{}");
   const op = await stakingCall(tk, kind, arg)(tk.contract);
   pendingOperations.set(op.hash, op);
@@ -322,8 +326,8 @@ export async function sendStakingOperation(rpcUrl, secretKey, passphrase, kind, 
 }
 
 /** BLS proof of possession for a tz4 key, required when it becomes a consensus or companion key. */
-export async function provePossession(secretKey, passphrase) {
-  const signer = new InMemorySigner(secretKey, passphrase || undefined);
+export async function provePossession(signerSpec) {
+  const signer = await signerFor(signerSpec);
   if (typeof signer.provePossession !== "function") throw new Error("this key type cannot produce a proof of possession");
   const proof = await signer.provePossession();
   return { proof: typeof proof === "string" ? proof : proof?.prefixSig ?? proof?.sig ?? String(proof) };
@@ -372,9 +376,9 @@ export async function estimateRawOperation(rpcUrl, source, publicKey, contentsJs
   return { feeMutez: String(feeMutez), burnMutez: "0", totalCostMutez: String(feeMutez), gasLimit: contents.reduce((a, c) => a + Number(c.gas_limit), 0), storageLimit: 0 };
 }
 
-/** Signs and injects raw contents from `secretKey`'s account. Returns the operation hash. */
-export async function sendRawOperation(rpcUrl, secretKey, passphrase, contentsJson) {
-  const signer = new InMemorySigner(secretKey, passphrase || undefined);
+/** Signs and injects raw contents from the signer's account. Returns the operation hash. */
+export async function sendRawOperation(rpcUrl, signerSpec, contentsJson) {
+  const signer = await signerFor(signerSpec);
   const [source, publicKey] = await Promise.all([signer.publicKeyHash(), signer.publicKey()]);
   const { rpc, branch, contents, forged, protocol } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
   const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));

@@ -13,8 +13,11 @@
     "esbuild": "^0.28.2"
   },
   "dependencies": {
+    "@ledgerhq/hw-transport": "^6.36.0",
+    "@taquito/ledger-signer": "^25.1.0-beta0",
     "@taquito/signer": "^25.1.0-beta0",
     "@tezos-x/octez.connect-wallet": "^5.0.4",
-    "buffer": "^6.0.3"
+    "buffer": "^6.0.3",
+    "events": "^3.3.0"
   }
 }

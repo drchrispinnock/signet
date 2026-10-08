@@ -23,6 +23,7 @@ struct BakingSheet: View {
     private var wallet: Wallet? { model.selectedWallet }
     private var baker: DelegateInfo.Baker? { model.delegateInfo?.baker }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var canOperate: Bool { wallet?.keyKind.canSign == true }
     /// Quantumnet has no companion keys; consensus keys there may be tz6 (XMSS).
     private var hasCompanionKeys: Bool { model.network.chain != "quantumnet" }
@@ -62,7 +63,9 @@ struct BakingSheet: View {
         case .pickKey(let role): keyPicker(role)
         case .parameters: parametersForm
         case .confirm(let op): confirmation(op)
-        case .working(let op): HStack(spacing: 8) { ProgressView().controlSize(.small); Text("\(op.title)… waiting for the next block").foregroundStyle(.secondary) }
+        case .working(let op):
+            if signsOnLedger { LedgerPromptLabel(text: "\(op.title): confirm on your Ledger, then we wait for the next block…") }
+            else { HStack(spacing: 8) { ProgressView().controlSize(.small); Text("\(op.title)… waiting for the next block").foregroundStyle(.secondary) } }
         case .done(let hash, let level, _):
             VStack(alignment: .leading, spacing: 8) {
                 Label("Included in block \(level.formatted())", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
@@ -142,7 +145,6 @@ struct BakingSheet: View {
 
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
-        case .ledger: "Watch only: this baker's key is on a Ledger, which Signet cannot drive yet. Its keys and parameters are shown but cannot be changed here."
         case .remote: "Watch only: this baker signs through a remote signer. Its keys and parameters are shown but cannot be changed here."
         default: "Watch only: Signet holds just this baker's public key. Its keys and parameters are shown but cannot be changed here."
         }
@@ -256,6 +258,7 @@ struct BakingSheet: View {
             }
             if let estimate { LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz")) } else { LabeledContent("Fee") { ProgressView().controlSize(.small) } }
             if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)
     }

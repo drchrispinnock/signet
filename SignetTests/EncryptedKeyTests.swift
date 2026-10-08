@@ -57,7 +57,7 @@ struct EncryptedWalletFlowTests {
         let vault = Wallet(alias: "Vault", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkV", keyKind: .encrypted)
         let alice = Wallet(alias: "Alice", address: Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"))
         let send = SendViewModel(sender: vault, wallets: [vault, alice], chain: MockChainService(), spendable: 100,
-                                 secretKeyProvider: { _ in "edeskFAKE" })
+                                 signerProvider: { _, p in .secret("edeskFAKE", passphrase: p) })
         #expect(send.needsPassphrase)
         send.choose(alice)
         try? await Task.sleep(for: .milliseconds(400))

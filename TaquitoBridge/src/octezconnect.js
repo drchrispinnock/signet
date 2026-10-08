@@ -9,7 +9,7 @@ import { WalletClient } from "@tezos-x/octez.connect-wallet";
 import { Serializer, setDebugEnabled } from "@tezos-x/octez.connect-core";
 import { Storage, defaultValues as storageDefaults } from "@tezos-x/octez.connect-types";
 import { TezosToolkit } from "@taquito/taquito";
-import { InMemorySigner } from "@taquito/signer";
+import { signerFor } from "./signers.js";
 
 class NativeStorage extends Storage {
   static async isSupported() { return true; }
@@ -137,9 +137,9 @@ function toTaquitoParams(op) {
 }
 
 /** Signs and injects a dApp's operation request. Returns the operation hash. */
-export async function octezConnectExecute(rpcUrl, secretKey, passphrase, operationsJson) {
+export async function octezConnectExecute(rpcUrl, signerSpec, operationsJson) {
   const tk = new TezosToolkit(rpcUrl);
-  tk.setSignerProvider(new InMemorySigner(secretKey, passphrase || undefined));
+  tk.setSignerProvider(await signerFor(signerSpec));
   const ops = JSON.parse(operationsJson).map(toTaquitoParams);
   const batch = tk.contract.batch(ops);
   const op = await batch.send();
@@ -147,8 +147,8 @@ export async function octezConnectExecute(rpcUrl, secretKey, passphrase, operati
 }
 
 /** Signs a payload for a sign_payload request. `payload` is the hex the dApp sent. */
-export async function octezConnectSign(secretKey, passphrase, payload) {
-  const signer = new InMemorySigner(secretKey, passphrase || undefined);
+export async function octezConnectSign(signerSpec, payload) {
+  const signer = await signerFor(signerSpec);
   const { prefixSig } = await signer.sign(payload);
   return { signature: prefixSig };
 }

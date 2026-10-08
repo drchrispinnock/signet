@@ -51,7 +51,7 @@ final class SendViewModel {
     let sender: Wallet
     private let wallets: [Wallet]
     private let chain: any ChainService
-    private let secretKeyProvider: @Sendable (Wallet) throws -> String?
+    private let signerProvider: @Sendable (Wallet, String?) throws -> SigningKey?
     private(set) var spendable: Decimal?
 
     var recipientText = "" { didSet { if recipientText != oldValue { recipientChanged() } } }
@@ -59,6 +59,8 @@ final class SendViewModel {
     /// Password for an encrypted sender key; asked for on the confirm step.
     var passphrase = ""
     var needsPassphrase: Bool { sender.keyKind == .encrypted }
+    /// The sender's key is on a Ledger: the user approves on the device while we wait.
+    var signsOnLedger: Bool { sender.keyKind == .ledger }
     private(set) var recipient: Recipient?
     private(set) var isResolving = false
     private(set) var suggestions: [Wallet] = []
@@ -70,12 +72,12 @@ final class SendViewModel {
     private var resolveTask: Task<Void, Never>?
 
     init(sender: Wallet, wallets: [Wallet], chain: any ChainService, spendable: Decimal?,
-         secretKeyProvider: @escaping @Sendable (Wallet) throws -> String?) {
+         signerProvider: @escaping @Sendable (Wallet, String?) throws -> SigningKey?) {
         self.sender = sender
         self.wallets = wallets
         self.chain = chain
         self.spendable = spendable
-        self.secretKeyProvider = secretKeyProvider
+        self.signerProvider = signerProvider
         self.suggestions = candidates(matching: "")
     }
 
@@ -187,11 +189,10 @@ final class SendViewModel {
         isBusy = true
         defer { isBusy = false }
         do {
-            guard let secretKey = try secretKeyProvider(sender) else { throw SendError.noSecretKey }
             if needsPassphrase, passphrase.isEmpty { throw SendError.passphraseRequired }
+            guard let signer = try signerProvider(sender, needsPassphrase ? passphrase : nil) else { throw SendError.noSecretKey }
             step = .sending
-            let hash = try await chain.sendTransfer(from: sender, secretKey: secretKey, passphrase: needsPassphrase ? passphrase : nil,
-                                                    to: recipient.address, amount: amount)
+            let hash = try await chain.sendTransfer(from: sender, signer: signer, to: recipient.address, amount: amount)
             step = .sent(hash: hash)
             let level = try await chain.waitForConfirmation(of: hash)
             step = .confirmed(hash: hash, level: level)

@@ -17,15 +17,16 @@ struct StakingSheet: View {
     @State private var passphrase = ""
     @State private var errorMessage: String?
     @State private var delegateName: String?
+    @State private var workingOnDevice = false
 
     private var wallet: Wallet? { model.selectedWallet }
     private var info: DelegateInfo? { model.delegateInfo }
     private var balance: TezBalance? { model.tezBalance }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
     private var canOperate: Bool { wallet?.keyKind.canSign == true }
+    private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
-        case .ledger: "Signet cannot sign for this wallet yet: its key is on a Ledger."
         case .remote: "Signet cannot sign for this wallet: it uses a remote signer."
         default: "Signet holds only this address's public key, so it can show but not change its delegation."
         }
@@ -81,7 +82,7 @@ struct StakingSheet: View {
         case .chooseDelegate: bakerPicker
         case .amount(let kind): amountForm(kind)
         case .confirm(let op): confirmation(op)
-        case .working(let op): HStack(spacing: 8) { ProgressView().controlSize(.small); Text("\(op.title)… waiting for the next block").foregroundStyle(.secondary) }
+        case .working(let op): workingRow(op)
         case .done(let hash, let level, _): doneView(hash: hash, level: level)
         }
     }
@@ -197,6 +198,15 @@ struct StakingSheet: View {
         .formStyle(.grouped).scrollDisabled(true)
     }
 
+    @ViewBuilder
+    private func workingRow(_ op: StakingOperation) -> some View {
+        if signsOnLedger, estimate != nil, workingOnDevice {
+            LedgerPromptLabel(text: "\(op.title): confirm on your Ledger…")
+        } else {
+            HStack(spacing: 8) { ProgressView().controlSize(.small); Text("\(op.title)… waiting for the next block").foregroundStyle(.secondary) }
+        }
+    }
+
     private func confirmation(_ op: StakingOperation) -> some View {
         Form {
             LabeledContent("Operation", value: op.title)
@@ -207,6 +217,7 @@ struct StakingSheet: View {
             if case .unstake(let a) = op { LabeledContent("Amount", value: AssetBalance.format(a, symbol: "tz")) }
             if let estimate { LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz")) } else { LabeledContent("Fee") { ProgressView().controlSize(.small) } }
             if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)
     }
@@ -269,6 +280,8 @@ struct StakingSheet: View {
     private func perform(_ op: StakingOperation) async {
         errorMessage = nil
         mode = .working(op)
+        workingOnDevice = true
+        defer { workingOnDevice = false }
         do {
             let result = try await model.performStaking(op, passphrase: needsPassphrase ? passphrase : nil)
             mode = .done(hash: result.hash, level: result.level, op)

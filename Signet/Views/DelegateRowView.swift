@@ -56,7 +56,7 @@ struct DelegateRowView: View {
         guard let info = model.delegateInfo else { return "Checking…" }
         if let baker = info.baker {
             if let kind = model.selectedWallet?.keyKind, !kind.canSign {
-                let why = kind == .ledger ? "its key is on a Ledger" : kind == .remote ? "it signs remotely" : "Signet holds only its public key"
+                let why = kind == .remote ? "it signs remotely" : "Signet holds only its public key"
                 return (baker.deactivated ? "Deactivated. " : "") + "Watch only: \(why). Baking shows its keys and parameters."
             }
             return baker.deactivated ? "Deactivated; see Baking in the menu" : "Self-delegated; keys and staking parameters under Baking"

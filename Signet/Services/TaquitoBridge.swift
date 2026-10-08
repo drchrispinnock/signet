@@ -243,7 +243,41 @@ final class TaquitoBridge: @unchecked Sendable {
         native.setObject(randomBytes, forKeyedSubscript: "randomBytes" as NSString)
         native.setObject(fetch, forKeyedSubscript: "fetch" as NSString)
         native.setObject(cancelFetch, forKeyedSubscript: "cancelFetch" as NSString)
+
+        // Ledger: USB HID is native (LedgerHID); the bridge's Transport subclass calls these.
+        let ledgerDevices: @convention(block) () -> String = {
+            let list = LedgerHID.shared.devices().map { ["id": $0.id, "name": $0.name, "model": $0.model, "productID": $0.productID] as [String: Any] }
+            return (try? JSONSerialization.data(withJSONObject: list)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        }
+        let ledgerExchange: @convention(block) (Int, String, String, Double) -> Void = { [weak self] id, deviceID, apduHex, timeoutMs in
+            guard let self else { return }
+            self.trace("ledger #\(id) → \(apduHex.prefix(24))…")
+            LedgerHID.shared.exchange(deviceID: deviceID, apdu: Self.bytes(fromHex: apduHex), timeout: timeoutMs / 1000, completionQueue: self.queue) { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case .success(let bytes):
+                    let hex = bytes.map { String(format: "%02x", $0) }.joined()
+                    self.trace("ledger #\(id) ← \(hex.suffix(4))")
+                    self.context?.objectForKeyedSubscript("__signet_ledgerDone")?.call(withArguments: [id, hex, NSNull()])
+                case .failure(let error):
+                    self.trace("ledger #\(id) ← \(error.localizedDescription)")
+                    self.context?.objectForKeyedSubscript("__signet_ledgerDone")?.call(withArguments: [id, "", error.localizedDescription])
+                }
+            }
+        }
+        native.setObject(ledgerDevices, forKeyedSubscript: "ledgerDevices" as NSString)
+        native.setObject(ledgerExchange, forKeyedSubscript: "ledgerExchange" as NSString)
         context.setObject(native, forKeyedSubscript: "__signet" as NSString)
+    }
+
+    private static func bytes(fromHex hex: String) -> [UInt8] {
+        var bytes: [UInt8] = []
+        var index = hex.startIndex
+        while index < hex.endIndex, let next = hex.index(index, offsetBy: 2, limitedBy: hex.endIndex) {
+            if let byte = UInt8(hex[index..<next], radix: 16) { bytes.append(byte) }
+            index = next
+        }
+        return bytes
     }
 
     // MARK: - fetch
