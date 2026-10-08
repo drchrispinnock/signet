@@ -18,13 +18,25 @@ struct SignetApp: App {
         // app's client would share (and could clobber) real state.
         startDApps: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
     )
+    // Sparkle: checks the GitHub release appcast daily and on "Check for Updates…". Not started
+    // under the test host, which would otherwise reach the network and may put up a dialog.
+    @State private var updater = UpdaterService(
+        starting: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+    )
 
     var body: some Scene {
-        WindowGroup("Signet") {
+        // A single window: a WindowGroup would open a second one when a signet:// link arrives.
+        Window("Signet", id: "main") {
             WalletHomeView(model: model)
+                // signet://?type=tzip10&data=<pairing code>: what a dApp's wallet list opens for desktop wallets.
+                .onOpenURL { url in model.handleIncomingURL(url) }
         }
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Create Backup") { Task { await model.backUp(force: true) } }
                     .disabled(model.backupDirectory == nil)
@@ -64,7 +76,7 @@ struct SignetApp: App {
         }
 
         Settings {
-            SettingsView(model: model)
+            SettingsView(model: model, updater: updater)
         }
     }
 }

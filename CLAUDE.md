@@ -199,7 +199,14 @@ added by hand on the development Mac.
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
   Pairing is Umami-style: the user pastes the dApp's "pair wallet on another device" code
-  (`ConnectDAppSheet`, burger menu, Cmd-Shift-D). `DAppConnectionManager` parses requests
+  (`ConnectDAppSheet`, burger menu, Cmd-Shift-D), or a `signet://?type=tzip10&data=<code>` link
+  opens the app (the `signet` URL scheme is registered in Info.plist; `DAppPairingLink.code(from:)`
+  parses it, `WalletViewModel.handleIncomingURL` stores it in `pendingPairingCode` and the sheet
+  pairs with it and dismisses itself when the dApp's first request arrives, since only one sheet
+  can be presented at a time; the app is a single `Window` scene and sets `LSMultipleInstancesProhibited`, so a
+  link reuses the running app and window instead of opening another). That link shape is exactly what Beacon's / Octez Connect's wallet list opens for
+  desktop wallets (`deepLink + "?type=tzip10&data=" + payload`); Signet appears in dApps' lists
+  only once a `signet_desktop` entry with `deepLink: "signet://"` is merged upstream. `DAppConnectionManager` parses requests
   (`DAppRequest`), queues them, and `DAppRequestSheet` approves/rejects: permission (pick a wallet),
   operation (Taquito `contract.batch` from the partial operations, password for encrypted keys,
   Ledger approval on the device), sign_payload (`signer.sign`). Wrong password or a Ledger that is

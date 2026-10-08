@@ -82,10 +82,23 @@ struct ConnectDAppSheet: View {
         .padding(20)
         .frame(width: 520)
         .task { await dapps.reloadPermissions() }
+        .onAppear { takePendingCode() }
+        .onChange(of: model.pendingPairingCode) { takePendingCode() }
+        // Only one sheet can be up at a time: step aside as soon as the dApp's first request arrives,
+        // so the approval sheet can show without the user having to close this one.
+        .onChange(of: dapps.current?.id) { if dapps.current != nil { dismiss() } }
     }
 
     private func walletName(for address: String) -> String {
         model.wallets.first { $0.address.value == address }?.alias ?? Address(address).shortened()
+    }
+
+    /// A code that arrived through a signet:// link is pasted and paired automatically.
+    private func takePendingCode() {
+        guard let pending = model.pendingPairingCode else { return }
+        model.pendingPairingCode = nil
+        code = pending
+        pair()
     }
 
     private func pair() {

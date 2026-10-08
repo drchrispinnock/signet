@@ -13,6 +13,23 @@ if (!native) {
 }
 
 if (typeof g.Buffer === "undefined") g.Buffer = Buffer;
+
+// ---- localStorage ----------------------------------------------------------------------------
+// The Octez Connect SDK peeks at localStorage (e.g. updateRelayServer checks for a dApp peer
+// list) even when it was given its own storage. Without this, that access throws a
+// ReferenceError inside an unobserved promise and every incoming dApp message is silently lost.
+if (typeof g.localStorage === "undefined") {
+  const store = new Map();
+  g.localStorage = {
+    getItem: (k) => (store.has(String(k)) ? store.get(String(k)) : null),
+    setItem: (k, v) => { store.set(String(k), String(v)); },
+    removeItem: (k) => { store.delete(String(k)); },
+    clear: () => store.clear(),
+    key: (i) => [...store.keys()][i] ?? null,
+    get length() { return store.size; },
+  };
+  g.sessionStorage ??= g.localStorage;
+}
 if (typeof g.self === "undefined") g.self = g;
 if (typeof g.window === "undefined") g.window = g;
 

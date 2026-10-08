@@ -59,7 +59,43 @@ export async function octezConnectStart(appName, iconUrl, debug) {
     }
   });
   console.log("octez.connect: listening for dApp requests");
+  installRelayDiagnostics(client).catch((e) => console.warn("octez.connect: diagnostics not installed", e?.message ?? e));
   return { started: true };
+}
+
+/**
+ * Logs every relay message as it arrives and tries the SDK's own decryption for each known peer,
+ * so a message the SDK drops silently (it swallows decryption errors) shows up with a reason.
+ */
+async function installRelayDiagnostics(wallet) {
+  const transport = await wallet.transport;
+  const p2p = transport?.client;
+  const matrix = await p2p?.client?.promise;
+  if (!matrix || typeof matrix.subscribe !== "function") { console.log("octez.connect: no matrix client to watch"); return; }
+  matrix.subscribe("message", async (event) => {
+    try {
+      const m = event?.content?.message ?? {};
+      const body = String(m.content ?? "");
+      console.log("relay message:", "room", event?.content?.roomId, "sender", m.sender, "len", body.length, "head", body.slice(0, 24));
+      if (!/^[0-9a-f]+$/i.test(body)) { console.log("relay message: not hex, pairing/channel-open traffic"); return; }
+      const peers = await wallet.getPeers();
+      const keyPair = p2p.keyPair;
+      for (const peer of peers) {
+        const expectedSender = `@${await getHexHash(Buffer.from(peer.publicKey, "hex"))}:${peer.relayServer}`;
+        const sameSender = m.sender === expectedSender || String(m.sender).startsWith(expectedSender.split(":")[0]);
+        try {
+          const keys = await createReceiverSessionKey(keyPair, peer.publicKey);
+          const text = await decryptCryptoboxPayload(Buffer.from(body, "hex"), keys.receive);
+          console.log("relay message: decrypts for peer", peer.name, "sender match", sameSender, "expected", expectedSender, "text head", String(text).slice(0, 80));
+        } catch (e) {
+          console.log("relay message: does NOT decrypt for peer", peer.name, "sender match", sameSender, "expected", expectedSender, "reason", e?.message ?? String(e));
+        }
+      }
+    } catch (e) {
+      console.log("relay diagnostics error", e?.message ?? e);
+    }
+  });
+  console.log("octez.connect: relay diagnostics installed");
 }
 
 /** Pairs with a dApp from the code it shows under "pair with another wallet". */
@@ -188,4 +224,26 @@ export async function octezConnectStop() {
   client = null;
   peersById.clear();
   return { stopped: true };
+}
+
+// ---- Diagnostics -------------------------------------------------------------------------------
+import { getKeypairFromSeed, createSenderSessionKey, createReceiverSessionKey, encryptCryptoboxPayload, decryptCryptoboxPayload, sealCryptobox, openCryptobox, toHex, getHexHash } from "@tezos-x/octez.connect-utils";
+
+/**
+ * Round-trips the SDK's own crypto inside this runtime: a "dApp" keypair seals a pairing payload
+ * for the "wallet", then both derive session keys and the dApp's secretbox message is opened by
+ * the wallet. Surfaces the error the SDK would otherwise swallow when a message cannot be read.
+ */
+export async function octezConnectCryptoSelfTest() {
+  const wallet = await getKeypairFromSeed("signet-selftest-wallet");
+  const dapp = await getKeypairFromSeed("signet-selftest-dapp");
+  const walletPk = toHex(wallet.publicKey);
+  const dappPk = toHex(dapp.publicKey);
+  const sealed = await sealCryptobox(JSON.stringify({ hello: "wallet" }), Buffer.from(walletPk, "hex"));
+  const opened = await openCryptobox(Buffer.from(sealed, "hex"), wallet.publicKey, wallet.secretKey);
+  const dappSend = await createSenderSessionKey(dapp, walletPk);     // dApp → wallet
+  const walletRecv = await createReceiverSessionKey(wallet, dappPk); // wallet ← dApp
+  const encrypted = await encryptCryptoboxPayload("permission please", dappSend.send);
+  const decrypted = await decryptCryptoboxPayload(Buffer.from(encrypted, "hex"), walletRecv.receive);
+  return { sealedRoundTrip: opened === JSON.stringify({ hello: "wallet" }), sessionRoundTrip: decrypted === "permission please", walletPk, dappPk };
 }

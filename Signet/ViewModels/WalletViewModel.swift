@@ -43,6 +43,19 @@ final class WalletViewModel {
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
     var isPresentingForget = false
+    /// A pairing code that arrived by URL, waiting for the Connect dApp sheet to pick it up.
+    var pendingPairingCode: String?
+
+    /// Handles a `signet://` link. Only TZIP-10 pairing links are understood; the code is handed
+    /// to the Connect dApp sheet, which pairs and reports as if it had been pasted.
+    func handleIncomingURL(_ url: URL) {
+        guard let code = DAppPairingLink.code(from: url) else {
+            errorMessage = "Signet does not understand that link."
+            return
+        }
+        pendingPairingCode = code
+        isPresentingConnectDApp = true
+    }
 
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }

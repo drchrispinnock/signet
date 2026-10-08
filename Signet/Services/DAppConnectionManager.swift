@@ -75,6 +75,7 @@ final class DAppConnectionManager {
     @discardableResult
     func pair(code: String) async throws -> String {
         if !isStarted { await start() }
+        bridge.note("Pairing with a \(code.count)-character code")
         let result = try await bridge.call("octezConnectPair", [code])
         return result["name"]?.stringValue ?? "dApp"
     }
