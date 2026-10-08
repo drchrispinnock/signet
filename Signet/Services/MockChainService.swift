@@ -87,4 +87,23 @@ struct MockChainService: ChainService {
     }
 
     func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigMockProof" }
+
+    func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload {
+        if case .secret(_, let passphrase) = signer, passphrase == "wrong" { throw ChainError.wrongPassphrase }
+        return SignedPayload(publicKey: "edpkMock", signature: "edsigMock\(payloadHex.suffix(8))")
+    }
+
+    func governanceInfo(for address: Address) async throws -> GovernanceInfo {
+        var info = GovernanceInfo(kind: .proposal, index: 184, position: 16754, remaining: 184845)
+        info.proposals = [GovernanceInfo.Proposal(hash: "PtSeouLouXkxhg39oWzjxDWaCydNfR3RxCUrNe4Q9Ro8BTehcbh", votingPower: 123_456_789_000)]
+        info.votingPower = address == Self.captainStake ? 1_234_567_000 : nil
+        info.totalVotingPower = 600_000_000_000_000
+        info.quorumPerTenThousand = 5500
+        return info
+    }
+
+    func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        return "ooMockGovernance\(operation.bridgeKind)"
+    }
 }

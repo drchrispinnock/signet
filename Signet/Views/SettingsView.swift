@@ -10,6 +10,7 @@ struct SettingsView: View {
         Form {
             appearanceSection
             nodeSection
+            buySection
             if let directory = model.walletDirectory {
                 walletDirectorySection(directory)
             }
@@ -18,7 +19,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 810)
+        .frame(width: 480, height: 900)
         .navigationTitle("Settings")
         .appliesStoredAppearance()
     }
@@ -37,6 +38,18 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
+        }
+    }
+
+    @AppStorage(BuyProvider.key) private var buyProviderID = BuyProvider.default.rawValue
+
+    private var buySection: some View {
+        Section {
+            Picker("Buy tez with", selection: $buyProviderID) {
+                ForEach(BuyProvider.allCases) { Text($0.title).tag($0.rawValue) }
+            }
+            Text((BuyProvider(rawValue: buyProviderID) ?? .default).summary)
+                .font(.callout).foregroundStyle(.secondary)
         }
     }
 

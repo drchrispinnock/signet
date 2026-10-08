@@ -44,8 +44,12 @@ release before building it. Copyright and the About credits live in `Signet/Info
 (ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`.
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which does the same on a macOS runner and
 attaches the zip to a GitHub release; signing and notarisation switch on when the repository
-secrets described in the workflow exist. The app is only ad-hoc signed until a Developer ID
-certificate is configured, so downloads will trip Gatekeeper for ordinary users.
+secrets described in the workflow exist. Since 0.4.2 those secrets are set, so tagged releases
+are Developer ID signed and notarised (identity `Developer ID Application: Christopher Pinnock
+(CP8YGC8C4P)`; local builds use `NOTARY_PROFILE=signet-notary`). Setup notes are in
+`scratch/APPLEID.md` (git-ignored). The codesign identity is only valid when Apple's Developer
+ID G2 intermediate certificate is in the keychain; the workflow imports it, and it had to be
+added by hand on the development Mac.
 
 ## Architecture
 
@@ -139,6 +143,32 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
   Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
   and the wording says so; Ledger wallets operate normally with approval on the device.
+- **Buy (0.5, proof of concept).** The on-ramp is a Settings choice (`BuyProvider`, UserDefaults
+  `buyProvider`, "Buy tez with"); Mt Pelerin is the only case so far and a US-serving provider
+  (Transak) is the intended second: add a case and its URL builder, trusted hosts and ownership
+  payload. `BuySheet` shows the provider's hosted widget inside the app in a
+  `WKWebView` (`BuyWebView`: grants camera/microphone to mtpelerin.com only for its identity
+  checks, opens `window.open` targets and foreign hosts in the browser; Info.plist carries the
+  camera/microphone usage strings), with an "Open in browser" fallback (`MtPelerin.buyURL`:
+  `widget.mtpelerin.com`, `type=webview` or `direct-link`, `bdc=XTZ`, `dnet`/`net`
+  `tezos_mainnet`, fiat `bsc` from the locale, `addr` pre-filled). When we can sign for the account
+  the address is pre-validated: a 4-digit `code`, the Micheline-packed string
+  `Tezos Signed Message: MtPelerin-<code>` (`MtPelerin.packedMessage`, 0x05 0x01 length bytes) signed
+  with no watermark through the bridge's `signPayload`, and the six-line armored block
+  (`MtPelerin.armoredBlock`) passed as `hash`, exactly as Temple does. No activation key is sent
+  (`_ctkn`); add `MtPelerin.activationKey` if Mt Pelerin issues one. MoonPay was rejected: Tezos is
+  suspended there and address pre-fill needs server-side URL signing. Mt Pelerin does not serve US
+  persons; Transak is the fallback if that matters.
+- **Governance.** `GovernanceSheet` (burger and Operations menus, "Governance…", shown only when
+  `WalletViewModel.canGovern`: the selected account is a baker and we hold a signing key). The
+  bridge's `getGovernanceInfo` reads `/votes/{current_period,proposals,current_proposal,listings,
+  ballots,ballot_list,total_voting_power,current_quorum,proposal_count/<pkh>}` into
+  `GovernanceInfo` (period kind/index/remaining, proposals with voting power, our voting power from
+  the listings, tallies, our ballot, upvotes used of 20). In a proposal period the sheet lists
+  proposals to tick and upvote and takes a new `P…` hash (`GovernanceOperation.isProposalHash`);
+  in exploration/promotion it offers Yay / Nay / Pass; cooldown/adoption, no listing, or an
+  already-cast ballot just say so. `sendGovernanceOperation` uses Taquito `contract.proposals` /
+  `contract.ballot`; voting operations carry no fee, so there is no estimate step.
 - **dApps (Octez Connect / TZIP-10).** The Beacon-fork wallet SDK runs inside the bridge
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
@@ -179,7 +209,7 @@ certificate is configured, so downloads will trip Gatekeeper for ordinary users.
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy/Get, Stake; Receive opens `ReceiveSheet` with a Core Image QR
   code of the address; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
-  `WalletViewModel.requestTestTez(amount:)`; Buy and Stake are disabled until their flows exist. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
+  `WalletViewModel.requestTestTez(amount:)`; on Mainnet Buy opens `BuySheet`. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
   other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
   into `TezosTransaction`; rows show the counterparty's avatar and name, our alias with a green seal

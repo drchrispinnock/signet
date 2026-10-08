@@ -217,6 +217,45 @@ struct TaquitoChainService: ChainService {
     }
 
     /// Fungible tokens from TzKT. Indexer trouble is logged and shown as an empty list.
+    func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload {
+        let r = try await signing { try await bridge.call("signPayload", [signer.bridgeSpec, payloadHex]) }
+        guard let pk = r["publicKey"]?.stringValue, let signature = r["signature"]?.stringValue else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected signature payload: \(String(describing: r))")
+        }
+        return SignedPayload(publicKey: pk, signature: signature)
+    }
+
+    func governanceInfo(for address: Address) async throws -> GovernanceInfo {
+        Self.governanceInfo(from: try await bridge.call("getGovernanceInfo", [network.rpcURL.absoluteString, address.value]))
+    }
+
+    static func governanceInfo(from r: JSONValue) -> GovernanceInfo {
+        let decimal = { (v: JSONValue?) -> Decimal in v?.stringValue.flatMap { Decimal(string: $0) } ?? v?.doubleValue.map { Decimal($0) } ?? 0 }
+        var info = GovernanceInfo()
+        info.kind = r["kind"]?.stringValue.flatMap(VotingPeriodKind.init(rawValue:))
+        info.index = r["index"]?.doubleValue.map(Int.init)
+        info.position = r["position"]?.doubleValue.map(Int.init)
+        info.remaining = r["remaining"]?.doubleValue.map(Int.init)
+        info.proposals = (r["proposals"]?.arrayValue ?? []).compactMap { p in
+            p["hash"]?.stringValue.map { GovernanceInfo.Proposal(hash: $0, votingPower: decimal(p["votingPower"])) }
+        }.sorted { $0.votingPower > $1.votingPower }
+        info.currentProposal = r["currentProposal"]?.stringValue
+        info.votingPower = r["votingPower"]?.stringValue.flatMap { Decimal(string: $0) }
+        info.totalVotingPower = decimal(r["totalVotingPower"])
+        info.quorumPerTenThousand = r["quorumPerTenThousand"]?.doubleValue.map(Int.init)
+        info.ballots = GovernanceInfo.Ballots(yay: decimal(r["ballots"]?["yay"]), nay: decimal(r["ballots"]?["nay"]), pass: decimal(r["ballots"]?["pass"]))
+        info.myBallot = r["myBallot"]?.stringValue.flatMap(BallotVote.init(rawValue:))
+        info.proposalCount = Int(r["proposalCount"]?.doubleValue ?? 0)
+        return info
+    }
+
+    func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+        let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
+        let r = try await signing { try await bridge.call("sendGovernanceOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg]) }
+        guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
+        return hash
+    }
+
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
         guard let tzkt = network.tzktURL else { return [] }
         do {

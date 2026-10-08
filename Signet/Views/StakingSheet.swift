@@ -126,14 +126,16 @@ struct StakingSheet: View {
                     if balance.unstakedFrozen > 0 { LabeledContent("Unstaking", value: AssetBalance.format(balance.unstakedFrozen, symbol: "tz")) }
                     if balance.unstakedFinalizable > 0 { LabeledContent("Ready to finalize", value: AssetBalance.format(balance.unstakedFinalizable, symbol: "tz")) }
                 }
-                let canStake = info?.delegate != nil && info?.delegateAcceptsStaking != false
+                let canStake = info?.canStake == true
                 HStack {
                     Button("Stake…") { amountText = ""; mode = .amount(.stake) }.disabled(!canStake || (balance?.spendable ?? 0) <= 0)
                     Button("Unstake…") { amountText = ""; mode = .amount(.unstake) }.disabled((balance?.staked ?? 0) <= 0)
                     Button("Finalize") { startConfirm(.finalizeUnstake) }.disabled((balance?.unstakedFinalizable ?? 0) <= 0)
                 }
                 .disabled(!canOperate)
-                Text(canStake
+                Text(info?.isBaker == true
+                     ? "Staking your own tez raises your baking power and the stake others may add. Staked tez are frozen and can be slashed. Unstaking takes a few cycles, then needs finalizing."
+                     : canStake
                      ? "Staked tez earn more than delegated tez but are frozen and can be slashed if your baker misbehaves. Unstaking takes a few cycles, then needs finalizing."
                      : "Staking needs a delegate that accepts stakers.")
                     .font(.callout).foregroundStyle(.secondary)

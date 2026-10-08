@@ -21,7 +21,7 @@ function toolkit(rpcUrl) {
 }
 
 export function version() {
-  return "0.11.0";
+  return "0.13.0";
 }
 
 /** Returns true if `address` is a well-formed implicit or contract address. */
@@ -47,7 +47,7 @@ export async function getHead(rpcUrl) {
 // generated here with the same @noble/curves code Taquito signs with.
 
 import { InMemorySigner } from "@taquito/signer";
-import { b58Encode, getPkhfromPk, PrefixV2 } from "@taquito/utils";
+import { b58Encode, getPkhfromPk, PrefixV2, verifySignature as taquitoVerifySignature } from "@taquito/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bls12_381 } from "@noble/curves/bls12-381";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
@@ -331,6 +331,69 @@ export async function provePossession(signerSpec) {
   if (typeof signer.provePossession !== "function") throw new Error("this key type cannot produce a proof of possession");
   const proof = await signer.provePossession();
   return { proof: typeof proof === "string" ? proof : proof?.prefixSig ?? proof?.sig ?? String(proof) };
+}
+
+// ---- Message signing ----------------------------------------------------------------------------
+
+/** Signs arbitrary bytes (hex, typically a 0x05-packed Micheline string) with no watermark. */
+export async function signPayload(signerSpec, payloadHex) {
+  const signer = await signerFor(signerSpec);
+  const [publicKey, address] = await Promise.all([signer.publicKey(), signer.publicKeyHash()]);
+  const { prefixSig, sig } = await signer.sign(payloadHex);
+  return { publicKey, address, signature: prefixSig, genericSignature: sig };
+}
+
+/** True when `signature` (prefixed) is a valid signature of `payloadHex` by `publicKey`. */
+export function verifySignature(payloadHex, publicKey, signature) {
+  return taquitoVerifySignature(payloadHex, publicKey, signature);
+}
+
+// ---- Governance (on-chain voting) -------------------------------------------------------------
+
+/** The current voting period and what `address` can do in it. */
+export async function getGovernanceInfo(rpcUrl, address) {
+  const base = rpcUrl.replace(/\/+$/, "");
+  const get = async (path, fallback = null) => {
+    const r = await fetch(`${base}/chains/main/blocks/head/votes/${path}`);
+    if (!r.ok) return fallback;
+    return r.json();
+  };
+  const [period, proposals, currentProposal, listings, ballots, ballotList, totalPower, quorum, proposalCount] = await Promise.all([
+    get("current_period"), get("proposals", []), get("current_proposal"), get("listings", []),
+    get("ballots", { yay: "0", nay: "0", pass: "0" }), get("ballot_list", []), get("total_voting_power", "0"),
+    get("current_quorum", null), get(`proposal_count/${address}`, 0),
+  ]);
+  const mine = Array.isArray(listings) ? listings.find((l) => l.pkh === address) : null;
+  const myBallot = Array.isArray(ballotList) ? ballotList.find((b) => b.pkh === address)?.ballot ?? null : null;
+  return {
+    kind: period?.voting_period?.kind ?? null,
+    index: period?.voting_period?.index ?? null,
+    position: period?.position ?? null,
+    remaining: period?.remaining ?? null,
+    proposals: (Array.isArray(proposals) ? proposals : []).map(([hash, power]) => ({ hash, votingPower: String(power) })),
+    currentProposal: currentProposal ?? null,
+    votingPower: mine ? String(mine.voting_power) : null,
+    totalVotingPower: String(totalPower ?? "0"),
+    quorumPerTenThousand: quorum ?? null,
+    ballots: { yay: String(ballots?.yay ?? "0"), nay: String(ballots?.nay ?? "0"), pass: String(ballots?.pass ?? "0") },
+    myBallot,
+    proposalCount: Number(proposalCount ?? 0),
+  };
+}
+
+/** Injects a `proposals` (upvote) or `ballot` operation. Voting operations carry no fee. */
+export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson) {
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(await signerFor(signerSpec));
+  const arg = JSON.parse(argJson || "{}");
+  let op;
+  switch (kind) {
+    case "proposals": op = await tk.contract.proposals({ proposals: arg.proposals }); break;
+    case "ballot": op = await tk.contract.ballot({ proposal: arg.proposal, ballot: arg.ballot }); break;
+    default: throw new Error(`unknown governance operation ${kind}`);
+  }
+  pendingOperations.set(op.hash, op);
+  return { hash: op.hash };
 }
 
 // ---- Raw operations ---------------------------------------------------------------------------

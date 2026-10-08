@@ -37,9 +37,8 @@ struct AccountNotOnChainView: View {
                 } else {
                     Button("Show address to receive tez…") { model.isPresentingReceive = true }
                         .buttonStyle(.borderedProminent)
-                    Button("Buy tez") {}
-                        .disabled(true)
-                        .help("Buying tez in Signet is coming soon")
+                    Button("Buy tez…") { model.isPresentingBuy = true }
+                        .help("Buy tez through \(BuyProvider.current.title), delivered to this address")
                 }
             }
             .padding(.leading, 60)

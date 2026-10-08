@@ -15,6 +15,18 @@ struct StakingOperationTests {
         #expect(StakingOperation.registerAsBaker.title == "Register as a baker")
     }
 
+    @Test func bakersCanAlwaysStakeOthersNeedAWillingDelegate() {
+        let me = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        let baker = DelegateInfo.Baker(deactivated: false, gracePeriod: nil, consensusKey: nil, pendingConsensusKeys: [], companionKey: nil, pendingCompanionKeys: [])
+        // A baker with the default limit of 0 does not accept outside stakers but can still stake its own tez.
+        #expect(DelegateInfo(delegate: me, baker: baker, delegateAcceptsStaking: false).canStake)
+        #expect(DelegateInfo(delegate: me, baker: baker, delegateAcceptsStaking: nil).canStake)
+        #expect(DelegateInfo(delegate: MockChainService.captainStake, baker: nil, delegateAcceptsStaking: true).canStake)
+        #expect(DelegateInfo(delegate: MockChainService.captainStake, baker: nil, delegateAcceptsStaking: nil).canStake)
+        #expect(!DelegateInfo(delegate: MockChainService.captainStake, baker: nil, delegateAcceptsStaking: false).canStake)
+        #expect(!DelegateInfo(delegate: nil, baker: nil, delegateAcceptsStaking: nil).canStake)
+    }
+
     @Test func parsesBakersFromTzKT() {
         let json = """
         [{"address":"tz3cqThj23Feu55KDynm7Vg81mCMpWDgzQZq","alias":"Tezos Foundation Baker 1","stakingBalance":24666552157412,"numDelegators":18,"stakersCount":4,"limitOfStakingOverBaking":9000000},

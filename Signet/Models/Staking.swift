@@ -20,6 +20,11 @@ struct DelegateInfo: Hashable, Sendable {
 
     var isBaker: Bool { baker != nil }
     var isSelfDelegated: Bool { baker != nil }
+
+    /// Whether this account may stake. A baker always can: the staking limit only caps what
+    /// other people may stake with it, never its own stake. Anyone else needs a delegate that
+    /// has not switched staking off.
+    var canStake: Bool { isBaker || (delegate != nil && delegateAcceptsStaking != false) }
 }
 
 /// A baker's staking parameters, as the protocol stores them.

@@ -31,6 +31,20 @@ protocol ChainService: Sendable {
     func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String
     /// BLS proof of possession for one of our tz4 keys.
     func proofOfPossession(signer: SigningKey) async throws -> String
+
+    /// Signs raw bytes (hex) with no watermark, e.g. a packed "Tezos Signed Message". Returns the
+    /// signer's public key and the prefixed signature (edsig/spsig/p2sig…).
+    func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload
+
+    // Governance.
+    func governanceInfo(for address: Address) async throws -> GovernanceInfo
+    /// Injects an upvote or ballot. Returns the operation hash.
+    func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String
+}
+
+struct SignedPayload: Equatable, Sendable {
+    let publicKey: String
+    let signature: String
 }
 
 /// Errors the UI distinguishes from generic failures.

@@ -134,6 +134,9 @@ struct AppMenuButton: View {
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             Button("Baking…") { model.isPresentingBaking = true }
                 .disabled(model.selectedWallet == nil)
+            if model.canGovern {
+                Button("Governance…") { model.isPresentingGovernance = true }
+            }
             Divider()
             SettingsLink { Text("Settings…") }
                 .keyboardShortcut(",", modifiers: .command)

@@ -40,6 +40,11 @@ final class WalletViewModel {
     var isPresentingStaking = false
     var isPresentingBaking = false
     var isPresentingConnectLedger = false
+    var isPresentingGovernance = false
+    var isPresentingBuy = false
+
+    /// Governance is for bakers whose key we can sign with.
+    var canGovern: Bool { selectedWallet?.keyKind.canSign == true && delegateInfo?.isBaker == true }
 
     /// dApp connections over Octez Connect (TZIP-10).
     private(set) var dapps: DAppConnectionManager!
@@ -551,6 +556,34 @@ final class WalletViewModel {
     func estimateStaking(_ operation: StakingOperation) async throws -> TransferEstimate {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         return try await chain.estimateStaking(operation, from: wallet)
+    }
+
+    /// The buy widget for the selected account at `provider`. With a key we can sign for, the
+    /// address is pre-validated (a signed per-provider message) so the user has nothing to prove in
+    /// the widget; otherwise the address is only pre-filled.
+    func buyURL(provider: BuyProvider = .current, fiat: String, passphrase: String?, embedded: Bool = true, dark: Bool = false) async throws -> URL {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        let code = MtPelerin.randomCode()
+        var proof: SignedPayload?
+        if let payload = provider.ownershipPayload(code: code), let signer = try signingKey(for: wallet, passphrase: passphrase) {
+            proof = try await chain.signPayload(signer: signer, payloadHex: payload)
+        }
+        return provider.buyURL(address: wallet.address, fiat: fiat, code: code, proof: proof, embedded: embedded, dark: dark)
+    }
+
+    func governanceInfo() async throws -> GovernanceInfo {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        return try await chain.governanceInfo(for: wallet.address)
+    }
+
+    /// Upvotes or casts a ballot for the selected baker and waits one block.
+    func performGovernance(_ operation: GovernanceOperation, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let hash = try await chain.performGovernance(operation, from: wallet, signer: signer)
+        let level = try await chain.waitForConfirmation(of: hash)
+        await refreshAfterOperation()
+        return (hash, level)
     }
 
     func bakers() async -> [BakerCandidate] {

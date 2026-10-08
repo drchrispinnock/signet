@@ -38,6 +38,12 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingBaking) {
             BakingSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingGovernance) {
+            GovernanceSheet(model: model)
+        }
+        .sheet(isPresented: $model.isPresentingBuy) {
+            BuySheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingFaucet) {
             FaucetSheet(model: model)
         }
@@ -111,10 +117,10 @@ struct NoWalletsView: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image("TezosToken")
+            Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
+                .frame(width: 96, height: 96)
             Text("Welcome to Signet, a Tezos Wallet for the Mac.")
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)

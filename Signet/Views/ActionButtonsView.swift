@@ -24,13 +24,14 @@ struct ActionButtonsView: View {
             Action(title: "Receive", symbol: "arrow.down", enabled: model.selectedWallet != nil && !isWatchOnly) { model.isPresentingReceive = true },
             model.network.faucetURL != nil
                 ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
-                : Action(title: "Buy", symbol: "plus", enabled: false) {},
+                : Action(title: "Buy", symbol: "plus", enabled: model.selectedWallet != nil && model.network.isMainnet) { model.isPresentingBuy = true },
             Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: canSign && !model.accountNotOnChain) { model.isPresentingStaking = true },
         ]
     }
 
     private func helpText(for action: Action) -> String {
-        if action.enabled { return action.title }
+        if action.enabled { return action.title == "Buy" ? "Buy tez through \(BuyProvider.current.title)" : action.title }
+        if action.title == "Buy", !model.network.isMainnet { return "Buying is only possible on Mainnet" }
         if isWatchOnly { return "Not available for a watch-only address" }
         if action.title == "Send" {
             if model.accountNotOnChain { return "This address has no tez on this network" }

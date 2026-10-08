@@ -1,8 +1,6 @@
 
-0.4.2 Signing
-Assets
-
 0.5 - Buy (if possible)
+- Add governance menu if key is a baker and you have the key
 
 0.6 - Import secret keys and phrases
 Export secret keys safely
