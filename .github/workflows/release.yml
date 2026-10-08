@@ -36,6 +36,9 @@ jobs:
           security default-keychain -s build.keychain
           security unlock-keychain -p ci build.keychain
           security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          # The identity is only "valid" with Apple's Developer ID G2 intermediate alongside it.
+          curl -sSfO https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import DeveloperIDG2CA.cer -k build.keychain
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
           rm cert.p12
           echo "DEVELOPER_ID=${{ secrets.DEVELOPER_ID }}" >> "$GITHUB_ENV"
