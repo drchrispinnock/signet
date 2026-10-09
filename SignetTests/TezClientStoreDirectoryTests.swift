@@ -154,6 +154,22 @@ struct WalletDirectoryTests {
     }
 
     /// The bridge is the last line: a secret spec whose key derives another address is refused.
+    @Test(arguments: ["{}", #"{"address":null}"#, #"{"address":""}"#,
+                      #"{"address":"   "}"#, #"{"address":false}"#, #"{"address":123}"#])
+    func bridgeRequiresAnExpectedAccountAddress(fields: String) async throws {
+        var spec = try #require(try JSONSerialization.jsonObject(with: Data(fields.utf8)) as? [String: Any])
+        spec["kind"] = "secret"
+        // Address validation must happen before key loading, even with an unusable key.
+        spec["secretKey"] = "invalid-synthetic-key"
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: spec), as: UTF8.self)
+        do {
+            _ = try await TaquitoBridge.shared.call("signPayload", [json, "0501000000026869"])
+            Issue.record("Signing accepted a missing or invalid expected address")
+        } catch {
+            #expect(error.localizedDescription.contains("missing expected account address"))
+        }
+    }
+
     @Test func bridgeRefusesASecretKeyThatDerivesAnotherAddress() async throws {
         let mine = try await KeyGenerator().generate(scheme: .tz1)
         let other = try await KeyGenerator().generate(scheme: .tz1)

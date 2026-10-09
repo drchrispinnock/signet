@@ -7,7 +7,7 @@
 
 ## Assessment
 
-After the **2026-10-09 S07 follow-up on the working tree**, there are **24 open findings: 4 High, 19 Medium and 1 Low**, plus **2 resolved findings (S02 and S07, originally High)**. S06 has partial mitigation and S19 remains open with a partial mitigation for message size and nesting. The most urgent remaining issues are RPC-controlled raw-operation signing, incomplete dApp transaction approval, destructive backup pruning, and account/store identity problems. These can lead to unauthorized spending or loss of wallet data under the conditions described below. The revision, scope and validation below describe the original re-audit unless explicitly dated as a follow-up.
+After the **2026-10-09 S06 and S07 follow-ups**, there are **23 open findings: 3 High, 19 Medium and 1 Low**, plus **3 resolved findings (S02, S06 and S07, originally High)**. S19 remains open with a partial mitigation for message size and nesting. The most urgent remaining issues are RPC-controlled raw-operation signing, incomplete dApp transaction approval and destructive backup pruning. These can lead to unauthorized spending or loss of wallet data under the conditions described below. The revision, scope and validation below describe the original re-audit unless explicitly dated as a follow-up.
 
 I did **not identify an intentional key-stealing backdoor or a deliberate network upload of wallet secret keys** in the application sources reviewed. This does not establish that all dependencies are safe. Software keys, decrypted keys, passwords and recovery phrases enter the same JavaScriptCore runtime that handles network traffic; Ledger secrets remain on the device. A malicious or exploited dependency in that runtime therefore remains a serious trust boundary.
 
@@ -22,7 +22,7 @@ Checked items have verified fixes; unchecked items remain open, including partia
 - [ ] **S03 (High)** — dApp approval omits supplied fees and contract effects
 - [ ] **S04 (Medium)** — Incoming dApp metadata can override the paired identity
 - [ ] **S05 (High)** — Backup pruning deletes unrelated directories
-- [ ] **S06 (High)** — Software signing keys are selected by mutable alias without address verification
+- [x] **S06 (High, resolved)** — Software signing keys are selected by mutable alias without address verification
 - [x] **S07 (High, resolved)** — Forgetting an account can delete a different directory's account after an await
 - [ ] **S08 (Medium)** — dApp permissions and wallet-directory boundaries are not enforced
 - [ ] **S09 (Medium)** — Wallet updates and backups lack a consistent multi-file transaction
@@ -112,15 +112,19 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 ### S06 — High: A stale wallet object can sign with another account's key
 
-**2026-10-09 follow-up:** Alias/address checks and expected-address verification now block the reviewed normal software-signing paths, including clear and encrypted tz1–tz5 keys. The JavaScript signer still accepts a missing or empty expected address, so closure remains pending enforcement at that boundary. The original evidence below describes the baseline revision.
+**Status:** Resolved by the signing-boundary repair committed with this report on 2026-10-09, completing the partial mitigation in `77f81f8`.
 
 **Locations:** `Signet/Services/TezosClientStore.swift:182`; `Signet/ViewModels/WalletViewModel.swift:693`; `Signet/ViewModels/SendViewModel.swift:75`, `:186`; `TaquitoBridge/src/signers.js:10`.
 
-Send captures its original wallet and chain, but its signer provider reads the view model's current wallet store. Secret lookup uses only the alias. Switching directories, replacing files externally or reusing an alias can therefore return a different account's secret while the sheet still identifies the original sender. Software signer specifications contain no expected address check. Ledger signer construction correctly checks the derived address; the software path lacks the equivalent guard.
+**Original issue:** Send captured its original wallet and chain, but its signer provider read the view model's current wallet store. Secret lookup used only the alias. Switching directories, replacing files externally or reusing an alias could therefore return a different account's secret while the sheet still identified the original sender. Software signer specifications contained no expected address check.
 
-**Evidence:** Confirmed native lookup with temporary files: a `Wallet` identifying the original account retrieved a different account's synthetic secret under the same alias. Transfer submission then derives the actual source from that signer rather than requiring the displayed sender.
+**Original evidence:** Native lookup with temporary files retrieved another account's synthetic secret under the same alias. Transfer submission derived the actual source from that signer rather than requiring the displayed sender.
 
-**Solution:** Capture a store/directory revision and full account identity when starting the flow. Before every signature derive and verify the key's public key hash against the approved sender, and reject changed context. Include `expectedAddress` in software signer specifications and enforce it inside the signing boundary. Test same-alias directory changes, external key replacement and rename while a sheet is open.
+**Repair:** Native lookup verifies the alias/address mapping. Swift software signing specifications require the approved address. The shared JavaScript signer factory requires a nonempty string expected address before loading a secret, then unconditionally derives and compares the key's public key hash before returning the signer. Replacing the secret after native lookup cannot bypass that final check. All software signing callers use this factory.
+
+**Evidence:** Offline rebuilt-bundle checks reject mismatched clear and encrypted keys for tz1–tz5 and allow matching keys. Missing, null, empty, whitespace-only and non-string expected addresses are rejected. Native regression tests cover stale wallets after directory changes and alias/address replacement. See the dated validation below.
+
+**Scope of closure:** This prevents substitution of another account's software signing key. Network identity, dApp grants and other changes to approval context remain covered by S08, S12 and S20.
 
 ### S07 — High: Forget can remove another wallet after asynchronous password verification
 
@@ -332,9 +336,17 @@ Current supporting artifacts are under `/private/tmp/signet-reaudit-7544c50/`: `
 
 Artifacts: `/private/tmp/signet-s07-isolated-tests/tests.log` and its isolated package; `/private/tmp/signet-s06-s07-review/build-s07.log`. This follow-up closes S07 only; it is not a fresh audit of all remaining findings.
 
+## S06 follow-up validation — 2026-10-09
+
+- **9 tests in the WalletDirectoryTests suite passed**, including six parameterized missing/invalid-address cases, rejection before key loading, mismatched-key rejection, successful matching-key signing, stale-wallet checks and S07 directory/key replacement regressions. The same isolated harness described above was used with the rebuilt bundle.
+- **Offline Node checks against the rebuilt app bundle passed** for mismatched clear/encrypted keys and matching clear keys across tz1–tz5, plus seven absent/invalid expected-address cases. Only synthetic keys were used and network access was prohibited by the harness.
+- **`npm run build` succeeded**, regenerating `Signet/Resources/taquito-bridge.js`; **Xcode `build-for-testing` succeeded** and **`git diff --check` passed**. Hosted/full/live tests were not run because of S24.
+
+Artifacts: `/private/tmp/signet-s06-s07-review/s06-fixed.cjs`, `/private/tmp/signet-s06-s07-review/build-s06.log`, and `/private/tmp/signet-s07-isolated-tests/s06-tests.log`. This follow-up closes the remaining S06 signing-boundary gap; it is not a fresh audit of all remaining findings.
+
 ## Previous-audit reconciliation and positive controls
 
-The earlier unrestricted dApp transaction-signature issue (S02) is now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, mutable signer/store context, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with raw RPC forging, asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
+The earlier unrestricted dApp transaction-signature issue (S02), software key substitution (S06) and account deletion across password-verification suspension (S07) are now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with raw RPC forging, other asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
 
 Mainnet account creation and import now default to encrypted storage and display an unencrypted-key warning. Clear storage remains available and existing clear keys/backups remain clear; this is a disclosed policy choice rather than proof of remote key theft. Encryption round trips succeeded for all five supported software schemes. Generated native keys use CryptoKit and JavaScript randomness is backed by Security framework randomness. Wallet file replacement and octez-compatible advisory locking are implemented, though their transaction/permission gaps need the fixes above. Ledger signing checks the expected derived address and does not export device secrets. Swift 6 complete concurrency checking and the current app/test compilation are positive controls, but actor isolation alone does not prevent state changes across `await`.
 
@@ -345,7 +357,7 @@ Additional hardening after the findings: isolate networking/dApp code from softw
 ## Recommended repair order
 
 1. Disable or locally verify raw forging (S01) and approve exact dApp operation costs/effects (S03). Preserve the verified S02 type/envelope/depth rejection checks.
-2. Make backup pruning ownership-safe (S05), bind every signer to an immutable account/store identity (S06), and preserve the S07 snapshot/deletion regressions.
+2. Make backup pruning ownership-safe (S05), and preserve the S06 signer-address and S07 snapshot/deletion regressions.
 3. Enforce authenticated dApp identity/grants (S04, S08), make storage transactions and secret-file creation safe (S09–S10), and remove sensitive diagnostics (S11).
 4. Add the adversarial regression tests described above, then address network identity, resource limits, async state, response recovery, Ledger synchronization and widget policy.
 5. Isolate hosted/live tests before using them as release gates, and publish only fully validated signed releases.

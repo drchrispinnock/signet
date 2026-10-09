@@ -130,7 +130,8 @@ automatic download is off by default. The updater is not started under the test 
   `.ledger(LedgerKey, address:)`, serialised by `bridgeSpec` into the JSON the bridge's
   `signerFor` (`src/signers.js`) turns into an `InMemorySigner` or a `LedgerSigner` for the one
   operation. `WalletViewModel.signingKey(for:passphrase:)` builds it from the wallet's kind. Both
-  kinds carry the expected address and `signerFor` refuses a key that derives another one
+  kinds carry the expected address; software `signerFor` requires a nonempty string address
+  before loading the key and refuses a key that derives another one
   (`ChainError.keyAddressMismatch` for secrets, `ledgerWrongDevice` for Ledgers).
   `waitForConfirmation` waits one block. `ChainError.fromBridgeMessage` maps the bridge's error
   text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
