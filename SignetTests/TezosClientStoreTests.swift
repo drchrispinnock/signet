@@ -72,6 +72,104 @@ struct TezosClientStoreTests {
         #expect(try store.secretKey(for: wallets[3]) == nil)
     }
 
+    /// S06/S07: a `Wallet` held by a sheet may be stale. The alias alone must never pick a key or
+    /// choose what to delete; the address on disk has to agree.
+    @Test func secretKeyAndRemoveRefuseAnAliasWhoseAddressChanged() throws {
+        let dir = try makeDirectory()
+        try writeFixture(in: dir)
+        let store = TezosClientStore(directory: dir)
+        let alice = try store.load()[0]
+        let impostor = Wallet(alias: "alice", address: Address("tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx"), keyKind: .unencrypted)
+
+        #expect(throws: TezosClientStore.StoreError.self) { try store.secretKey(for: impostor) }
+        #expect(throws: TezosClientStore.StoreError.self) { try store.remove(impostor) }
+        #expect(try store.load().map(\.alias) == ["alice", "bob", "pq", "watch"])
+        #expect(try store.secretKey(for: alice) == "edskALICE")
+
+        try store.remove(alice)
+        #expect(try store.load().map(\.alias) == ["bob", "pq", "watch"])
+        #expect(try store.secretKey(for: alice) == nil)
+    }
+
+    @Test(arguments: ["public_key_hashs", "public_keys", "secret_keys"])
+    func removalRejectsChangedAccountEntriesWithoutWriting(file: String) throws {
+        let dir = try makeDirectory()
+        try writeFixture(in: dir)
+        let store = TezosClientStore(directory: dir)
+        let alice = try store.load()[0]
+        let snapshot = try store.removalSnapshot(for: alice)
+        let url = dir.appendingPathComponent(file)
+        var rows = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: Any]])
+        let index = try #require(rows.firstIndex { $0["name"] as? String == "alice" })
+        switch file {
+        case "public_key_hashs": rows[index]["value"] = "tz1REPLACEMENT"
+        case "public_keys": rows[index]["value"] = ["locator": "unencrypted:CHANGED", "key": "edpkALICE"]
+        default: rows[index]["value"] = "unencrypted:edskREPLACEMENT"
+        }
+        try JSONSerialization.data(withJSONObject: rows).write(to: url)
+        let before = try TezosClientStore.walletFiles.map { try Data(contentsOf: dir.appendingPathComponent($0)) }
+        #expect(throws: TezosClientStore.StoreError.self) { try store.remove(alice, matching: snapshot) }
+        let after = try TezosClientStore.walletFiles.map { try Data(contentsOf: dir.appendingPathComponent($0)) }
+        #expect(before == after)
+    }
+
+    @Test func removalRejectsReplacementDirectoryAtTheSamePath() throws {
+        let dir = try makeDirectory()
+        try writeFixture(in: dir)
+        let store = TezosClientStore(directory: dir)
+        let alice = try store.load()[0]
+        let snapshot = try store.removalSnapshot(for: alice)
+        let moved = dir.appendingPathExtension("original")
+        try FileManager.default.moveItem(at: dir, to: moved)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try writeFixture(in: dir)
+        #expect(throws: TezosClientStore.StoreError.self) { try store.remove(alice, matching: snapshot) }
+        #expect(try store.load().count == 4)
+        #expect(try TezosClientStore(directory: moved).load().count == 4)
+    }
+
+    @Test func removalSnapshotAllowsUnchangedAccountAndUnrelatedEdits() throws {
+        let dir = try makeDirectory()
+        try writeFixture(in: dir)
+        let store = TezosClientStore(directory: dir)
+        let alice = try store.load()[0]
+        let snapshot = try store.removalSnapshot(for: alice)
+        #expect(snapshot.secretKey == "edskALICE")
+        try store.rename(alias: "bob", to: "renamed-bob")
+        try store.remove(alice, matching: snapshot)
+        #expect(try store.load().map(\.alias) == ["renamed-bob", "pq", "watch"])
+    }
+
+    @Test func removalRejectsNewSecretForPreviouslyWatchOnlyAccount() throws {
+        let dir = try makeDirectory()
+        try writeFixture(in: dir)
+        let store = TezosClientStore(directory: dir)
+        let watch = try #require(store.load().first { $0.alias == "watch" })
+        let snapshot = try store.removalSnapshot(for: watch)
+        #expect(snapshot.secretKey == nil)
+        let url = dir.appendingPathComponent("secret_keys")
+        var rows = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: Any]])
+        rows.append(["name": "watch", "value": "encrypted:edeskNEW"])
+        try JSONSerialization.data(withJSONObject: rows).write(to: url)
+        #expect(throws: TezosClientStore.StoreError.self) { try store.remove(watch, matching: snapshot) }
+        #expect(try store.load().count == 4)
+    }
+
+    @Test func inMemoryRemovalRejectsChangedKeyAndAnotherStore() throws {
+        let wallet = Wallet(alias: "shared", address: Address("tz1SYNTHETIC"), publicKey: "edpkSYNTHETIC", keyKind: .encrypted)
+        let store = InMemoryWalletStore()
+        try store.add(wallet, locator: "encrypted:edeskOLD")
+        let snapshot = try store.removalSnapshot(for: wallet)
+        try store.remove(wallet)
+        try store.add(wallet, locator: "encrypted:edeskNEW")
+        #expect(throws: InMemoryWalletStore.StoreError.self) { try store.remove(wallet, matching: snapshot) }
+        let other = InMemoryWalletStore()
+        try other.add(wallet, locator: "encrypted:edeskOLD")
+        #expect(throws: InMemoryWalletStore.StoreError.self) { try other.remove(wallet, matching: snapshot) }
+        #expect(try store.load().count == 1)
+        #expect(try other.load().count == 1)
+    }
+
     @Test func addAppendsInOctezFormatAndKeepsExistingEntries() throws {
         let dir = try makeDirectory()
         try writeFixture(in: dir)

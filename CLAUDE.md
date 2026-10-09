@@ -92,6 +92,10 @@ automatic download is off by default. The updater is not started under the test 
   unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
   (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
   `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
+  `secretKey(for:)` and `remove(_:)` take the whole `Wallet` and fail with
+  `StoreError.addressMismatch` unless `public_key_hashs` still maps its alias to its address: a
+  sheet's `Wallet` can outlive a directory switch, and the alias alone must never pick a key or
+  choose what to delete.
   The directory can be changed in Settings; that pointer is the one thing kept in UserDefaults
   (`WalletDirectorySettings`), because it cannot live inside the directory it names. Switching
   rebuilds both stores through the `storeFactory` the app passes to the view model.
@@ -122,10 +126,12 @@ automatic download is off by default. The updater is not started under the test 
   TzProfiles data TzKT carries in `extras.profile` ("Not verified"), plus fee/allocation/total from
   `estimateTransfer`, which runs in the bridge with a read-only signer so no secret is needed to
   estimate. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
-  `octezConnectExecute`/`octezConnectSign`) takes a `SigningKey`: `.secret(key, passphrase:)` or
+  `octezConnectExecute`/`octezConnectSign`) takes a `SigningKey`: `.secret(key, passphrase:, address:)` or
   `.ledger(LedgerKey, address:)`, serialised by `bridgeSpec` into the JSON the bridge's
   `signerFor` (`src/signers.js`) turns into an `InMemorySigner` or a `LedgerSigner` for the one
-  operation. `WalletViewModel.signingKey(for:passphrase:)` builds it from the wallet's kind.
+  operation. `WalletViewModel.signingKey(for:passphrase:)` builds it from the wallet's kind. Both
+  kinds carry the expected address and `signerFor` refuses a key that derives another one
+  (`ChainError.keyAddressMismatch` for secrets, `ledgerWrongDevice` for Ledgers).
   `waitForConfirmation` waits one block. `ChainError.fromBridgeMessage` maps the bridge's error
   text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
   so every sheet words them the same way.
@@ -150,8 +156,12 @@ automatic download is off by default. The updater is not started under the test 
   one warning for everything, a second one when Signet holds the secret key (clear or encrypted;
   Ledger and watch-only entries get only the first), the password for encrypted keys (checked by
   decrypting), and a note that earlier backups under the backup folder still hold the key.
-  `WalletStore.remove(alias:)` drops the alias from all three octez files like
-  `octez-client forget address --force`; `WalletViewModel.forgetSelectedWallet(passphrase:)` then
+  `WalletViewModel.forgetSelectedWallet(passphrase:)` captures the store, directory revision and
+  `WalletStore.removalSnapshot(for:)` before checking the snapshot's encrypted key. It aborts
+  with `WalletError.directoryChanged` after any directory switch, including switching back.
+  `WalletStore.remove(_:matching:)` checks the directory identity and a fingerprint of every
+  matching account entry under the deletion lock, refusing changed keys or metadata. It drops
+  the alias from all three octez files like `octez-client forget address --force`, then the model
   selects the next account and takes a backup of the pruned files.
 - **Ledger (0.4).** USB HID is native: `LedgerHID` (IOKit, vendor 0x2c97, usage page 0xFFA0,
   64-byte reports framed by `LedgerFraming`: channel 0x0101, tag 0x05, sequence, length) runs on

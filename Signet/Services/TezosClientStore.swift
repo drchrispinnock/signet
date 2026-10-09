@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Reads and writes a wallet directory in octez-client's format. Signet's own directory is
 /// `~/.signet`; `~/.tezos-client` is read only when the user imports from it.
@@ -18,6 +19,9 @@ struct TezosClientStore: WalletStore {
         case unknownAlias(String)
         case missingPublicKey(String)
         case malformed(String, String)
+        /// The alias now names a different address than the `Wallet` the caller holds.
+        case addressMismatch(alias: String, expected: Address, found: Address?)
+        case walletChanged(String)
 
         var errorDescription: String? {
             switch self {
@@ -25,6 +29,10 @@ struct TezosClientStore: WalletStore {
             case .unknownAlias(let alias): "No alias named “\(alias)” exists in the tezos-client directory."
             case .missingPublicKey(let alias): "Account “\(alias)” has no public key to write."
             case .malformed(let file, let detail): "\(file) in the tezos-client directory is malformed: \(detail)"
+            case .addressMismatch(let alias, let expected, let found):
+                "Account “\(alias)” is \(found?.shortened() ?? "missing") in the wallet directory, not \(expected.shortened()) as expected. The directory may have changed; please try again."
+            case .walletChanged(let alias):
+                "Account “\(alias)” or its key entries changed while removal was being confirmed. Nothing was removed; please try again."
             }
         }
     }
@@ -136,10 +144,48 @@ struct TezosClientStore: WalletStore {
         }
     }
 
-    func remove(alias: String) throws {
+    func removalSnapshot(for wallet: Wallet) throws -> WalletRemovalSnapshot {
+        try withWalletLock {
+            try snapshot(for: wallet, files: Self.walletFiles.map { ($0, try readRaw($0)) })
+        }
+    }
+
+    private func snapshot(for wallet: Wallet, files: [(String, [[String: Any]])]) throws -> WalletRemovalSnapshot {
+        func value(in file: String) -> Any? {
+            files.first(where: { $0.0 == file })?.1.first(where: { ($0["name"] as? String) == wallet.alias })?["value"]
+        }
+        let address = (value(in: Self.publicKeyHashesFile) as? String).map(Address.init)
+        guard address == wallet.address else {
+            throw StoreError.addressMismatch(alias: wallet.alias, expected: wallet.address, found: address)
+        }
+        let locator = value(in: Self.secretKeysFile) as? String
+        guard Self.publicKey(from: value(in: Self.publicKeysFile)) == wallet.publicKey,
+              KeyKind(locator: locator) == wallet.keyKind,
+              locator.flatMap(LedgerKey.init(locator:)) == wallet.ledgerKey else { throw StoreError.walletChanged(wallet.alias) }
+        let entries = Dictionary(uniqueKeysWithValues: files.map { file, rows in
+            (file, rows.filter { ($0["name"] as? String) == wallet.alias })
+        })
+        let data = try JSONSerialization.data(withJSONObject: entries, options: [.sortedKeys])
+        // Bind the snapshot to the actual directory, including replacement at the same path.
+        let resolved = directory.resolvingSymlinksInPath().standardizedFileURL
+        let attributes = try FileManager.default.attributesOfItem(atPath: resolved.path)
+        guard let device = attributes[.systemNumber] as? NSNumber,
+              let inode = attributes[.systemFileNumber] as? NSNumber else { throw StoreError.walletChanged(wallet.alias) }
+        let storageID = "\(resolved.path):\(device):\(inode)"
+        let secret = locator.flatMap { locator in
+            ["unencrypted:", "encrypted:"].first(where: locator.hasPrefix).map { String(locator.dropFirst($0.count)) }
+        }
+        return WalletRemovalSnapshot(wallet: wallet, storageID: storageID, fingerprint: Data(SHA256.hash(data: data)), secretKey: secret)
+    }
+
+    func remove(_ wallet: Wallet, matching expected: WalletRemovalSnapshot) throws {
+        let alias = wallet.alias
         try withWalletLock {
             let files = try Self.walletFiles.map { ($0, try readRaw($0)) }
             guard files.contains(where: { $0.1.contains { ($0["name"] as? String) == alias } }) else { throw StoreError.unknownAlias(alias) }
+            let current = try snapshot(for: wallet, files: files)
+            guard expected.wallet == wallet, expected.storageID == current.storageID,
+                  expected.fingerprint == current.fingerprint else { throw StoreError.walletChanged(alias) }
             for (file, entries) in files {
                 let kept = entries.filter { ($0["name"] as? String) != alias }
                 if kept.count != entries.count { try write(kept, to: file) }
@@ -182,10 +228,19 @@ struct TezosClientStore: WalletStore {
     func secretKey(for wallet: Wallet) throws -> String? {
         let secretKeys = try index(readEntries(Self.secretKeysFile))
         guard let locator = secretKeys[wallet.alias] as? String else { return nil }
+        try verifyAddress(of: wallet)
         for prefix in ["unencrypted:", "encrypted:"] where locator.hasPrefix(prefix) {
             return String(locator.dropFirst(prefix.count))
         }
         return nil
+    }
+
+    /// Fails unless `public_key_hashs` still maps the wallet's alias to its address.
+    private func verifyAddress(of wallet: Wallet) throws {
+        let found = (try index(readEntries(Self.publicKeyHashesFile))[wallet.alias] as? String).map(Address.init)
+        guard found == wallet.address else {
+            throw StoreError.addressMismatch(alias: wallet.alias, expected: wallet.address, found: found)
+        }
     }
 
     // MARK: - Parsing

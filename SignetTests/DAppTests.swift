@@ -172,7 +172,7 @@ struct DAppSignPayloadTests {
     /// The bridge enforces the rule itself, so a Swift bug cannot get an operation signed.
     @Test func bridgeRefusesOperationBytesAndSignsMicheline() async throws {
         let material = try await KeyGenerator().generate(scheme: .tz1)
-        let spec = SigningKey.secret(material.secretKey, passphrase: nil).bridgeSpec
+        let spec = SigningKey.secret(material.secretKey, passphrase: nil, address: Address(material.address)).bridgeSpec
         let forged = "03" + "8fcf233671b6a04fcf679d2a381c2544ea6c1ea29ba6157776ed8424c7ccd00b6c0002298c03ed7d454a101eb7022bc95f7e5f41ac78d0860303c8010080c2d72f0000e7670f32038107a59a2b9cfefae36ea21f5aa63c00"
         for type in ["micheline", "operation", "raw"] {
             await #expect(throws: (any Error).self) { try await TaquitoBridge.shared.call("octezConnectSign", [spec, forged, type]) }

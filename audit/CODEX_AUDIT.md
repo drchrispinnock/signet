@@ -7,7 +7,7 @@
 
 ## Assessment
 
-There are **25 open findings: 5 High, 19 Medium and 1 Low**, plus **1 resolved finding (S02, originally High)**. S19 remains open with a partial mitigation for message size and nesting. The most urgent remaining issues are RPC-controlled raw-operation signing, incomplete dApp transaction approval, destructive backup pruning, and account/store identity problems. These can lead to unauthorized spending or loss of wallet data under the conditions described below.
+After the **2026-10-09 S07 follow-up on the working tree**, there are **24 open findings: 4 High, 19 Medium and 1 Low**, plus **2 resolved findings (S02 and S07, originally High)**. S06 has partial mitigation and S19 remains open with a partial mitigation for message size and nesting. The most urgent remaining issues are RPC-controlled raw-operation signing, incomplete dApp transaction approval, destructive backup pruning, and account/store identity problems. These can lead to unauthorized spending or loss of wallet data under the conditions described below. The revision, scope and validation below describe the original re-audit unless explicitly dated as a follow-up.
 
 I did **not identify an intentional key-stealing backdoor or a deliberate network upload of wallet secret keys** in the application sources reviewed. This does not establish that all dependencies are safe. Software keys, decrypted keys, passwords and recovery phrases enter the same JavaScriptCore runtime that handles network traffic; Ledger secrets remain on the device. A malicious or exploited dependency in that runtime therefore remains a serious trust boundary.
 
@@ -23,7 +23,7 @@ Checked items have verified fixes; unchecked items remain open, including partia
 - [ ] **S04 (Medium)** — Incoming dApp metadata can override the paired identity
 - [ ] **S05 (High)** — Backup pruning deletes unrelated directories
 - [ ] **S06 (High)** — Software signing keys are selected by mutable alias without address verification
-- [ ] **S07 (High)** — Forgetting an account can delete a different directory's account after an await
+- [x] **S07 (High, resolved)** — Forgetting an account can delete a different directory's account after an await
 - [ ] **S08 (Medium)** — dApp permissions and wallet-directory boundaries are not enforced
 - [ ] **S09 (Medium)** — Wallet updates and backups lack a consistent multi-file transaction
 - [ ] **S10 (Medium)** — Secret-file permissions are applied after writing
@@ -112,6 +112,8 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 ### S06 — High: A stale wallet object can sign with another account's key
 
+**2026-10-09 follow-up:** Alias/address checks and expected-address verification now block the reviewed normal software-signing paths, including clear and encrypted tz1–tz5 keys. The JavaScript signer still accepts a missing or empty expected address, so closure remains pending enforcement at that boundary. The original evidence below describes the baseline revision.
+
 **Locations:** `Signet/Services/TezosClientStore.swift:182`; `Signet/ViewModels/WalletViewModel.swift:693`; `Signet/ViewModels/SendViewModel.swift:75`, `:186`; `TaquitoBridge/src/signers.js:10`.
 
 Send captures its original wallet and chain, but its signer provider reads the view model's current wallet store. Secret lookup uses only the alias. Switching directories, replacing files externally or reusing an alias can therefore return a different account's secret while the sheet still identifies the original sender. Software signer specifications contain no expected address check. Ledger signer construction correctly checks the derived address; the software path lacks the equivalent guard.
@@ -122,11 +124,17 @@ Send captures its original wallet and chain, but its signer provider reads the v
 
 ### S07 — High: Forget can remove another wallet after asynchronous password verification
 
-**Location:** `Signet/ViewModels/WalletViewModel.swift:494`.
+**Status:** Resolved by the S07 repair committed with this report on 2026-10-09.
 
-For an encrypted account, Forget captures the selected wallet, reads its secret, then awaits decryption. After that suspension it removes the captured alias from the **current** `walletStore`. Changing directories during that await can delete a different account with the same alias, despite validating only the old account's password. Independent UI state does not provide a model-level identity invariant.
+**Locations:** `Signet/ViewModels/WalletViewModel.swift` (`forgetSelectedWallet`, `changeWalletDirectory`); `Signet/Services/WalletStore.swift`; `Signet/Services/TezosClientStore.swift` (`removalSnapshot`, `remove(_:matching:)`).
 
-**Solution:** Capture the store and account identity together. After decryption verify that the directory revision and on-disk alias/address/key fingerprint still match; otherwise cancel and require a fresh approval. Perform verification and deletion under the same storage transaction/lock. Add a controlled delayed-decrypt test that switches directories to an account with the same alias and confirms that neither account is removed accidentally.
+**Original issue:** Forget validated one account's encrypted key, awaited decryption, then removed its alias from the current store. A directory switch could delete a different account. Capturing only the directory URL and checking the address was insufficient: replacing the encrypted key under the same alias/address during the await still deleted the replacement after validating the old key's password.
+
+**Repair:** Capture the original store, a directory-change revision and an account snapshot before decryption; decrypt the snapshot's key. Every directory switch invalidates the revision, including switching away and back. Under the same wallet lock used for deletion, compare all matching rows across the three octez files and the actual directory identity (resolved path, device and inode), then remove only if unchanged. The in-memory store enforces the same snapshot contract. Unrelated account edits remain allowed.
+
+**Evidence:** Regression tests reject replacement encrypted keys during password verification, directory switches and switches back, edits to each account file, replacement directories at the same path, added keys on watch-only accounts and snapshots from another in-memory store. Successful password-verified deletion and unrelated-account edits also pass. See the dated validation below.
+
+**Scope of closure:** This closes deletion of a changed account across password-verification suspension. The existing advisory lock coordinates cooperating wallet writers; broader multi-file transaction and filesystem permission issues remain S09–S10.
 
 ### S08 — Medium: dApp grants do not bound signing, and directory changes retain old sessions
 
@@ -316,6 +324,14 @@ All cryptographic checks used synthetic keys and offline mocks. Native filesyste
 
 Current supporting artifacts are under `/private/tmp/signet-reaudit-7544c50/`: `check.cjs`, `s02-depth.cjs`, `main.swift`, `native-checks`, `jsc-check.swift`, `jsc-checks`, the rebuilt bundle, isolated `swift-tests/` package and `build.log`. Older evidence at `/private/tmp/signet-audit-20261008/` describes the pre-fix revision. The rerun symlink check again returned **false** for deletion outside the backup root; S05 remains the confirmed deletion of unrelated actual directories inside that root.
 
+## S07 follow-up validation — 2026-10-09 working tree
+
+- **35 tests in 7 suites passed** in an isolated Swift package using copies of the production stores and view models and the repository's store, directory and import tests. Wallet fixtures used temporary directories; bridge storage was in memory, logs were redirected to temporary storage, and networking was disabled in the temporary harness. Production Forget and snapshot logic was unchanged in that harness.
+- **Xcode `build-for-testing` succeeded** for the app and test targets with the resolved dependencies. Hosted/full/live tests were not run because of S24.
+- **`git diff --check` passed.** No bridge source was changed by the S07 repair.
+
+Artifacts: `/private/tmp/signet-s07-isolated-tests/tests.log` and its isolated package; `/private/tmp/signet-s06-s07-review/build-s07.log`. This follow-up closes S07 only; it is not a fresh audit of all remaining findings.
+
 ## Previous-audit reconciliation and positive controls
 
 The earlier unrestricted dApp transaction-signature issue (S02) is now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, mutable signer/store context, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with raw RPC forging, asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
@@ -329,7 +345,7 @@ Additional hardening after the findings: isolate networking/dApp code from softw
 ## Recommended repair order
 
 1. Disable or locally verify raw forging (S01) and approve exact dApp operation costs/effects (S03). Preserve the verified S02 type/envelope/depth rejection checks.
-2. Make backup pruning ownership-safe (S05), bind every signer to an immutable account/store identity (S06), and guard deletion across awaits (S07).
+2. Make backup pruning ownership-safe (S05), bind every signer to an immutable account/store identity (S06), and preserve the S07 snapshot/deletion regressions.
 3. Enforce authenticated dApp identity/grants (S04, S08), make storage transactions and secret-file creation safe (S09–S10), and remove sensitive diagnostics (S11).
 4. Add the adversarial regression tests described above, then address network identity, resource limits, async state, response recovery, Ledger synchronization and widget policy.
 5. Isolate hosted/live tests before using them as release gates, and publish only fully validated signed releases.

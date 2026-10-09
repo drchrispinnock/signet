@@ -57,7 +57,7 @@ struct MockChainService: ChainService {
     }
 
     func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String {
-        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return "ooMockOperationHash1111111111111111111111111111111111"
     }
 
@@ -82,14 +82,14 @@ struct MockChainService: ChainService {
     }
 
     func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
-        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return "ooMockStaking\(operation.bridgeKind)"
     }
 
     func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigMockProof" }
 
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload {
-        if case .secret(_, let passphrase) = signer, passphrase == "wrong" { throw ChainError.wrongPassphrase }
+        if case .secret(_, let passphrase, _) = signer, passphrase == "wrong" { throw ChainError.wrongPassphrase }
         return SignedPayload(publicKey: "edpkMock", signature: "edsigMock\(payloadHex.suffix(8))")
     }
 
@@ -103,7 +103,7 @@ struct MockChainService: ChainService {
     }
 
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
-        if wallet.keyKind == .encrypted, case .secret(_, let passphrase) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return "ooMockGovernance\(operation.bridgeKind)"
     }
 }

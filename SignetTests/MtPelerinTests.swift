@@ -61,7 +61,7 @@ struct MtPelerinTests {
     @Test func bridgeSignsThePackedMessage() async throws {
         let material = try await KeyGenerator().generate(scheme: .tz1)
         let chain = TaquitoChainService(network: .mainnet)
-        let signed = try await chain.signPayload(signer: .secret(material.secretKey, passphrase: nil), payloadHex: MtPelerin.packedMessage(code: "1234"))
+        let signed = try await chain.signPayload(signer: .secret(material.secretKey, passphrase: nil, address: Address(material.address)), payloadHex: MtPelerin.packedMessage(code: "1234"))
         #expect(signed.publicKey == material.publicKey)
         #expect(signed.signature.hasPrefix("edsig"))
         let verified = try await TaquitoBridge.shared.call("verifySignature", [MtPelerin.packedMessage(code: "1234"), signed.publicKey, signed.signature])

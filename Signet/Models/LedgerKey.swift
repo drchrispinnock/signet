@@ -122,8 +122,9 @@ struct LedgerKey: Hashable, Codable, Sendable {
 
 /// What an operation is signed with. Built on demand for the one operation and not kept.
 enum SigningKey: Sendable, Equatable {
-    /// A base58 secret key from the wallet directory, with the password if it is encrypted.
-    case secret(String, passphrase: String?)
+    /// A base58 secret key from the wallet directory, with the password if it is encrypted, and
+    /// the address it must derive: the bridge refuses to sign if the key is somebody else's.
+    case secret(String, passphrase: String?, address: Address)
     /// A key on a Ledger; the device signs after the user approves on it.
     case ledger(LedgerKey, address: Address)
 
@@ -133,8 +134,8 @@ enum SigningKey: Sendable, Equatable {
     var bridgeSpec: String {
         let object: [String: Any]
         switch self {
-        case .secret(let key, let passphrase):
-            object = ["kind": "secret", "secretKey": key, "passphrase": passphrase ?? ""]
+        case .secret(let key, let passphrase, let address):
+            object = ["kind": "secret", "secretKey": key, "passphrase": passphrase ?? "", "address": address.value]
         case .ledger(let key, let address):
             object = ["kind": "ledger", "path": key.fullPath, "derivationType": key.curve.derivationType, "address": address.value]
         }

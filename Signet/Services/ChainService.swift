@@ -63,6 +63,8 @@ enum ChainError: LocalizedError, Equatable {
     case ledgerNotConnected
     /// The connected Ledger derives a different key at this path (wrong device or seed).
     case ledgerWrongDevice(String)
+    /// The secret key on disk does not derive the account's address (edited or swapped directory).
+    case keyAddressMismatch(String)
 
     var errorDescription: String? {
         switch self {
@@ -73,6 +75,7 @@ enum ChainError: LocalizedError, Equatable {
         case .ledgerLocked: "Unlock your Ledger and try again."
         case .ledgerNotConnected: "No Ledger is connected. Plug it in, unlock it and open the Tezos app."
         case .ledgerWrongDevice(let detail): detail
+        case .keyAddressMismatch(let detail): detail
         }
     }
 
@@ -86,6 +89,7 @@ enum ChainError: LocalizedError, Equatable {
             || lower.contains("cla_not_supported") || lower.contains("ins_not_supported") { return .ledgerAppNotOpen }
         if lower.contains("no ledger is connected") || lower.contains("was unplugged") { return .ledgerNotConnected }
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
+        if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
         return nil
     }
 }

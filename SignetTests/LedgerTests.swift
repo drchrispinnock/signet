@@ -45,11 +45,12 @@ struct LedgerKeyTests {
         #expect(spec["address"] as? String == "tz2abc")
         #expect(ledger.isLedger)
 
-        let secret = SigningKey.secret("edskX", passphrase: "pw")
+        let secret = SigningKey.secret("edskX", passphrase: "pw", address: Address("tz1abc"))
         let s2 = try #require(try JSONSerialization.jsonObject(with: Data(secret.bridgeSpec.utf8)) as? [String: Any])
         #expect(s2["kind"] as? String == "secret")
         #expect(s2["secretKey"] as? String == "edskX")
         #expect(s2["passphrase"] as? String == "pw")
+        #expect(s2["address"] as? String == "tz1abc")
         #expect(!secret.isLedger)
     }
 

@@ -32,7 +32,7 @@ struct PostQuantumSendTests {
         let estimate = try await chain.estimateTransfer(from: wallet, to: destination, amount: Decimal(string: "0.5")!)
         #expect(estimate.fee > 0)
 
-        let hash = try await chain.sendTransfer(from: wallet, signer: .secret(quantum.secretKey, passphrase: nil), to: destination, amount: Decimal(string: "0.5")!)
+        let hash = try await chain.sendTransfer(from: wallet, signer: .secret(quantum.secretKey, passphrase: nil, address: wallet.address), to: destination, amount: Decimal(string: "0.5")!)
         #expect(hash.hasPrefix("o"))
         let level = try await chain.waitForConfirmation(of: hash)
         #expect(level > 0)
@@ -63,7 +63,7 @@ struct QuantumnetPostQuantumSendTests {
         let estimate = try await chain.estimateTransfer(from: wallet, to: destination, amount: Decimal(string: "0.5")!)
         #expect(estimate.fee > 0)
 
-        let hash = try await chain.sendTransfer(from: wallet, signer: .secret(quantum.secretKey, passphrase: nil), to: destination, amount: Decimal(string: "0.5")!)
+        let hash = try await chain.sendTransfer(from: wallet, signer: .secret(quantum.secretKey, passphrase: nil, address: wallet.address), to: destination, amount: Decimal(string: "0.5")!)
         #expect(hash.hasPrefix("o"))
         let level = try await chain.waitForConfirmation(of: hash)
         #expect(level > 0)

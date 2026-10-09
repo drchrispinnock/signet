@@ -12,6 +12,7 @@ final class WalletViewModel {
         case invalidAddress
         case unsupportedScheme(AddressScheme)
         case passphraseTooShort
+        case directoryChanged
 
         var errorDescription: String? {
             switch self {
@@ -21,6 +22,7 @@ final class WalletViewModel {
             case .invalidAddress: "That is not a valid Tezos address."
             case .passphraseTooShort: "Use a password of at least \(WalletViewModel.minimumPassphraseLength) characters."
             case .unsupportedScheme(let scheme): scheme.unavailableReason ?? "\(scheme.rawValue) is not supported yet."
+            case .directoryChanged: "The wallet directory changed while this was being confirmed. Nothing was done; please try again."
             }
         }
     }
@@ -190,6 +192,7 @@ final class WalletViewModel {
 
     /// The directory the wallet files live in, when the stores are file-backed.
     private(set) var walletDirectory: URL?
+    private var walletDirectoryRevision = UUID()
     private let directorySettings: WalletDirectorySettings?
     private let backupSettings: BackupSettings?
 
@@ -341,6 +344,7 @@ final class WalletViewModel {
         guard let storeFactory, let directorySettings else { return }
         let directory = url.standardizedFileURL
         guard directory != walletDirectory?.standardizedFileURL else { return }
+        walletDirectoryRevision = UUID()
         directorySettings.set(directory)
         let stores = storeFactory(directory)
         walletStore = stores.wallets
@@ -493,13 +497,19 @@ final class WalletViewModel {
     /// know its password. Earlier backups keep their copies.
     func forgetSelectedWallet(passphrase: String?) async throws {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        let revision = walletDirectoryRevision
+        let store = walletStore
+        let snapshot = try store.removalSnapshot(for: wallet)
         if wallet.keyKind == .encrypted {
             guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
-            guard let stored = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+            guard let stored = snapshot.secretKey else { throw SendViewModel.SendError.noSecretKey }
             _ = try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase)
         }
-        try walletStore.remove(alias: wallet.alias)
-        wallets = (try? walletStore.load()) ?? wallets.filter { $0.id != wallet.id }
+        // Even switching away and back invalidates approval. The captured store checks all account
+        // entries against the password-verified snapshot under the same lock as deletion.
+        guard walletDirectoryRevision == revision else { throw WalletError.directoryChanged }
+        try store.remove(wallet, matching: snapshot)
+        wallets = (try? store.load()) ?? wallets.filter { $0.id != wallet.id }
         if let next = wallets.first {
             select(next)
         } else {
@@ -694,7 +704,7 @@ final class WalletViewModel {
         switch wallet.keyKind {
         case .unencrypted, .encrypted:
             guard let secretKey = try walletStore.secretKey(for: wallet) else { return nil }
-            return .secret(secretKey, passphrase: wallet.keyKind == .encrypted ? passphrase : nil)
+            return .secret(secretKey, passphrase: wallet.keyKind == .encrypted ? passphrase : nil, address: wallet.address)
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
