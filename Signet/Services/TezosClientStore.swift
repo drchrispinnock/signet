@@ -41,6 +41,8 @@ struct TezosClientStore: WalletStore {
     static let publicKeysFile = "public_keys"
     static let secretKeysFile = "secret_keys"
     static let lockFile = "wallet_lock"
+    /// octez-client's named contracts (`[{name, value: "KT1…"}]`); multisigs live here.
+    static let contractsFile = "contracts"
 
     /// Signet's own wallet directory.
     static var defaultDirectory: URL {
@@ -53,6 +55,8 @@ struct TezosClientStore: WalletStore {
     }
 
     static let walletFiles = [publicKeyHashesFile, publicKeysFile, secretKeysFile]
+    /// Every file an alias can appear in; aliases are unique across all of them, as in octez-client.
+    static let aliasFiles = walletFiles + [contractsFile]
 
     let directory: URL
 
@@ -72,7 +76,7 @@ struct TezosClientStore: WalletStore {
         let publicKeys = try index(readEntries(Self.publicKeysFile))
         let secretKeys = try index(readEntries(Self.secretKeysFile))
 
-        return hashes.compactMap { entry in
+        let accounts: [Wallet] = hashes.compactMap { entry in
             guard let address = entry.value as? String else { return nil }
             let locator = secretKeys[entry.name] as? String
             return Wallet(
@@ -83,6 +87,13 @@ struct TezosClientStore: WalletStore {
                 ledgerKey: locator.flatMap(LedgerKey.init(locator:))
             )
         }
+        // Named contracts (`contracts`) are part of the address book: watch-only entries whose
+        // address is a KT1. octez-client keeps them apart because `public_key_hashs` may only
+        // hold tz addresses (it refuses to read the file otherwise), so Signet keeps them apart
+        // on disk too and joins them here.
+        let taken = Set(accounts.map(\.alias))
+        let contracts = try loadContracts().filter { !taken.contains($0.alias) }.map { Wallet(alias: $0.alias, address: $0.address, keyKind: .none) }
+        return accounts + contracts
     }
 
     func add(_ wallet: Wallet, locator: String) throws {
@@ -97,7 +108,7 @@ struct TezosClientStore: WalletStore {
             var publicKeys = try readRaw(Self.publicKeysFile)
             var secretKeys = try readRaw(Self.secretKeysFile)
 
-            for list in [hashes, publicKeys, secretKeys] where list.contains(where: { ($0["name"] as? String) == wallet.alias }) {
+            for list in [hashes, publicKeys, secretKeys, try readRaw(Self.contractsFile)] where list.contains(where: { ($0["name"] as? String) == wallet.alias }) {
                 throw StoreError.aliasExists(wallet.alias)
             }
 
@@ -111,12 +122,37 @@ struct TezosClientStore: WalletStore {
         }
     }
 
+    func loadContracts() throws -> [MultisigContract] {
+        try readEntries(Self.contractsFile).compactMap { entry in
+            guard let address = entry.value as? String else { return nil }
+            return MultisigContract(alias: entry.name, address: Address(address))
+        }
+    }
+
+    func addContract(_ contract: MultisigContract) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        try withWalletLock {
+            var contracts = try readRaw(Self.contractsFile)
+            let taken = try [contracts, readRaw(Self.publicKeyHashesFile), readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile)]
+                .contains { $0.contains { ($0["name"] as? String) == contract.alias } }
+            guard !taken else { throw StoreError.aliasExists(contract.alias) }
+            contracts.append(["name": contract.alias, "value": contract.address.value])
+            try write(contracts, to: Self.contractsFile)
+        }
+    }
+
     func addWatchOnly(_ wallet: Wallet) throws {
+        // A KT1 belongs in `contracts`: octez-client refuses to read `public_key_hashs` if one is in there.
+        if wallet.address.isContract {
+            try addContract(MultisigContract(alias: wallet.alias, address: wallet.address))
+            return
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         try withWalletLock {
             var hashes = try readRaw(Self.publicKeyHashesFile)
-            let taken = try [hashes, readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile)]
+            let taken = try [hashes, readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile), readRaw(Self.contractsFile)]
                 .contains { $0.contains { ($0["name"] as? String) == wallet.alias } }
             guard !taken else { throw StoreError.aliasExists(wallet.alias) }
             hashes.append(["name": wallet.alias, "value": wallet.address.value])
@@ -126,10 +162,11 @@ struct TezosClientStore: WalletStore {
 
     func rename(alias: String, to newAlias: String) throws {
         try withWalletLock {
-            var files = try [Self.publicKeyHashesFile, Self.publicKeysFile, Self.secretKeysFile].map { ($0, try readRaw($0)) }
+            var files = try Self.aliasFiles.map { ($0, try readRaw($0)) }
             let names = { (list: [[String: Any]]) in list.compactMap { $0["name"] as? String } }
             guard !files.contains(where: { names($0.1).contains(newAlias) }) else { throw StoreError.aliasExists(newAlias) }
-            guard let hashes = files.first(where: { $0.0 == Self.publicKeyHashesFile }), names(hashes.1).contains(alias) else {
+            // An alias is an account (in public_key_hashs) or a named contract (in contracts).
+            guard files.contains(where: { ($0.0 == Self.publicKeyHashesFile || $0.0 == Self.contractsFile) && names($0.1).contains(alias) }) else {
                 throw StoreError.unknownAlias(alias)
             }
             for i in files.indices {
@@ -146,7 +183,7 @@ struct TezosClientStore: WalletStore {
 
     func removalSnapshot(for wallet: Wallet) throws -> WalletRemovalSnapshot {
         try withWalletLock {
-            try snapshot(for: wallet, files: Self.walletFiles.map { ($0, try readRaw($0)) })
+            try snapshot(for: wallet, files: Self.aliasFiles.map { ($0, try readRaw($0)) })
         }
     }
 
@@ -154,7 +191,8 @@ struct TezosClientStore: WalletStore {
         func value(in file: String) -> Any? {
             files.first(where: { $0.0 == file })?.1.first(where: { ($0["name"] as? String) == wallet.alias })?["value"]
         }
-        let address = (value(in: Self.publicKeyHashesFile) as? String).map(Address.init)
+        // Accounts live in public_key_hashs, named contracts in contracts; never both.
+        let address = ((value(in: Self.publicKeyHashesFile) ?? value(in: Self.contractsFile)) as? String).map(Address.init)
         guard address == wallet.address else {
             throw StoreError.addressMismatch(alias: wallet.alias, expected: wallet.address, found: address)
         }
@@ -181,7 +219,7 @@ struct TezosClientStore: WalletStore {
     func remove(_ wallet: Wallet, matching expected: WalletRemovalSnapshot) throws {
         let alias = wallet.alias
         try withWalletLock {
-            let files = try Self.walletFiles.map { ($0, try readRaw($0)) }
+            let files = try Self.aliasFiles.map { ($0, try readRaw($0)) }
             guard files.contains(where: { $0.1.contains { ($0["name"] as? String) == alias } }) else { throw StoreError.unknownAlias(alias) }
             let current = try snapshot(for: wallet, files: files)
             guard expected.wallet == wallet, expected.storageID == current.storageID,

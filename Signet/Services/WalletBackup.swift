@@ -70,8 +70,9 @@ struct WalletBackup: Sendable {
     let backupDirectory: URL
     let generations: Int
 
-    /// Files worth saving: the three octez-client wallet files plus Signet's state.
-    static let files = TezosClientStore.walletFiles + ["state"]
+    /// Files worth saving: the three octez-client wallet files, named contracts, Signet's state
+    /// and multisig proposals in flight.
+    static let files = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, "state", FileMultisigProposalStore.fileName]
 
     /// - Parameter force: write a generation even if the latest one already matches (explicit user action).
     func run(now: Date = Date(), force: Bool = false) throws -> Outcome {

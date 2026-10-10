@@ -31,6 +31,13 @@ final class WalletViewModel {
     static let showsEtherlinkBalance = false
 
     private(set) var wallets: [Wallet]
+    /// Named contracts (octez-client `contracts` aliases): the KT1 entries of the address book,
+    /// which is where created and added multisigs go.
+    var multisigContracts: [MultisigContract] {
+        wallets.filter { $0.address.isContract }.map { MultisigContract(alias: $0.alias, address: $0.address) }
+    }
+    /// Multisig actions proposed here, with the signatures gathered so far (all networks).
+    private(set) var multisigProposals: [MultisigProposal] = []
     var selectedWalletID: Wallet.ID?
     var isPresentingCreateWallet = false
     var isPresentingRenameWallet = false
@@ -45,6 +52,12 @@ final class WalletViewModel {
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
     var isPresentingForget = false
+    var isPresentingCreateMultisig = false
+    var isPresentingAddMultisig = false
+    var isPresentingSignMultisig = false
+    /// What the Sign multisig sheet opens on when something else (the delegate row) asks for it.
+    var signMultisigPreset: MultisigSheetPreset?
+    var isPresentingSubmitMultisig = false
     /// A pairing code that arrived by URL, waiting for the Connect dApp sheet to pick it up.
     var pendingPairingCode: String?
 
@@ -212,6 +225,8 @@ final class WalletViewModel {
     let ledger: any LedgerService
     /// Pasted secret keys and recovery phrases.
     let keyImporter: any KeyImporter
+    let multisig: any MultisigService
+    private var proposalStore: any MultisigProposalStore
     private(set) var isConnectingLedger = false
     private var walletStore: any WalletStore
     private var stateStore: any AppStateStore
@@ -232,6 +247,8 @@ final class WalletViewModel {
         keyGenerator: KeyGenerator = KeyGenerator(),
         ledger: any LedgerService = MockLedgerService(),
         keyImporter: any KeyImporter = MockKeyImporter(),
+        multisig: any MultisigService = MockMultisigService(),
+        proposalStore: (any MultisigProposalStore)? = nil,
         walletStore: any WalletStore = InMemoryWalletStore(),
         importSource: URL? = nil,
         stateStore: any AppStateStore = InMemoryAppStateStore(),
@@ -268,8 +285,12 @@ final class WalletViewModel {
         self.keyGenerator = keyGenerator
         self.ledger = ledger
         self.keyImporter = keyImporter
+        self.multisig = multisig
+        let proposalStore = proposalStore ?? directory.map { FileMultisigProposalStore(directory: $0) } ?? InMemoryMultisigProposalStore()
+        self.proposalStore = proposalStore
         self.walletStore = walletStore
         self.importSource = importSource
+        self.multisigProposals = proposalStore.load()
 
         var loadError: String?
         let loaded: [Wallet]
@@ -351,6 +372,8 @@ final class WalletViewModel {
         stateStore = stores.state
         walletDirectory = directory
         state = stateStore.load()
+        proposalStore = FileMultisigProposalStore(directory: directory)
+        multisigProposals = proposalStore.load()
 
         do {
             wallets = try walletStore.load()
@@ -790,5 +813,188 @@ final class WalletViewModel {
 
     static func preview() -> WalletViewModel {
         WalletViewModel(wallets: sampleWallets, chain: MockChainService())
+    }
+}
+
+// MARK: - Multisig
+
+extension WalletViewModel {
+    /// Where the Sign multisig sheet should start.
+    struct MultisigSheetPreset: Hashable, Sendable {
+        var contract: MultisigContract
+        var delegating = false
+    }
+
+    enum MultisigError: LocalizedError {
+        case invalidAddress
+        case notAMultisig(String)
+        case notAMember
+        case invalidKey(String)
+        case thresholdOutOfRange(Int, Int)
+        case cannotSign(String)
+        case alreadySigned(String)
+        case stale
+        case notRevealed(Address)
+        case notASignerCandidate(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidAddress: "That is not a contract address (KT1…)."
+            case .notAMultisig(let hash): "That contract is not an octez-client multisig (its script hash is \(hash.prefix(16))…), so Signet cannot sign for it."
+            case .notAMember: "None of your accounts is a signer of that multisig."
+            case .invalidKey(let key): "“\(key.prefix(16))…” is not a public key (edpk, sppk, p2pk, BLpk or mdpk)."
+            case .thresholdOutOfRange(let threshold, let keys): "The threshold must be between 1 and the number of keys (\(keys)), not \(threshold)."
+            case .cannotSign(let alias): "Signet cannot sign with “\(alias)”."
+            case .alreadySigned(let alias): "“\(alias)” has already signed this proposal."
+            case .stale: "The multisig has moved on since this was proposed; the signatures no longer apply."
+            case .notRevealed(let address): "\(address.shortened()) has not revealed its public key on this network yet (it has never sent an operation). Ask its owner for the public key instead."
+            case .notASignerCandidate(let text): "“\(text.prefix(20))…” is neither a public key nor a tz address."
+            }
+        }
+    }
+
+    /// Proposals for the network in use, newest first.
+    var currentMultisigProposals: [MultisigProposal] {
+        multisigProposals.filter { $0.networkName == network.name }.sorted { $0.created > $1.created }
+    }
+
+    /// Accounts whose public key we know, so they can be put on a multisig.
+    var multisigKeyCandidates: [Wallet] { wallets.filter { $0.publicKey != nil } }
+
+    nonisolated static func isPublicKey(_ key: String) -> Bool {
+        // The node checks the key properly at origination; this only keeps obvious garbage out of the list.
+        ["edpk", "sppk", "p2pk", "BLpk", "mdpk"].contains { key.hasPrefix($0) } && key.count > 6 && key.allSatisfy { $0.isLetter || $0.isNumber }
+    }
+
+    /// A signer for a new multisig from what the user gave: a public key as is, or a tz address
+    /// (pasted, from the address book or one of ours) resolved to the key it has revealed on chain.
+    func multisigSignerKey(from text: String) async throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if Self.isPublicKey(trimmed) { return trimmed }
+        let address = Address(trimmed)
+        guard address.isValidAccount, !address.isContract else { throw MultisigError.notASignerCandidate(trimmed) }
+        if let mine = wallets.first(where: { $0.address == address }), let key = mine.publicKey { return key }
+        guard let key = try await multisig.revealedPublicKey(rpcURL: network.rpcURL, address: address) else { throw MultisigError.notRevealed(address) }
+        return key
+    }
+
+    func multisigInfo(_ contract: MultisigContract) async throws -> MultisigInfo {
+        try await multisig.info(rpcURL: network.rpcURL, address: contract.address)
+    }
+
+    func estimateCreateMultisig(threshold: Int, keys: [String]) async throws -> MultisigEstimate {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        try Self.checkMultisig(threshold: threshold, keys: keys)
+        return try await multisig.estimateOriginate(rpcURL: network.rpcURL, from: wallet, threshold: threshold, keys: keys)
+    }
+
+    private static func checkMultisig(threshold: Int, keys: [String]) throws {
+        if let bad = keys.first(where: { !isPublicKey($0) }) { throw MultisigError.invalidKey(bad) }
+        guard threshold >= 1, threshold <= keys.count else { throw MultisigError.thresholdOutOfRange(threshold, keys.count) }
+    }
+
+    /// Deploys a multisig from the selected account and records it under `alias`.
+    func createMultisig(alias: String, threshold: Int, keys: [String], passphrase: String?) async throws -> MultisigContract {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        try Self.checkMultisig(threshold: threshold, keys: keys)
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
+        let (_, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys)
+        return try await recordContract(MultisigContract(alias: name, address: address))
+    }
+
+    /// Writes the contract alias, puts it in the address book and shows it.
+    private func recordContract(_ contract: MultisigContract) async throws -> MultisigContract {
+        try walletStore.addContract(contract)
+        let entry = Wallet(alias: contract.alias, address: contract.address, keyKind: .none)
+        wallets = (try? walletStore.load()) ?? wallets + [entry]
+        select(wallets.first { $0.alias == contract.alias } ?? entry)
+        await backUp()
+        return contract
+    }
+
+    /// Records an existing multisig under `alias`, after checking it is the generic multisig and
+    /// one of our accounts is among its keys.
+    func addMultisig(alias: String, address rawAddress: String) async throws -> MultisigContract {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = Address(rawAddress.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard address.isContract, address.isValidAccount else { throw MultisigError.invalidAddress }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
+        let info = try await multisig.info(rpcURL: network.rpcURL, address: address)
+        guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
+        guard !info.members(among: wallets).isEmpty else { throw MultisigError.notAMember }
+        return try await recordContract(MultisigContract(alias: name, address: address))
+    }
+
+    /// Fetches the contract's state and makes an unsigned proposal for this transfer at its current counter.
+    func proposeMultisigTransfer(from contract: MultisigContract, amount: Decimal, to destination: Address) async throws -> MultisigProposal {
+        try await proposeMultisig(.transfer(amountMutez: Mutez.fromTez(amount), destination: destination.value), from: contract)
+    }
+
+    /// Fetches the contract's state and makes an unsigned proposal for this action at its current counter.
+    func proposeMultisig(_ action: MultisigAction, from contract: MultisigContract) async throws -> MultisigProposal {
+        let (info, chainID, bytes) = try await multisig.prepare(rpcURL: network.rpcURL, contract: contract.address, action: action)
+        guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
+        // The same action proposed twice is the same proposal: reuse it so signatures accumulate.
+        if let existing = multisigProposals.first(where: { $0.contractAddress == contract.address.value && $0.networkName == network.name && $0.bytes == bytes }) {
+            return existing
+        }
+        let proposal = MultisigProposal(contractAlias: contract.alias, contractAddress: contract.address.value, networkName: network.name, chainID: chainID,
+                                        counter: info.counter, threshold: info.threshold, keys: info.keys, action: action, bytes: bytes)
+        multisigProposals.append(proposal)
+        try proposalStore.save(multisigProposals)
+        return proposal
+    }
+
+    /// Signs a proposal with one of our accounts (a key of the multisig) and keeps the signature with it.
+    @discardableResult
+    func signMultisigProposal(_ proposal: MultisigProposal, with wallet: Wallet, passphrase: String?) async throws -> MultisigSignature {
+        guard let publicKey = wallet.publicKey, proposal.keys.contains(publicKey) else { throw MultisigError.notAMember }
+        guard !proposal.hasSignature(from: publicKey) else { throw MultisigError.alreadySigned(wallet.alias) }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
+        let signed = try await chain.signPayload(signer: signer, payloadHex: proposal.bytes)
+        let signature = MultisigSignature(publicKey: publicKey, signature: signed.signature)
+        try updateProposal(proposal.id) { $0.signatures.append(signature) }
+        return signature
+    }
+
+    /// Keeps a signature another signer sent us (verified against the keys when submitting).
+    func addMultisigSignature(_ signature: String, to proposal: MultisigProposal) throws {
+        let trimmed = signature.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        try updateProposal(proposal.id) { stored in
+            // Check against what is stored, not the caller's copy, so repeated pastes do not pile up.
+            guard !stored.signatures.contains(where: { $0.signature == trimmed }) else { return }
+            stored.signatures.append(MultisigSignature(publicKey: nil, signature: trimmed))
+        }
+    }
+
+    func removeMultisigProposal(_ proposal: MultisigProposal) throws {
+        multisigProposals.removeAll { $0.id == proposal.id }
+        try proposalStore.save(multisigProposals)
+    }
+
+    private func updateProposal(_ id: MultisigProposal.ID, _ change: (inout MultisigProposal) -> Void) throws {
+        guard let index = multisigProposals.firstIndex(where: { $0.id == id }) else { return }
+        change(&multisigProposals[index])
+        try proposalStore.save(multisigProposals)
+    }
+
+    func estimateSubmitMultisig(_ proposal: MultisigProposal, from wallet: Wallet) async throws -> MultisigEstimate {
+        try await multisig.estimateSubmit(rpcURL: network.rpcURL, from: wallet, proposal: proposal, signatures: proposal.signatures.map(\.signature))
+    }
+
+    /// Submits the proposal with its signatures from `wallet` (which pays the fee), waits one block
+    /// and forgets the proposal. Returns the operation hash.
+    func submitMultisig(_ proposal: MultisigProposal, from wallet: Wallet, passphrase: String?) async throws -> String {
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
+        let hash = try await multisig.submit(rpcURL: network.rpcURL, signer: signer, proposal: proposal, signatures: proposal.signatures.map(\.signature))
+        try removeMultisigProposal(proposal)
+        await refreshAfterOperation()
+        return hash
     }
 }

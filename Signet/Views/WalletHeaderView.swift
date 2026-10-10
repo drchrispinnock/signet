@@ -41,12 +41,16 @@ struct WalletIdentityView: View {
     private var walletPicker: some View {
         Menu {
             let mine = model.wallets.filter { $0.keyKind != .none }
-            let book = model.wallets.filter { $0.keyKind == .none }
+            let book = model.wallets.filter { $0.keyKind == .none && !$0.address.isContract }
+            let contracts = model.wallets.filter { $0.address.isContract }
             if !mine.isEmpty {
                 Section("My accounts") { ForEach(mine) { pickerItem($0) } }
             }
             if !book.isEmpty {
                 Section("Address book") { ForEach(book) { pickerItem($0) } }
+            }
+            if !contracts.isEmpty {
+                Section("Contracts") { ForEach(contracts) { pickerItem($0) } }
             }
         } label: {
             HStack(spacing: 6) {
@@ -55,7 +59,7 @@ struct WalletIdentityView: View {
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                if wallet.keyKind == .none { watchOnlyTag }
+                if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
                 if wallet.keyKind == .ledger { ledgerTag }
             }
         }
@@ -64,6 +68,15 @@ struct WalletIdentityView: View {
         .fixedSize()
         .help("Switch account")
         .accessibilityLabel("Account \(wallet.alias). Switch account")
+    }
+
+    private var contractTag: some View {
+        Label("Contract", systemImage: "doc.text")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
     }
 
     private var watchOnlyTag: some View {
@@ -138,6 +151,11 @@ struct AppMenuButton: View {
             Divider()
             Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
+            Divider()
+            Button("Create multisig…") { model.isPresentingCreateMultisig = true }
+            Button("Add multisig…") { model.isPresentingAddMultisig = true }
+            Button("Sign multisig transaction…") { model.isPresentingSignMultisig = true }
+            Button("Submit multisig transaction…") { model.isPresentingSubmitMultisig = true }
             Divider()
             Button("Baking…") { model.isPresentingBaking = true }
                 .disabled(model.selectedWallet == nil)

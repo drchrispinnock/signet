@@ -59,6 +59,10 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectDApp) {
             ConnectDAppSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingCreateMultisig) { CreateMultisigSheet(model: model) }
+        .sheet(isPresented: $model.isPresentingAddMultisig) { AddMultisigSheet(model: model) }
+        .sheet(isPresented: $model.isPresentingSignMultisig, onDismiss: { model.signMultisigPreset = nil }) { SignMultisigSheet(model: model) }
+        .sheet(isPresented: $model.isPresentingSubmitMultisig) { SubmitMultisigSheet(model: model) }
         .sheet(item: Binding(get: { model.dapps.current }, set: { _ in })) { request in
             DAppRequestSheet(model: model, request: request)
                 .interactiveDismissDisabled()

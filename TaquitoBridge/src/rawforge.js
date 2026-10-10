@@ -91,6 +91,17 @@ function publicKeyHash(address) {
   return byte(spec.tag) + hex(b58check(address, { prefix: spec.prefix, length: 20 }));
 }
 
+/** Octez's binary public_key_hash (curve tag + 20 bytes) as hex, for `PUSH key_hash 0x…`. */
+export const encodedPublicKeyHash = publicKeyHash;
+
+const CONTRACT_HASH = { prefix: [2, 90, 121], length: 20 }; // KT1
+
+/** Octez's binary address of an originated contract with its default entrypoint (01 + hash + 00), for `PUSH address 0x…`. */
+export function encodedContractAddress(address) {
+  if (!address.startsWith("KT1")) throw new Error(`not a contract address: ${address}`);
+  return "01" + hex(b58check(address, CONTRACT_HASH)) + "00";
+}
+
 function publicKey(key) {
   const spec = PK[key.slice(0, 4)];
   if (!spec) throw new Error(`unknown public key kind ${key}`);

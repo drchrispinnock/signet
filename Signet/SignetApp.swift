@@ -7,6 +7,7 @@ struct SignetApp: App {
         keyGenerator: KeyGenerator(),
         ledger: BridgeLedgerService(),
         keyImporter: BridgeKeyImporter(),
+        multisig: BridgeMultisigService(),
         importSource: TezosClientStore.octezClientDirectory,
         directorySettings: WalletDirectorySettings(),
         storeFactory: { directory in
@@ -61,6 +62,11 @@ struct SignetApp: App {
                 Divider()
                 Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Divider()
+                Button("Create multisig…") { model.isPresentingCreateMultisig = true }
+                Button("Add multisig…") { model.isPresentingAddMultisig = true }
+                Button("Sign multisig transaction…") { model.isPresentingSignMultisig = true }
+                Button("Submit multisig transaction…") { model.isPresentingSubmitMultisig = true }
                 Divider()
                 Button("Baking…") { model.isPresentingBaking = true }
                     .disabled(model.selectedWallet == nil)

@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Signet is a native macOS Tezos wallet written in SwiftUI. The spec is `spec/SPEC.md` and the
-hand-drawn mock of the default screen is `spec/EXAMPLE.png`. Read both before changing the UI.
+Signet is a native macOS Tezos wallet written in SwiftUI. The spec is `docs/spec/SPEC.md` and the
+hand-drawn mock of the default screen is `docs/spec/EXAMPLE.png`. Read both before changing the UI.
 
 ## Commands
 
@@ -255,11 +255,52 @@ automatic download is off by default. The updater is not started under the test 
   before it is queued (the dApp gets `SIGNATURE_TYPE_NOT_SUPPORTED`) and the bridge's
   `octezConnectSign` applies the same rule.
   Wrong password or a Ledger that is not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
+- **Multisig (0.8).** Octez-client's generic multisig, driven through Taquito. Menu section
+  (burger and Operations, after Connect to dApp): Create multisig, Add multisig, Sign multisig
+  transaction, Submit multisig transaction. Contract aliases are octez-client's `contracts` file in
+  the wallet directory (`TezosClientStore.loadContracts`/`addContract`), so `octez-client` can use
+  the same names, and `load()` joins them into the wallet list as watch-only KT1 entries: a
+  created or added multisig appears in the account dropdown under "Contracts" (tagged
+  "Contract") and is selected, with its balance (the bridge reads a KT1's `balance`, since the
+  node refuses `full_balance` for contracts) and its delegate row. `WalletViewModel.
+  multisigContracts` is derived from `wallets`. Aliases are unique across `contracts` and the
+  three key files; rename and Forget work on contract aliases too. A KT1 given to Add address
+  also goes to `contracts`: octez-client refuses to read a `public_key_hashs` holding one. The
+  faucet button and prompt are off for contracts (faucets fund implicit accounts only).
+  Proposals awaiting signatures are `multisig-proposals.json` beside it
+  (`FileMultisigProposalStore`); both are backed up. The bridge (`src/multisig.js`) embeds the
+  script from octez's `client_proto_multisig.ml` as JSON (`src/multisig-script.json`, made with
+  `octez-client convert script … from michelson to json`); its `Script_expr_hash`
+  `exprub9UzpxmhedNQnsv1J1DazWGJnj1dLhtG1fxkUoWSdFLBGLqJ4` is what octez-client recognises, and
+  `multisigInfo` computes the hash of any contract's code to decide whether it is a multisig
+  (legacy multisig scripts are refused). A proposal carries a `MultisigAction`: a transfer, or
+  `setDelegate` (a baker, or `nil` to withdraw). A transfer is a lambda built exactly as octez's
+  `managed_contract.ml` writes it (bytes literals, `ASSERT_SOME` expanded); a delegate change is
+  `client_proto_multisig.ml`'s `Change_delegate` lambda (`DROP; NIL operation; PUSH key_hash
+  <bytes>; SOME; SET_DELEGATE; CONS`, or `NONE key_hash` to withdraw). `MultisigScriptTests`
+  checks all three against bytes `octez-client prepare multisig transaction … --bytes-only`
+  printed. Every signer signs
+  `pack (Pair (Pair chain_id contract) (Pair counter (Left lambda)))` with no watermark, so
+  signatures from Signet and `octez-client sign multisig transaction` combine; `multisigSubmit`
+  places each signature in its key's slot by verification (any order), calls `main` with
+  `(Pair (Pair counter (Left lambda)) sigs)` and refuses when the counter moved. `MultisigService`
+  (`BridgeMultisigService`, `MockMultisigService`); `WalletViewModel` has `createMultisig`,
+  `multisigSignerKey(from:)` (a signer given as a public key, one of our accounts, an address-book
+  entry or a pasted tz address; addresses resolve to the key they revealed on chain via
+  `multisigRevealedKey`, else `MultisigError.notRevealed`),
+  `addMultisig` (must be generic and one of our keys among its signers), `proposeMultisig(_:from:)`
+  (`proposeMultisigTransfer` is the transfer shorthand; the Sign sheet has an action picker,
+  Transfer / Set delegate / Remove delegate, and opens on `signMultisigPreset` when the delegate
+  row of a selected contract is clicked),
+  `signMultisigProposal`, `addMultisigSignature`, `submitMultisig`. `ShadownetMultisigTests` is the
+  live 2-of-3 round trip (a transfer, then a delegate change) and checks local packing against
+  the node's `pack_data`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   carry the same items (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Forget account |
-  Connect to dApp | Baking, Governance when applicable | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
+  Connect to dApp | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
+  transaction | Baking, Governance when applicable | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.

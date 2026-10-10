@@ -33,6 +33,10 @@ protocol WalletStore: Sendable {
     /// Brings in wallets from an octez-client style directory, skipping aliases already present.
     /// Returns how many were added.
     func importWallets(from directory: URL) throws -> Int
+    /// Named contracts (octez-client's `contracts` file): the multisigs the user has created or added.
+    func loadContracts() throws -> [MultisigContract]
+    /// Records a contract alias. Fails if the alias is already taken.
+    func addContract(_ contract: MultisigContract) throws
 }
 
 extension WalletStore {
@@ -54,24 +58,38 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
     private let storageID = UUID().uuidString
     private var wallets: [Wallet]
     private var secrets: [String: String] = [:]
+    private var contracts: [MultisigContract] = []
 
     init(wallets: [Wallet] = []) {
         self.wallets = wallets
     }
 
-    func load() throws -> [Wallet] { lock.withLock { wallets } }
+    /// Accounts first, then named contracts as watch-only entries, like `TezosClientStore.load()`.
+    private func allWallets() -> [Wallet] {
+        wallets + contracts.map { Wallet(alias: $0.alias, address: $0.address, keyKind: .none) }
+    }
+
+    private func aliasTaken(_ alias: String) -> Bool {
+        wallets.contains { $0.alias == alias } || contracts.contains { $0.alias == alias }
+    }
+
+    func load() throws -> [Wallet] { lock.withLock { allWallets() } }
 
     func add(_ wallet: Wallet, locator: String) throws {
         try lock.withLock {
-            guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
+            guard !aliasTaken(wallet.alias) else { throw StoreError.aliasExists(wallet.alias) }
             wallets.append(wallet)
             secrets[wallet.alias] = locator
         }
     }
 
     func addWatchOnly(_ wallet: Wallet) throws {
+        if wallet.address.isContract {
+            try addContract(MultisigContract(alias: wallet.alias, address: wallet.address))
+            return
+        }
         try lock.withLock {
-            guard !wallets.contains(where: { $0.alias == wallet.alias }) else { throw StoreError.aliasExists(wallet.alias) }
+            guard !aliasTaken(wallet.alias) else { throw StoreError.aliasExists(wallet.alias) }
             var entry = wallet
             entry.keyKind = .none
             entry.publicKey = nil
@@ -103,7 +121,7 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
     }
 
     private func snapshot(for wallet: Wallet) throws -> WalletRemovalSnapshot {
-        guard let stored = wallets.first(where: { $0.alias == wallet.alias }) else { throw StoreError.unknownAlias(wallet.alias) }
+        guard let stored = allWallets().first(where: { $0.alias == wallet.alias }) else { throw StoreError.unknownAlias(wallet.alias) }
         guard stored.address == wallet.address else { throw StoreError.addressMismatch(wallet.alias) }
         guard stored == wallet else { throw StoreError.walletChanged(wallet.alias) }
         struct Entries: Encodable { let wallet: Wallet; let locator: String? }
@@ -123,16 +141,31 @@ final class InMemoryWalletStore: WalletStore, @unchecked Sendable {
             guard expected.wallet == wallet, expected.storageID == current.storageID,
                   expected.fingerprint == current.fingerprint else { throw StoreError.walletChanged(wallet.alias) }
             wallets.removeAll { $0.alias == wallet.alias }
+            contracts.removeAll { $0.alias == wallet.alias }
             secrets[wallet.alias] = nil
+        }
+    }
+
+    func loadContracts() throws -> [MultisigContract] { lock.withLock { contracts } }
+
+    func addContract(_ contract: MultisigContract) throws {
+        try lock.withLock {
+            guard !aliasTaken(contract.alias) else { throw StoreError.aliasExists(contract.alias) }
+            contracts.append(contract)
         }
     }
 
     func rename(alias: String, to newAlias: String) throws {
         try lock.withLock {
-            guard !wallets.contains(where: { $0.alias == newAlias }) else { throw StoreError.aliasExists(newAlias) }
-            guard let index = wallets.firstIndex(where: { $0.alias == alias }) else { throw StoreError.unknownAlias(alias) }
-            wallets[index].alias = newAlias
-            if let secret = secrets.removeValue(forKey: alias) { secrets[newAlias] = secret }
+            guard !aliasTaken(newAlias) else { throw StoreError.aliasExists(newAlias) }
+            if let index = wallets.firstIndex(where: { $0.alias == alias }) {
+                wallets[index].alias = newAlias
+                if let secret = secrets.removeValue(forKey: alias) { secrets[newAlias] = secret }
+            } else if let index = contracts.firstIndex(where: { $0.alias == alias }) {
+                contracts[index].alias = newAlias
+            } else {
+                throw StoreError.unknownAlias(alias)
+            }
         }
     }
 }

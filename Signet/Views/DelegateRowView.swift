@@ -7,7 +7,13 @@ struct DelegateRowView: View {
 
     var body: some View {
         Button {
-            model.isPresentingStaking = true
+            if let wallet = model.selectedWallet, wallet.address.isContract {
+                // A contract delegates through its signers: open Sign multisig on this contract.
+                model.signMultisigPreset = .init(contract: MultisigContract(alias: wallet.alias, address: wallet.address), delegating: true)
+                model.isPresentingSignMultisig = true
+            } else {
+                model.isPresentingStaking = true
+            }
         } label: {
             HStack(spacing: 12) {
                 icon
@@ -58,6 +64,9 @@ struct DelegateRowView: View {
 
     private var subtitle: String {
         guard let info = model.delegateInfo else { return "Checking…" }
+        if model.selectedWallet?.address.isContract == true {
+            return "A multisig delegates with its signers' signatures; tap to propose a change."
+        }
         if let baker = info.baker {
             if let kind = model.selectedWallet?.keyKind, !kind.canSign {
                 let why = kind == .remote ? "it signs remotely" : "Signet holds only its public key"

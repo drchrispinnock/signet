@@ -30,7 +30,9 @@ struct AccountNotOnChainView: View {
             }
 
             HStack(spacing: 8) {
-                if network.faucetURL != nil {
+                if wallet.address.isContract {
+                    Button(copied ? "Address copied" : "Copy address", systemImage: copied ? "checkmark" : "doc.on.doc", action: copyAddress)
+                } else if network.faucetURL != nil {
                     Button("Get test tez…") { model.isPresentingFaucet = true }
                         .buttonStyle(.borderedProminent)
                     Button(copied ? "Address copied" : "Copy address", systemImage: copied ? "checkmark" : "doc.on.doc", action: copyAddress)
@@ -48,6 +50,9 @@ struct AccountNotOnChainView: View {
     }
 
     private var explanation: String {
+        if wallet.address.isContract {
+            return "No contract with this address exists on \(network.name)."
+        }
         if network.faucetURL != nil {
             return "This address has never received tez on \(network.name). Signet can ask the \(network.name) faucet for free test tez."
         }

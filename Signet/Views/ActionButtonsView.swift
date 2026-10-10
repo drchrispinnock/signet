@@ -15,6 +15,8 @@ struct ActionButtonsView: View {
 
     /// Address-book entries have no key, so none of the actions apply to them.
     private var isWatchOnly: Bool { model.selectedWallet?.keyKind == KeyKind.none }
+    /// Faucets only fund implicit accounts; a contract (KT1) is funded by sending to it.
+    private var isContract: Bool { model.selectedWallet?.address.isContract == true }
     /// Keys on disk (clear or encrypted) and on a Ledger can sign; remote signers cannot yet.
     private var canSign: Bool { model.selectedWallet?.keyKind.canSign == true }
 
@@ -23,7 +25,7 @@ struct ActionButtonsView: View {
             Action(title: "Send", symbol: "arrow.up", enabled: canSign && !model.accountNotOnChain) { model.isPresentingSend = true },
             Action(title: "Receive", symbol: "arrow.down", enabled: model.selectedWallet != nil && !isWatchOnly) { model.isPresentingReceive = true },
             model.network.faucetURL != nil
-                ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
+                ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil && !isContract) { model.isPresentingFaucet = true }
                 : Action(title: "Buy", symbol: "plus", enabled: model.selectedWallet != nil && model.network.isMainnet) { model.isPresentingBuy = true },
             Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: canSign && !model.accountNotOnChain) { model.isPresentingStaking = true },
         ]
@@ -32,6 +34,7 @@ struct ActionButtonsView: View {
     private func helpText(for action: Action) -> String {
         if action.enabled { return action.title == "Buy" ? "Buy tez through \(BuyProvider.current.title)" : action.title }
         if action.title == "Buy", !model.network.isMainnet { return "Buying is only possible on Mainnet" }
+        if action.title == "Get", isContract { return "The faucet cannot fund a contract; send it tez from an account" }
         if isWatchOnly { return "Not available for a watch-only address" }
         if action.title == "Send" {
             if model.accountNotOnChain { return "This address has no tez on this network" }

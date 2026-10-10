@@ -168,6 +168,17 @@ export async function keyFromFundraiser(email, password, mnemonic) {
  */
 export async function getTezBalances(rpcUrl, address) {
   const rpc = toolkit(rpcUrl).rpc;
+  // An originated contract (KT1) cannot stake, and the node answers its full_balance with the
+  // same "missing_key" storage error it gives an unknown account; its `balance` is the whole story.
+  if (address.startsWith("KT1")) {
+    try {
+      const balance = (await rpc.getBalance(address)).toString(10);
+      return { spendable: balance, staked: "0", unstakedFrozen: "0", unstakedFinalizable: "0", full: balance, exists: true };
+    } catch (e) {
+      if (e?.status === 404 || String(e?.message ?? e).includes("404")) return { spendable: "0", staked: "0", unstakedFrozen: "0", unstakedFinalizable: "0", full: null, exists: false };
+      throw e;
+    }
+  }
   // Accounts the chain has never seen return null for the staking fields, which Taquito turns
   // into a BigNumber error; treat anything unreadable as 0 so such accounts still show a balance.
   const zeroIfMissing = async (call) => {
@@ -283,6 +294,12 @@ export function encryptSecretKey(secretKey, passphrase) {
 
 // ---- Octez Connect (dApp connections) --------------------------------------------------------
 export * from "./octezconnect.js";
+
+// ---- Multisig (octez-client's generic multisig contract) --------------------------------------
+export {
+  GENERIC_MULTISIG_HASH, multisigScriptHash, multisigEstimateOriginate, multisigOriginate, multisigInfo, multisigRevealedKey,
+  multisigPrepare, multisigPayloadLocal, multisigPayloadViaNode, multisigEstimateSubmit, multisigSubmit,
+} from "./multisig.js";
 
 // ---- Ledger ------------------------------------------------------------------------------------
 import { signerFor } from "./signers.js";
