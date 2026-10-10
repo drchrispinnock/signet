@@ -458,11 +458,25 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 
 // ---- Raw operations ---------------------------------------------------------------------------
 // For contents Taquito cannot build or forge itself (e.g. update_consensus_key with a tz6/XMSS key):
-// the node simulates, forges and preapplies; we only sign and inject.
+// the node simulates and preapplies, but the bytes we sign are forged here (`rawforge.js`) and
+// the node's forging must match them, so a lying node cannot swap in another operation.
 
 import { RpcClient } from "@taquito/rpc";
+import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
 
 const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;
+const HARD_GAS_LIMIT = 1040000, HARD_STORAGE_LIMIT = 60000;
+
+/** Every content's simulation result, all applied, or an error. */
+function appliedResults(contents, replies, stage) {
+  const results = replies.map((c) => c.metadata?.operation_result);
+  if (results.length !== contents.length || results.some((r) => !r)) {
+    throw new Error(`${stage} returned ${results.length} results for ${contents.length} operations`);
+  }
+  const failed = results.find((r) => r.status !== "applied");
+  if (failed) throw new Error(`${stage} failed: ${JSON.stringify(failed.errors ?? failed)}`);
+  return results;
+}
 
 async function prepareRaw(rpcUrl, source, publicKey, contentsIn) {
   const rpc = new RpcClient(rpcUrl);
@@ -472,24 +486,23 @@ async function prepareRaw(rpcUrl, source, publicKey, contentsIn) {
   let counter = Number(contract.counter) + 1;
   const contents = [];
   if (!managerKey) contents.push({ kind: "reveal", source, public_key: publicKey, fee: "0", counter: String(counter++), gas_limit: "10000", storage_limit: "0" });
-  for (const c of contentsIn) contents.push({ ...c, source, fee: "0", counter: String(counter++), gas_limit: "1040000", storage_limit: "60000" });
+  for (const c of contentsIn) contents.push({ ...c, source, fee: "0", counter: String(counter++), gas_limit: String(HARD_GAS_LIMIT), storage_limit: String(HARD_STORAGE_LIMIT) });
 
   const sim = await rpc.simulateOperation({ operation: { branch, contents }, chain_id: chainId });
-  const results = sim.contents.map((c) => c.metadata?.operation_result ?? {});
-  const failed = results.find((r) => r.status && r.status !== "applied");
-  if (failed) throw new Error(`simulation failed: ${JSON.stringify(failed.errors ?? failed)}`);
+  const results = appliedResults(contents, sim.contents, "simulation");
   let totalGas = 0;
   const sized = contents.map((c, i) => {
     const r = results[i];
-    const gas = Math.ceil(Number(r.consumed_milligas ?? 0) / 1000) + 100;
-    const storage = Number(r.paid_storage_size_diff ?? 0) + (r.allocated_destination_contract ? 257 : 0);
+    // The node's numbers only size the limits and fee, which the user sees before signing; cap them anyway.
+    const gas = Math.min(Math.ceil(Number(r.consumed_milligas ?? 0) / 1000) + 100, HARD_GAS_LIMIT);
+    const storage = Math.min(Number(r.paid_storage_size_diff ?? 0) + (r.allocated_destination_contract ? 257 : 0), HARD_STORAGE_LIMIT);
     totalGas += gas;
     return { ...c, gas_limit: String(gas), storage_limit: String(storage) };
   });
-  const bytes = (await rpc.forgeOperations({ branch, contents: sized })).length / 2 + SIGNATURE_BYTES;
+  const bytes = forgeRawOperation(branch, sized).length / 2 + SIGNATURE_BYTES;
   const fee = MINIMAL_FEE + FEE_PER_BYTE * (bytes + 8) + Math.ceil((NANOTEZ_PER_GAS * totalGas) / 1000) + 50;
   sized[sized.length - 1].fee = String(fee);
-  const forged = await rpc.forgeOperations({ branch, contents: sized });
+  const forged = verifyRawForging(branch, sized, await rpc.forgeOperations({ branch, contents: sized }));
   return { rpc, branch, contents: sized, forged, feeMutez: fee, protocol: protocols.protocol };
 }
 
@@ -506,11 +519,16 @@ export async function sendRawOperation(rpcUrl, signerSpec, contentsJson) {
   const { rpc, branch, contents, forged, protocol } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
   const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
   const pre = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
-  const bad = pre.flatMap((p) => p.contents).map((c) => c.metadata?.operation_result).find((r) => r && r.status !== "applied");
-  if (bad) throw new Error(`preapply failed: ${JSON.stringify(bad.errors ?? bad)}`);
+  appliedResults(contents, pre.flatMap((p) => p.contents), "preapply");
   const hash = await rpc.injectOperation(sbytes);
   return { hash };
 }
+
+// Test hooks for the local forger: our bytes, Taquito's for the same contents, and the check.
+import { localForger } from "@taquito/local-forging";
+export async function forgeRawForTest(branch, contentsJson) { return forgeRawOperation(branch, JSON.parse(contentsJson)); }
+export async function taquitoForgeForTest(branch, contentsJson) { return localForger.forge({ branch, contents: JSON.parse(contentsJson) }); }
+export async function verifyRawForgingForTest(branch, contentsJson, nodeHex) { return verifyRawForging(branch, JSON.parse(contentsJson), nodeHex); }
 
 /** Waits for a raw operation to appear in a block (manager operations live in validation pass 3). */
 export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {

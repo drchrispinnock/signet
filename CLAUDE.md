@@ -197,9 +197,14 @@ automatic download is off by default. The updater is not started under the test 
   limit of staking over baking in millionths, edge of baking over staking in billionths) are read
   from `active_staking_parameters`/`pending_staking_parameters` and set with a transaction to self
   on the `set_delegate_parameters` entrypoint. Keys Taquito cannot encode (tz6 `xmpk`) go through
-  the bridge's raw path (`prepareRaw`/`sendRawOperation`/`waitForRawOperation`): the node simulates,
-  forges and preapplies, Signet signs with the baker's key; `TaquitoChainService.rawContents` picks
-  that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
+  the bridge's raw path (`prepareRaw`/`sendRawOperation`/`waitForRawOperation`): the node simulates
+  and preapplies, but the bytes are forged locally by `src/rawforge.js` (reveal,
+  update_consensus_key and update_companion_key only, from octez's `operation_repr.ml`; public
+  key tags 0 to 5 for edpk/sppk/p2pk/BLpk/mdpk/xmpk) and the node's forging must match them byte
+  for byte or nothing is signed (`verifyRawForging`), so a lying node cannot swap in a transfer.
+  `RawForgingTests` checks the encoder against Taquito's `LocalForger` for every key kind it
+  knows, and an xmpk against the Quantumnet node's forge helper (network test).
+  `TaquitoChainService.rawContents` picks that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
   Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
   and the wording says so; Ledger wallets operate normally with approval on the device.
 - **Buy (0.5, proof of concept).** The on-ramp is a Settings choice (`BuyProvider`, UserDefaults

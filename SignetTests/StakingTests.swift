@@ -169,10 +169,10 @@ struct QuantumnetBakerParametersTests {
         let octezKeys = TezosClientStore.octezClientDirectory.appendingPathComponent("public_keys")
         if let data = try? Data(contentsOf: octezKeys), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
            let xmpk = rows.compactMap({ ($0["value"] as? [String: Any])?["key"] as? String }).first(where: { $0.hasPrefix("xmpk") }) {
-            let est = try await chain.estimateStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet)
-            #expect(est.fee > 0)
             let hash: String
             do {
+                let est = try await chain.estimateStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet)
+                #expect(est.fee > 0)
                 hash = try await chain.performStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
             } catch TaquitoBridge.BridgeError.javaScript(let message) where message.contains("consensus_key.active") {
                 // A consensus key serves one baker at a time; an earlier run of this test already took it.
@@ -188,5 +188,128 @@ struct QuantumnetBakerParametersTests {
         } else {
             print("no xmpk public key in ~/.tezos-client; skipped the tz6 consensus-key step")
         }
+    }
+}
+
+/// S01: the raw path signs bytes Signet forges itself, and only when the node forges the same.
+struct RawForgingTests {
+    static let branch = "BLockGenesisGenesisGenesisGenesisGenesisf79b5d1CoW2"
+    static let bridge = TaquitoBridge.shared
+
+    private func ours(_ contents: [[String: Any]]) async throws -> String {
+        let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
+        return try #require(try await Self.bridge.call("forgeRawForTest", [Self.branch, json]).stringValue)
+    }
+
+    private func taquitos(_ contents: [[String: Any]]) async throws -> String {
+        let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
+        return try #require(try await Self.bridge.call("taquitoForgeForTest", [Self.branch, json]).stringValue)
+    }
+
+    private func header(_ kind: String, source: String, counter: String, fee: String = "1234", gas: String = "10100", storage: String = "0") -> [String: Any] {
+        ["kind": kind, "source": source, "fee": fee, "counter": counter, "gas_limit": gas, "storage_limit": storage]
+    }
+
+    @Test(arguments: [AddressScheme.tz1, .tz2, .tz3, .tz4, .tz5])
+    func forgesRevealAndConsensusKeyUpdatesLikeTaquito(scheme: AddressScheme) async throws {
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        let key = try await KeyGenerator().generate(scheme: scheme)
+        var reveal = header("reveal", source: baker.address, counter: "7", fee: "0")
+        reveal["public_key"] = baker.publicKey
+        var update = header("update_consensus_key", source: baker.address, counter: "8", fee: "300000", gas: "1040000", storage: "60000")
+        update["pk"] = key.publicKey
+        let contents = [reveal, update]
+        #expect(try await ours(contents) == taquitos(contents))
+    }
+
+    @Test(arguments: [AddressScheme.tz2, .tz3, .tz4, .tz5])
+    func forgesForEverySourceKind(scheme: AddressScheme) async throws {
+        let baker = try await KeyGenerator().generate(scheme: scheme)
+        let key = try await KeyGenerator().generate(scheme: .tz1)
+        var reveal = header("reveal", source: baker.address, counter: "1", fee: "0")
+        reveal["public_key"] = baker.publicKey
+        var update = header("update_companion_key", source: baker.address, counter: "2")
+        update["pk"] = key.publicKey
+        #expect(try await ours([reveal, update]) == taquitos([reveal, update]))
+    }
+
+    @Test func forgesABLSProofLikeTaquito() async throws {
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        let bls = try await KeyGenerator().generate(scheme: .tz4)
+        let proof = try #require(try await Self.bridge.call("provePossession", [SigningKey.secret(bls.secretKey, passphrase: nil, address: Address(bls.address)).bridgeSpec])["proof"]?.stringValue)
+        #expect(proof.hasPrefix("BLsig"))
+        var update = header("update_consensus_key", source: baker.address, counter: "3")
+        update["pk"] = bls.publicKey
+        update["proof"] = proof
+        #expect(try await ours([update]) == taquitos([update]))
+    }
+
+    @Test func zarithAndLargeNumbersMatchTaquito() async throws {
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        var update = header("update_consensus_key", source: baker.address, counter: "123456789", fee: "99999999999", gas: "1040000", storage: "60000")
+        update["pk"] = baker.publicKey
+        #expect(try await ours([update]) == taquitos([update]))
+    }
+
+    /// The audit's attack: the node returns a forged transfer where a consensus-key update was asked for.
+    @Test func refusesNodeBytesThatDifferFromOurs() async throws {
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        var update = header("update_consensus_key", source: baker.address, counter: "5")
+        update["pk"] = baker.publicKey
+        let json = String(data: try JSONSerialization.data(withJSONObject: [update]), encoding: .utf8)!
+        let honest = try await ours([update])
+
+        var transfer = header("transaction", source: baker.address, counter: "5", fee: "1234", gas: "1500")
+        transfer["amount"] = "50000000"
+        transfer["destination"] = "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx"
+        let substituted = try await taquitos([transfer])
+        #expect(substituted != honest)
+
+        await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, substituted]) }
+        // A single changed byte (fee, branch, key…) is refused too; the honest bytes pass.
+        var tampered = honest; tampered.replaceSubrange(tampered.index(tampered.startIndex, offsetBy: 70)..<tampered.index(tampered.startIndex, offsetBy: 72), with: "ff")
+        await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, tampered]) }
+        await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, honest + "00"]) }
+        await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, ""]) }
+        #expect(try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, honest.uppercased()]).stringValue == honest)
+    }
+
+    /// Live: the one key kind Taquito cannot oracle. The Quantumnet node's forge helper must agree
+    /// with our encoding of an XMSS (tz6) consensus key, taken from the local octez-client wallet.
+    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    func forgesAnXMSSKeyLikeTheQuantumnetNode() async throws {
+        let octezKeys = TezosClientStore.octezClientDirectory.appendingPathComponent("public_keys")
+        guard let data = try? Data(contentsOf: octezKeys), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let xmpk = rows.compactMap({ ($0["value"] as? [String: Any])?["key"] as? String }).first(where: { $0.hasPrefix("xmpk") }) else {
+            print("no xmpk in ~/.tezos-client; skipped")
+            return
+        }
+        let rpc = Network.quantumnet.rpcURL
+        let head = try await URLSession.shared.data(from: rpc.appendingPathComponent("chains/main/blocks/head/hash")).0
+        let branch = try #require(try JSONSerialization.jsonObject(with: head, options: [.fragmentsAllowed]) as? String)
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        var update = header("update_consensus_key", source: baker.address, counter: "9", fee: "4321")
+        update["pk"] = xmpk
+        let contents: [[String: Any]] = [update]
+
+        var request = URLRequest(url: rpc.appendingPathComponent("chains/main/blocks/head/helpers/forge/operations"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["branch": branch, "contents": contents])
+        let (reply, _) = try await URLSession.shared.data(for: request)
+        let nodeHex = try #require(try JSONSerialization.jsonObject(with: reply, options: [.fragmentsAllowed]) as? String, Comment(rawValue: String(data: reply, encoding: .utf8) ?? ""))
+
+        let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
+        #expect(try await Self.bridge.call("forgeRawForTest", [branch, json]).stringValue == nodeHex)
+    }
+
+    @Test func refusesKindsItCannotForge() async throws {
+        let baker = try await KeyGenerator().generate(scheme: .tz1)
+        var transfer = header("transaction", source: baker.address, counter: "5")
+        transfer["amount"] = "1"; transfer["destination"] = baker.address
+        await #expect(throws: (any Error).self) { try await ours([transfer]) }
+        var bad = header("update_consensus_key", source: baker.address, counter: "5")
+        bad["pk"] = "edpkNotARealKeyAtAll"
+        await #expect(throws: (any Error).self) { try await ours([bad]) }
     }
 }
