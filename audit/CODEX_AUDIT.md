@@ -1,13 +1,16 @@
 # Signet security and code-quality audit
 
-**Date:** 2026-10-08  
-**Revision:** `7544c50` (`7544c505f8a03a1024493162614db85f5b657f26`; working tree initially clean)  
-**Previous audited revision:** `a802c3c`  
-**Scope:** Current Swift models, persistence, view models, signing and network services, SwiftUI approval/import/export/buy flows, JavaScript bridge sources and committed bundle, installed signing/dApp dependencies, tests, entitlements, updater and release scripts. This re-audit compares the S02 repair against `a802c3c`, rechecks the existing finding paths, and reruns isolated behavioral checks. Findings retain their original IDs. Only this report was edited during the re-audit; no application source was changed and nothing was committed or pushed.
+**Date:** 2026-10-10
+
+**Revision:** Source snapshot based on `831394dee37bb27f3e8416265eb4cde1cca98ba9`, including the modified and untracked multisig code present during review. HEAD subsequently moved to `b0b7b13b07207bcf6180b69d670aeee4efa2dcaf` (documentation/image moves); the tested application sources still match the snapshot.
+
+**Previous audited revision:** `7544c50`, with the 2026-10-09 S06/S07 follow-ups.
+
+**Scope:** Swift models, persistence, view models, signing/network services, approval/import/export/buy flows, JavaScript bridge sources and shipped bundle, installed signing/dApp dependencies, tests, entitlements, updater and release scripts. This rerun rechecks S01–S26 and reviews multisig creation, signer resolution, contract discovery, local payload packing, proposal persistence, signing, signature collection, submission and backups. Only this audit file was edited; no application fixes, commits or pushes were made.
 
 ## Assessment
 
-After the **2026-10-09 S06 and S07 follow-ups**, there are **23 open findings: 3 High, 19 Medium and 1 Low**, plus **3 resolved findings (S02, S06 and S07, originally High)**. S19 remains open with a partial mitigation for message size and nesting. The most urgent remaining issues are RPC-controlled raw-operation signing, incomplete dApp transaction approval and destructive backup pruning. These can lead to unauthorized spending or loss of wallet data under the conditions described below. The revision, scope and validation below describe the original re-audit unless explicitly dated as a follow-up.
+There are **25 open findings: 4 High, 20 Medium and 1 Low**, plus **4 resolved findings (S01, S02, S06 and S07, originally High)**. S01's local-forging repair is verified. S19 remains partially mitigated. Three new findings are added: multisig proposal signing can authorize bytes unrelated to the displayed action (S27), contracts-only directories are skipped by backups (S28), and RPC-based signer resolution can substitute a different public key (S29). The urgent remaining issues are incomplete dApp approval (S03), destructive backup pruning (S05), and multisig signing/creation integrity (S27, S29).
 
 I did **not identify an intentional key-stealing backdoor or a deliberate network upload of wallet secret keys** in the application sources reviewed. This does not establish that all dependencies are safe. Software keys, decrypted keys, passwords and recovery phrases enter the same JavaScriptCore runtime that handles network traffic; Ledger secrets remain on the device. A malicious or exploited dependency in that runtime therefore remains a serious trust boundary.
 
@@ -17,7 +20,7 @@ Severity reflects impact and prerequisites. “Confirmed offline” means exerci
 
 Checked items have verified fixes; unchecked items remain open, including partially mitigated findings.
 
-- [ ] **S01 (High)** — Raw-operation signing trusts RPC-supplied forged bytes
+- [x] **S01 (High, resolved)** — Raw-operation signing trusted RPC-supplied forged bytes — resolved in `831394d`
 - [x] **S02 (High)** — dApp message signing could authorize an ordinary transaction — resolved in `7544c50`
 - [ ] **S03 (High)** — dApp approval omits supplied fees and contract effects
 - [ ] **S04 (Medium)** — Incoming dApp metadata can override the paired identity
@@ -43,46 +46,51 @@ Checked items have verified fixes; unchecked items remain open, including partia
 - [ ] **S24 (Medium)** — Test execution is not isolated from real wallet state
 - [ ] **S25 (Medium)** — Release pipeline can publish an incomplete update and suppress archive errors
 - [ ] **S26 (Low)** — Portfolio loading hides failures and silently truncates holdings
+- [ ] **S27 (High)** — Persisted multisig proposal bytes are signed without binding them to the displayed action
+- [ ] **S28 (Medium)** — Backups skip directories containing only contracts and proposals
+- [ ] **S29 (High)** — Multisig signer resolution accepts a public key for a different address
 
 ## Re-audit changes
 
-- **S02 is resolved for the reported cross-domain transaction-signature attack.** The original `03 + forgedTransfer` reproduction is rejected by the committed bundle. The manager validates before queueing and again before obtaining a signer; the bridge independently validates before constructing its signer. Unknown/raw/operation/missing signing types fail closed.
-- **The incomplete-envelope gap from the first repair is addressed.** Both readers now require the `05` prefix followed by exactly one structurally complete expression, enforce declared byte lengths and reject trailing bytes. Prefix-only input, truncated strings/bytes, incomplete integers and malformed sequences/arguments are rejected.
-- **The parser recursion regression is addressed.** Both readers enforce root depth zero and a maximum depth of 128, including sequence elements and generic primitive arguments. A 16,000-level nested `Some` payload (64,006 hex characters, below the signing size cap) now returns a refusal instead of crashing Swift or overflowing the JavaScript stack. Boundary depths 128/129 and wide sibling sequences were checked.
-- **S19 is only partially mitigated.** Signing payloads are capped at 65,536 hex characters (32 KiB of decoded bytes) and depth 128. Other requests, queues, metadata, HTTP bodies and unfinished asynchronous work remain unbounded at the wallet layer; the signing limits are applied after the full incoming event is parsed.
-- **S01, S03, S04, S05, S06, S10, S12 and S21 were reproduced again offline.** The remaining open findings were rechecked against their source paths. Outside the S02-related files, application source is unchanged from `a802c3c`; unchanged findings are not marked fixed merely because the new signing tests pass. No new independently demonstrated security finding was added in this re-audit.
+- **S01 is resolved:** raw operations are forged locally; node bytes must match exactly before signing. Empty/incomplete simulation and preapply results are refused. The original substituted-transfer attack is rejected without preapplication or injection.
+- **S02, S06 and S07 remain resolved.** Current-bundle signing rejection and signer-address checks pass; the native account/directory replacement and password-await removal regressions pass. The new contracts file participates in removal snapshots. S27 is a separate native multisig signing path and does not reopen the guarded dApp message API.
+- **S27–S29 are new and reproduced offline.** S27 was exercised through file persistence, the production view model and a password-verified synthetic encrypted key. S28 used a real temporary contract/proposal store and backup. S29 used a mocked resolver with a valid public key belonging to a different address.
+- **The other original findings remain open.** Their source paths were rechecked; S03, S04, S05, S10, S12 and S21 were reproduced again. The new multisig paths also extend S09, S14–S16, S19–S20 and S24. Passing happy-path multisig tests does not close these findings.
+- **Positive multisig controls:** local typed packing matches the repository's octez-client fixtures; the embedded script hash is checked; submission rebuilds the current payload, checks the counter and verifies distinct signer slots before enforcing the threshold. Those controls protect submission but do not validate the bytes passed into proposal signing or the address-to-key mapping used at creation.
 
 ## Findings and suggested solutions
 
-### S01 — High: RPC-supplied bytes are signed without local verification
+### S01 — Resolved (originally High): RPC-supplied bytes were signed without local verification
 
-**Locations:** `TaquitoBridge/src/index.js:467`, `:489`, `:503`; `Signet/Services/TaquitoChainService.swift:161`, `:203`.
+**Status:** Resolved in `831394d`; verified against the current working-tree sources and shipped bundle.
 
-The fallback used for unsupported consensus/companion public keys asks the node to forge the operation, then signs that hex directly with the operation watermark. Nothing decodes the returned bytes or checks that their branch, source, kind, key, destination, amount and fee match the intended operation. Simulation and preapplication are performed by the same untrusted server; preapplication even accepts an empty result array.
+**Locations:** `TaquitoBridge/src/rawforge.js` (`forgeRawOperation`, `verifyRawForging`); `TaquitoBridge/src/index.js` (`prepareRaw`, `appliedResults`, `sendRawOperation`); `SignetTests/StakingTests.swift` (`RawForgingTests`).
 
-A compromised or malicious configured RPC can replace an approved consensus-key update with a transfer and obtain a spendable software-key signature. It can inject those signed bytes itself. Ledger transaction display provides an additional defense, so this is not a demonstrated extraction of Ledger secrets.
+**Original issue:** A malicious RPC could return forged transfer bytes instead of an approved consensus/companion-key update and obtain a spendable signature. Assertions from that same RPC did not establish signing integrity.
 
-**Evidence:** Confirmed offline. A stub RPC returned locally forged transaction bytes for an `update_consensus_key` request. `sendRawOperation` signed and passed the substituted transfer to the stub injector; the signed bytes exactly matched a separately signed transfer.
+**Repair:** A restricted local encoder handles reveal, consensus-key and companion-key updates. The node's forged bytes must equal the complete locally forged operation; only local bytes reach signing. Unsupported operation kinds fail closed. Simulation/preapply require complete result counts and applied statuses.
 
-**Solution:** Forge supported operations locally. For new protocol encodings, implement a trusted local encoder/decoder and compare the complete decoded operation with an immutable approved intent before signing. If that cannot be done, disable this fallback and direct the user to a tool that supports the encoding. Require complete simulation/preapply results with matching contents and applied statuses, but do not use those server assertions as the signing integrity check. Add a regression test where the RPC substitutes a transaction, source, branch, key or fee and verify that no signing occurs.
+**Evidence:** The current shipped bundle refused a substituted transfer before preapplication or injection. Empty simulation and empty preapply replies were rejected, while the honest mocked operation reached the stub injector. Native bridge tests compare local forging with Taquito for supported ordinary source/key schemes, large Zarith values and BLS proofs, and reject mismatched node bytes. The rebuilt bundle is byte-identical to the shipped resource.
+
+**Scope of closure:** This closes RPC byte substitution for the supported raw operations. S14's unbound estimates still apply. No live protocol operation, XMSS hardware/on-chain compatibility test or exhaustive protocol-encoding verification was performed; retain canonical encoding fixtures and adversarial byte-comparison tests as release gates.
 
 ### S02 — Resolved (originally High): “Sign message” could produce a transaction signature
 
 **Status:** Resolved in `7544c50`; original exploit and repair regressions checked against the current sources and committed bundle.
 
-**Locations:** `Signet/Models/DAppRequest.swift:123`; `Signet/Models/Micheline.swift:17`; `Signet/Services/DAppConnectionManager.swift:127`, `:181`; `TaquitoBridge/src/octezconnect.js:192`, `:202`; `TaquitoBridge/src/micheline.js:46`; `SignetTests/DAppTests.swift:86`.
+**Locations:** `Signet/Models/DAppRequest.swift`; `Signet/Models/Micheline.swift`; `Signet/Services/DAppConnectionManager.swift`; `TaquitoBridge/src/octezconnect.js`; `TaquitoBridge/src/micheline.js`; `SignetTests/DAppTests.swift`.
 
 **Original issue:** At `a802c3c`, the message API signed caller bytes unchanged without enforcing the signing type or safe data envelope. The payload `03 + forgedTransfer` produced exactly the signature for `signer.sign(forgedTransfer, [3])`, allowing an ordinary transaction to be authorized through the “Sign message” approval.
 
 **Current behavior:** Only the exact `micheline` type is accepted. Payloads must be even-length hex within the 65,536-character cap, begin with packed-data prefix `05`, and contain exactly one structurally complete Micheline expression. The Swift and JavaScript readers check lengths, child structure, full consumption and depth 128. Swift validates before queueing and before signer lookup; JavaScript validates before `signerFor`. These checks reject the transaction watermark input regardless of its claimed type. Missing signing types are also rejected by the bridge, and the request parser defaults a missing type to the refused `raw` type.
 
-**Evidence:** The current committed bundle rejected the original forged-transfer payload for `micheline`, `operation`, `raw`, unknown and missing types. Valid packed messages still matched direct synthetic-key signatures. The malformed-envelope and depth boundary/crash cases passed in isolated Swift tests, the Node bundle harness, and a JavaScriptCore harness using the shipped resource. The bridge rejects invalid payloads even with an invalid signer specification, demonstrating that rejection precedes signer access. A fresh bundle rebuild was byte-identical to the committed resource.
+**Evidence:** The current committed bundle rejected the original forged-transfer payload for `micheline`, `operation`, `raw`, unknown and missing types. Valid packed messages still matched direct synthetic-key signatures. The current isolated Swift tests and Node harness pass malformed-envelope and depth-boundary checks. The earlier audit also exercised the 16,000-level crash input and a dedicated JavaScriptCore envelope harness. The bridge rejects invalid payloads even with an invalid signer specification, demonstrating that rejection precedes signer access. A fresh bundle rebuild was byte-identical to the committed resource.
 
 **Scope of closure:** This closes the ordinary operation-signature confusion. The readers validate binary structure rather than Michelson types: primitive identifiers and string/annotation semantics are not fully validated. Further syntax correctness hardening may reject unknown primitive identifiers or invalid UTF-8, but those accepted structures still retain the `05` data prefix and did not restore the demonstrated attack. Arbitrary packed-data signatures can have application-specific authorization meaning; closure does not imply every accepted message is merely proof of account control. Peer grants, request identity, account binding and operation approval remain covered by S04, S06, S08 and S03. Keep the rejection regressions as release gates.
 
 ### S03 — High: Approval hides fees and contract effects that execution preserves
 
-**Locations:** `TaquitoBridge/src/octezconnect.js:153`, `:176`, `:211`; `Signet/Services/DAppConnectionManager.swift:222`; `Signet/Views/DAppRequestSheet.swift:85`.
+**Locations:** `TaquitoBridge/src/octezconnect.js`; `Signet/Services/DAppConnectionManager.swift`; `Signet/Views/DAppRequestSheet.swift`.
 
 Transaction conversion preserves caller-supplied `fee`, `gas_limit`, `storage_limit` and full contract parameters. The summary shows only the top-level tez amount, destination and entrypoint. An operation sending zero tez can carry a large fee or transfer valuable tokens, approve an operator, or change contract permissions. Origination summaries likewise omit script and initial storage. The UI says fees are estimated when approving, although explicit caller fees are accepted.
 
@@ -92,7 +100,7 @@ Transaction conversion preserves caller-supplied `fee`, `gas_limit`, `storage_li
 
 ### S04 — Medium: Request metadata can impersonate another dApp
 
-**Locations:** `Signet/Models/DAppRequest.swift:48`; `TaquitoBridge/src/octezconnect.js:54`; installed `@tezos-x/octez.connect-wallet/dist/cjs/interceptors/IncomingRequestInterceptor.js:90`.
+**Locations:** `Signet/Models/DAppRequest.swift`; `TaquitoBridge/src/octezconnect.js`; installed `@tezos-x/octez.connect-wallet/dist/cjs/interceptors/IncomingRequestInterceptor.js`.
 
 The installed legacy interceptor combines trusted metadata and the incoming message as `Object.assign({ appMetadata }, message)`, allowing the message to override registered metadata. The Swift parser trusts `appMetadata.name`, `appUrl`, `icon` and even `senderId` ahead of the outer sender. It discards authenticated transport context. The wrapped path also spreads blockchain payload fields after identity/envelope fields, which deserves explicit sanitization.
 
@@ -102,7 +110,7 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 ### S05 — High: Backup retention deletes directories it does not own
 
-**Locations:** `Signet/Services/WalletBackup.swift:77`, `:116`, `:130`; `Signet/Services/BackupSettings` is defined in the same file.
+**Locations:** `Signet/Services/WalletBackup.swift`; `Signet/Services/BackupSettings` is defined in the same file.
 
 `generations(in:)` considers every non-hidden directory under the chosen backup destination to be a backup generation. Retention recursively deletes the oldest of these. Selecting a shared folder or a parent containing unrelated documents can therefore delete those documents during a routine or startup backup. Multiple wallet directories also share the same generation namespace.
 
@@ -112,9 +120,9 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 ### S06 — High: A stale wallet object can sign with another account's key
 
-**Status:** Resolved by the signing-boundary repair committed with this report on 2026-10-09, completing the partial mitigation in `77f81f8`.
+**Status:** Resolved in `a9d8f3e`, completing the earlier native alias/address check; reverified on 2026-10-10.
 
-**Locations:** `Signet/Services/TezosClientStore.swift:182`; `Signet/ViewModels/WalletViewModel.swift:693`; `Signet/ViewModels/SendViewModel.swift:75`, `:186`; `TaquitoBridge/src/signers.js:10`.
+**Locations:** `Signet/Services/TezosClientStore.swift`; `Signet/ViewModels/WalletViewModel.swift`; `Signet/ViewModels/SendViewModel.swift`; `TaquitoBridge/src/signers.js`.
 
 **Original issue:** Send captured its original wallet and chain, but its signer provider read the view model's current wallet store. Secret lookup used only the alias. Switching directories, replacing files externally or reusing an alias could therefore return a different account's secret while the sheet still identified the original sender. Software signer specifications contained no expected address check.
 
@@ -122,27 +130,27 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 **Repair:** Native lookup verifies the alias/address mapping. Swift software signing specifications require the approved address. The shared JavaScript signer factory requires a nonempty string expected address before loading a secret, then unconditionally derives and compares the key's public key hash before returning the signer. Replacing the secret after native lookup cannot bypass that final check. All software signing callers use this factory.
 
-**Evidence:** Offline rebuilt-bundle checks reject mismatched clear and encrypted keys for tz1–tz5 and allow matching keys. Missing, null, empty, whitespace-only and non-string expected addresses are rejected. Native regression tests cover stale wallets after directory changes and alias/address replacement. See the dated validation below.
+**Evidence:** The current Node and native tests reject a key for another address and missing/invalid expected addresses; native regressions cover stale wallets after directory changes and alias/address replacement. The 2026-10-09 checks additionally exercised matching and mismatched clear/encrypted keys across tz1–tz5. See the current validation below.
 
-**Scope of closure:** This prevents substitution of another account's software signing key. Network identity, dApp grants and other changes to approval context remain covered by S08, S12 and S20.
+**Scope of closure:** This prevents substitution of another account's software signing key. Network identity, dApp grants and other changes to approval context remain covered by S08, S12 and S16.
 
 ### S07 — High: Forget can remove another wallet after asynchronous password verification
 
-**Status:** Resolved by the S07 repair committed with this report on 2026-10-09.
+**Status:** Resolved in `840e97f`; reverified on 2026-10-10, including the current contracts-file snapshot handling.
 
 **Locations:** `Signet/ViewModels/WalletViewModel.swift` (`forgetSelectedWallet`, `changeWalletDirectory`); `Signet/Services/WalletStore.swift`; `Signet/Services/TezosClientStore.swift` (`removalSnapshot`, `remove(_:matching:)`).
 
 **Original issue:** Forget validated one account's encrypted key, awaited decryption, then removed its alias from the current store. A directory switch could delete a different account. Capturing only the directory URL and checking the address was insufficient: replacing the encrypted key under the same alias/address during the await still deleted the replacement after validating the old key's password.
 
-**Repair:** Capture the original store, a directory-change revision and an account snapshot before decryption; decrypt the snapshot's key. Every directory switch invalidates the revision, including switching away and back. Under the same wallet lock used for deletion, compare all matching rows across the three octez files and the actual directory identity (resolved path, device and inode), then remove only if unchanged. The in-memory store enforces the same snapshot contract. Unrelated account edits remain allowed.
+**Repair:** Capture the original store, a directory-change revision and an account snapshot before decryption; decrypt the snapshot's key. Every directory switch invalidates the revision, including switching away and back. Under the same wallet lock used for deletion, compare all matching rows across the three octez files and the actual directory identity (resolved path, device and inode), then remove only if unchanged. The in-memory store enforces the same snapshot contract. The current file-backed snapshot also covers matching entries in `contracts`. Unrelated account edits remain allowed.
 
-**Evidence:** Regression tests reject replacement encrypted keys during password verification, directory switches and switches back, edits to each account file, replacement directories at the same path, added keys on watch-only accounts and snapshots from another in-memory store. Successful password-verified deletion and unrelated-account edits also pass. See the dated validation below.
+**Evidence:** Regression tests reject replacement encrypted keys during password verification, directory switches and switches back, edits to each account file, replacement directories at the same path, added keys on watch-only accounts and snapshots from another in-memory store. Successful password-verified deletion and unrelated-account edits also pass. See the current validation below.
 
 **Scope of closure:** This closes deletion of a changed account across password-verification suspension. The existing advisory lock coordinates cooperating wallet writers; broader multi-file transaction and filesystem permission issues remain S09–S10.
 
 ### S08 — Medium: dApp grants do not bound signing, and directory changes retain old sessions
 
-**Locations:** `Signet/Services/DAppConnectionManager.swift:102`, `:162`, `:181`, `:212`; `Signet/ViewModels/WalletViewModel.swift:293`, `:340`; `Signet/Models/DAppRequest.swift:78`.
+**Locations:** `Signet/Services/DAppConnectionManager.swift`; `Signet/ViewModels/WalletViewModel.swift`; `Signet/Models/DAppRequest.swift`.
 
 Approval finds any locally held source account, rather than requiring an active grant for the authenticated peer, exact account, network and requested scope. The installed SDK receive path forwards requests without that wallet-level authorization check. Removing a permission does not invalidate queued requests. Changing wallet directories replaces the wallet provider's accounts but retains the existing manager/storage/peers, so old sessions can ask about new-directory accounts.
 
@@ -152,15 +160,17 @@ User approval is still required; this is not a silent signing bypass by itself. 
 
 ### S09 — Medium: Atomic individual files do not make a wallet transaction atomic
 
-**Locations:** `Signet/Services/TezosClientStore.swift:80`, `:119`, `:139`, `:151`, `:234`; `Signet/Services/WalletBackup.swift:77`; `Signet/ViewModels/WalletViewModel.swift:311`.
+**Locations:** `Signet/Services/TezosClientStore.swift`; `Signet/Services/WalletBackup.swift`; `Signet/ViewModels/WalletViewModel.swift`.
 
 Add writes hashes, public keys and secret keys separately. Rename/remove/import do the same. Failure or termination between replacements can leave an alias without its recoverable secret or break the joins used to find existing keys. `load()` and backup copying do not acquire the wallet lock, so they can observe/copy different stages of a mutation. Detached backups can overlap; same-second jobs can choose the same staging directory and remove it while another job is using it.
+
+**Multisig extension:** `FileMultisigProposalStore` replaces a complete proposal array without the wallet lock or a merge transaction. Concurrent instances can lose proposals/signatures; contract aliases, wallet files and proposal data are not one recoverable transaction.
 
 **Solution:** Serialize local mutations and backup jobs in a storage coordinator. Preserve octez-client locking, add a recoverable journal for multi-file changes, and verify/recover incomplete transactions on startup. Take a locked snapshot for readers/backups and use UUID staging names with cleanup on failure. Avoid blocking the main actor indefinitely on `lockf(F_LOCK)`; perform lock acquisition and disk I/O on a dedicated worker. Test failure between each replacement and concurrent backup/mutation.
 
 ### S10 — Medium: Secrets are written before restrictive permissions are set
 
-**Locations:** `Signet/Services/TezosClientStore.swift:234`; `Signet/Services/OctezConnectStorage.swift:43`; `Signet/Services/AppStateStore.swift:35`; `Signet/Services/WalletBackup.swift:78`.
+**Locations:** `Signet/Services/TezosClientStore.swift`; `Signet/Services/OctezConnectStorage.swift`; `Signet/Services/AppStateStore.swift`; `Signet/Services/WalletBackup.swift`.
 
 Secret and relay-seed files are created through Foundation atomic writes and only subsequently chmodded. Existing directories are not hardened by `createDirectory(...0700)`. An imported or chosen permissive directory can make new temporary secrets readable by other local users before chmod; final-file metadata preservation can create another transition. A crash can leave a temporary secret behind. With a correctly private parent directory, traversal protection reduces this risk substantially.
 
@@ -170,7 +180,7 @@ Secret and relay-seed files are created through Foundation atomic writes and onl
 
 ### S11 — Medium: Diagnostics persist credentials and private request content
 
-**Locations:** `Signet/Services/TaquitoBridge.swift:174`, `:285`, `:339`, `:355`, `:365`; `Signet/Services/DAppConnectionManager.swift:59`, `:114`; `TaquitoBridge/src/octezconnect.js:69`.
+**Locations:** `Signet/Services/TaquitoBridge.swift`; `Signet/Services/DAppConnectionManager.swift`; `TaquitoBridge/src/octezconnect.js`.
 
 Production starts the SDK with debug enabled. Bridge fetch tracing stores complete URLs and response prefixes; Matrix authentication replies can place access tokens in those prefixes. Relay diagnostics decrypt messages and log their contents, while incoming event logs include payload prefixes. The rolling log uses default directory/file permissions, and its size is checked only when the handle opens, allowing indefinite growth during a long session. Support transcripts can inadvertently disclose sessions or sensitive signed messages.
 
@@ -178,7 +188,7 @@ Production starts the SDK with debug enabled. Bridge fetch tracing stores comple
 
 ### S12 — Medium: Network labels do not establish the chain being signed on
 
-**Locations:** `Signet/Models/Network.swift:75`; `Signet/Models/DAppRequest.swift:78`; `Signet/Services/NodeMonitor.swift:105`; `TaquitoBridge/src/index.js:218`, `:234`.
+**Locations:** `Signet/Models/Network.swift`; `Signet/Models/DAppRequest.swift`; `Signet/Services/NodeMonitor.swift`; `TaquitoBridge/src/index.js`.
 
 Node configuration accepts HTTP and does not verify the node's chain ID against the selected network. A user can label a mainnet-serving endpoint as a testnet and receive a valid branch for that real chain. dApp custom RPC URLs bypass the settings parser entirely, including loopback/private endpoints. Known custom-network matching compares only hosts, ignoring scheme, port and path. The approval sheet generally shows a network name or host rather than a verified chain identity.
 
@@ -188,7 +198,7 @@ Node configuration accepts HTTP and does not verify the node's chain ID against 
 
 ### S13 — Medium: Artwork loading has no destination or download-size boundary
 
-**Locations:** `Signet/Services/IPFS.swift:61`; `Signet/Services/ImageLoader.swift:33`, `:43`; `Signet/Services/TzKTService.swift:89`.
+**Locations:** `Signet/Services/IPFS.swift`; `Signet/Services/ImageLoader.swift`; `Signet/Services/TzKTService.swift`.
 
 Token/NFT metadata supplies image URLs. HTTP(S) destinations pass through without blocking loopback, link-local or private addresses; redirects are followed. Loading attacker-created assets can generate requests to local services and disclose wallet viewing activity to tracking endpoints. `data(from:)` buffers the complete response before downsampling, so thumbnail limits do not limit downloaded bytes or decode input. IPFS relative references also need validation so a purported content path cannot escape the intended gateway origin.
 
@@ -196,33 +206,39 @@ Token/NFT metadata supplies image URLs. HTTP(S) destinations pass through withou
 
 ### S14 — Medium: The reviewed estimate is not an execution limit
 
-**Locations:** `Signet/ViewModels/SendViewModel.swift:156`, `:186`; `TaquitoBridge/src/index.js:218`, `:234`, `:370`, `:379`; `Signet/Views/StakingSheet.swift:273`; `Signet/ViewModels/WalletViewModel.swift:623`.
+**Locations:** `Signet/ViewModels/SendViewModel.swift`; `TaquitoBridge/src/index.js`; `Signet/Views/StakingSheet.swift`; `Signet/ViewModels/WalletViewModel.swift`.
 
 Send estimates an operation, then separately submits a transfer without the approved fee/gas/storage values or a maximum debit. Taquito can re-estimate during submission. Staking follows the same pattern, including the raw path, which re-simulates and re-forges. Changed chain state or malicious estimates can increase what the user pays beyond the displayed confirmation. S03 separately covers explicit hidden dApp fees.
+
+**Multisig extension:** Creation and submission estimates are separate from their execution calls. Submission rebuilds/re-estimates and does not carry approved maximum fee, burn or total debit into signing. S01's exact local byte comparison does not bind this rebuilt operation to an earlier displayed estimate.
 
 **Solution:** Create an immutable prepared operation, calculate its maximum fee and storage burn, and approve those limits together with sender/network/destination/amount. Sign that exact preparation. If rebuilding changes material terms, require a new approval. Cap protocol-derived values locally and test increased fees, allocation burn and state changes between review and execution.
 
 ### S15 — Medium: Unknown injection outcomes can lead to duplicate payments
 
-**Locations:** `Signet/ViewModels/SendViewModel.swift:186`; `TaquitoBridge/src/index.js:234`; `Signet/Services/DAppConnectionManager.swift:162`.
+**Locations:** `Signet/ViewModels/SendViewModel.swift`; `TaquitoBridge/src/index.js`; `Signet/Services/DAppConnectionManager.swift`.
 
 If an injection reaches a node but its reply is lost, Send receives an exception and returns from `.sending` to `.confirm`. A retry constructs another operation, potentially with a new counter after the first was included. The user can then pay twice. dApp execution also does not retain a locally computed hash/signed payload for recovery from an ambiguous result.
+
+**Multisig extension:** Origination/submission await confirmation inside the bridge before returning the hash to Swift. A confirmation failure can hide an already-injected operation. Retrying creation can originate another contract. The multisig counter prevents a confirmed action being replayed with its old counter, but does not provide an operation-hash recovery flow.
 
 **Solution:** Compute and persist the operation hash and signed bytes before injection. Represent unknown submission outcome separately from definite rejection; query pending/included status before retrying and rebroadcast the same signed bytes when appropriate. Never create a new payment merely because an HTTP response was lost. Test accepted-injection/lost-response and reconnect scenarios.
 
 ### S16 — Medium: Async work can publish data into the wrong account/network
 
-**Locations:** `Signet/ViewModels/WalletViewModel.swift:110`, `:340`, `:386`, `:623`, `:669`; `Signet/Views/StakingSheet.swift:273`.
+**Locations:** `Signet/ViewModels/WalletViewModel.swift`; `Signet/Views/StakingSheet.swift`.
 
 `refresh()` assigns `tezBalance` before checking the selected address. Its later guard only checks the address, not the network or directory, and subsequent awaited assignments have no renewed check. A delayed mainnet refresh can populate a testnet view for the same address, or stale account data can arrive after selection changes. Network/directory changes clear only some fields; account-not-on-chain handling leaves old balance/delegate state. Overlapping refreshes also share one loading flag.
 
 Staking/governance read the mutable chain again after injection to wait for confirmation, potentially polling a different network. Their confirmation flows use the live selection rather than a captured account intent.
 
+**Multisig extension:** Creation/addition record the contract in the current wallet store after RPC awaits; proposal preparation stamps the current network name and saves to the current proposal store after awaiting a payload from a captured endpoint. Directory/network switches can mix contexts. Signing/submission completion also mutates current proposal state without a captured context revision.
+
 **Solution:** Capture one chain, account, directory revision and refresh generation. Await a complete snapshot, then publish it atomically only if the generation still matches. Cancel superseded work and clear all dependent fields on context changes. Capture immutable operation context for estimate, approval, signing and confirmation. Test delayed responses with account/network changes and overlapping refreshes.
 
 ### S17 — Medium: Reply failure is reported as successful request completion
 
-**Locations:** `Signet/Services/DAppConnectionManager.swift:134`, `:162`, `:181`, `:235`.
+**Locations:** `Signet/Services/DAppConnectionManager.swift`.
 
 `respond()` catches transmission failures and returns normally. Callers then remove the request and set “Connected”, “Sent” or “Signed” success messages. A transaction may have been injected while the dApp never receives its hash; repeating the action can duplicate its effects. Permission and signature response failures similarly lose recoverable state.
 
@@ -230,7 +246,7 @@ Staking/governance read the mutable chain again after injection to wait for conf
 
 ### S18 — Medium: Failed or concurrent startup leaves a false connected state
 
-**Locations:** `TaquitoBridge/src/octezconnect.js:40`, `:52`, `:232`; `Signet/Services/DAppConnectionManager.swift:51`, `:78`.
+**Locations:** `TaquitoBridge/src/octezconnect.js`; `Signet/Services/DAppConnectionManager.swift`.
 
 JavaScript assigns the global client before awaiting `connect()`. If connection fails, the next start sees a non-null client and reports success without reconnecting. Swift guards only `isStarted`, so concurrent start calls can both enter while the first is awaiting. Concurrent initialization can produce multiple clients/listeners against one storage and overwrite the global client. Pairing also reports success before asynchronous `addPeer` completes.
 
@@ -238,25 +254,29 @@ JavaScript assigns the global client before awaiting `connect()`. If connection 
 
 ### S19 — Medium: Untrusted dApp/bridge input lacks bounded resource budgets
 
-**Locations:** `Signet/Services/DAppConnectionManager.swift:114`; `Signet/Models/DAppRequest.swift:34`; `Signet/Services/TaquitoBridge.swift:64`, `:285`; `TaquitoBridge/src/octezconnect.js:102`, `:153`.
+**Locations:** `Signet/Services/DAppConnectionManager.swift`; `Signet/Models/DAppRequest.swift`; `Signet/Services/TaquitoBridge.swift`; `TaquitoBridge/src/octezconnect.js`.
 
 There are no wallet-level limits on queued requests, operation count, overall incoming event bytes or metadata length. The S02 repair now limits sign_payload hex to 65,536 characters and its Micheline nesting to 128, but it does not bound operation batches or event parsing before that validation. A paired malicious peer can send unique IDs, oversized payloads or huge batches and consume memory/UI/JavaScript time. The installed SDK deduplicates pending IDs, but that does not bound unique requests. Bridge HTTP bodies are buffered without a response-size cap. Swift task cancellation does not cancel the continuation's JavaScript work, and unresolved promises can retain operations indefinitely.
 
 **Partial mitigation:** The new signing readers reject excessive depth before recursive descent; the previously observed in-cap parser crash is fixed. These protections apply only to the sign_payload validation path.
 
+**Multisig extension:** Persisted proposal bytes, key/signature arrays and the proposal file have no explicit size/count budget. The S02 packed-data limits are not applied at the native multisig signing boundary.
+
 **Remaining solution:** Validate and cap message bytes, string lengths, operation count, nesting and per-peer pending/in-flight work before parsing or approval. Add bounded network bodies and operation-specific timeouts/cancellation. Distinguish cancellation before signing from an unknown post-injection outcome. Reject rate-limited requests explicitly. Test floods, oversized payloads and unresolved bridge promises.
 
 ### S20 — Medium: Server-controlled numbers reach trapping Swift conversions
 
-**Locations:** `Signet/Services/TaquitoChainService.swift:102`, `:127`, `:140`, `:188`, `:248`; `Signet/Services/JSONValue.swift:15`.
+**Locations:** `Signet/Services/TaquitoChainService.swift`; `Signet/Services/JSONValue.swift`.
 
 Several RPC-derived values are converted with `Int(double)` or `.map(Int.init)` without finite/range validation. Swift traps on non-finite or out-of-range values. JavaScript calculations and malicious RPC responses can supply such numbers, turning a service failure into an application crash. Defaults of zero and permissive missing-field handling can also make malformed estimates look valid.
+
+**Multisig extension:** `BridgeMultisigService.estimate` also converts RPC-derived doubles with unchecked `Int(...)`. Invalid/overflowing string counters and thresholds default to zero in `info(from:)`, instead of reporting malformed state.
 
 **Solution:** Centralize strict finite, integer and protocol-range decoding; use checked conversions and reject unexpected shapes. Validate nonnegative fees/gas/storage, result counts and statuses on the JavaScript side too. Test negative, fractional, very large and non-finite values and missing simulation entries, with an error outcome instead of a process trap.
 
 ### S21 — Medium: Faucet challenges are not bounded or cancellable
 
-**Locations:** `Signet/Services/FaucetService.swift:87`, `:104`, `:136`; `Signet/ViewModels/WalletViewModel.swift:600`.
+**Locations:** `Signet/Services/FaucetService.swift`; `Signet/ViewModels/WalletViewModel.swift`.
 
 The parser accepts any integer difficulty. Negative difficulty reaches `String(repeating:count:)`, which traps; extreme values allocate excessive memory. Hard/impossible work loops forever with no cancellation check, deadline or total challenge bound. Verification can return an unlimited sequence of challenges. Running it in a detached task prevents UI blocking but does not prevent sustained CPU consumption or allow reliable cancellation.
 
@@ -266,7 +286,7 @@ The parser accepts any integer difficulty. Negative difficulty reaches `String(r
 
 ### S22 — Medium: Timed-out Ledger exchanges can contaminate the next exchange
 
-**Locations:** `Signet/Services/LedgerHID.swift:198`, `:242`, `:248`; `TaquitoBridge/src/ledger.js:33`, `:63`.
+**Locations:** `Signet/Services/LedgerHID.swift`; `TaquitoBridge/src/ledger.js`.
 
 Timeout clears the pending callback but leaves the HID device/channel open. The next exchange resets framing and starts another pending request on the same channel. If the first response arrives late, it can satisfy the new request because response framing does not carry an exchange identifier. Per-APDU busy checks also do not guarantee serialization of an entire multi-APDU signing session.
 
@@ -274,7 +294,7 @@ Timeout clears the pending callback but leaves the HID device/channel open. The 
 
 ### S23 — Medium: Embedded purchase content has excessive navigation/media privileges
 
-**Locations:** `Signet/Views/BuyWebView.swift:36`, `:76`, `:88`, `:93`; `Signet/Services/BuyProvider.swift:36`.
+**Locations:** `Signet/Views/BuyWebView.swift`; `Signet/Services/BuyProvider.swift`.
 
 Foreign top-level navigation is redirected to the browser only for `.linkActivated`; forms, redirects and script-driven navigation can remain inside the wallet's embedded purchase UI without an origin indicator. `window.open` forwards arbitrary URL schemes to `NSWorkspace.open`. Camera/microphone permission is auto-granted based on hostname alone, including every provider subdomain, without checking scheme/port or the initiating frame.
 
@@ -284,15 +304,17 @@ A compromised provider/subdomain or navigation to attacker content can exploit t
 
 ### S24 — Medium: Hosted tests can access live wallet identity and mutate backup state
 
-**Locations:** `Signet/SignetApp.swift:5`; `Signet/ViewModels/WalletViewModel.swift:246`, `:291`; `SignetTests/DAppStartupTests.swift:10`; `SignetTests/StakingTests.swift:169`; `SignetTests/OctezConnectEndToEnd.swift:9`.
+**Locations:** `Signet/SignetApp.swift`; `Signet/ViewModels/WalletViewModel.swift`; `SignetTests/DAppStartupTests.swift`; `SignetTests/StakingTests.swift`; `SignetTests/OctezConnectEndToEnd.swift`.
 
 The test-host guards disable dApp startup and Sparkle, but the app still constructs real configured stores, loads wallet state and schedules a backup. Given S05, running tests can prune the user's configured backup destination. `DAppStartupTests` deliberately copies the real relay seed/session into a networked client; the live baker test reads the user's real octez public keys and can assign one as a testnet consensus key. Several tests share and mutate the singleton bridge while Swift Testing can run suites concurrently. Network tags alone do not make tests opt-in. Some integration harness paths are machine-specific.
+
+**Multisig extension:** The new live Shadownet tests request faucet funds and originate contracts. Their network tag is categorization, not an opt-in execution gate. The live XMSS test also consults the real octez wallet. These tests were excluded from this rerun.
 
 **Solution:** Construct an entirely isolated test app model before any live store, backup or network service initializes. Replace real persisted sessions/keys with fixtures and make live/hardware tests explicitly opt-in in a separate scheme/target. Inject per-test bridge instances/storage and serialize genuinely shared resources. Use configurable temporary harness locations. Add a launch-isolation check verifying that no real wallet/backup paths are opened. Do not rely solely on disabling the dApp client.
 
 ### S25 — Medium: Release publication is not fail-closed
 
-**Locations:** `.github/workflows/release.yml:69`, `:95`; `scripts/release.sh:58`; `Signet/Info.plist:9`; `project.yml:12`.
+**Locations:** `.github/workflows/release.yml`; `scripts/release.sh`; `Signet/Info.plist`; `project.yml`.
 
 The workflow creates a public GitHub release before building and uploading its assets. Because the updater reads `releases/latest/download/appcast.xml`, a build failure or missing signing configuration can make the latest release lack the feed, disrupting automatic updates. Reruns replace ZIP and appcast separately, temporarily exposing mismatched assets. The archive command is piped through `grep ... || true`, losing the actual build status; checking that an app directory exists is weaker than checking successful archive completion. The release workflow has no test or source/bundle consistency gate.
 
@@ -300,55 +322,71 @@ The workflow creates a public GitHub release before building and uploading its a
 
 ### S26 — Low: Portfolio failures and truncation look like complete empty holdings
 
-**Locations:** `Signet/Services/TzKTService.swift:46`, `:80`; `Signet/Services/TaquitoChainService.swift:71`, `:258`, `:281`.
+**Locations:** `Signet/Services/TzKTService.swift`; `Signet/Services/TaquitoChainService.swift`.
 
 Token/NFT loading fetches only the most recently updated 200 balances without pagination. Separate fungible/NFT calls duplicate that request. Indexer errors become empty successful arrays, hiding the distinction between “none” and “unavailable.” Attacker token spam can push older legitimate holdings outside the returned page. Metadata decimals are not range-validated, allowing nonsensical or non-finite displayed amounts.
 
 **Solution:** Fetch one paginated snapshot, retain explicit completeness/error state, preserve the last known data with an unavailable indicator, and validate metadata/numeric ranges. Bound pagination while clearly marking partial results. Test accounts above the page limit, indexer failures and malformed decimals. This is a display/correctness finding; the current code does not establish a direct asset-spending exploit from pagination.
 
-## Validation performed on `7544c50`
+### S27 — High: Proposal signing trusts persisted bytes rather than the displayed action
 
-All cryptographic checks used synthetic keys and offline mocks. Native filesystem checks used UUID-named temporary directories and artificial secret strings. No live operation, real wallet backup, real relay login, production log inspection or hardware exchange was performed. The npm vulnerability query was the dependency check's only required external service.
+**Locations:** `Signet/Models/Multisig.swift` (`MultisigProposal`, `FileMultisigProposalStore`); `Signet/ViewModels/WalletViewModel.swift` (`signMultisigProposal`); `Signet/Views/SignMultisigSheet.swift`; `TaquitoBridge/src/index.js` (`signPayload`).
+
+The proposal JSON independently stores display fields (`action`, contract, network, chain ID, counter, keys and threshold) and `bytes`. Signing checks membership using the stored key list, then signs `proposal.bytes` verbatim. It never reconstructs the expected typed payload or compares it with those bytes. The generic native bridge signing API also accepts operation-watermarked bytes; it has none of the dApp API's S02 envelope checks.
+
+**Evidence:** Confirmed through the complete saved-proposal signing path. Two temporary JSON proposals displayed a one-tez transfer but carried either a different valid multisig delegation payload or `03 + forgedTransfer`. After password verification of a synthetic encrypted key, the model produced the exact signature for the substituted bytes; signatures verified cryptographically. No real transaction was submitted.
+
+**Impact and prerequisites:** An attacker able to replace proposal data in a selected/shared wallet directory can turn approval of benign displayed terms into authorization of another multisig action or an ordinary operation from the selected account. This requires access to proposal storage, not the encrypted secret or password; the user must approve/sign the modified proposal. Multisig spending additionally needs the contract's required valid signatures. The ordinary-operation case needs valid branch/counter/fees on the target chain. Submission-time verification cannot retract a signature already produced for attacker-selected bytes. This does not demonstrate a remote dApp bypass of S02.
+
+**Solution:** Treat persisted proposals as untrusted. Capture account/network/directory context, verify contract script and current signer state, and locally reconstruct the typed chain/contract/counter/action payload before signing. Require exact byte equality and a dedicated multisig packed-data signing API that refuses operation envelopes. Derive displayed terms from the same verified immutable payload. Recheck context after password/device awaits. Test changed bytes, action, chain, contract, counter, membership and storage context before signer access.
+
+### S28 — Medium: Contracts-only directories are silently excluded from backups
+
+**Locations:** `Signet/Services/WalletBackup.swift` (`files`, `run`); `Signet/Services/TezosClientStore.swift` (`addContract`); `Signet/Models/Multisig.swift` (`FileMultisigProposalStore`).
+
+The backup file list now includes `contracts` and `multisig_proposals.json`, but `run` still returns `nothingToBackUp` unless `public_key_hashs` exists. Adding a contract/proposals to a fresh directory does not create that account file, so explicit and automatic backups skip valuable state despite its inclusion in the list.
+
+**Evidence:** A temporary directory containing a real stored contract alias and proposal, but no account hash file, returned `nothingToBackUp` even with `force: true`; no backup generation was created.
+
+**Solution:** Determine eligibility from supported data actually present, rather than one account file. Back up and restore contracts/proposals in otherwise empty directories and report absence/failure distinctly. Test contracts-only, proposals-only and mixed directories, while fixing S05's pruning ownership boundary.
+
+### S29 — High: RPC signer resolution can substitute a different account's key
+
+**Locations:** `Signet/ViewModels/WalletViewModel.swift` (`multisigSignerKey`); `Signet/Services/MultisigService.swift` (`revealedPublicKey`); `TaquitoBridge/src/multisig.js` (`multisigRevealedKey`); `Signet/Views/CreateMultisigSheet.swift` (`Signer`, signer list).
+
+When a pasted/address-book signer has no locally known public key, the model accepts the configured RPC's revealed-key response without deriving its address and comparing it with the entered address. The creation UI continues displaying the original address; the resolved key goes into the contract's signer list. A valid key for another account passes the later superficial public-key check and can be used to originate a valid generic multisig.
+
+**Evidence:** An offline model test supplied a valid synthetic public key whose derived address differed from the requested signer address. `multisigSignerKey` returned it unchanged. Source review confirms that the UI displays the entered address and creation consumes the resolved key. No contract was originated in this reproduction.
+
+**Impact and prerequisites:** A compromised configured RPC, or interception of an insecure RPC connection, can substitute attacker-controlled signers during creation for addresses resolved through that RPC. If substitutions reach the chosen threshold, funds subsequently deposited can be controlled by the attacker; fewer substitutions can undermine quorum availability. Locally known keys and explicitly pasted public keys do not use this resolution path. This is separate from S12's missing chain-ID check and S06's verified payer-signing key.
+
+**Solution:** Decode/check each public key locally, derive its public-key hash using the correct scheme, and require exact equality with the requested address before accepting it. Show the verified address/key in the approval and freeze that signer set through estimation/origination. Test a well-formed key for another address, malformed keys and unsupported schemes with rejection before estimation/signing.
+
+## Validation — 2026-10-10
+
+All signing used synthetic keys; filesystem tests used isolated temporary directories. No hosted app, real wallet/relay session, live operation, faucet solver, hardware exchange or production log was used. The npm advisory query was the only external service required by the checks.
 
 | Check | Result |
 | --- | --- |
-| Fresh `npm audit --json` in `TaquitoBridge` | **0 reported vulnerabilities** across 155 dependencies; this is not a source audit or proof of safety |
-| Rebuild bridge to a temporary output with the installed native esbuild binary; `cmp` with committed resource | **Byte-identical** |
-| Original message-signing transaction payload against the committed bundle | **S02 fix verified**: refused for safe, raw, operation, unknown and missing signing types |
-| Swift request parsing, signing validation and nesting suites in an isolated temporary Swift package | **15 tests in 3 suites passed**, including parameterized envelope/type vectors; production helpers copied into the package, no hosted application launched |
-| Committed-bundle signing/type/hex/length/envelope and depth checks under Node | **Passed**, including depth 128 acceptance, depth 129 refusal, nested sequences/generic primitives, wide siblings and the 16,000-level original crash input |
-| Committed bundle evaluated in native JavaScriptCore | **Passed**: transaction input, malformed envelopes and over-depth payloads refused before signer access; valid messages and depth 128 reached the signer boundary with an intentionally invalid signer specification |
-| Hidden fee/parameter summary using committed bundle; execution mapping with a mocked toolkit | **Reproduced S03**: 100 tez fee and parameter recipient omitted from the summary, fee preserved for execution |
-| Installed Octez Connect v2 interceptor with replacement metadata | **Reproduced S04** |
-| Raw-operation source with real synthetic signer/local forging and a mocked RPC | **Reproduced S01**: substituted transfer signed and passed to the stub injector |
-| Encrypt/decrypt round trips and wrong-password rejection for tz1, tz2, tz3, tz4 and tz5 in the committed bundle | **Passed** |
-| Compile and exercise current Swift backup/store/faucet/dApp mapping code in a standalone harness | **Reproduced S05, S06, S10, S12 and S21**: unrelated-directory deletion, stale alias lookup, permissive temporary-file mode/existing directory, loopback custom RPC and negative faucet difficulty acceptance |
-| `xcodebuild ... -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile build-for-testing` | **Succeeded** for current app and test targets; sandbox compiler/package-cache denial required an authorized retry. Existing CoreDevice/CoreSimulator tooling warnings did not prevent the macOS build |
-| Hosted/full/live/hardware test suite | **Not run**, due the real-state and live-operation behavior described in S24 |
+| Isolated Swift package using copied production models/services/view models and selected repository tests | **72 tests in 15 suites passed**: dApp parsing/envelopes/depth, software signer-address checks, storage/import, S07 races, local raw forging, multisig script/packing/storage/flows, and S27/S28/original-finding reproductions |
+| Additional isolated signer-resolution test | **1 test passed**, reproducing S29 with a valid key for another address |
+| Current shipped bundle under Node with synthetic keys and offline RPC mocks | **Passed**: S01 substitution and incomplete simulation/preapply rejection; S02 envelope/type/depth rejection; S06 expected-address validation; valid local raw operation; multisig script hash, packing/signatures; reproduced S03 and S04 |
+| Fresh `npm audit --json` | **0 reported vulnerabilities** across 155 dependencies; advisory coverage is not proof of dependency safety |
+| Temporary esbuild rebuild compared with shipped resource | **Byte-identical**; no committed resource regenerated |
+| Xcode app/test targets, `build-for-testing`, using resolved package versions | **Succeeded**; compiler/package-cache sandbox access required an authorized retry |
+| Hosted/full/live/hardware tests | **Not run** because S24 remains open; network-tagged and real-wallet tests were excluded |
 
-Current supporting artifacts are under `/private/tmp/signet-reaudit-7544c50/`: `check.cjs`, `s02-depth.cjs`, `main.swift`, `native-checks`, `jsc-check.swift`, `jsc-checks`, the rebuilt bundle, isolated `swift-tests/` package and `build.log`. Older evidence at `/private/tmp/signet-audit-20261008/` describes the pre-fix revision. The rerun symlink check again returned **false** for deletion outside the backup root; S05 remains the confirmed deletion of unrelated actual directories inside that root.
+The temporary Swift harness changed only environment plumbing: in-memory default bridge storage, a package resource lookup, temporary log paths and disabled networking/probes. Business logic for signing, persistence, account removal and multisig flows was copied unchanged. The tests demonstrate the selected boundaries, not a complete UI or live-chain execution audit.
 
-## S07 follow-up validation — 2026-10-09 working tree
+Evidence is under `/private/tmp/signet-reaudit-20261010/`: `source/`, `source-digests.json`, `check.cjs`, `bridge-checks.log`, `synthetic-proposal-fixture.json` (synthetic test material), `swift-tests/`, `swift-tests.log`, `signer-resolution.log`, `npm-audit.json`, `rebuilt.js` and `build.log`. The SHA-256 of the per-file source manifest is `9ae8024c060bb356a6fd132e3c866d7b6851a7bff20659e8e7132ff287a2bb34`. Documentation moves after capture do not change tested application bytes. Temporary artifacts may be removed by the system; this report records the methods/results independently.
 
-- **35 tests in 7 suites passed** in an isolated Swift package using copies of the production stores and view models and the repository's store, directory and import tests. Wallet fixtures used temporary directories; bridge storage was in memory, logs were redirected to temporary storage, and networking was disabled in the temporary harness. Production Forget and snapshot logic was unchanged in that harness.
-- **Xcode `build-for-testing` succeeded** for the app and test targets with the resolved dependencies. Hosted/full/live tests were not run because of S24.
-- **`git diff --check` passed.** No bridge source was changed by the S07 repair.
-
-Artifacts: `/private/tmp/signet-s07-isolated-tests/tests.log` and its isolated package; `/private/tmp/signet-s06-s07-review/build-s07.log`. This follow-up closes S07 only; it is not a fresh audit of all remaining findings.
-
-## S06 follow-up validation — 2026-10-09
-
-- **9 tests in the WalletDirectoryTests suite passed**, including six parameterized missing/invalid-address cases, rejection before key loading, mismatched-key rejection, successful matching-key signing, stale-wallet checks and S07 directory/key replacement regressions. The same isolated harness described above was used with the rebuilt bundle.
-- **Offline Node checks against the rebuilt app bundle passed** for mismatched clear/encrypted keys and matching clear keys across tz1–tz5, plus seven absent/invalid expected-address cases. Only synthetic keys were used and network access was prohibited by the harness.
-- **`npm run build` succeeded**, regenerating `Signet/Resources/taquito-bridge.js`; **Xcode `build-for-testing` succeeded** and **`git diff --check` passed**. Hosted/full/live tests were not run because of S24.
-
-Artifacts: `/private/tmp/signet-s06-s07-review/s06-fixed.cjs`, `/private/tmp/signet-s06-s07-review/build-s06.log`, and `/private/tmp/signet-s07-isolated-tests/s06-tests.log`. This follow-up closes the remaining S06 signing-boundary gap; it is not a fresh audit of all remaining findings.
+Earlier evidence remains historical: `/private/tmp/signet-reaudit-7544c50/` (original S02 rerun), `/private/tmp/signet-s07-isolated-tests/` and `/private/tmp/signet-s06-s07-review/` (S06/S07 repairs). The original successful S01 attack and stale-alias S06 reproduction describe pre-fix code; they are not current failures.
 
 ## Previous-audit reconciliation and positive controls
 
-The earlier unrestricted dApp transaction-signature issue (S02), software key substitution (S06) and account deletion across password-verification suspension (S07) are now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with raw RPC forging, other asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
+RPC byte substitution (S01), unrestricted dApp transaction-signature confusion (S02), software key substitution (S06) and account deletion across password-verification suspension (S07) are now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with other asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
 
-Mainnet account creation and import now default to encrypted storage and display an unencrypted-key warning. Clear storage remains available and existing clear keys/backups remain clear; this is a disclosed policy choice rather than proof of remote key theft. Encryption round trips succeeded for all five supported software schemes. Generated native keys use CryptoKit and JavaScript randomness is backed by Security framework randomness. Wallet file replacement and octez-compatible advisory locking are implemented, though their transaction/permission gaps need the fixes above. Ledger signing checks the expected derived address and does not export device secrets. Swift 6 complete concurrency checking and the current app/test compilation are positive controls, but actor isolation alone does not prevent state changes across `await`.
+Mainnet account creation and import now default to encrypted storage and display an unencrypted-key warning. Clear storage remains available and existing clear keys/backups remain clear; this is a disclosed policy choice rather than proof of remote key theft. The earlier audit verified encryption round trips for all five supported software schemes; this rerun includes encrypted-key signing/export tests but does not repeat the complete all-scheme matrix. Generated native keys use CryptoKit and JavaScript randomness is backed by Security framework randomness. Wallet file replacement and octez-compatible advisory locking are implemented, though their transaction/permission gaps need the fixes above. Ledger signing checks the expected derived address and does not export device secrets. Swift 6 complete concurrency checking and the current app/test compilation are positive controls, but actor isolation alone does not prevent state changes across `await`.
 
 Sparkle resolves to **2.10.0**, with a committed package resolution and embedded public EdDSA update key. A signing verification key is public by design. No malicious update feed or bypass of archive signature verification was demonstrated. Native UI and the purchase WKWebView are separate from the JavaScriptCore signer context; no remote script evaluation into the signer was found in the reviewed application paths.
 
@@ -356,8 +394,8 @@ Additional hardening after the findings: isolate networking/dApp code from softw
 
 ## Recommended repair order
 
-1. Disable or locally verify raw forging (S01) and approve exact dApp operation costs/effects (S03). Preserve the verified S02 type/envelope/depth rejection checks.
-2. Make backup pruning ownership-safe (S05), and preserve the S06 signer-address and S07 snapshot/deletion regressions.
+1. Bind multisig signatures to verified displayed payloads (S27), verify resolved signer addresses (S29), and approve exact dApp costs/effects (S03). Preserve the verified S01 local-forging and S02 type/envelope/depth checks.
+2. Make backup pruning ownership-safe (S05), include contracts/proposals-only directories (S28), and preserve S06/S07 regressions.
 3. Enforce authenticated dApp identity/grants (S04, S08), make storage transactions and secret-file creation safe (S09–S10), and remove sensitive diagnostics (S11).
 4. Add the adversarial regression tests described above, then address network identity, resource limits, async state, response recovery, Ledger synchronization and widget policy.
 5. Isolate hosted/live tests before using them as release gates, and publish only fully validated signed releases.
