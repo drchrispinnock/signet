@@ -1,10 +1,11 @@
 
-0.8 - Codex code audit
+# Rough version list
 
-0.9 - UX tidy up
+0.9 - Codex code audit
 
-Other Ideas
-- Multisig
+0.9.1 - UX tidy up
+
+# Other Ideas
 - Expert mode (TBA)
 - - Hide baking menu
 - - Hide test networks

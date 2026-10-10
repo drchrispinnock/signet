@@ -1,5 +1,14 @@
 This is the Octez Client multisig flow. We need to use Taquito if possible.
 
+We need four new menu items (in a section)
+
+Create Multisig  - see below
+Add Multisig - simple adds a multisig contract ID - make sure we are one of the signers please.
+Sign Multisig Tx - see below. Re
+Submit Multisig Tx - see below
+
+For Create and Add you shoulud take in a friendly name. 
+
 Create a multisig contract. Needs a set of keys and a threshold (e.g. 3 keys, 2 out of 3 sign)
 octez-client -E https://rpc.shadownet.teztnets.com deploy multisig my_multi_sig transferring 0 from terry with threshold 2 on public keys hermesdemo terry tt --burn-cap 1
 
