@@ -1,0 +1,17 @@
+This is the Octez Client multisig flow. We need to use Taquito if possible.
+
+Create a multisig contract. Needs a set of keys and a threshold (e.g. 3 keys, 2 out of 3 sign)
+octez-client -E https://rpc.shadownet.teztnets.com deploy multisig my_multi_sig transferring 0 from terry with threshold 2 on public keys hermesdemo terry tt --burn-cap 1
+
+Then we sign a transaction:
+octez-client -E https://rpc.shadownet.teztnets.com sign multisig transaction on my_multi_sig transferring 5 to captstake using secret key hermesdemo
+Returns: MYSIG
+
+The other users also sign the transaction:
+octez-client -E https://rpc.shadownet.teztnets.com sign multisig transaction on my_multi_sig transferring 5 to captstake using secret key tt
+
+and provide their SIG to one of them.
+
+To conclude the transfer, capture the signatures (we can hold the proposed transaction in state and allow the wallet holder to select it, then capture the other needed signatures e.g. in this case just one SIG)
+
+octez-client -E https://rpc.shadownet.teztnets.com from multisig contract my_multi_sig transfer 5 to captstake on behalf of terry with signatures SIG MYSIG ...
