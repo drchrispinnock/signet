@@ -6,6 +6,12 @@ protocol MultisigService: Sendable {
     func info(rpcURL: URL, address: Address) async throws -> MultisigInfo
     /// The public key an account has revealed on chain (needed to make it a signer), or `nil`.
     func revealedPublicKey(rpcURL: URL, address: Address) async throws -> String?
+    /// The address a base58 public key hashes to, computed locally (no network).
+    func address(forPublicKey publicKey: String) async throws -> Address
+    /// Signs the proposal's action for its chain, contract and counter. The bytes are rebuilt from
+    /// those fields and only they are signed; they are returned so the caller can compare them
+    /// with what it showed the user. `proposal.bytes` is never used.
+    func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String)
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate
     /// Deploys a multisig and waits one block. Returns the operation hash and the new address.
     func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String]) async throws -> (hash: String, address: Address)
@@ -65,6 +71,21 @@ struct BridgeMultisigService: MultisigService {
         try await bridge.call("multisigRevealedKey", [rpcURL.absoluteString, address.value])["publicKey"]?.stringValue
     }
 
+    func address(forPublicKey publicKey: String) async throws -> Address {
+        guard let address = try await bridge.call("addressFromPublicKey", [publicKey]).stringValue else {
+            throw TaquitoBridge.BridgeError.javaScript("“\(publicKey.prefix(12))…” is not a public key Signet can read.")
+        }
+        return Address(address)
+    }
+
+    func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String) {
+        let r = try await bridge.call("multisigSign", [signer.bridgeSpec, proposal.chainID, proposal.contractAddress, proposal.counter, try Self.json(proposal.action)])
+        guard let bytes = r["bytes"]?.stringValue, let signature = r["signature"]?.stringValue else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected signing payload: \(String(describing: r))")
+        }
+        return (bytes, signature)
+    }
+
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
         guard let publicKey = wallet.publicKey else { throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.") }
         return try Self.estimate(from: try await bridge.call("multisigEstimateOriginate", [rpcURL.absoluteString, wallet.address.value, publicKey, threshold, try Self.json(keys)]))
@@ -108,7 +129,11 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
     var balance: Decimal = 12
     /// Public keys "revealed on chain" by address, for the tz-address path of Create.
     var revealed: [String: String] = [:]
+    /// What each public key hashes to; keys not listed are "unreadable".
+    var keyAddresses: [String: String] = [:]
     private(set) var submitted: [(proposal: MultisigProposal, signatures: [String])] = []
+    /// What `sign` was asked for, to check it never gets stored bytes.
+    private(set) var signed: [(bytes: String, action: MultisigAction)] = []
 
     init(keys: [String] = ["edpkMOCK1", "edpkMOCK2", "edpkMOCK3"], threshold: Int = 2) {
         self.keys = keys
@@ -122,6 +147,20 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
 
     func info(rpcURL: URL, address: Address) async throws -> MultisigInfo { info(address) }
     func revealedPublicKey(rpcURL: URL, address: Address) async throws -> String? { revealed[address.value] }
+    func address(forPublicKey publicKey: String) async throws -> Address {
+        guard let address = keyAddresses[publicKey] else { throw TaquitoBridge.BridgeError.javaScript("unreadable key \(publicKey)") }
+        return Address(address)
+    }
+    /// Deterministic stand-in for the packed payload: chain, contract, counter and action, hex-encoded.
+    static func mockBytes(chainID: String, contract: String, counter: Int, action: MultisigAction) -> String {
+        let tag = switch action { case .transfer(let m, let d): "01" + m + d; case .setDelegate(let d?): "02" + d; case .setDelegate(nil): "03" }
+        return "05" + "\(chainID)|\(contract)|\(counter)|\(tag)".utf8.map { String(format: "%02x", $0) }.joined()
+    }
+    func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String) {
+        let bytes = Self.mockBytes(chainID: proposal.chainID, contract: proposal.contractAddress, counter: proposal.counter, action: proposal.action)
+        signed.append((bytes, proposal.action))
+        return (bytes, "edsigMock" + String(bytes.suffix(12)) + String(signer.bridgeSpec.hashValue.magnitude % 1000))
+    }
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
         MultisigEstimate(fee: 0.002, burn: 0.5, total: 0.502, gasLimit: 1000, storageLimit: 500)
     }
@@ -130,9 +169,7 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
         return ("ooMockOrigination", Self.sampleAddress)
     }
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String) {
-        // Different actions must give different bytes, as they do for real.
-        let tag = switch action { case .transfer(let m, let d): "01" + m + d; case .setDelegate(let d?): "02" + d; case .setDelegate(nil): "03" }
-        return (info(contract), "NetXMock", "0507070a00000004" + String(tag.utf8.map { String(format: "%02x", $0) }.joined()))
+        (info(contract), "NetXMock", Self.mockBytes(chainID: "NetXMock", contract: contract.value, counter: counter, action: action))
     }
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate {
         MultisigEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 1000, storageLimit: 0)

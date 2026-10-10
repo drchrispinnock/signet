@@ -6,11 +6,11 @@
 
 **Previous audited revision:** `7544c50`, with the 2026-10-09 S06/S07 follow-ups.
 
-**Scope:** Swift models, persistence, view models, signing/network services, approval/import/export/buy flows, JavaScript bridge sources and shipped bundle, installed signing/dApp dependencies, tests, entitlements, updater and release scripts. This rerun rechecks S01–S26 and reviews multisig creation, signer resolution, contract discovery, local payload packing, proposal persistence, signing, signature collection, submission and backups. Only this audit file was edited; no application fixes, commits or pushes were made.
+**Scope:** Swift models, persistence, view models, signing/network services, approval/import/export/buy flows, JavaScript bridge sources and shipped bundle, installed signing/dApp dependencies, tests, entitlements, updater and release scripts. This rerun rechecks S01–S26 and reviews multisig creation, signer resolution, contract discovery, local payload packing, proposal persistence, signing, signature collection, submission and backups. The original rerun edited only this audit file. The follow-up below records subsequently authorized application fixes; the fixes and this report are included in the accompanying repair commit. No push was requested.
 
 ## Assessment
 
-There are **25 open findings: 4 High, 20 Medium and 1 Low**, plus **4 resolved findings (S01, S02, S06 and S07, originally High)**. S01's local-forging repair is verified. S19 remains partially mitigated. Three new findings are added: multisig proposal signing can authorize bytes unrelated to the displayed action (S27), contracts-only directories are skipped by backups (S28), and RPC-based signer resolution can substitute a different public key (S29). The urgent remaining issues are incomplete dApp approval (S03), destructive backup pruning (S05), and multisig signing/creation integrity (S27, S29).
+After the S03/S05 repair and verification of the S27–S29 fixes on 2026-10-10, there are **20 open findings: 19 Medium and 1 Low**, plus **9 resolved findings (S01, S02, S03, S05, S06, S07, S27, S28 and S29)**. S19 remains partially mitigated. The original snapshot and validation below remain historical; the follow-up section records the fixes and checks in the accompanying repair commit.
 
 I did **not identify an intentional key-stealing backdoor or a deliberate network upload of wallet secret keys** in the application sources reviewed. This does not establish that all dependencies are safe. Software keys, decrypted keys, passwords and recovery phrases enter the same JavaScriptCore runtime that handles network traffic; Ledger secrets remain on the device. A malicious or exploited dependency in that runtime therefore remains a serious trust boundary.
 
@@ -22,9 +22,9 @@ Checked items have verified fixes; unchecked items remain open, including partia
 
 - [x] **S01 (High, resolved)** — Raw-operation signing trusted RPC-supplied forged bytes — resolved in `831394d`
 - [x] **S02 (High)** — dApp message signing could authorize an ordinary transaction — resolved in `7544c50`
-- [ ] **S03 (High)** — dApp approval omits supplied fees and contract effects
+- [x] **S03 (High)** — dApp approval omits supplied fees and contract effects
 - [ ] **S04 (Medium)** — Incoming dApp metadata can override the paired identity
-- [ ] **S05 (High)** — Backup pruning deletes unrelated directories
+- [x] **S05 (High)** — Backup pruning deletes unrelated directories
 - [x] **S06 (High, resolved)** — Software signing keys are selected by mutable alias without address verification
 - [x] **S07 (High, resolved)** — Forgetting an account can delete a different directory's account after an await
 - [ ] **S08 (Medium)** — dApp permissions and wallet-directory boundaries are not enforced
@@ -46,9 +46,9 @@ Checked items have verified fixes; unchecked items remain open, including partia
 - [ ] **S24 (Medium)** — Test execution is not isolated from real wallet state
 - [ ] **S25 (Medium)** — Release pipeline can publish an incomplete update and suppress archive errors
 - [ ] **S26 (Low)** — Portfolio loading hides failures and silently truncates holdings
-- [ ] **S27 (High)** — Persisted multisig proposal bytes are signed without binding them to the displayed action
-- [ ] **S28 (Medium)** — Backups skip directories containing only contracts and proposals
-- [ ] **S29 (High)** — Multisig signer resolution accepts a public key for a different address
+- [x] **S27 (High)** — Persisted multisig proposal bytes are signed without binding them to the displayed action
+- [x] **S28 (Medium)** — Backups skip directories containing only contracts and proposals
+- [x] **S29 (High)** — Multisig signer resolution accepts a public key for a different address
 
 ## Re-audit changes
 
@@ -88,15 +88,19 @@ Checked items have verified fixes; unchecked items remain open, including partia
 
 **Scope of closure:** This closes the ordinary operation-signature confusion. The readers validate binary structure rather than Michelson types: primitive identifiers and string/annotation semantics are not fully validated. Further syntax correctness hardening may reject unknown primitive identifiers or invalid UTF-8, but those accepted structures still retain the `05` data prefix and did not restore the demonstrated attack. Arbitrary packed-data signatures can have application-specific authorization meaning; closure does not imply every accepted message is merely proof of account control. Peer grants, request identity, account binding and operation approval remain covered by S04, S06, S08 and S03. Keep the rejection regressions as release gates.
 
-### S03 — High: Approval hides fees and contract effects that execution preserves
+### S03 — Resolved (originally High): Approval hid fees and contract effects
 
-**Locations:** `TaquitoBridge/src/octezconnect.js`; `Signet/Services/DAppConnectionManager.swift`; `Signet/Views/DAppRequestSheet.swift`.
+**Status:** Resolved by the repair accompanying this report on 2026-10-10; see follow-up validation below.
 
-Transaction conversion preserves caller-supplied `fee`, `gas_limit`, `storage_limit` and full contract parameters. The summary shows only the top-level tez amount, destination and entrypoint. An operation sending zero tez can carry a large fee or transfer valuable tokens, approve an operator, or change contract permissions. Origination summaries likewise omit script and initial storage. The UI says fees are estimated when approving, although explicit caller fees are accepted.
+**Locations:** `TaquitoBridge/src/octezconnect.js` (`buildPrepared`, `freezePrepared`, `octezConnectPrepare`, `octezConnectExecute`, `describeOperation`); `Signet/Services/DAppConnectionManager.swift`; `Signet/Views/DAppRequestSheet.swift`; `SignetTests/DAppTests.swift`; `TaquitoBridge/test/dapp-prepared.cjs`.
 
-**Evidence:** Confirmed offline: a request with a **100 tez** fee and a hidden contract parameter recipient omits both from the summary, while the execution adapter preserves the fee in the batch passed to Taquito.
+**Original issue:** The dApp's supplied fee and contract parameters reached execution while approval displayed only top-level amount/destination/entrypoint. A 100-tez fee and hidden parameter recipient were reproduced offline.
 
-**Solution:** Prepare the complete transaction before approval and display exact fee, storage burn, total tez debit and decoded contract effects. Reject or cap supplied fee/gas/storage values; show unsupported contract calls as an explicit advanced approval with full parameters and simulation details. Prevent approval until preparation succeeds. Sign the same immutable prepared transaction the user reviewed. Add tests for zero-tez FA2 transfers, operator approvals, high fees and originations.
+**Repair:** The sheet waits for preparation and displays fees, burn, total debit, standard token effects and full parameters/code/storage. Caller fee/gas/storage values are replaced by prepared limits. Unsupported calls are marked opaque; default KT1 calls without explicit parameters also show the warning and their implicit Unit argument. Preparation freezes the entire RPC operation, including the actual automatic reveal fee/limits, source, branch and counters. Execution locally forges and signs those same contents, without re-estimation or node-controlled forging. Source/reveal-key mismatches and incomplete/failed preapply results are refused.
+
+**Evidence:** Swift approval tests cover standard token effects, unknown calls, supplied excessive fees, default contract calls and actual reveal totals. The offline shipped-bundle regression compares injected bytes with an independently signed full approved operation, including its reveal; empty/failed preapply never reaches injection.
+
+**Scope of closure:** This closes hidden dApp terms and rebuilding beyond their approval. Unknown contract effects require explicit advanced approval of raw parameters; descriptions of token standards are structural interpretations, not verified contract behavior. Network identity, authenticated peer grants, resource budgets and ambiguous injection recovery remain S04, S08, S12, S15 and S19. Expired branches or changed counters fail rather than silently rebuilding the operation; a fresh approval is required.
 
 ### S04 — Medium: Request metadata can impersonate another dApp
 
@@ -108,15 +112,19 @@ The installed legacy interceptor combines trusted metadata and the incoming mess
 
 **Solution:** Derive identity from authenticated transport/peer state. Strip request-supplied envelope and identity fields before normalization, then apply trusted values last. Preserve authenticated context into Swift and use it for permission lookup and display. Names and icons remain self-asserted branding, not identity proofs. Test identity overrides in both v2 and wrapped requests.
 
-### S05 — High: Backup retention deletes directories it does not own
+### S05 — Resolved (originally High): Backup retention deleted directories it did not own
 
-**Locations:** `Signet/Services/WalletBackup.swift`; `Signet/Services/BackupSettings` is defined in the same file.
+**Status:** Resolved by the repair accompanying this report on 2026-10-10; see follow-up validation below.
 
-`generations(in:)` considers every non-hidden directory under the chosen backup destination to be a backup generation. Retention recursively deletes the oldest of these. Selecting a shared folder or a parent containing unrelated documents can therefore delete those documents during a routine or startup backup. Multiple wallet directories also share the same generation namespace.
+**Locations:** `Signet/Services/WalletBackup.swift` (`run`, `generations`, `isGeneration`, `prune`); `SignetTests/WalletBackupTests.swift`.
 
-**Evidence:** Confirmed with the current `WalletBackup` implementation: creating an unrelated `000-unrelated-documents` folder, retaining one generation and forcing a backup deleted that folder and its contents.
+**Original issue:** All non-hidden directories under a selected backup root counted toward retention and could be recursively deleted. The first manifest-based repair still counted another wallet's backups; wallet B deleting wallet A's generation was reproduced offline.
 
-**Solution:** Use a dedicated application-owned root, per-wallet subdirectories and a validated ownership marker/manifest for each generation. Prune only recognized owned generations that remain within the expected root. Reject unsafe overlap with the source wallet, require explicit migration before adopting an existing unrelated directory, and use non-following filesystem operations. Test shared destinations and unrelated directories. The earlier audit's separate symlink-to-outside-root deletion claim did **not** reproduce on this macOS runtime and is not counted as confirmed here.
+**Repair:** Deduplication and retention select only supported, complete manifest-bearing generations whose source equals the normalized current wallet directory. Manifests must list supported, unique data files; contents must match exactly and be regular files, excluding symlinks. Unknown versions, malformed manifests, extra documents and generations without an ownership manifest are preserved. Pruning rechecks ownership, direct parent and symlink status immediately before deletion. Overlapping source/backup directories are refused.
+
+**Evidence:** Isolated tests preserve unrelated folders, symlink targets, unmarked legacy folders, unknown manifest versions and extra documents. Identical data in two wallets sharing one destination creates separate generations; further B backups prune only B, retaining A.
+
+**Scope of closure:** This protects against accidental pruning of foreign content and cross-wallet generations. Legacy backups are deliberately not automatically adopted or pruned because their source cannot be proven. The manifest is not authentication against a hostile local process able to rewrite the backup tree; multi-file snapshots, concurrent staging and secret-file permissions remain S09–S10.
 
 ### S06 — High: A stale wallet object can sign with another account's key
 
@@ -208,7 +216,7 @@ Token/NFT metadata supplies image URLs. HTTP(S) destinations pass through withou
 
 **Locations:** `Signet/ViewModels/SendViewModel.swift`; `TaquitoBridge/src/index.js`; `Signet/Views/StakingSheet.swift`; `Signet/ViewModels/WalletViewModel.swift`.
 
-Send estimates an operation, then separately submits a transfer without the approved fee/gas/storage values or a maximum debit. Taquito can re-estimate during submission. Staking follows the same pattern, including the raw path, which re-simulates and re-forges. Changed chain state or malicious estimates can increase what the user pays beyond the displayed confirmation. S03 separately covers explicit hidden dApp fees.
+Send estimates an operation, then separately submits a transfer without the approved fee/gas/storage values or a maximum debit. Taquito can re-estimate during submission. Staking follows the same pattern, including the raw path, which re-simulates and re-forges. Changed chain state or malicious estimates can increase what the user pays beyond the displayed confirmation. The repaired dApp flow freezes its full prepared operation; this does not repair the separate native Send/staking estimate flows.
 
 **Multisig extension:** Creation and submission estimates are separate from their execution calls. Submission rebuilds/re-estimates and does not carry approved maximum fee, burn or total debit into signing. S01's exact local byte comparison does not bind this rebuilt operation to an earlier displayed estimate.
 
@@ -306,7 +314,7 @@ A compromised provider/subdomain or navigation to attacker content can exploit t
 
 **Locations:** `Signet/SignetApp.swift`; `Signet/ViewModels/WalletViewModel.swift`; `SignetTests/DAppStartupTests.swift`; `SignetTests/StakingTests.swift`; `SignetTests/OctezConnectEndToEnd.swift`.
 
-The test-host guards disable dApp startup and Sparkle, but the app still constructs real configured stores, loads wallet state and schedules a backup. Given S05, running tests can prune the user's configured backup destination. `DAppStartupTests` deliberately copies the real relay seed/session into a networked client; the live baker test reads the user's real octez public keys and can assign one as a testnet consensus key. Several tests share and mutate the singleton bridge while Swift Testing can run suites concurrently. Network tags alone do not make tests opt-in. Some integration harness paths are machine-specific.
+The test-host guards disable dApp startup and Sparkle, but the app still constructs real configured stores, loads wallet state and schedules a backup. Although S05 now limits pruning to owned generations, tests still write and prune real configured backup state. `DAppStartupTests` deliberately copies the real relay seed/session into a networked client; the live baker test reads the user's real octez public keys and can assign one as a testnet consensus key. Several tests share and mutate the singleton bridge while Swift Testing can run suites concurrently. Network tags alone do not make tests opt-in. Some integration harness paths are machine-specific.
 
 **Multisig extension:** The new live Shadownet tests request faucet funds and originate contracts. Their network tag is categorization, not an opt-in execution gate. The live XMSS test also consults the real octez wallet. These tests were excluded from this rerun.
 
@@ -328,7 +336,9 @@ Token/NFT loading fetches only the most recently updated 200 balances without pa
 
 **Solution:** Fetch one paginated snapshot, retain explicit completeness/error state, preserve the last known data with an unavailable indicator, and validate metadata/numeric ranges. Bound pagination while clearly marking partial results. Test accounts above the page limit, indexer failures and malformed decimals. This is a display/correctness finding; the current code does not establish a direct asset-spending exploit from pagination.
 
-### S27 — High: Proposal signing trusts persisted bytes rather than the displayed action
+### S27 — Resolved (originally High): Proposal signing trusts persisted bytes rather than the displayed action
+
+**Status:** Resolved by the repair accompanying this report on 2026-10-10. The description and reproduction below document the pre-fix behavior; current regression results are recorded in the follow-up validation.
 
 **Locations:** `Signet/Models/Multisig.swift` (`MultisigProposal`, `FileMultisigProposalStore`); `Signet/ViewModels/WalletViewModel.swift` (`signMultisigProposal`); `Signet/Views/SignMultisigSheet.swift`; `TaquitoBridge/src/index.js` (`signPayload`).
 
@@ -340,7 +350,9 @@ The proposal JSON independently stores display fields (`action`, contract, netwo
 
 **Solution:** Treat persisted proposals as untrusted. Capture account/network/directory context, verify contract script and current signer state, and locally reconstruct the typed chain/contract/counter/action payload before signing. Require exact byte equality and a dedicated multisig packed-data signing API that refuses operation envelopes. Derive displayed terms from the same verified immutable payload. Recheck context after password/device awaits. Test changed bytes, action, chain, contract, counter, membership and storage context before signer access.
 
-### S28 — Medium: Contracts-only directories are silently excluded from backups
+### S28 — Resolved (originally Medium): Contracts-only directories are silently excluded from backups
+
+**Status:** Resolved by the repair accompanying this report on 2026-10-10. The description and reproduction below document the pre-fix behavior; current regression results are recorded in the follow-up validation.
 
 **Locations:** `Signet/Services/WalletBackup.swift` (`files`, `run`); `Signet/Services/TezosClientStore.swift` (`addContract`); `Signet/Models/Multisig.swift` (`FileMultisigProposalStore`).
 
@@ -350,7 +362,9 @@ The backup file list now includes `contracts` and `multisig_proposals.json`, but
 
 **Solution:** Determine eligibility from supported data actually present, rather than one account file. Back up and restore contracts/proposals in otherwise empty directories and report absence/failure distinctly. Test contracts-only, proposals-only and mixed directories, while fixing S05's pruning ownership boundary.
 
-### S29 — High: RPC signer resolution can substitute a different account's key
+### S29 — Resolved (originally High): RPC signer resolution can substitute a different account's key
+
+**Status:** Resolved by the repair accompanying this report on 2026-10-10. The description and reproduction below document the pre-fix behavior; current regression results are recorded in the follow-up validation.
 
 **Locations:** `Signet/ViewModels/WalletViewModel.swift` (`multisigSignerKey`); `Signet/Services/MultisigService.swift` (`revealedPublicKey`); `TaquitoBridge/src/multisig.js` (`multisigRevealedKey`); `Signet/Views/CreateMultisigSheet.swift` (`Signer`, signer list).
 
@@ -382,9 +396,22 @@ Evidence is under `/private/tmp/signet-reaudit-20261010/`: `source/`, `source-di
 
 Earlier evidence remains historical: `/private/tmp/signet-reaudit-7544c50/` (original S02 rerun), `/private/tmp/signet-s07-isolated-tests/` and `/private/tmp/signet-s06-s07-review/` (S06/S07 repairs). The original successful S01 attack and stale-alias S06 reproduction describe pre-fix code; they are not current failures.
 
+## S03/S05 and multisig follow-up — 2026-10-10 repair commit
+
+- **S27:** Current native regressions refuse substituted bytes, operation envelopes, stale counters, changed chain/key sets and wrong networks before signing. The dedicated bridge API reconstructs typed multisig bytes from fields rather than signing persisted bytes.
+- **S29:** Both the resolver bridge and the model derive the returned public key's address locally and reject a mismatch. Matching-key resolution succeeds.
+- **S28:** Backup eligibility now includes contracts and proposal files independently of the account hash file; contracts-only backup passes.
+- **S05:** The remaining shared-destination deletion was repaired with source-bound ownership checks. Legacy/foreign/unrecognized generations are preserved.
+- **S03:** The remaining automatically rebuilt reveal and unflagged default contract call were repaired. Fees shown for reveals come from the actual frozen contents; execution signs that complete operation locally.
+- **26 tests in 7 suites passed** in the isolated Swift harness: multisig packing/storage/flows, backup/retention/ownership and dApp approval/preparation. No hosted app or real wallet state was used.
+- **`npm run test:dapp-prepared` passed:** real synthetic signing matches independently forged approved contents, including reveal limits; execution makes only stubbed preapply/injection requests. Empty/failed preapply is refused. The offline regression lives in `TaquitoBridge/test/dapp-prepared.cjs` and is included with this repair.
+- **`npm install --offline` and `npm run build` succeeded**, regenerating the shipped bridge. **Xcode `build-for-testing` succeeded** for app/test targets; full hosted/live/hardware tests remain excluded due to S24.
+
+Temporary logs: `/private/tmp/signet-five-review/fixed-tests.log` and `fixed-build.log`. These follow-ups supersede the original statuses for S03, S05 and S27–S29; remaining findings have not been re-audited a second time in this repair pass.
+
 ## Previous-audit reconciliation and positive controls
 
-RPC byte substitution (S01), unrestricted dApp transaction-signature confusion (S02), software key substitution (S06) and account deletion across password-verification suspension (S07) are now resolved. Hidden operation terms, metadata overrides, missing permission enforcement, backup pruning, temporary secret permissions, unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with other asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
+RPC byte substitution (S01), dApp signing/approval integrity (S02–S03), backup ownership/coverage (S05, S28), software key substitution (S06), account removal across suspension (S07), and multisig proposal/signer substitution (S27, S29) are now resolved. Metadata overrides, missing permission enforcement, temporary secret permissions, native unbound estimates, ambiguous retries, artwork loading, production diagnostics and faucet work remain open, along with other asynchronous account/operation races, Ledger transport recovery, embedded-widget policy, test isolation and release publication. This report preserves those IDs and updates the evidence and status rather than renumbering the remaining findings.
 
 Mainnet account creation and import now default to encrypted storage and display an unencrypted-key warning. Clear storage remains available and existing clear keys/backups remain clear; this is a disclosed policy choice rather than proof of remote key theft. The earlier audit verified encryption round trips for all five supported software schemes; this rerun includes encrypted-key signing/export tests but does not repeat the complete all-scheme matrix. Generated native keys use CryptoKit and JavaScript randomness is backed by Security framework randomness. Wallet file replacement and octez-compatible advisory locking are implemented, though their transaction/permission gaps need the fixes above. Ledger signing checks the expected derived address and does not export device secrets. Swift 6 complete concurrency checking and the current app/test compilation are positive controls, but actor isolation alone does not prevent state changes across `await`.
 
@@ -394,10 +421,9 @@ Additional hardening after the findings: isolate networking/dApp code from softw
 
 ## Recommended repair order
 
-1. Bind multisig signatures to verified displayed payloads (S27), verify resolved signer addresses (S29), and approve exact dApp costs/effects (S03). Preserve the verified S01 local-forging and S02 type/envelope/depth checks.
-2. Make backup pruning ownership-safe (S05), include contracts/proposals-only directories (S28), and preserve S06/S07 regressions.
-3. Enforce authenticated dApp identity/grants (S04, S08), make storage transactions and secret-file creation safe (S09–S10), and remove sensitive diagnostics (S11).
-4. Add the adversarial regression tests described above, then address network identity, resource limits, async state, response recovery, Ledger synchronization and widget policy.
-5. Isolate hosted/live tests before using them as release gates, and publish only fully validated signed releases.
+1. Preserve the nine verified fixes and their regression tests.
+2. Enforce authenticated dApp identity/grants (S04, S08), make storage transactions and secret-file creation safe (S09–S10), and remove sensitive diagnostics (S11).
+3. Address network identity, native operation limits, resource budgets, async state, response recovery, Ledger synchronization and widget policy.
+4. Isolate hosted/live tests before using them as release gates, and publish only fully validated signed releases.
 
 This is a source and targeted-behavior audit of the checked-out revision, not a formal verification, physical hardware assessment, comprehensive dependency cryptanalysis or certification of deployed binaries. Findings requiring hostile services, timing races or local access state those prerequisites; absence of a finding is not a guarantee that a path is secure.

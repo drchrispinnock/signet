@@ -8,6 +8,9 @@ struct DAppRequestSheet: View {
     @State private var chosenWallet: Wallet?
     @State private var passphrase = ""
     @State private var summaries: [DAppOperationSummary] = []
+    @State private var prepared: DAppPreparedBatch?
+    @State private var prepareError: String?
+    @State private var showsParameters: Set<Int> = []
     @State private var isWorking = false
 
     private var dapps: DAppConnectionManager { model.dapps }
@@ -29,7 +32,11 @@ struct DAppRequestSheet: View {
                 ?? model.wallets.first { $0.publicKey != nil && $0.keyKind.canSign }
         }
         .task(id: request.id) {
-            if case .operation(_, _, _, _, _, let json) = request { summaries = await dapps.summaries(for: json) }
+            guard case .operation(_, _, _, _, _, let json) = request else { return }
+            prepared = nil; prepareError = nil
+            summaries = await dapps.summaries(for: json)
+            // Simulate the batch so the exact fee, burn and totals are known; approval waits for this.
+            do { prepared = try await dapps.prepare(request) } catch { prepareError = error.localizedDescription }
         }
     }
 
@@ -82,25 +89,26 @@ struct DAppRequestSheet: View {
             Form {
                 sourceRow(source)
                 LabeledContent("Network", value: DAppRequest.network(forType: networkType, rpcURL: rpcURL)?.name ?? networkType)
-                if summaries.isEmpty {
+                let shown = prepared?.operations ?? summaries
+                if shown.isEmpty {
                     LabeledContent("Operations") { ProgressView().controlSize(.small) }
                 } else {
-                    ForEach(Array(summaries.enumerated()), id: \.offset) { _, op in
-                        LabeledContent(op.kind.capitalized) {
-                            VStack(alignment: .trailing, spacing: 2) {
-                                if let amount = op.amount, amount > 0 { Text(AssetBalance.format(amount, symbol: "tz")).monospacedDigit() }
-                                if let destination = op.destination { Text(destination).font(.callout.monospaced()).foregroundStyle(.secondary) }
-                                if let entrypoint = op.entrypoint { Text("entrypoint \(entrypoint)").font(.caption).foregroundStyle(.secondary) }
-                                if let delegate = op.delegate { Text("to \(delegate)").font(.callout.monospaced()).foregroundStyle(.secondary) }
-                            }
-                        }
-                    }
+                    ForEach(Array(shown.enumerated()), id: \.offset) { index, op in operationRow(index, op) }
                 }
+                costRows
                 passphraseField(for: source)
-                Text("Fees are estimated by the node when you approve. Check the destination and amount carefully: this will be signed with your key and sent.")
-                    .font(.callout).foregroundStyle(.secondary)
+                if let prepareError {
+                    Label(prepareError, systemImage: "xmark.octagon").font(.callout).foregroundStyle(.red)
+                    Text("The node could not simulate this batch, so it cannot be approved.").font(.callout).foregroundStyle(.secondary)
+                } else if prepared == nil {
+                    Text("Simulating on the node to get the exact fee and effects…").font(.callout).foregroundStyle(.secondary)
+                } else {
+                    Text("Fee and storage are what the node's simulation says this exact batch costs. Approving signs the batch exactly as shown; the dApp's own fee, gas and storage figures are not used.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
             }
-            .formStyle(.grouped).scrollDisabled(true)
+            .formStyle(.grouped)
+            .frame(minHeight: 320, maxHeight: 560)
 
         case .signPayload(_, _, let source, let signingType, let payload):
             Form {
@@ -123,6 +131,54 @@ struct DAppRequestSheet: View {
 
         case .unsupported(_, _, let type):
             Text("Signet cannot handle “\(type)” requests yet.").foregroundStyle(.secondary)
+        }
+    }
+
+    private func operationRow(_ index: Int, _ op: DAppOperationSummary) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(op.kind.capitalized) {
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let amount = op.amount, amount > 0 { Text(AssetBalance.format(amount, symbol: "tz")).monospacedDigit() }
+                    if let destination = op.destination { Text(destination).font(.callout.monospaced()).foregroundStyle(.secondary) }
+                    if let entrypoint = op.entrypoint { Text("entrypoint \(entrypoint)").font(.caption).foregroundStyle(.secondary) }
+                    if let delegate = op.delegate { Text("to \(delegate)").font(.callout.monospaced()).foregroundStyle(.secondary) }
+                    if let fee = op.fee { Text("fee \(AssetBalance.format(fee, symbol: "tz"))\(op.burn.map { $0 > 0 ? " · storage \(AssetBalance.format($0, symbol: "tz"))" : "" } ?? "")").font(.caption).foregroundStyle(.secondary) }
+                }
+            }
+            ForEach(op.effects, id: \.self) { effect in
+                Label(effect.text, systemImage: effect.warning ? "exclamationmark.triangle.fill" : "info.circle")
+                    .font(.callout).foregroundStyle(effect.warning ? .orange : .secondary)
+            }
+            if op.opaque {
+                Label("Signet cannot tell what this contract call does. Approve it only if you trust the dApp; the parameters are below.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout).foregroundStyle(.orange)
+            }
+            if let requested = op.requestedFee {
+                Label("The dApp asked for a \(AssetBalance.format(requested, symbol: "tz")) fee; Signet pays the node's estimate instead.", systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let parameters = op.parameters {
+                DisclosureGroup(isExpanded: Binding(get: { showsParameters.contains(index) }, set: { if $0 { showsParameters.insert(index) } else { showsParameters.remove(index) } })) {
+                    ScrollView {
+                        Text(parameters).font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 160)
+                } label: { Text("Parameters").font(.caption) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var costRows: some View {
+        if let prepared {
+            if let revealFee = prepared.revealFee {
+                LabeledContent("Reveal", value: "fee \(AssetBalance.format(revealFee, symbol: "tz")) (first operation from this account)")
+            }
+            LabeledContent("Fee", value: AssetBalance.format(prepared.totalFee, symbol: "tz")).monospacedDigit()
+            if prepared.totalBurn > 0 { LabeledContent("Storage", value: AssetBalance.format(prepared.totalBurn, symbol: "tz")).monospacedDigit() }
+            LabeledContent("Total leaving the account", value: AssetBalance.format(prepared.totalDebit, symbol: "tz")).monospacedDigit().fontWeight(.semibold)
+        } else if prepareError == nil {
+            LabeledContent("Fee") { ProgressView().controlSize(.small) }
         }
     }
 
@@ -166,7 +222,7 @@ struct DAppRequestSheet: View {
             Button(approveTitle) { approve() }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(isWorking || (request.isPermission && chosenWallet == nil) || (needsPassphrase && passphrase.isEmpty))
+                .disabled(isWorking || (request.isPermission && chosenWallet == nil) || (needsPassphrase && passphrase.isEmpty) || (request.isOperation && prepared?.requestID != request.id))
         }
     }
 
@@ -203,7 +259,8 @@ struct DAppRequestSheet: View {
             case .permission:
                 if let chosenWallet { await dapps.approvePermission(request, with: chosenWallet) }
             case .operation:
-                await dapps.approveOperation(request, passphrase: needsPassphrase ? passphrase : nil)
+                guard let prepared, prepared.requestID == request.id else { return }
+                await dapps.approveOperation(request, prepared: prepared, passphrase: needsPassphrase ? passphrase : nil)
             case .signPayload:
                 await dapps.approveSignature(request, passphrase: needsPassphrase ? passphrase : nil)
             case .unsupported:

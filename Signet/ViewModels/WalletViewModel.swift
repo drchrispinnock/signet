@@ -836,6 +836,9 @@ extension WalletViewModel {
         case stale
         case notRevealed(Address)
         case notASignerCandidate(String)
+        case keyAddressMismatch(Address, Address)
+        case wrongNetwork(String)
+        case tampered
 
         var errorDescription: String? {
             switch self {
@@ -849,6 +852,9 @@ extension WalletViewModel {
             case .stale: "The multisig has moved on since this was proposed; the signatures no longer apply."
             case .notRevealed(let address): "\(address.shortened()) has not revealed its public key on this network yet (it has never sent an operation). Ask its owner for the public key instead."
             case .notASignerCandidate(let text): "“\(text.prefix(20))…” is neither a public key nor a tz address."
+            case .keyAddressMismatch(let wanted, let got): "The node answered with a key for \(got.shortened()), not \(wanted.shortened()). Nothing was added; check the node or paste the public key."
+            case .wrongNetwork(let name): "This proposal was made on \(name); switch to that network to sign it."
+            case .tampered: "This proposal does not match what the multisig would sign for it now. Nothing was signed; discard it and propose it again."
             }
         }
     }
@@ -875,6 +881,10 @@ extension WalletViewModel {
         guard address.isValidAccount, !address.isContract else { throw MultisigError.notASignerCandidate(trimmed) }
         if let mine = wallets.first(where: { $0.address == address }), let key = mine.publicKey { return key }
         guard let key = try await multisig.revealedPublicKey(rpcURL: network.rpcURL, address: address) else { throw MultisigError.notRevealed(address) }
+        // The node is not trusted to say whose key that is: it must hash to the address asked for.
+        guard Self.isPublicKey(key) else { throw MultisigError.invalidKey(key) }
+        let derived = try await multisig.address(forPublicKey: key)
+        guard derived == address else { throw MultisigError.keyAddressMismatch(address, derived) }
         return key
     }
 
@@ -951,12 +961,30 @@ extension WalletViewModel {
     }
 
     /// Signs a proposal with one of our accounts (a key of the multisig) and keeps the signature with it.
+    ///
+    /// The proposal file is not trusted. What gets signed is rebuilt by the bridge from the
+    /// proposal's chain, contract, counter and action (the fields the sheet displays), never its
+    /// stored bytes, and the chain must agree: the contract is the generic multisig, at that
+    /// counter, with those keys, and packs those same bytes. Any difference means nothing is signed.
     @discardableResult
     func signMultisigProposal(_ proposal: MultisigProposal, with wallet: Wallet, passphrase: String?) async throws -> MultisigSignature {
         guard let publicKey = wallet.publicKey, proposal.keys.contains(publicKey) else { throw MultisigError.notAMember }
         guard !proposal.hasSignature(from: publicKey) else { throw MultisigError.alreadySigned(wallet.alias) }
+        guard proposal.networkName == network.name else { throw MultisigError.wrongNetwork(proposal.networkName) }
+        let revision = walletDirectoryRevision
+        let rpcURL = network.rpcURL
+
+        let live = try await multisig.prepare(rpcURL: rpcURL, contract: proposal.contract.address, action: proposal.action)
+        guard live.info.isGenericMultisig else { throw MultisigError.notAMultisig(live.info.scriptHash) }
+        guard live.chainID == proposal.chainID, live.info.counter == proposal.counter else { throw MultisigError.stale }
+        guard live.info.keys == proposal.keys, live.info.threshold == proposal.threshold, live.info.keys.contains(publicKey) else { throw MultisigError.stale }
+        guard live.bytes == proposal.bytes else { throw MultisigError.tampered }
+
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
-        let signed = try await chain.signPayload(signer: signer, payloadHex: proposal.bytes)
+        let signed = try await multisig.sign(signer: signer, proposal: proposal)
+        guard signed.bytes == proposal.bytes else { throw MultisigError.tampered }
+        guard walletDirectoryRevision == revision, network.rpcURL == rpcURL else { throw WalletError.directoryChanged }
+
         let signature = MultisigSignature(publicKey: publicKey, signature: signed.signature)
         try updateProposal(proposal.id) { $0.signatures.append(signature) }
         return signature

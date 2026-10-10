@@ -298,7 +298,7 @@ export * from "./octezconnect.js";
 // ---- Multisig (octez-client's generic multisig contract) --------------------------------------
 export {
   GENERIC_MULTISIG_HASH, multisigScriptHash, multisigEstimateOriginate, multisigOriginate, multisigInfo, multisigRevealedKey,
-  multisigPrepare, multisigPayloadLocal, multisigPayloadViaNode, multisigEstimateSubmit, multisigSubmit,
+  multisigPrepare, multisigPayloadLocal, multisigPayloadViaNode, multisigSign, multisigEstimateSubmit, multisigSubmit,
 } from "./multisig.js";
 
 // ---- Ledger ------------------------------------------------------------------------------------

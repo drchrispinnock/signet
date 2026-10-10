@@ -54,6 +54,101 @@ struct WalletBackupTests {
         #expect(try TezosClientStore(directory: remaining.last!).load().map(\.alias) == ["a", "b", "c", "d", "e"])
     }
 
+    /// S05: only generations Signet made are pruned. Anything else in the backup folder, a
+    /// user's documents, a symlink, a stamp-named folder holding other things, is never touched.
+    @Test func pruningLeavesWhatItDoesNotOwnAlone() throws {
+        let wallet = tempDir("wallet"), backups = tempDir("backups"), elsewhere = tempDir("elsewhere")
+        try seedWallet(in: wallet, alias: "a")
+        let fm = FileManager.default
+        try fm.createDirectory(at: backups, withIntermediateDirectories: true)
+        let documents = backups.appendingPathComponent("000-unrelated-documents", isDirectory: true)
+        try fm.createDirectory(at: documents, withIntermediateDirectories: true)
+        try Data("thesis".utf8).write(to: documents.appendingPathComponent("thesis.txt"))
+        let lookalike = backups.appendingPathComponent("1999-01-01T000000Z", isDirectory: true)   // stamp name, foreign contents
+        try fm.createDirectory(at: lookalike, withIntermediateDirectories: true)
+        try Data("photo".utf8).write(to: lookalike.appendingPathComponent("holiday.jpg"))
+        try fm.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try Data("precious".utf8).write(to: elsewhere.appendingPathComponent("keep.txt"))
+        try fm.createSymbolicLink(at: backups.appendingPathComponent("1999-01-02T000000Z"), withDestinationURL: elsewhere)
+        let legacy = backups.appendingPathComponent("2000-01-01T000000Z", isDirectory: true)      // no manifest: owner unknown
+        try fm.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data("[]".utf8).write(to: legacy.appendingPathComponent("public_key_hashs"))
+
+        let job = WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 1)
+        #expect(try WalletBackup.generations(in: backups).isEmpty)
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        guard case .created(let first) = try job.run(now: base) else { Issue.record("expected .created"); return }
+        try seedWallet(in: wallet, alias: "b")
+        guard case .created(let second) = try job.run(now: base.addingTimeInterval(60)) else { Issue.record("expected .created"); return }
+
+        // Our old generations went; everything foreign is still there, symlink target included.
+        #expect(try WalletBackup.generations(in: backups) == [second])
+        #expect(fm.fileExists(atPath: legacy.path) && !fm.fileExists(atPath: first.path))
+        #expect(try String(contentsOf: documents.appendingPathComponent("thesis.txt"), encoding: .utf8) == "thesis")
+        #expect(try String(contentsOf: lookalike.appendingPathComponent("holiday.jpg"), encoding: .utf8) == "photo")
+        #expect(try String(contentsOf: elsewhere.appendingPathComponent("keep.txt"), encoding: .utf8) == "precious")
+        #expect(fm.fileExists(atPath: backups.appendingPathComponent("1999-01-02T000000Z").path))
+        let manifest = try #require(WalletBackup.manifest(of: second))
+        #expect(manifest.source == WalletBackup.normalized(wallet).path)
+        #expect(manifest.files.contains("public_key_hashs"))
+    }
+
+    @Test func sharedBackupFolderKeepsEachWalletsGenerations() throws {
+        let a = tempDir("wallet-a"), b = tempDir("wallet-b"), backups = tempDir("backups")
+        try seedWallet(in: a, alias: "same")
+        try seedWallet(in: b, alias: "same")
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = try WalletBackup(walletDirectory: a, backupDirectory: backups, generations: 1).run(now: base)
+        guard case .created(let savedA) = first else { Issue.record("expected A backup"); return }
+        // Identical data from another wallet must neither deduplicate against nor prune A.
+        let second = try WalletBackup(walletDirectory: b, backupDirectory: backups, generations: 1).run(now: base.addingTimeInterval(60))
+        guard case .created(let savedB) = second else { Issue.record("expected B backup"); return }
+        #expect(FileManager.default.fileExists(atPath: savedA.path))
+        _ = try WalletBackup(walletDirectory: b, backupDirectory: backups, generations: 1).run(now: base.addingTimeInterval(120), force: true)
+        #expect(FileManager.default.fileExists(atPath: savedA.path))
+        #expect(!FileManager.default.fileExists(atPath: savedB.path))
+        #expect(try WalletBackup.generations(in: backups, source: a) == [savedA])
+        #expect(try WalletBackup.generations(in: backups, source: b).count == 1)
+    }
+
+    @Test func unknownManifestVersionsAndExtraDocumentsArePreserved() throws {
+        let wallet = tempDir("wallet"), backups = tempDir("backups")
+        try seedWallet(in: wallet, alias: "a")
+        let job = WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 1)
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        guard case .created(let old) = try job.run(now: base) else { Issue.record("expected backup"); return }
+        var manifest = try #require(WalletBackup.manifest(of: old))
+        manifest.version += 1
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(manifest).write(to: old.appendingPathComponent(WalletBackup.manifestFile))
+        guard case .created(let documents) = try job.run(now: base.addingTimeInterval(60), force: true) else { Issue.record("expected backup"); return }
+        try Data("precious".utf8).write(to: documents.appendingPathComponent("notes.txt"))
+        _ = try job.run(now: base.addingTimeInterval(120), force: true)
+        #expect(FileManager.default.fileExists(atPath: old.path))
+        #expect(try String(contentsOf: documents.appendingPathComponent("notes.txt"), encoding: .utf8) == "precious")
+    }
+
+    @Test func backupFolderMustNotOverlapTheWallet() throws {
+        let wallet = tempDir("wallet")
+        try seedWallet(in: wallet, alias: "a")
+        for bad in [wallet, wallet.appendingPathComponent("backups"), wallet.deletingLastPathComponent()] {
+            #expect(throws: WalletBackup.BackupError.self) { try WalletBackup(walletDirectory: wallet, backupDirectory: bad, generations: 3).run() }
+        }
+        #expect(try WalletBackup.generations(in: wallet).isEmpty)
+    }
+
+    /// S28: a directory holding only named contracts or proposals is worth a generation too.
+    @Test func contractsOnlyDirectoryIsBackedUp() throws {
+        let wallet = tempDir("wallet"), backups = tempDir("backups")
+        try TezosClientStore(directory: wallet).addContract(MultisigContract(alias: "treasury", address: Address("KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi")))
+        guard case .created(let generation) = try WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 3).run() else { Issue.record("expected .created"); return }
+        #expect(try TezosClientStore(directory: generation).loadContracts().map(\.alias) == ["treasury"])
+        // State alone is not.
+        let empty = tempDir("wallet")
+        try FileAppStateStore(directory: empty).save(AppState(selectedWalletAlias: nil))
+        #expect(try WalletBackup(walletDirectory: empty, backupDirectory: backups, generations: 3).run() == .nothingToBackUp)
+    }
+
     @Test func nothingToBackUpWithoutWalletFiles() throws {
         let wallet = tempDir("wallet"), backups = tempDir("backups")
         #expect(try WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 10).run() == .nothingToBackUp)

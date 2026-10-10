@@ -88,13 +88,48 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
     }
 }
 
-/// A line in the operation approval sheet.
+/// One operation of a dApp batch as the approval sheet shows it: what it does, what it costs.
 struct DAppOperationSummary: Hashable, Sendable {
+    struct Effect: Hashable, Sendable {
+        let text: String
+        /// Moves or exposes assets (token transfers, operator approvals, allowances, originations).
+        let warning: Bool
+    }
+
     let kind: String
     let destination: String?
     let amount: Decimal?
     let entrypoint: String?
     let delegate: String?
+    /// The contract call's parameters (or an origination's script) as Micheline JSON, verbatim.
+    let parameters: String?
+    /// Decoded effects for standard contract calls (FA2/FA1.2 transfers, operators, allowances).
+    let effects: [Effect]
+    /// A contract call Signet could not decode: the user approves on the raw parameters alone.
+    let opaque: Bool
+    /// Exact fee and storage burn from the node's simulation; `nil` before preparation.
+    let fee: Decimal?
+    let burn: Decimal?
+    /// The dApp asked for a higher fee than the node's estimate; Signet pays the estimate.
+    let requestedFee: Decimal?
+}
+
+/// A dApp batch simulated by the node and ready to sign exactly as shown.
+struct DAppPreparedBatch: Hashable, Sendable {
+    let requestID: String
+    let operations: [DAppOperationSummary]
+    /// Fee and burn of the reveal the batch will start with, when the account has not revealed its key.
+    let revealFee: Decimal?
+    let revealBurn: Decimal?
+    let totalAmount: Decimal
+    let totalFee: Decimal
+    let totalBurn: Decimal
+    /// Everything that leaves the account: amounts + fees + burn.
+    let totalDebit: Decimal
+    /// The exact Taquito params that will be executed, fee/gas/storage included.
+    let preparedJSON: String
+
+    var hasWarnings: Bool { operations.contains { $0.opaque || $0.effects.contains(where: \.warning) } }
 }
 
 /// A permission a dApp holds, as stored by the SDK.

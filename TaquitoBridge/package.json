@@ -5,7 +5,8 @@
   "description": "Bundles Taquito into a single script that Signet loads in JavaScriptCore.",
   "scripts": {
     "build": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --minify --outfile=../Signet/Resources/taquito-bridge.js",
-    "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js"
+    "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js",
+    "test:dapp-prepared": "node test/dapp-prepared.cjs"
   },
   "devDependencies": {
     "@taquito/taquito": "^25.1.0-beta0",

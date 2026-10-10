@@ -97,8 +97,10 @@ struct MultisigFlowTests {
     static let bob = Wallet(alias: "bob", address: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), publicKey: "sppkBOB", keyKind: .encrypted)
     static let watch = Wallet(alias: "watch", address: Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"))
 
-    private func makeModel(_ service: MockMultisigService, store: InMemoryWalletStore = InMemoryWalletStore()) -> WalletViewModel {
-        let model = WalletViewModel(wallets: [Self.alice, Self.bob, Self.watch], chain: MockChainService(), multisig: service, walletStore: store)
+    private func makeModel(_ service: MockMultisigService, store: InMemoryWalletStore = InMemoryWalletStore(), proposals: [MultisigProposal] = []) -> WalletViewModel {
+        let proposalStore = InMemoryMultisigProposalStore()
+        try? proposalStore.save(proposals)
+        let model = WalletViewModel(wallets: [Self.alice, Self.bob, Self.watch], chain: MockChainService(), multisig: service, proposalStore: proposalStore, walletStore: store)
         try? store.add(Self.alice, secretKey: "edskALICE")
         try? store.add(Self.bob, secretKey: "edeskBOB")
         try? store.addWatchOnly(Self.watch)
@@ -176,10 +178,18 @@ struct MultisigFlowTests {
     @Test func signersComeFromKeysOurAccountsTheAddressBookOrTheChain() async throws {
         let service = MockMultisigService()
         service.revealed = ["tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5": "p2pkWATCHrevealed"]
+        service.keyAddresses = ["p2pkWATCHrevealed": "tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"]
         let model = makeModel(service)
         #expect(try await model.multisigSignerKey(from: " edpkPASTEDpublickey ") == "edpkPASTEDpublickey")
         #expect(try await model.multisigSignerKey(from: Self.alice.address.value) == "edpkALICE")          // ours: no lookup
         #expect(try await model.multisigSignerKey(from: Self.watch.address.value) == "p2pkWATCHrevealed")  // address book: revealed key
+        // S29: a node that answers with a valid key belonging to someone else is caught locally.
+        service.keyAddresses = ["p2pkWATCHrevealed": "tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"]
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.multisigSignerKey(from: Self.watch.address.value) }
+        service.keyAddresses = [:]   // unreadable key
+        await #expect(throws: (any Error).self) { try await model.multisigSignerKey(from: Self.watch.address.value) }
+        service.revealed = ["tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5": "garbage"]
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.multisigSignerKey(from: Self.watch.address.value) }
         service.revealed = [:]
         await #expect(throws: WalletViewModel.MultisigError.self) { try await model.multisigSignerKey(from: Self.watch.address.value) }
         await #expect(throws: WalletViewModel.MultisigError.self) { try await model.multisigSignerKey(from: "KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi") }
@@ -207,6 +217,46 @@ struct MultisigFlowTests {
         _ = try await model.submitMultisig(ready, from: Self.alice, passphrase: nil)
         #expect(service.submitted.last?.proposal.action == .setDelegate(delegate: baker))
         #expect(model.currentMultisigProposals.count == 2)
+    }
+
+    /// S27: a proposal file is untrusted. The signed bytes are rebuilt from the displayed fields
+    /// and must equal both the stored bytes and what the chain packs now; otherwise nothing is signed.
+    @Test func signingRebuildsTheBytesAndRefusesTamperedProposals() async throws {
+        let service = MockMultisigService(keys: ["edpkALICE", "sppkBOB"], threshold: 2)
+        let contract = MockMultisigService.sampleAddress.value
+        let action = MultisigAction.transfer(amountMutez: "1000000", destination: Self.watch.address.value)
+        let good = MultisigProposal(contractAlias: "t", contractAddress: contract, networkName: Network.mainnet.name, chainID: "NetXMock", counter: 3, threshold: 2,
+                                    keys: ["edpkALICE", "sppkBOB"], action: action,
+                                    bytes: MockMultisigService.mockBytes(chainID: "NetXMock", contract: contract, counter: 3, action: action))
+        // Displays "1 tz to watch" but carries the bytes of a delegation (or anything else).
+        var otherBytes = good
+        otherBytes.bytes = MockMultisigService.mockBytes(chainID: "NetXMock", contract: contract, counter: 3, action: .setDelegate(delegate: Self.watch.address.value))
+        var operationBytes = good
+        operationBytes.bytes = "03deadbeef"
+        var oldCounter = good; oldCounter.counter = 2
+        var otherChain = good; otherChain.chainID = "NetXOther"
+        var otherKeys = good; otherKeys.keys = ["edpkALICE", "sppkBOB", "edpkEVE"]
+        var otherNetwork = good; otherNetwork.networkName = Network.shadownet.name
+        let model = makeModel(service, proposals: [good, otherBytes, operationBytes, oldCounter, otherChain, otherKeys, otherNetwork])
+        _ = try await model.addMultisig(alias: "t", address: contract)
+
+        for bad in [otherBytes, operationBytes, oldCounter, otherChain, otherKeys, otherNetwork] {
+            await #expect(throws: WalletViewModel.MultisigError.self) { try await model.signMultisigProposal(bad, with: Self.alice, passphrase: nil) }
+        }
+        #expect(service.signed.isEmpty)   // refused before any key was touched
+
+        let signature = try await model.signMultisigProposal(good, with: Self.alice, passphrase: nil)
+        #expect(service.signed.count == 1)
+        #expect(service.signed[0].bytes == good.bytes && service.signed[0].action == action)
+        #expect(model.multisigProposals.first { $0.id == good.id }?.signatures == [signature])
+
+        // The chain moving on (counter) or the keys changing makes the stored proposal stale.
+        service.counter = 4
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.signMultisigProposal(good, with: Self.bob, passphrase: "pw") }
+        service.counter = 3
+        service.keys = ["edpkALICE", "sppkBOB", "edpkEVE"]
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.signMultisigProposal(good, with: Self.bob, passphrase: "pw") }
+        #expect(service.signed.count == 1)
     }
 
     @Test func proposalsAreKeptPerNetwork() async throws {
@@ -289,11 +339,16 @@ struct ShadownetMultisigTests {
         #expect(viaNode["bytes"]?.stringValue == bytes)
         #expect(viaNode["local"]?.stringValue == bytes)
 
-        // Sign with two of the three keys (different curves), then submit from the payer.
-        let sig1 = try await chain.signPayload(signer: payerKey, payloadHex: bytes)
-        let sig3 = try await chain.signPayload(signer: .secret(third.secretKey, passphrase: nil, address: Address(third.address)), payloadHex: bytes)
+        // Sign with two of the three keys (different curves), then submit from the payer. The
+        // payer signs through the multisig API, which rebuilds the bytes rather than taking ours.
         let proposal = MultisigProposal(contractAlias: "test", contractAddress: contract.value, networkName: "Shadownet", chainID: chainID, counter: 0, threshold: 2, keys: keys,
-                                        action: transfer, bytes: bytes)
+                                        action: transfer, bytes: "05" + String(repeating: "00", count: 8))  // stored bytes are ignored
+        let signed1 = try await service.sign(signer: payerKey, proposal: proposal)
+        #expect(signed1.bytes == bytes)
+        let sig1 = SignedPayload(publicKey: payer.publicKey, signature: signed1.signature)
+        let sig3 = try await chain.signPayload(signer: .secret(third.secretKey, passphrase: nil, address: Address(third.address)), payloadHex: bytes)
+        // The revealed-key lookup refuses a key that does not hash to the address (checked in the bridge).
+        #expect(try await service.address(forPublicKey: second.publicKey) == Address(second.address))
         // One signature is not enough, and a signature over other bytes does not count.
         await #expect(throws: (any Error).self) { try await service.estimateSubmit(rpcURL: rpc, from: payerWallet, proposal: proposal, signatures: [sig1.signature]) }
         let bogus = try await chain.signPayload(signer: payerKey, payloadHex: "0501000000026869")

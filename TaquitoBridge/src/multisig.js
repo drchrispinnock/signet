@@ -14,7 +14,7 @@
 import { TezosToolkit } from "@taquito/taquito";
 import { RpcClient } from "@taquito/rpc";
 import { Parser, packDataBytes } from "@taquito/michel-codec";
-import { b58Encode, PrefixV2, verifySignature } from "@taquito/utils";
+import { b58Encode, getPkhfromPk, PrefixV2, verifySignature } from "@taquito/utils";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { signerFor } from "./signers.js";
 import { encodedPublicKeyHash, encodedContractAddress } from "./rawforge.js";
@@ -109,10 +109,19 @@ function keyFromMicheline(node) {
   throw new Error(`The multisig lists a key in a form Signet cannot read: ${JSON.stringify(node)}`);
 }
 
-/** The public key an implicit account has revealed on chain, or null if it never has. */
+/**
+ * The public key an implicit account has revealed on chain, or null if it never has. The node's
+ * answer is checked locally: the key must hash to the address asked about, so a lying node
+ * cannot slip another key into a multisig's signer list.
+ */
 export async function multisigRevealedKey(rpcUrl, address) {
   const key = await new RpcClient(rpcUrl).getManagerKey(address).catch(() => null);
-  return { publicKey: typeof key === "string" ? key : key?.key ?? null };
+  const publicKey = typeof key === "string" ? key : key?.key ?? null;
+  if (publicKey == null) return { publicKey: null };
+  let derived;
+  try { derived = getPkhfromPk(publicKey); } catch (e) { throw new Error(`The node returned an unreadable key for ${address}`); }
+  if (derived !== address) throw new Error(`The node returned a key for ${derived}, not ${address}`);
+  return { publicKey };
 }
 
 /** Octez's lambda for "transfer amount to destination" (implicit account, or a contract's default unit entrypoint). */
@@ -194,9 +203,26 @@ export async function multisigPrepare(rpcUrl, contract, actionJson) {
   return { ...info, chainId, bytes, lambda: JSON.stringify(lambda) };
 }
 
-/** Test hook: the bytes for an action without touching the network (compare with `octez-client prepare multisig transaction`). */
+/** The bytes for an action without touching the network (compare with `octez-client prepare multisig transaction`). */
 export async function multisigPayloadLocal(chainId, contract, counter, actionJson) {
   return { bytes: multisigPayload(chainId, contract, counter, lambdaFor(actionJson)) };
+}
+
+/**
+ * Signs a multisig action. The bytes are built here from the chain, contract, counter and
+ * action, and only those bytes are signed: a caller (or a tampered proposal file) cannot hand
+ * in bytes of its own, so what is signed is always a packed multisig payload for the stated
+ * action and never an operation. Returns the bytes so the caller can match them to what it shows.
+ */
+export async function multisigSign(signerSpec, chainId, contract, counter, actionJson) {
+  if (!/^KT1[1-9A-HJ-NP-Za-km-z]{33}$/.test(String(contract))) throw new Error(`${contract} is not a contract address`);
+  if (!/^\d+$/.test(String(counter))) throw new Error(`${counter} is not a counter`);
+  const bytes = multisigPayload(String(chainId), String(contract), counter, lambdaFor(actionJson));
+  if (!bytes.startsWith("05")) throw new Error("multisig payload did not pack as data");
+  const signer = await signerFor(signerSpec);
+  const [publicKey, address] = await Promise.all([signer.publicKey(), signer.publicKeyHash()]);
+  const { prefixSig } = await signer.sign(bytes);
+  return { bytes, publicKey, address, signature: prefixSig };
 }
 
 /** Test hook: packs the same payload through the node, to check our local packing against it. */

@@ -86,7 +86,10 @@ struct CreateMultisigSheet: View {
                         Spacer()
                         if let error = signer.error {
                             Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange).lineLimit(2)
-                        } else if signer.key == nil {
+                        } else if let key = signer.key {
+                            // The key that will go into the contract, checked to hash to the address shown.
+                            Text(String(key.prefix(10)) + "…").font(.caption.monospaced()).foregroundStyle(.tertiary).help(key)
+                        } else {
                             ProgressView().controlSize(.small)
                         }
                         Button { signers.removeAll { $0.id == signer.id } } label: { Image(systemName: "minus.circle") }

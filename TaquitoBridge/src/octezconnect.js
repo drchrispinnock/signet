@@ -10,6 +10,8 @@ import { Serializer, setDebugEnabled } from "@tezos-x/octez.connect-core";
 import { Storage, defaultValues as storageDefaults } from "@tezos-x/octez.connect-types";
 import { TezosToolkit } from "@taquito/taquito";
 import { signerFor } from "./signers.js";
+import { RpcClient } from "@taquito/rpc";
+import { localForger } from "@taquito/local-forging";
 
 class NativeStorage extends Storage {
   static async isSupported() { return true; }
@@ -149,7 +151,7 @@ export async function octezConnectRemoveAll() {
 
 // ---- Doing what dApps ask --------------------------------------------------------------------
 
-/** Maps TZIP-10 partial operations onto Taquito batch params. */
+/** Maps a TZIP-10 partial operation onto Taquito batch params (without fee, gas or storage). */
 function toTaquitoParams(op) {
   switch (op.kind) {
     case "transaction":
@@ -159,9 +161,6 @@ function toTaquitoParams(op) {
         amount: Number(op.amount || 0),
         mutez: true,
         ...(op.parameters ? { parameter: op.parameters } : {}),
-        ...(op.fee ? { fee: Number(op.fee) } : {}),
-        ...(op.gas_limit ? { gasLimit: Number(op.gas_limit) } : {}),
-        ...(op.storage_limit ? { storageLimit: Number(op.storage_limit) } : {}),
       };
     case "delegation":
       return { kind: "delegation", delegate: op.delegate || undefined };
@@ -172,14 +171,240 @@ function toTaquitoParams(op) {
   }
 }
 
-/** Signs and injects a dApp's operation request. Returns the operation hash. */
-export async function octezConnectExecute(rpcUrl, signerSpec, operationsJson) {
+function readOnlySigner(publicKey, address) {
+  return {
+    publicKey: async () => publicKey,
+    publicKeyHash: async () => address,
+    secretKey: async () => undefined,
+    sign: async () => { throw new Error("read-only signer cannot sign"); },
+  };
+}
+
+const mutezString = (v) => String(BigInt(Math.round(Number(v) || 0)));
+
+/**
+ * Fills in fee, gas and storage for every operation from the node's simulation and sums up what
+ * the account will pay. The dApp's own fee/gas/storage are not used: the fee is the node's
+ * estimate (a dApp asking for more is reported, not obeyed), and gas/storage are what the
+ * simulation needed. `estimates` is one per operation, with a reveal estimate first when the
+ * account has not revealed its key yet. Returns the exact params to execute plus the figures.
+ */
+export function buildPrepared(ops, estimates) {
+  const params = ops.map(toTaquitoParams);
+  let reveal = null;
+  let perOp = estimates;
+  if (estimates.length === params.length + 1) {
+    reveal = estimates[0];
+    perOp = estimates.slice(1);
+  } else if (estimates.length !== params.length) {
+    throw new Error(`The node returned ${estimates.length} estimates for ${params.length} operations`);
+  }
+  let amount = 0n, fee = 0n, burn = 0n;
+  const prepared = params.map((p, i) => {
+    const e = perOp[i];
+    const withLimits = { ...p, fee: Number(e.suggestedFeeMutez), gasLimit: Number(e.gasLimit), storageLimit: Number(e.storageLimit) };
+    fee += BigInt(withLimits.fee);
+    burn += BigInt(mutezString(e.burnFeeMutez));
+    if (p.kind === "transaction") amount += BigInt(mutezString(p.amount));
+    if (p.kind === "origination") amount += BigInt(mutezString(p.balance));
+    return withLimits;
+  });
+  const operations = ops.map((op, i) => {
+    const e = perOp[i];
+    const requested = op.fee != null ? BigInt(mutezString(op.fee)) : null;
+    return {
+      ...describeOperation(op),
+      feeMutez: String(prepared[i].fee),
+      burnMutez: mutezString(e.burnFeeMutez),
+      gasLimit: Number(e.gasLimit),
+      storageLimit: Number(e.storageLimit),
+      requestedFeeMutez: requested != null && requested > BigInt(prepared[i].fee) ? String(requested) : null,
+    };
+  });
+  let revealFee = null;
+  if (reveal) {
+    revealFee = { feeMutez: String(reveal.suggestedFeeMutez), burnMutez: mutezString(reveal.burnFeeMutez) };
+    fee += BigInt(revealFee.feeMutez);
+    burn += BigInt(revealFee.burnMutez);
+  }
+  return {
+    operations,
+    reveal: revealFee,
+    totalAmountMutez: String(amount),
+    totalFeeMutez: String(fee),
+    totalBurnMutez: String(burn),
+    totalDebitMutez: String(amount + fee + burn),
+    prepared: JSON.stringify(prepared),
+  };
+}
+
+/** Test hook for `buildPrepared` with synthetic estimates. */
+export async function octezConnectBuildPrepared(operationsJson, estimatesJson, operationJson) {
+  const ops = JSON.parse(operationsJson), estimates = JSON.parse(estimatesJson);
+  return operationJson == null ? buildPrepared(ops, estimates) : freezePrepared(ops, estimates, JSON.parse(operationJson));
+}
+
+/** Bind the approval figures to the actual contents, including Taquito's automatic reveal. */
+function freezePrepared(ops, estimates, operation) {
+  const contents = operation.contents;
+  const hasReveal = contents?.[0]?.kind === "reveal";
+  if (!Array.isArray(contents) || contents.length !== ops.length + (hasReveal ? 1 : 0)) throw new Error("Unexpected prepared operation count");
+  const perOp = estimates.length === ops.length + 1 ? estimates.slice(1) : estimates;
+  if (perOp.length !== ops.length) throw new Error("Unexpected estimate count");
+  const actualEstimates = contents.map((c, i) => ({
+    suggestedFeeMutez: checkedLimit(c.fee), gasLimit: checkedLimit(c.gas_limit), storageLimit: checkedLimit(c.storage_limit),
+    burnFeeMutez: hasReveal && i === 0 ? 0 : perOp[i - (hasReveal ? 1 : 0)].burnFeeMutez,
+  }));
+  const result = buildPrepared(ops, actualEstimates);
+  result.prepared = JSON.stringify(operation);
+  return result;
+}
+
+function checkedLimit(value) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) throw new Error("Invalid operation limit");
+  return number;
+}
+
+/**
+ * Simulates a dApp's operation request from `source` (read-only: no key involved) so the
+ * approval sheet can show exact fees, burn, totals and effects before anything is signed.
+ */
+export async function octezConnectPrepare(rpcUrl, source, publicKey, operationsJson) {
+  const ops = JSON.parse(operationsJson);
+  if (!Array.isArray(ops) || ops.length === 0) throw new Error("The dApp sent no operations");
   const tk = new TezosToolkit(rpcUrl);
-  tk.setSignerProvider(await signerFor(signerSpec));
-  const ops = JSON.parse(operationsJson).map(toTaquitoParams);
-  const batch = tk.contract.batch(ops);
-  const op = await batch.send();
-  return { hash: op.hash };
+  tk.setSignerProvider(readOnlySigner(publicKey, source));
+  const estimates = await tk.estimate.batch(ops.map(toTaquitoParams));
+  const figures = buildPrepared(ops, estimates);
+  const perOp = estimates.length === ops.length + 1 ? estimates.slice(1) : estimates.slice();
+  const { opOb } = await tk.prepare.batch(JSON.parse(figures.prepared), perOp);
+  // Local forging must succeed before the user can approve this immutable operation.
+  await localForger.forge({ branch: opOb.branch, contents: opOb.contents });
+  return freezePrepared(ops, estimates, opOb);
+}
+
+/**
+ * Signs and injects a prepared batch, exactly as prepared: every operation must carry the fee,
+ * gas and storage the user saw, so nothing is re-estimated or taken from the dApp here.
+ */
+export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson) {
+  const operation = JSON.parse(preparedJson);
+  const { branch, contents, protocol } = operation;
+  if (typeof branch !== "string" || typeof protocol !== "string" || !Array.isArray(contents) || contents.length === 0) throw new Error("This batch was not prepared");
+  for (const [i, op] of contents.entries()) {
+    if (!["transaction", "delegation", "origination"].includes(op.kind) && !(i === 0 && op.kind === "reveal")) throw new Error(`Operation kind "${op.kind}" is not supported`);
+    for (const field of ["fee", "gas_limit", "storage_limit", "counter"]) checkedLimit(op[field]);
+  }
+  const forged = await localForger.forge({ branch, contents });
+  const signer = await signerFor(signerSpec);
+  const source = await signer.publicKeyHash();
+  if (contents.some(c => c.source !== source)) throw new Error("The prepared source is not the signing account");
+  if (contents[0].kind === "reveal" && contents[0].public_key !== await signer.publicKey()) throw new Error("The prepared reveal is not the signing key");
+  const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
+  const rpc = new RpcClient(rpcUrl);
+  const replies = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
+  const results = replies.flatMap(r => r.contents ?? []);
+  if (results.length !== contents.length || results.some(c => c.metadata?.operation_result?.status !== "applied")) throw new Error("The prepared batch was not applied; prepare it again before approving");
+  return { hash: await rpc.injectOperation(sbytes) };
+}
+
+// ---- Describing operations --------------------------------------------------------------------
+
+/** A Pair tree flattened into its leaves, right-comb style: Pair a (Pair b c) → [a, b, c]. */
+function pairLeaves(node) {
+  if (node?.prim === "Pair" && Array.isArray(node.args)) {
+    const out = [];
+    node.args.forEach((a, i) => { if (i === node.args.length - 1) out.push(...pairLeaves(a)); else out.push(a); });
+    return out;
+  }
+  return [node];
+}
+const text = (node) => (typeof node?.string === "string" ? node.string : typeof node?.bytes === "string" ? "0x" + node.bytes : typeof node?.int === "string" ? node.int : JSON.stringify(node));
+const isInt = (node) => typeof node?.int === "string";
+const isAddr = (node) => typeof node?.string === "string" || typeof node?.bytes === "string";
+
+/**
+ * What a contract call does, for the standards a wallet must not hide: FA2 and FA1.2 transfers,
+ * FA2 operator changes and FA1.2 allowances. Anything else is described by entrypoint only; the
+ * raw parameters are shown alongside either way.
+ */
+export function contractEffects(destination, entrypoint, value) {
+  const effects = [];
+  const warn = (t) => effects.push({ text: t, warning: true });
+  const note = (t) => effects.push({ text: t, warning: false });
+  try {
+    if (entrypoint === "transfer" && Array.isArray(value)) {
+      // FA2: list of (from_, list of (to_, token_id, amount)).
+      for (const batch of value) {
+        const [from, txs] = pairLeaves(batch);
+        if (!isAddr(from) || !Array.isArray(txs)) return [];
+        for (const tx of txs) {
+          const [to, tokenId, amount] = pairLeaves(tx);
+          if (!isAddr(to) || !isInt(tokenId) || !isInt(amount)) return [];
+          warn(`Send ${text(amount)} of token ${text(tokenId)} in ${destination} from ${text(from)} to ${text(to)}`);
+        }
+      }
+      return effects;
+    }
+    if (entrypoint === "transfer") {
+      // FA1.2: (from, to, value).
+      const [from, to, amount] = pairLeaves(value);
+      if (isAddr(from) && isAddr(to) && isInt(amount)) { warn(`Send ${text(amount)} units of the token ${destination} from ${text(from)} to ${text(to)}`); return effects; }
+      return [];
+    }
+    if (entrypoint === "update_operators" && Array.isArray(value)) {
+      for (const change of value) {
+        const add = change?.prim === "Left", remove = change?.prim === "Right";
+        if (!add && !remove) return [];
+        const [owner, operator, tokenId] = pairLeaves(change.args?.[0]);
+        if (!isAddr(owner) || !isAddr(operator) || !isInt(tokenId)) return [];
+        if (add) warn(`Allow ${text(operator)} to move token ${text(tokenId)} in ${destination} owned by ${text(owner)}`);
+        else note(`Stop ${text(operator)} moving token ${text(tokenId)} in ${destination} owned by ${text(owner)}`);
+      }
+      return effects;
+    }
+    if (entrypoint === "approve") {
+      const [spender, amount] = pairLeaves(value);
+      if (isAddr(spender) && isInt(amount)) { warn(`Allow ${text(spender)} to spend ${text(amount)} units of the token ${destination}`); return effects; }
+      return [];
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+function describeOperation(op) {
+  switch (op.kind) {
+    case "transaction": {
+      const entrypoint = op.parameters?.entrypoint ?? (typeof op.destination === "string" && op.destination.startsWith("KT1") ? "default" : null);
+      const value = op.parameters?.value;
+      const isContract = typeof op.destination === "string" && op.destination.startsWith("KT1");
+      return {
+        kind: "transaction",
+        destination: op.destination,
+        amountMutez: mutezString(op.amount),
+        entrypoint,
+        parameters: op.parameters ? JSON.stringify(op.parameters.value ?? op.parameters, null, 1) : isContract ? JSON.stringify({ prim: "Unit" }) : null,
+        effects: isContract && entrypoint ? contractEffects(op.destination, entrypoint, value) : [],
+        // A call to a contract Signet cannot read is something the user approves blind.
+        opaque: isContract && (!entrypoint || contractEffects(op.destination, entrypoint, value).length === 0),
+      };
+    }
+    case "delegation": return { kind: "delegation", delegate: op.delegate || null, parameters: null, effects: [], opaque: false };
+    case "origination": return {
+      kind: "origination", balanceMutez: mutezString(op.balance),
+      parameters: op.script ? JSON.stringify({ code: op.script.code, storage: op.script.storage }, null, 1) : null,
+      effects: [{ text: "Deploys a new contract with the code and storage shown", warning: true }], opaque: true,
+    };
+    default: return { kind: op.kind, parameters: null, effects: [], opaque: true };
+  }
+}
+
+/** Summary of a batch for the approval sheet, without the node (no fees); `octezConnectPrepare` adds those. */
+export function octezConnectDescribe(operationsJson) {
+  return JSON.parse(operationsJson).map(describeOperation);
 }
 
 /**
@@ -205,21 +430,6 @@ export async function octezConnectSign(signerSpec, payload, signingType) {
   const signer = await signerFor(signerSpec);
   const { prefixSig } = await signer.sign(payload);
   return { signature: prefixSig };
-}
-
-/** Human summary of a batch for the approval sheet. */
-export function octezConnectDescribe(operationsJson) {
-  return JSON.parse(operationsJson).map((op) => {
-    switch (op.kind) {
-      case "transaction": {
-        const entrypoint = op.parameters?.entrypoint;
-        return { kind: "transaction", destination: op.destination, amountMutez: String(op.amount || 0), entrypoint: entrypoint || null };
-      }
-      case "delegation": return { kind: "delegation", delegate: op.delegate || null };
-      case "origination": return { kind: "origination", balanceMutez: String(op.balance || 0) };
-      default: return { kind: op.kind };
-    }
-  });
 }
 
 /** Test helper: a pairing code for a synthetic dApp, as a dApp's SDK would produce. */

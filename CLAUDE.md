@@ -99,10 +99,17 @@ automatic download is off by default. The updater is not started under the test 
   The directory can be changed in Settings; that pointer is the one thing kept in UserDefaults
   (`WalletDirectorySettings`), because it cannot live inside the directory it names. Switching
   rebuilds both stores through the `storeFactory` the app passes to the view model.
-  `WalletBackup` copies the wallet files (plus `state`) into a timestamped generation under
-  `~/.signet_backups` on launch, after key creation/rename and on directory change, skipping
-  when unchanged and keeping the newest N (default 10); folder and N are `BackupSettings` in
-  UserDefaults and editable in Settings.
+  `WalletBackup` copies the wallet files (plus `state`, `contracts` and the multisig proposals)
+  into a timestamped generation under `~/.signet_backups` on launch, after key creation/rename
+  and on directory change, skipping when unchanged and keeping the newest N (default 10); folder
+  and N are `BackupSettings` in UserDefaults and editable in Settings. A generation is worth
+  writing when any key file, `contracts` or proposals file exists (S28). Each generation carries
+  a `.signet-backup` manifest (version, date, source directory, files), and pruning (S05) deletes
+  only stamp-named, non-symlink generations directly under the backup folder with a supported,
+  complete manifest for the current wallet directory. Unmarked legacy generations, extra
+  documents, unknown manifest versions and other wallets' generations are preserved.
+  A backup folder that is the wallet directory, inside it or around it is refused
+  (`BackupError.overlapsWallet`).
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys)
   `NoWalletsView` offers four ways in: import `~/.tezos-client` when one exists (an exact file
   copy, shown first and highlighted), create a new account, import an existing key or phrase, or
@@ -246,8 +253,21 @@ automatic download is off by default. The updater is not started under the test 
   desktop wallets (`deepLink + "?type=tzip10&data=" + payload`); Signet appears in dApps' lists
   only once a `signet_desktop` entry with `deepLink: "signet://"` is merged upstream. `DAppConnectionManager` parses requests
   (`DAppRequest`), queues them, and `DAppRequestSheet` approves/rejects: permission (pick a wallet),
-  operation (Taquito `contract.batch` from the partial operations, password for encrypted keys,
-  Ledger approval on the device), sign_payload (`signer.sign`). A sign_payload is only accepted
+  operation, sign_payload (`signer.sign`). An operation request is prepared before it can be
+  approved (S03): `DAppConnectionManager.prepare` calls the bridge's `octezConnectPrepare`, which
+  simulates the batch with a read-only signer (`tk.estimate.batch`) and returns
+  `DAppPreparedBatch`: per operation the exact fee and storage burn, the decoded effects for
+  standard token calls (`contractEffects`: FA2/FA1.2 `transfer`, `update_operators`, `approve`),
+  an `opaque` flag for contract calls it cannot read, the raw parameters, and totals (amount,
+  fee, burn, debit) plus a reveal line for unrevealed accounts, and `preparedJSON`, the exact
+  operation contents, including the actual reveal, branch, counters and fee/gas/storage limits. The dApp's own `fee`/`gas_limit`/
+  `storage_limit` are never used (a higher requested fee is shown as ignored). The sheet shows
+  all of it, keeps Approve disabled until preparation succeeds, and `approveOperation(_:prepared:
+  passphrase:)` executes `preparedJSON` through `octezConnectExecute`, which refuses any batch
+  whose operations lack fee, gas and storage. Execution locally forges those frozen contents,
+  verifies the source and reveal key, signs and preapplies them, then injects without rebuilding
+  or re-estimating (password for encrypted keys, Ledger approval on the device). `ShadownetDAppPrepareTests` is the live prepare-then-execute round trip.
+  A sign_payload is only accepted
   when its type is `micheline` and the hex is `05` followed by exactly one well-formed Micheline
   expression (`MichelineBinary`, a strict reader of the binary encoding; the bridge's
   `micheline.js` is its twin): the signature is over the raw bytes, so `03…` would be an
@@ -287,9 +307,16 @@ automatic download is off by default. The updater is not started under the test 
   (`BridgeMultisigService`, `MockMultisigService`); `WalletViewModel` has `createMultisig`,
   `multisigSignerKey(from:)` (a signer given as a public key, one of our accounts, an address-book
   entry or a pasted tz address; addresses resolve to the key they revealed on chain via
-  `multisigRevealedKey`, else `MultisigError.notRevealed`),
+  `multisigRevealedKey`, else `MultisigError.notRevealed`; the node is not trusted to say whose
+  key it is: the bridge and the model both derive the key's address locally and refuse one that
+  does not hash to the address asked for, S29, `MultisigError.keyAddressMismatch`),
   `addMultisig` (must be generic and one of our keys among its signers), `proposeMultisig(_:from:)`
-  (`proposeMultisigTransfer` is the transfer shorthand; the Sign sheet has an action picker,
+  (`proposeMultisigTransfer` is the transfer shorthand; `signMultisigProposal` treats the
+  proposal file as untrusted, S27: it re-prepares the action against the chain and requires the
+  same chain id, counter, keys, threshold and bytes, then signs through the bridge's
+  `multisigSign`, which builds the packed payload itself from chain/contract/counter/action and
+  never accepts bytes, and the bytes it returns must equal the stored ones; the directory
+  revision is rechecked after the password wait; the Sign sheet has an action picker,
   Transfer / Set delegate / Remove delegate, and opens on `signMultisigPreset` when the delegate
   row of a selected contract is clicked),
   `signMultisigProposal`, `addMultisigSignature`, `submitMultisig`. `ShadownetMultisigTests` is the

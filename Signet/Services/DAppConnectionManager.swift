@@ -159,12 +159,38 @@ final class DAppConnectionManager {
         lastOutcome = "Connected “\(request.app.name)” to \(wallet.alias)"
     }
 
-    func approveOperation(_ request: DAppRequest, passphrase: String?) async {
-        guard case .operation(let id, _, let networkType, let rpcURL, let source, let operationsJSON) = request else { return }
+    /// Simulates the request's batch from its source account so the sheet can show exact fees,
+    /// burn, totals and effects. Nothing is signed; a read-only signer stands in for the account.
+    func prepare(_ request: DAppRequest) async throws -> DAppPreparedBatch {
+        guard case .operation(let id, _, let networkType, let rpcURL, let source, let operationsJSON) = request else { throw ConnectError.refusedPayload("not an operation request") }
+        guard let wallet = wallet(for: source) else { throw ConnectError.notOurWallet(source) }
+        guard let publicKey = wallet.publicKey else { throw ConnectError.noUsableKey(wallet.alias) }
+        guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
+        let r = try await bridge.call("octezConnectPrepare", [network.rpcURL.absoluteString, source.value, publicKey, operationsJSON])
+        guard let prepared = r["prepared"]?.stringValue, let list = r["operations"]?.arrayValue else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected prepare payload: \(String(describing: r))")
+        }
+        return DAppPreparedBatch(
+            requestID: id,
+            operations: list.map(Self.summary),
+            revealFee: Mutez.toTez(r["reveal"]?["feeMutez"]?.stringValue),
+            revealBurn: Mutez.toTez(r["reveal"]?["burnMutez"]?.stringValue),
+            totalAmount: Mutez.toTez(r["totalAmountMutez"]?.stringValue) ?? 0,
+            totalFee: Mutez.toTez(r["totalFeeMutez"]?.stringValue) ?? 0,
+            totalBurn: Mutez.toTez(r["totalBurnMutez"]?.stringValue) ?? 0,
+            totalDebit: Mutez.toTez(r["totalDebitMutez"]?.stringValue) ?? 0,
+            preparedJSON: prepared
+        )
+    }
+
+    /// Signs and sends the batch exactly as it was prepared and shown (`prepared` must be for this request).
+    func approveOperation(_ request: DAppRequest, prepared: DAppPreparedBatch, passphrase: String?) async {
+        guard case .operation(let id, _, let networkType, let rpcURL, let source, _) = request else { return }
         do {
+            guard prepared.requestID == id else { throw ConnectError.refusedPayload("The prepared batch is not for this request.") }
             let (wallet, signer) = try signer(for: source, passphrase: passphrase)
             guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
-            let result = try await bridge.call("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, operationsJSON])
+            let result = try await bridge.call("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, prepared.preparedJSON])
             let hash = result["hash"]?.stringValue ?? ""
             await respond(["type": "operation_response", "id": id, "transactionHash": hash])
             lastOutcome = "Sent \(hash.prefix(12))… for “\(request.app.name)” from \(wallet.alias)"
@@ -219,17 +245,28 @@ final class DAppConnectionManager {
         walletsProvider().first { $0.address == source }
     }
 
+    /// What the batch does, without the node (no fees yet). Shown while `prepare` runs.
     func summaries(for operationsJSON: String) async -> [DAppOperationSummary] {
         guard let list = try? await bridge.call("octezConnectDescribe", [operationsJSON]).arrayValue else { return [] }
-        return list.map { item in
-            DAppOperationSummary(
-                kind: item["kind"]?.stringValue ?? "?",
-                destination: item["destination"]?.stringValue,
-                amount: Mutez.toTez(item["amountMutez"]?.stringValue ?? item["balanceMutez"]?.stringValue),
-                entrypoint: item["entrypoint"]?.stringValue,
-                delegate: item["delegate"]?.stringValue
-            )
-        }
+        return list.map(Self.summary)
+    }
+
+    nonisolated static func summary(_ item: JSONValue) -> DAppOperationSummary {
+        DAppOperationSummary(
+            kind: item["kind"]?.stringValue ?? "?",
+            destination: item["destination"]?.stringValue,
+            amount: Mutez.toTez(item["amountMutez"]?.stringValue ?? item["balanceMutez"]?.stringValue),
+            entrypoint: item["entrypoint"]?.stringValue,
+            delegate: item["delegate"]?.stringValue,
+            parameters: item["parameters"]?.stringValue,
+            effects: item["effects"]?.arrayValue?.compactMap { e in
+                e["text"]?.stringValue.map { DAppOperationSummary.Effect(text: $0, warning: e["warning"]?.boolValue ?? false) }
+            } ?? [],
+            opaque: item["opaque"]?.boolValue ?? false,
+            fee: Mutez.toTez(item["feeMutez"]?.stringValue),
+            burn: Mutez.toTez(item["burnMutez"]?.stringValue),
+            requestedFee: Mutez.toTez(item["requestedFeeMutez"]?.stringValue)
+        )
     }
 
     private func respond(_ message: [String: Any]) async {
@@ -266,4 +303,5 @@ final class DAppConnectionManager {
 
 extension DAppRequest {
     var isPermission: Bool { if case .permission = self { return true } else { return false } }
+    var isOperation: Bool { if case .operation = self { return true } else { return false } }
 }
