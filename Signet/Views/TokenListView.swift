@@ -5,6 +5,7 @@ struct TokenListView: View {
     let tokens: [AssetBalance]
     let isLoading: Bool
     let network: Network
+    var hidesBalances = false
 
     var body: some View {
         if tokens.isEmpty {
@@ -17,7 +18,7 @@ struct TokenListView: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(tokens) { token in
-                        TokenRowView(token: token, network: network)
+                        TokenRowView(token: token, network: network, hidesBalances: hidesBalances)
                         Divider().padding(.leading, 56)
                     }
                 }
@@ -29,6 +30,7 @@ struct TokenListView: View {
 struct TokenRowView: View {
     let token: AssetBalance
     let network: Network
+    var hidesBalances = false
 
     private var contract: String? {
         if case .token(let contract, _) = token.kind { return contract }
@@ -58,7 +60,7 @@ struct TokenRowView: View {
                 }
             }
             Spacer()
-            Text(token.formattedAmount)
+            Text(hidesBalances ? "••••" : token.formattedAmount)
                 .font(.body.monospacedDigit())
                 .lineLimit(1)
         }
@@ -76,7 +78,7 @@ struct TokenRowView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(token.name) \(token.formattedAmount)")
+        .accessibilityLabel("\(token.name) \(hidesBalances ? "Balance hidden" : token.formattedAmount)")
     }
 
     @ViewBuilder

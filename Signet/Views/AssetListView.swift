@@ -23,9 +23,17 @@ struct AssetRowView: View {
             HStack(spacing: 16) {
                 icon
                     .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(asset.name).font(.body.weight(.semibold))
+                    Text(asset.kind == .tez ? "Native asset" : asset.symbol)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
                 Text(asset.formattedAmount)
                     .font(.title3.monospacedDigit())
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
                 if !asset.details.isEmpty {
                     Button {
                         withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }

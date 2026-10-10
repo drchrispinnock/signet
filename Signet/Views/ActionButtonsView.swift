@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Send, Receive, Buy (Get on testnets), Stake. Selling is out of scope: it would mean handling bank
-/// accounts. Buttons whose flow does not exist yet are disabled.
+/// Primary account actions. Swaps use the live 3Route dApp and Signet approvals.
 struct ActionButtonsView: View {
     @Bindable var model: WalletViewModel
 
@@ -13,7 +12,7 @@ struct ActionButtonsView: View {
         var id: String { title }
     }
 
-    /// Address-book entries have no key, so none of the actions apply to them.
+    /// Address-book entries have no signing key; receiving and read-only staking remain available.
     private var isWatchOnly: Bool { model.selectedWallet?.keyKind == KeyKind.none }
     /// Keys on disk (clear or encrypted) and on a Ledger can sign; remote signers cannot yet.
     private var canSign: Bool { model.selectedWallet?.keyKind.canSign == true }
@@ -21,17 +20,15 @@ struct ActionButtonsView: View {
     private var actions: [Action] {
         [
             Action(title: "Send", symbol: "arrow.up", enabled: canSign && !model.accountNotOnChain) { model.isPresentingSend = true },
-            Action(title: "Receive", symbol: "arrow.down", enabled: model.selectedWallet != nil && !isWatchOnly) { model.isPresentingReceive = true },
-            model.network.faucetURL != nil
-                ? Action(title: "Get", symbol: "drop.fill", enabled: model.selectedWallet != nil) { model.isPresentingFaucet = true }
-                : Action(title: "Buy", symbol: "plus", enabled: model.selectedWallet != nil && model.network.isMainnet) { model.isPresentingBuy = true },
-            Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: canSign && !model.accountNotOnChain) { model.isPresentingStaking = true },
+            Action(title: "Receive", symbol: "arrow.down", enabled: model.selectedWallet != nil) { model.isPresentingReceive = true },
+            Action(title: "Swap", symbol: "arrow.up.arrow.down", enabled: model.selectedWallet != nil && model.network.isMainnet) { model.isPresentingSwap = true },
+            Action(title: "Stake", symbol: "chart.line.uptrend.xyaxis", enabled: model.selectedWallet != nil && !model.accountNotOnChain) { model.isPresentingStaking = true },
         ]
     }
 
     private func helpText(for action: Action) -> String {
-        if action.enabled { return action.title == "Buy" ? "Buy tez through \(BuyProvider.current.title)" : action.title }
-        if action.title == "Buy", !model.network.isMainnet { return "Buying is only possible on Mainnet" }
+        if action.enabled { return action.title == "Swap" ? "Swap Tezos assets through 3Route" : action.title }
+        if action.title == "Swap", !model.network.isMainnet { return "3Route swaps are available on Mainnet" }
         if isWatchOnly { return "Not available for a watch-only address" }
         if action.title == "Send" {
             if model.accountNotOnChain { return "This address has no tez on this network" }
@@ -68,10 +65,10 @@ struct ActionButtonsView: View {
                 Button(action: action.perform) {
                     VStack(spacing: 6) {
                         Image(systemName: action.symbol)
-                            .font(.title3)
+                            .font(.system(size: 19, weight: .medium))
                             .frame(height: 22) // symbols differ in height (e.g. minus), keep tiles equal
                         Text(action.title)
-                            .font(.callout)
+                            .font(.caption.weight(.medium))
                     }
                 }
                 .buttonStyle(ActionButtonStyle())
@@ -90,17 +87,18 @@ struct ActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.vertical, 16)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(configuration.isPressed ? Color.secondary.opacity(0.25) : Color.secondary.opacity(0.12))
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.10 : 0.045))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.secondary.opacity(0.08), lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-            .foregroundStyle(isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .foregroundStyle(isEnabled ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color.secondary))
+            .opacity(isEnabled ? 1 : 0.55)
     }
 }
 

@@ -10,6 +10,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             appearanceSection
+            networkSection
             nodeSection
             buySection
             if let directory = model.walletDirectory {
@@ -77,6 +78,23 @@ struct SettingsView: View {
         }
     }
 
+    private var networkSection: some View {
+        Section("Connection") {
+            Picker("Active network", selection: Binding(
+                get: { model.network.name },
+                set: { name in
+                    guard let network = Network.named(name) else { return }
+                    model.switchNetwork(to: network)
+                }
+            )) {
+                ForEach(Network.all) { network in
+                    Text(network.name).tag(network.name)
+                }
+            }
+            NodeStatusBar(monitor: model.nodeMonitor)
+        }
+    }
+
     /// The network is a dropdown; the node beneath it is free text so any RPC endpoint can
     /// replace the default for that network. The text is applied on Return or with Apply.
     @State private var nodeText = ""
@@ -84,7 +102,7 @@ struct SettingsView: View {
 
     private var nodeSection: some View {
         Section {
-            Picker("Network", selection: $editingNetworkName) {
+            Picker("Configure network", selection: $editingNetworkName) {
                 ForEach(Network.all) { network in
                     Text(network.name + (network.name == model.network.name ? "  (in use)" : "")).tag(network.name)
                 }
@@ -131,7 +149,7 @@ struct SettingsView: View {
 
     private var nodeFooter: String {
         guard let base = editingNetwork else { return "" }
-        var text = "The node Signet uses for \(base.name). Each network keeps its own; switch networks with the badge at the top of the main window."
+        var text = "The node Signet uses for \(base.name). Each network keeps its own; choose the active network under Connection above."
         if base.chain == "custom" {
             text += " Custom is yours to point anywhere, for example a node you run yourself."
         } else {

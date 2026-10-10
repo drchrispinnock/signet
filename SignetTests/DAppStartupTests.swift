@@ -29,3 +29,21 @@ struct DAppStartupTests {
         _ = try? await TaquitoBridge.shared.call("octezConnectStop")
     }
 }
+
+@MainActor
+struct DemoModeTests {
+    @Test func demoKeepsAccountsInMemoryAndHasNoSigningSecrets() async throws {
+        let model = WalletViewModel.demo()
+        #expect(model.walletDirectory == nil)
+        #expect(model.backupDirectory == nil)
+        #expect(model.importableWalletCount == 0)
+        let account = try #require(model.selectedWallet)
+        #expect(try model.signingKey(for: account, passphrase: nil) == nil)
+        await model.refresh()
+        #expect(model.tezBalance?.spendable == Decimal(string: "1361.43"))
+        #expect(model.tezBalance?.staked == 3000)
+        try model.renameSelectedWallet(to: "Demo renamed")
+        #expect(model.selectedWallet?.alias == "Demo renamed")
+        #expect(WalletViewModel.demo().selectedWallet?.alias == "My Account")
+    }
+}

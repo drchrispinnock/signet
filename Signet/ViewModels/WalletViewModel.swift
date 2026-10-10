@@ -63,6 +63,7 @@ final class WalletViewModel {
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     var isPresentingGovernance = false
     var isPresentingBuy = false
+    var isPresentingSwap = false
 
     /// Governance is for bakers whose key we can sign with.
     var canGovern: Bool { selectedWallet?.keyKind.canSign == true && delegateInfo?.isBaker == true }
@@ -787,6 +788,20 @@ final class WalletViewModel {
         Wallet(alias: "My Account", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), keyKind: .unencrypted),
         Wallet(alias: "Savings", address: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), keyKind: .encrypted),
     ]
+
+    /// Interactive frontend demo. Account and app state stay in memory, including after edits.
+    /// No chain requests or dApp startup; fixture accounts contain no signing secrets.
+    static func demo() -> WalletViewModel {
+        WalletViewModel(
+            wallets: sampleWallets,
+            chain: MockChainService(),
+            walletStore: InMemoryWalletStore(wallets: sampleWallets),
+            nodeProbe: { _ in
+                let header = "{\"level\":9000010,\"timestamp\":\"\(Date().ISO8601Format())\"}"
+                return (Data(header.utf8), 200, 0.01)
+            }
+        )
+    }
 
     static func preview() -> WalletViewModel {
         WalletViewModel(wallets: sampleWallets, chain: MockChainService())
