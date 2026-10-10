@@ -24,3 +24,16 @@ Probably not. Codex will be checking what Claude is doing. But of course, you ca
 ### Will you be adding XYZ feature any time soon?
 
 Ping me and we can queue it up. Work on this will be between other things and might fall right down the stack.
+
+## Local frontend preview
+
+Run `./scripts/preview.sh` to build and open an isolated demo with sample accounts.
+The demo keeps account changes in memory and cannot sign payments or pair with dApps.
+
+The mainnet **Swap** action opens a 3Route connection sheet. Open 3Route in your
+browser, choose **Connect Wallet → Show more → Show QR code → octez.connect**,
+copy the pairing code, and paste it into Signet. Choose the assets and amount and
+review the live quote on 3Route; Signet presents its normal permission and transaction
+approvals. Software keys and Ledger accounts use the existing signing flow.
+This is a provider-hosted swap flow, not a native 3Route quote API integration.
+Buy tez remains available when funding an empty account.

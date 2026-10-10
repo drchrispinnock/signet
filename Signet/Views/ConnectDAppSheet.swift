@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 /// Pair with a dApp by pasting its Octez Connect code, and manage existing connections.
 struct ConnectDAppSheet: View {
     @Bindable var model: WalletViewModel
+    var isSwapFlow = false
     @Environment(\.dismiss) private var dismiss
     @State private var code = ""
     @State private var isPairing = false
@@ -14,20 +16,22 @@ struct ConnectDAppSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Connect to a dApp")
+                Text(isSwapFlow ? "Swap" : "Connect to a dApp")
                     .font(.title2.weight(.semibold))
                 Spacer()
                 HStack(spacing: 6) {
                     Circle().fill(dapps.isStarted ? .green : (dapps.lastError == nil ? .gray : .red)).frame(width: 8, height: 8)
-                    Text(dapps.isStarted ? "Octez Connect running" : (dapps.lastError == nil ? "Starting…" : "Octez Connect failed"))
+                    Text(AppRuntime.isDemo ? "Demo" : (dapps.isStarted ? "Octez Connect running" : (dapps.lastError == nil ? "Starting…" : "Octez Connect failed")))
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                .help(dapps.lastError ?? "Connected to the Tezos relay")
+                .help(AppRuntime.isDemo ? "Sample accounts cannot connect" : (dapps.lastError ?? "Octez Connect relay status"))
             }
             if let error = dapps.lastError, !dapps.isStarted {
                 Text(error).font(.callout).foregroundStyle(.red)
                 Button("Try again") { Task { await dapps.restart() } }
             }
+
+            if isSwapFlow { swapIntroduction }
 
             Form {
                 Section {
@@ -43,7 +47,7 @@ struct ConnectDAppSheet: View {
                         Spacer()
                         Button("Pair") { pair() }
                             .buttonStyle(.borderedProminent)
-                            .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPairing)
+                            .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPairing || !canPair)
                     }
                 }
 
@@ -68,7 +72,7 @@ struct ConnectDAppSheet: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(height: 360)
+            .frame(height: isSwapFlow ? 260 : 360)
 
             if let message {
                 Text(message).font(.callout).foregroundStyle(isError ? .red : .green)
@@ -81,12 +85,55 @@ struct ConnectDAppSheet: View {
         }
         .padding(20)
         .frame(width: 520)
-        .task { await dapps.reloadPermissions() }
+        .task { if !AppRuntime.isDemo { await dapps.reloadPermissions() } }
         .onAppear { takePendingCode() }
         .onChange(of: model.pendingPairingCode) { takePendingCode() }
         // Only one sheet can be up at a time: step aside as soon as the dApp's first request arrives,
         // so the approval sheet can show without the user having to close this one.
         .onChange(of: dapps.current?.id) { if dapps.current != nil { dismiss() } }
+    }
+
+    private var canPair: Bool {
+        !AppRuntime.isDemo && (!isSwapFlow || (model.network.isMainnet && model.selectedWallet?.keyKind.canSign == true))
+    }
+
+    private var swapIntroduction: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.title2).foregroundStyle(Theme.violet)
+                    .frame(width: 48, height: 48)
+                    .background(Theme.violet.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Swap with 3Route").font(.title3.weight(.semibold))
+                    Text("Tezos assets · Mainnet").font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            Text("Choose the assets and amount on 3Route, review the live quote, then approve the transaction in Signet.")
+                .font(.callout).foregroundStyle(.secondary)
+            Button {
+                if !NSWorkspace.shared.open(ThreeRoute.url) {
+                    isError = true
+                    message = "Could not open 3Route. Visit https://3route.io/swap in your browser."
+                }
+            } label: {
+                HStack { Text("Open 3Route"); Spacer(); Image(systemName: "arrow.up.right") }
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
+            Text("To connect: Connect Wallet → Show more → Show QR code → octez.connect → Copy to clipboard. Paste the pairing code below.")
+                .font(.caption).foregroundStyle(.secondary)
+            if AppRuntime.isDemo {
+                Label("Sample accounts cannot pair or sign. You can explore 3Route in your browser.", systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if !canPair {
+                Label("Select a signing account on Mainnet to connect with 3Route.", systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(18)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 20))
     }
 
     private func walletName(for address: String) -> String {
@@ -102,6 +149,7 @@ struct ConnectDAppSheet: View {
     }
 
     private func pair() {
+        guard canPair else { return }
         isPairing = true
         message = nil
         Task {
@@ -144,4 +192,9 @@ struct DAppIconView: View {
             Image(systemName: "globe").font(.system(size: size * 0.5)).foregroundStyle(.secondary)
         }
     }
+}
+
+/// A fixed provider entry point; account addresses and secrets are never included in this URL.
+enum ThreeRoute {
+    static let url = URL(string: "https://3route.io/swap")!
 }

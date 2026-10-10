@@ -4,23 +4,37 @@ import SwiftUI
 /// Bottom section of the dashboard: recent transactions or NFTs, chosen with a segmented control.
 struct ActivityTabsView: View {
     @Bindable var model: WalletViewModel
+    var hidesBalances = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Activity", selection: $model.activityTab) {
+            HStack(spacing: 24) {
                 ForEach(WalletViewModel.ActivityTab.allCases) { tab in
-                    Text(tab.rawValue).tag(tab)
+                    Button {
+                        model.activityTab = tab
+                    } label: {
+                        VStack(spacing: 12) {
+                            Text(tab == .transactions ? "Activity" : tab.rawValue)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(model.activityTab == tab ? Color.primary : Color.secondary)
+                            Capsule()
+                                .fill(model.activityTab == tab ? Theme.violet : .clear)
+                                .frame(height: 2)
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.activityTab == tab ? .isSelected : [])
                 }
+                Spacer()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 400)
+            .padding(.top, 4)
 
             switch model.activityTab {
             case .transactions:
-                TransactionListView(model: model)
+                TransactionListView(model: model, hidesBalances: hidesBalances)
             case .assets:
-                TokenListView(tokens: model.tokens, isLoading: model.isLoading, network: model.network)
+                TokenListView(tokens: model.tokens, isLoading: model.isLoading, network: model.network, hidesBalances: hidesBalances)
             case .nfts:
                 NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
             }
@@ -32,6 +46,7 @@ struct ActivityTabsView: View {
 /// The last few operations, each with the counterparty's avatar and best-known name.
 struct TransactionListView: View {
     @Bindable var model: WalletViewModel
+    var hidesBalances = false
 
     var body: some View {
         if model.transactions.isEmpty {
@@ -44,7 +59,7 @@ struct TransactionListView: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(model.transactions) { tx in
-                        TransactionRowView(model: model, transaction: tx)
+                        TransactionRowView(model: model, transaction: tx, hidesBalances: hidesBalances)
                         Divider().padding(.leading, 56)
                     }
                 }
@@ -56,6 +71,7 @@ struct TransactionListView: View {
 struct TransactionRowView: View {
     @Bindable var model: WalletViewModel
     let transaction: TezosTransaction
+    var hidesBalances = false
     @State private var isHovering = false
 
     private var network: Network { model.network }
@@ -106,11 +122,11 @@ struct TransactionRowView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 if transaction.amount > 0 {
-                    Text(signedAmount)
+                    Text(hidesBalances ? "••••" : signedAmount)
                         .font(.body.monospacedDigit().weight(.medium))
                         .foregroundStyle(transaction.direction == .incoming ? .green : .primary)
                 } else if transaction.kind == .delegation, let balance = transaction.delegatedBalance, balance > 0 {
-                    Text(AssetBalance.format(balance, symbol: "tz"))
+                    Text(hidesBalances ? "••••" : AssetBalance.format(balance, symbol: "tz"))
                         .font(.body.monospacedDigit())
                         .foregroundStyle(.secondary)
                     Text("delegated balance").font(.caption2).foregroundStyle(.tertiary)
@@ -119,14 +135,13 @@ struct TransactionRowView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                if transaction.direction != .incoming, transaction.fee > 0 {
-                    Text("fee \(AssetBalance.format(transaction.fee, symbol: "tz"))")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.tertiary)
-                }
+                Text("Fee \(hidesBalances ? "••••" : AssetBalance.format(transaction.fee, symbol: "tz"))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .help("Network fee paid by the operation sender")
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 14)
         .padding(.horizontal, 4)
         .background(RoundedRectangle(cornerRadius: 8).fill(isHovering ? Color.secondary.opacity(0.08) : .clear))
         .contentShape(Rectangle())
@@ -134,7 +149,7 @@ struct TransactionRowView: View {
         .onTapGesture { openExplorer() }
         .help(helpText)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")")
+        .accessibilityLabel("\(headline), \(subtitle), \(hidesBalances ? "Amount and fee hidden" : (transaction.amount > 0 ? signedAmount : "") + ", fee " + AssetBalance.format(transaction.fee, symbol: "tz"))")
     }
 
     // MARK: Pieces
@@ -182,7 +197,6 @@ struct TransactionRowView: View {
         var parts = [Self.relative.localizedString(for: transaction.timestamp, relativeTo: Date())]
         if let entrypoint = transaction.entrypoint { parts.append("entrypoint \(entrypoint)") }
         else if transaction.isContractCall { parts.append("contract") }
-        if !party.isOurs, transaction.counterpartyAlias != nil { parts.append("name from TzKT") }
         return parts.joined(separator: " · ")
     }
 

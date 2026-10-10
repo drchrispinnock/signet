@@ -47,61 +47,90 @@ private struct ComposeTransferView: View {
     private enum Field { case recipient, amount }
 
     var body: some View {
-        Text("Send tez")
-            .font(.title2.weight(.semibold))
+        HStack {
+            Text("Send tez").font(.title2.weight(.semibold))
+            Spacer()
+            Text(network.name).font(.caption).foregroundStyle(.secondary)
+        }
 
-        Form {
-            LabeledContent("From") {
-                HStack(spacing: 8) {
-                    AccountAvatarView(address: send.sender.address, network: network, size: 24)
-                    Text(send.sender.alias)
-                    Text(send.sender.address.shortened()).font(.callout.monospaced()).foregroundStyle(.secondary)
-                    Spacer()
-                    if let spendable = send.spendable {
-                        Text("\(AssetBalance.format(spendable, symbol: "tz")) spendable")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
+        HStack(spacing: 12) {
+            AccountAvatarView(address: send.sender.address, network: network, size: 36)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(send.sender.alias).font(.headline).lineLimit(1)
+                Text(send.sender.address.shortened())
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            Spacer(minLength: 12)
+            if let spendable = send.spendable {
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(AssetBalance.format(spendable, symbol: "tz"))
+                        .font(.callout.weight(.medium).monospacedDigit()).lineLimit(1)
+                    Text("Available").font(.caption).foregroundStyle(.secondary)
                 }
             }
+        }
+        .padding(16)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16))
 
-            VStack(alignment: .leading, spacing: 6) {
-                TextField("To", text: $send.recipientText, prompt: Text("Address, name.tez, or an account from your list"))
-                    .font(.body.monospaced())
-                    .focused($focus, equals: .recipient)
-                    .autocorrectionDisabled()
-                recipientStatus
-                if send.recipient == nil, !send.suggestions.isEmpty {
-                    suggestionList
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            Text("To").font(.callout.weight(.medium))
+            TextField("Address or .tez name", text: $send.recipientText)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .focused($focus, equals: .recipient)
+                .autocorrectionDisabled()
+                .padding(14)
+                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.secondary.opacity(0.15)))
+            recipientStatus
+            if send.recipient == nil, !send.suggestions.isEmpty {
+                suggestionList
             }
+        }
+        .padding(.top, 8)
 
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                TextField("Amount", text: $send.amountText, prompt: Text("0.0"))
-                    .font(.body.monospacedDigit())
-                    .focused($focus, equals: .amount)
-                    .onSubmit { if send.canProceed { Task { await send.proceedToConfirm() } } }
-                Text("tz").foregroundStyle(.secondary)
+                Text("Amount").font(.callout.weight(.medium))
+                Spacer()
                 Button("Max") { send.useMaximum() }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.violet)
                     .disabled(send.spendable == nil)
                     .help("Everything except a small reserve for the fee")
             }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                TextField("Amount", text: $send.amountText, prompt: Text("0.00"))
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 30, weight: .medium, design: .rounded).monospacedDigit())
+                    .focused($focus, equals: .amount)
+                    .onSubmit { if send.canProceed { Task { await send.proceedToConfirm() } } }
+                Text("tz").font(.title3).foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+            Text("Review the network fee in the next step.")
+                .font(.caption).foregroundStyle(.secondary)
         }
-        .formStyle(.grouped)
-        .scrollDisabled(true)
+        .padding(.top, 4)
 
         if let error = send.errorMessage {
             Text(error).font(.callout).foregroundStyle(.red)
         }
 
         HStack {
-            Spacer()
             Button("Cancel", role: .cancel, action: onCancel)
                 .keyboardShortcut(.cancelAction)
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+            Spacer()
             Button("Continue") { Task { await send.proceedToConfirm() } }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(!send.canProceed)
         }
+        .padding(.top, 12)
         .onAppear { focus = .recipient }
     }
 
@@ -126,24 +155,32 @@ private struct ComposeTransferView: View {
     }
 
     private var suggestionList: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(send.recipientText.isEmpty ? "Your accounts" : "Matching accounts")
+                .font(.caption).foregroundStyle(.secondary)
+                .padding(.bottom, 3)
             ForEach(send.suggestions.prefix(6)) { wallet in
-                Button { send.choose(wallet) } label: {
-                    HStack(spacing: 8) {
-                        AccountAvatarView(address: wallet.address, network: network, size: 20)
-                        Text(wallet.alias)
-                        Text(wallet.address.shortened()).font(.callout.monospaced()).foregroundStyle(.secondary)
+                Button { send.choose(wallet); focus = .amount } label: {
+                    HStack(spacing: 10) {
+                        AccountAvatarView(address: wallet.address, network: network, size: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(wallet.alias).font(.callout.weight(.medium)).lineLimit(1)
+                            Text(wallet.address.shortened())
+                                .font(.caption.monospaced()).foregroundStyle(.secondary)
+                                .lineLimit(1).truncationMode(.middle)
+                        }
                         Spacer()
-                        Text(wallet.keyKind == KeyKind.none ? "Address book" : "My account")
-                            .font(.caption).foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                     }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
+                    .padding(10)
+                    .contentShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
+                .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
             }
         }
     }
+
 }
 
 /// "Verified" when the recipient is one of ours; otherwise the name is hearsay from an indexer.
