@@ -88,7 +88,7 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
         if let match = Network.all.first(where: { $0.chain == kind && $0.chain != "custom" }) { return match }
         if kind == "custom", let rpcURL {
-            if let known = Network.all.first(where: { sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
+            if let known = Network.all.first(where: { $0.chain != "custom" && sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
             guard EndpointPolicy.isPublicHTTPS(rpcURL) else { return nil }
             return Network(name: "Custom (\(endpointDescription(rpcURL)))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
         }

@@ -51,6 +51,160 @@ struct DAppRequestParsingTests {
         #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.example.org"))?.chain == "custom")
         #expect(DAppRequest.network(forType: "ghostnet", rpcURL: nil) == nil)
     }
+
+    /// S12: a dApp's custom endpoint must be public HTTPS; a name match is not enough, and the
+    /// wallet's own local node is never reachable through a dApp's request.
+    @Test func refusesLocalOrInsecureCustomEndpointsFromDApps() {
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "http://127.0.0.1:8732")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "http://localhost:8732")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://10.0.0.5")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://192.168.1.2/rpc")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "http://rpc.example.org")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://user:pw@rpc.example.org")) == nil)
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.example.org:8732/node"))?.name == "Custom (rpc.example.org:8732/node)")
+        // Only the whole endpoint identifies one of our networks: same host, other path or port, is not Shadownet.
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.shadownet.teztnets.com/other"))?.chain == "custom")
+        #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.shadownet.teztnets.com:8443"))?.chain == "custom")
+        #expect(DAppRequest.sameEndpoint(URL(string: "https://a.example"), URL(string: "https://A.example:443/")))
+        #expect(!DAppRequest.sameEndpoint(URL(string: "https://a.example"), URL(string: "http://a.example")))
+        #expect(!DAppRequest.sameEndpoint(URL(string: "https://a.example/x"), URL(string: "https://a.example/y")))
+        #expect(DAppRequest.sameEndpoint(nil, nil) && !DAppRequest.sameEndpoint(nil, URL(string: "https://a.example")))
+    }
+
+    /// S04: identity is the message's authenticated sender id (set by the bridge), never the
+    /// self-asserted one inside the app metadata.
+    @Test func senderIdentityIsNeverTakenFromAppMetadata() throws {
+        let json = """
+        {"kind":"request","message":{"id":"req-4","type":"sign_payload_request","senderId":"authentic","appMetadata":{"senderId":"spoofed","name":"objkt.com"},
+          "sourceAddress":"tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb","signingType":"micheline","payload":"0501000000076865792074657a"}}
+        """
+        let request = try #require(DAppRequest.parse(eventJSON: json))
+        #expect(request.app.senderId == "authentic")
+        let noSender = """
+        {"kind":"request","message":{"id":"req-5","type":"sign_payload_request","appMetadata":{"senderId":"spoofed","name":"objkt.com"},
+          "sourceAddress":"tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb","signingType":"micheline","payload":"0501000000076865792074657a"}}
+        """
+        #expect(try #require(DAppRequest.parse(eventJSON: noSender)).app.senderId.isEmpty)
+    }
+}
+
+/// S12: what the Settings node field accepts.
+struct NodeURLPolicyTests {
+    @Test func nodeFieldRequiresHTTPSAwayFromTheLocalMachine() {
+        #expect(Network.nodeURL(from: "rpc.tzbeta.net")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: "https://rpc.tzbeta.net/")?.absoluteString == "https://rpc.tzbeta.net")
+        #expect(Network.nodeURL(from: "http://localhost:8732")?.absoluteString == "http://localhost:8732")
+        #expect(Network.nodeURL(from: "http://127.0.0.1:8732") != nil)
+        #expect(Network.nodeURL(from: "http://192.168.1.20:8732") != nil)
+        #expect(Network.nodeURL(from: "http://rpc.tzbeta.net") == nil)
+        #expect(Network.nodeURL(from: "https://user:secret@rpc.tzbeta.net") == nil)
+        #expect(Network.nodeURL(from: "not a url") == nil)
+        #expect(Network.nodeURLProblem("http://rpc.tzbeta.net").contains("https"))
+        #expect(Network.mainnet.expectedChainID == "NetXdQprcVkpaWU")
+        #expect(Network.shadownet.expectedChainID == "NetXsqzbfFenSTS")
+        #expect(Network.weeklynet.expectedChainID == nil)
+    }
+}
+
+/// S08: a request is signed only under a grant for its exact peer, account, scope and network.
+struct DAppGrantTests {
+    static let source = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+    static let app = DAppInfo(name: "objkt.com", icon: nil, url: nil, senderId: "peer-a")
+    static func grant(senderId: String = "peer-a", address: String = source.value, networkType: String = "mainnet", rpc: URL? = nil, scopes: [String] = ["operation_request", "sign"]) -> DAppPermission {
+        DAppPermission(accountIdentifier: "acc", senderId: senderId, address: address, appName: "objkt.com", appIcon: nil, networkType: networkType, networkRPCURL: rpc, scopes: scopes, connectedAt: nil)
+    }
+    static let operation = DAppRequest.operation(id: "op", app: app, networkType: "mainnet", rpcURL: nil, source: source, operationsJSON: "[]")
+    static let sign = DAppRequest.signPayload(id: "sig", app: app, source: source, signingType: "micheline", payload: "05")
+
+    @Test func requiresAnExactGrant() throws {
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.operation, in: []) }
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.operation, in: [Self.grant(senderId: "peer-b")]) }
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.operation, in: [Self.grant(address: "tz1other")]) }
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.operation, in: [Self.grant(scopes: ["sign"])]) }
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.operation, in: [Self.grant(networkType: "shadownet")]) }
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: Self.sign, in: [Self.grant(scopes: ["operation_request"])]) }
+        #expect(try DAppConnectionManager.grant(for: Self.operation, in: [Self.grant(networkType: "shadownet"), Self.grant()]).networkType == "mainnet")
+        #expect(try DAppConnectionManager.grant(for: Self.sign, in: [Self.grant(scopes: ["sign"])]).scopes == ["sign"])
+        // A request with no authenticated sender matches nothing.
+        let anonymous = DAppRequest.signPayload(id: "sig", app: DAppInfo(name: "x", icon: nil, url: nil, senderId: ""), source: Self.source, signingType: "micheline", payload: "05")
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: anonymous, in: [Self.grant(senderId: "")]) }
+        // Custom networks must name the same endpoint.
+        let custom = DAppRequest.operation(id: "op", app: Self.app, networkType: "custom", rpcURL: URL(string: "https://rpc.example.org/"), source: Self.source, operationsJSON: "[]")
+        #expect(throws: DAppConnectionManager.ConnectError.self) { try DAppConnectionManager.grant(for: custom, in: [Self.grant(networkType: "custom", rpc: URL(string: "https://rpc.example.org:8443"))]) }
+        #expect(try DAppConnectionManager.grant(for: custom, in: [Self.grant(networkType: "custom", rpc: URL(string: "https://rpc.example.org"))]).networkType == "custom")
+    }
+
+    /// S08 and S17 through the manager: no grant means no signing; a signed reply the relay did
+    /// not take is kept and resent, never signed again; revoking a grant drops its requests.
+    @MainActor
+    @Test func managerChecksGrantsAndKeepsUndeliveredReplies() async throws {
+        let material = try await KeyGenerator().generate(scheme: .tz1)
+        let wallet = Wallet(alias: "me", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
+        final class Counter: @unchecked Sendable { var signings = 0 }
+        let counter = Counter()
+        let manager = DAppConnectionManager(storage: InMemoryBridgeStorage(), wallets: { [wallet] }) { w, _ in
+            counter.signings += 1
+            return .secret(material.secretKey, passphrase: nil, address: w.address)
+        }
+        let app = DAppInfo(name: "objkt.com", icon: nil, url: nil, senderId: "peer-a")
+        let request = DAppRequest.signPayload(id: "s-1", app: app, source: wallet.address, signingType: "micheline", payload: "0501000000076865792074657a")
+        let event = """
+        {"kind":"request","message":{"id":"s-1","type":"sign_payload_request","senderId":"peer-a","appMetadata":{"name":"objkt.com"},
+          "sourceAddress":"\(wallet.address.value)","signingType":"micheline","payload":"0501000000076865792074657a"}}
+        """
+        // No grant: refused before any signing.
+        manager.permissionsOverride = []
+        manager.handle(eventJSON: event)
+        #expect(manager.pending.count == 1)
+        await manager.approveSignature(request, passphrase: nil)
+        #expect(counter.signings == 0)
+        #expect(manager.pending.isEmpty)
+        #expect(manager.lastError?.contains("no permission") == true)
+
+        // With a grant the message is signed; the SDK is not started here, so the reply cannot be
+        // delivered: the request stays, marked undelivered, and a second approval resends only.
+        manager.permissionsOverride = [Self.grant(address: wallet.address.value, scopes: ["sign"])]
+        manager.handle(eventJSON: event)
+        await manager.approveSignature(request, passphrase: nil)
+        #expect(counter.signings == 1)
+        #expect(manager.pending.count == 1)
+        #expect(manager.undelivered["s-1"]?.attempts == 1)
+        await manager.approveSignature(request, passphrase: nil)
+        #expect(counter.signings == 1)
+        #expect(manager.undelivered["s-1"]?.attempts == 2)
+        await manager.resendReply(request)
+        #expect(counter.signings == 1 && manager.undelivered["s-1"]?.attempts == 3)
+        // Giving up keeps what was done and drops the request.
+        await manager.reject(request)
+        #expect(manager.pending.isEmpty && manager.undelivered.isEmpty)
+
+        // Revoking the grant refuses queued requests from that peer (S08).
+        manager.handle(eventJSON: event)
+        #expect(manager.pending.count == 1)
+        await manager.disconnect(Self.grant(address: wallet.address.value, scopes: ["sign"]))
+        #expect(manager.pending.isEmpty)
+
+        // The queue is bounded (S19).
+        for i in 0..<(DAppConnectionManager.maxPending + 3) {
+            manager.handle(eventJSON: event.replacingOccurrences(of: "s-1", with: "s-\(i + 10)"))
+        }
+        #expect(manager.pending.count == DAppConnectionManager.maxPending)
+        #expect(manager.lastError?.contains("Too many") == true)
+    }
+}
+
+/// S11: nothing secret or private reaches the bridge log.
+struct BridgeLogRedactionTests {
+    @Test func redactsURLsAndLongHexOrKeys() {
+        #expect(TaquitoBridge.redacted("https://relay.example/_matrix/client/r0/sync?access_token=SECRET&since=abc") == "https://relay.example/_matrix/client/r0/sync")
+        #expect(TaquitoBridge.redacted("not a url") == "<url>")
+        let hex = String(repeating: "ab", count: 40)
+        #expect(!TaquitoBridge.redactedLine("signed \(hex) done").contains(hex))
+        #expect(TaquitoBridge.redactedLine("key edskRuR3azSfg5xTz6dLovR7yr7hgP9Qt6Ub8rgqJG7VTH6RhJ1vXXhfSwtxw1E2Lc3b3TvsgrnWXKVyLRQgm3Rx8cFXqQhd3 here") == "key edsk<redacted> here")
+        #expect(TaquitoBridge.redactedLine("sig edsigtmSFeZqfyckY8zu5uX7yC3JArZrzzNwqnmGRpNgQNYu4NNo5pY3M9zfbSjtTe2kQUv7Ca8RoxwygwLyRh4FEVvdZ5Fn2KQ ok") == "sig edsig<redacted> ok")
+        #expect(TaquitoBridge.redactedLine(String(repeating: "x", count: 5000)).count <= TaquitoBridge.maxLineLength + 1)
+        #expect(TaquitoBridge.redactedLine("fetch #3 ← 200 1234 bytes") == "fetch #3 ← 200 1234 bytes")
+    }
 }
 
 struct OctezConnectBridgeTests {

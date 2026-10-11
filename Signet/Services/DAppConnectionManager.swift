@@ -143,7 +143,11 @@ final class DAppConnectionManager {
         return name
     }
 
+    /// Test seam: grants to use instead of the SDK's stored ones (the SDK needs the relay to start).
+    var permissionsOverride: [DAppPermission]?
+
     func reloadPermissions() async {
+        if let permissionsOverride { permissions = permissionsOverride; return }
         guard let list = try? await bridge.call("octezConnectPermissions", timeout: 30).arrayValue else { return }
         permissions = list.compactMap(Self.permission)
     }
@@ -187,7 +191,8 @@ final class DAppConnectionManager {
 
     // MARK: Incoming
 
-    private func handle(eventJSON: String) {
+    /// Handles one event pushed by the bridge (`request`, `paired`, `refused`, `error`).
+    func handle(eventJSON: String) {
         guard let data = eventJSON.data(using: .utf8),
               let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let kind = event["kind"] as? String else { return }
@@ -212,15 +217,18 @@ final class DAppConnectionManager {
         }
         guard let request = DAppRequest.parse(eventJSON: eventJSON) else { return }
         if case .unsupported(let id, _, let type) = request {
-            Task { await respondError(id: id, errorType: "NOT_GRANTED_ERROR"); lastError = "Unsupported dApp request: \(type)" }
+            lastError = "Unsupported dApp request: \(type)"
+            Task { await respondError(id: id, errorType: "NOT_GRANTED_ERROR") }
             return
         }
         if let why = request.signRefusal {
-            Task { await respondError(id: request.id, errorType: "SIGNATURE_TYPE_NOT_SUPPORTED"); lastError = "Refused a signing request from “\(request.app.name)”: \(why)" }
+            lastError = "Refused a signing request from “\(request.app.name)”: \(why)"
+            Task { await respondError(id: request.id, errorType: "SIGNATURE_TYPE_NOT_SUPPORTED") }
             return
         }
         guard pending.count < Self.maxPending else {
-            Task { await respondError(id: request.id, errorType: "ABORTED_ERROR"); lastError = "Too many dApp requests are waiting; “\(request.app.name)” was refused." }
+            lastError = "Too many dApp requests are waiting; “\(request.app.name)” was refused."
+            Task { await respondError(id: request.id, errorType: "ABORTED_ERROR") }
             return
         }
         guard !pending.contains(where: { $0.id == request.id }) else { return }
