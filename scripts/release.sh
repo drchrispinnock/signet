@@ -21,6 +21,8 @@
 # the GitHub release for this version). A dist/Signet-<version>.md, if present, becomes the
 # release notes shown in the update dialog.
 set -eu
+# Keep a failing command's status when its output is piped (zip/notarise/du below).
+set -o pipefail
 
 cd "$(dirname "$0")/.."
 
@@ -52,13 +54,22 @@ if ! [ -d Signet.xcodeproj ]; then
 fi
 
 echo "==> Archiving (Release)"
-xcodebuild -project Signet.xcodeproj -scheme Signet -configuration Release \
+ARCHIVE_LOG="$WORK/archive.log"
+mkdir -p "$WORK"
+# xcodebuild's own exit status decides; its full log is kept and only the interesting lines are
+# shown. (Filtering in a pipeline would let grep's status stand in for xcodebuild's.)
+if ! xcodebuild -project Signet.xcodeproj -scheme Signet -configuration Release \
   -destination 'platform=macOS' -archivePath "$ARCHIVE" \
   -clonedSourcePackagesDirPath "$PACKAGES" \
   MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   CODE_SIGN_IDENTITY="${DEVELOPER_ID:--}" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
-  archive 2>&1 | grep -E "error:|warning: .*Signet/|\*\* ARCHIVE" || true
-[ -d "$ARCHIVE/Products/Applications/Signet.app" ] || { echo "archive failed"; exit 1; }
+  archive > "$ARCHIVE_LOG" 2>&1; then
+  grep -E "error:|\*\* ARCHIVE" "$ARCHIVE_LOG" || tail -40 "$ARCHIVE_LOG"
+  echo "archive failed (full log: $ARCHIVE_LOG)"; exit 1
+fi
+grep -E "error:|warning: .*Signet/|\*\* ARCHIVE" "$ARCHIVE_LOG" || true
+grep -q '\*\* ARCHIVE SUCCEEDED \*\*' "$ARCHIVE_LOG" || { echo "archive did not report success (full log: $ARCHIVE_LOG)"; exit 1; }
+[ -d "$ARCHIVE/Products/Applications/Signet.app" ] || { echo "archive produced no app"; exit 1; }
 cp -R "$ARCHIVE/Products/Applications/Signet.app" "$APP"
 
 if [ -n "${DEVELOPER_ID:-}" ]; then
