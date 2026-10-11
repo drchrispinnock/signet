@@ -285,7 +285,7 @@ struct StakingSheet: View {
         workingOnDevice = true
         defer { workingOnDevice = false }
         do {
-            let result = try await model.performStaking(op, passphrase: needsPassphrase ? passphrase : nil)
+            let result = try await model.performStaking(op, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil)
             mode = .done(hash: result.hash, level: result.level, op)
         } catch {
             errorMessage = error.localizedDescription

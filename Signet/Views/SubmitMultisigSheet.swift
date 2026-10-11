@@ -129,6 +129,6 @@ struct SubmitMultisigSheet: View {
         errorMessage = nil
         isWorking = true
         defer { isWorking = false }
-        do { sentHash = try await model.submitMultisig(proposal, from: submitter, passphrase: needsPassphrase ? passphrase : nil) } catch { errorMessage = error.localizedDescription }
+        do { sentHash = try await model.submitMultisig(proposal, from: submitter, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil) } catch { errorMessage = error.localizedDescription }
     }
 }

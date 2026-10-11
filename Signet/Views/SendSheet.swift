@@ -24,7 +24,7 @@ struct SendSheet: View {
                 ComposeTransferView(send: send, network: model.network, onCancel: { dismiss() })
             case .confirm, .sending:
                 ConfirmTransferView(send: send, network: model.network)
-            case .sent, .confirmed:
+            case .sent, .unknown, .confirmed:
                 TransferResultView(send: send, network: model.network, onDone: {
                     dismiss()
                     Task { await model.refreshAfterOperation() }
@@ -274,6 +274,11 @@ private struct TransferResultView: View {
         case .confirmed(let hash, let level):
             resultHeader(systemImage: "checkmark.circle.fill", title: "Confirmed", subtitle: "Included in block \(level.formatted())", spinning: false)
             operationLink(hash)
+        case .unknown(let hash):
+            resultHeader(systemImage: "questionmark.circle.fill", title: "Not confirmed by the node", subtitle: send.isBusy ? "Watching the chain…" : "The node's answer was lost", spinning: send.isBusy)
+            operationLink(hash)
+            Text("The operation was signed and handed to the node, but its answer did not arrive. Signet is watching the chain for it. Sending again sends the same signed operation, so it cannot be paid twice.")
+                .font(.callout).foregroundStyle(.secondary)
         default:
             EmptyView()
         }
@@ -282,6 +287,9 @@ private struct TransferResultView: View {
         }
         HStack {
             Spacer()
+            if case .unknown = send.step {
+                Button("Send the same operation again") { Task { await send.rebroadcast() } }.disabled(send.isBusy)
+            }
             Button("Done", action: onDone).keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
         }
     }

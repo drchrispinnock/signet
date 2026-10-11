@@ -44,6 +44,7 @@ struct StakingOperationTests {
 
 @MainActor
 struct StakingViewModelTests {
+    static let limits = OperationLimits(feeMutez: "421", gasLimit: 200, storageLimit: 0)
     @Test func refreshLoadsDelegateInfoAndOperationsRoundTrip() async throws {
         let store = InMemoryWalletStore()
         for wallet in WalletViewModel.sampleWallets { try store.add(wallet, secretKey: "edsk\(wallet.alias)") }
@@ -54,7 +55,7 @@ struct StakingViewModelTests {
 
         let estimate = try await model.estimateStaking(.stake(1))
         #expect(estimate.fee > 0)
-        let result = try await model.performStaking(.delegate(to: MockChainService.captainStake), passphrase: nil)
+        let result = try await model.performStaking(.delegate(to: MockChainService.captainStake), limits: estimate.limits, passphrase: nil)
         #expect(result.hash == "ooMockStakingsetDelegate")
         #expect(result.level == 9_000_000)
         #expect((await model.bakers()).first?.alias == "Captain Stake")
@@ -66,9 +67,9 @@ struct StakingViewModelTests {
         try? store.add(vault, secretKey: "edeskFAKE")
         let model = WalletViewModel(wallets: nil, chain: MockChainService(), walletStore: store)
         await #expect(throws: ChainError.wrongPassphrase) {
-            _ = try await model.performStaking(.finalizeUnstake, passphrase: "nope")
+            _ = try await model.performStaking(.finalizeUnstake, limits: Self.limits, passphrase: "nope")
         }
-        let ok = try? await model.performStaking(.finalizeUnstake, passphrase: "correct horse")
+        let ok = try? await model.performStaking(.finalizeUnstake, limits: Self.limits, passphrase: "correct horse")
         #expect(ok?.hash == "ooMockStakingfinalizeUnstake")
     }
 }
@@ -95,13 +96,13 @@ struct QuantumnetStakingTests {
         let bakers = try await chain.bakers(limit: 10)
         let baker = try #require(bakers.first(where: { $0.acceptsStaking == true }) ?? bakers.first, "no bakers listed on Quantumnet")
 
-        let d = try await chain.performStaking(.delegate(to: baker.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+        let d = try await chain.performStaking(.delegate(to: baker.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.delegate(to: baker.address), from: wallet).limits)).hash
         _ = try await chain.waitForConfirmation(of: d)
         let delegated = try await chain.delegateInfo(for: wallet.address)
         #expect(delegated.delegate == baker.address)
 
         if delegated.delegateAcceptsStaking == true {
-            let s = try await chain.performStaking(.stake(5), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+            let s = try await chain.performStaking(.stake(5), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.stake(5), from: wallet).limits)).hash
             _ = try await chain.waitForConfirmation(of: s)
             try await Task.sleep(for: .seconds(8))
             let after = try await chain.tezBalance(for: wallet.address)
@@ -110,7 +111,7 @@ struct QuantumnetStakingTests {
             print("baker \(baker.alias ?? baker.address.value) does not accept staking; skipped the stake step")
         }
 
-        let r = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+        let r = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.registerAsBaker, from: wallet).limits)).hash
         _ = try await chain.waitForConfirmation(of: r)
         let registered = try await chain.delegateInfo(for: wallet.address)
         #expect(registered.isBaker)
@@ -151,13 +152,13 @@ struct QuantumnetBakerParametersTests {
         for _ in 0..<30 { try await Task.sleep(for: .seconds(4)); if let b = try? await chain.tezBalance(for: wallet.address), b.spendable >= 20 { funded = true; break } }
         #expect(funded)
 
-        let reg = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+        let reg = try await chain.performStaking(.registerAsBaker, from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.registerAsBaker, from: wallet).limits)).hash
         _ = try await chain.waitForConfirmation(of: reg)
 
         let params = try #require(StakingParameters(limitMultiplier: 5, edgePercent: 10))
         let estimate = try await chain.estimateStaking(.setStakingParameters(params, source: wallet.address), from: wallet)
         #expect(estimate.fee > 0)
-        let setHash = try await chain.performStaking(.setStakingParameters(params, source: wallet.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+        let setHash = try await chain.performStaking(.setStakingParameters(params, source: wallet.address), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.setStakingParameters(params, source: wallet.address), from: wallet).limits)).hash
         _ = try await chain.waitForConfirmation(of: setHash)
         try await Task.sleep(for: .seconds(4))
         let info = try await chain.delegateInfo(for: wallet.address)
@@ -173,7 +174,7 @@ struct QuantumnetBakerParametersTests {
             do {
                 let est = try await chain.estimateStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet)
                 #expect(est.fee > 0)
-                hash = try await chain.performStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address))
+                hash = try await chain.performStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet, signer: .secret(material.secretKey, passphrase: nil, address: wallet.address), limits: try #require(try await chain.estimateStaking(.updateConsensusKey(publicKey: xmpk, proof: nil), from: wallet).limits)).hash
             } catch TaquitoBridge.BridgeError.javaScript(let message) where message.contains("consensus_key.active") {
                 // A consensus key serves one baker at a time; an earlier run of this test already took it.
                 print("xmpk \(xmpk.prefix(12))… is already another baker's consensus key; skipped the tz6 step")

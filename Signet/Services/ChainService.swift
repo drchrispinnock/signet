@@ -16,10 +16,12 @@ protocol ChainService: Sendable {
     /// Indexer-known identity for an address (TzProfiles via TzKT), or `nil`.
     func accountProfile(for address: Address) async throws -> AccountProfile?
 
-    /// Cost of a transfer, computed without any secret key.
+    /// Cost of a transfer, computed without any secret key, with the limits to send it under.
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate
-    /// Signs and injects a transfer. Returns the operation hash.
-    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String
+    /// Signs and injects a transfer with exactly the approved `limits` (S14).
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
+    /// Sends the same signed bytes again after an unknown outcome; the hash cannot change (S15).
+    func rebroadcast(_ sent: SentOperation) async throws -> SentOperation
     /// Waits for the operation to be included. Returns the block level.
     func waitForConfirmation(of operationHash: String) async throws -> Int
 
@@ -28,7 +30,8 @@ protocol ChainService: Sendable {
     /// Bakers to offer in the picker, most popular first.
     func bakers(limit: Int) async throws -> [BakerCandidate]
     func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String
+    /// Signs and injects a staking-family operation with exactly the approved `limits` (S14).
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation
     /// BLS proof of possession for one of our tz4 keys.
     func proofOfPossession(signer: SigningKey) async throws -> String
 

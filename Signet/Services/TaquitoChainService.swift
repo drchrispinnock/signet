@@ -93,21 +93,41 @@ struct TaquitoChainService: ChainService {
         guard let publicKey = wallet.publicKey else {
             throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
         }
-        let result = try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)])
-        guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue),
-              let burn = Mutez.toTez(result["burnMutez"]?.stringValue),
-              let total = Mutez.toTez(result["totalCostMutez"]?.stringValue)
-        else { throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: result))") }
-        return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn,
-                                gasLimit: Int(result["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(result["storageLimit"]?.doubleValue ?? 0))
+        try await verifyChain()
+        let result = try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)], timeout: 120)
+        return try Self.estimate(from: result, amount: amount)
     }
 
-    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String {
-        let result = try await signing { try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, destination.value, Mutez.fromTez(amount)]) }
-        guard let hash = result["hash"]?.stringValue else {
+    /// An estimate as the bridge reports it: fee, burn and the limits to send with (S14, S20).
+    static func estimate(from result: JSONValue, amount: Decimal = 0) throws -> TransferEstimate {
+        guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue),
+              let burn = Mutez.toTez(result["burnMutez"]?.stringValue),
+              let gasLimit = result["gasLimit"]?.intValue, let storageLimit = result["storageLimit"]?.intValue,
+              let limits = OperationLimits(result["limits"])
+        else { throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: result))") }
+        return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn, gasLimit: gasLimit, storageLimit: storageLimit, limits: limits)
+    }
+
+    /// Refuses the node before anything is estimated or signed when it serves another chain (S12).
+    func verifyChain() async throws {
+        guard let expected = network.expectedChainID else { return }
+        _ = try await bridge.call("assertChain", [network.rpcURL.absoluteString, expected], timeout: 60)
+    }
+
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+        try await verifyChain()
+        let result = try await signing { try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, destination.value, Mutez.fromTez(amount), limits.json]) }
+        guard let sent = SentOperation(result) else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected send payload: \(String(describing: result))")
         }
-        return hash
+        return sent
+    }
+
+    func rebroadcast(_ sent: SentOperation) async throws -> SentOperation {
+        guard let bytes = sent.signedBytes else { throw TaquitoBridge.BridgeError.javaScript("There are no signed bytes to send again for \(sent.hash).") }
+        let result = try await bridge.call("injectSignedBytes", [network.rpcURL.absoluteString, bytes], timeout: 120)
+        guard let again = SentOperation(result) else { throw TaquitoBridge.BridgeError.javaScript("unexpected injection payload: \(String(describing: result))") }
+        return again
     }
 
     /// Runs a bridge call that signs, turning the bridge's error text for wrong passwords and
@@ -124,12 +144,14 @@ struct TaquitoChainService: ChainService {
     func waitForConfirmation(of operationHash: String) async throws -> Int {
         do {
             let result = try await bridge.call("waitForConfirmation", [operationHash, 1])
-            return Int(result.doubleValue ?? 0)
+            guard let level = result.intValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected confirmation payload: \(String(describing: result))") }
+            return level
         } catch let error as TaquitoBridge.BridgeError {
-            // Raw operations are not tracked by Taquito; watch the chain for them instead.
+            // Locally forged operations are not tracked by Taquito; watch the chain for them instead.
             guard case .javaScript(let message) = error, message.contains("unknown operation") else { throw error }
             let result = try await bridge.call("waitForRawOperation", [network.rpcURL.absoluteString, operationHash, 15])
-            return Int(result.doubleValue ?? 0)
+            guard let level = result.intValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected confirmation payload: \(String(describing: result))") }
+            return level
         }
     }
 
@@ -139,18 +161,18 @@ struct TaquitoChainService: ChainService {
         if let b = r["baker"], b != .null, b.objectValue != nil {
             baker = DelegateInfo.Baker(
                 deactivated: b["deactivated"]?.boolValue ?? false,
-                gracePeriod: b["gracePeriod"]?.doubleValue.map(Int.init),
+                gracePeriod: b["gracePeriod"]?.intValue,
                 consensusKey: b["consensusKey"]?.stringValue.map(Address.init),
                 pendingConsensusKeys: b["pendingConsensusKeys"]?.arrayValue?.compactMap { $0["key"]?.stringValue.map(Address.init) } ?? [],
                 companionKey: b["companionKey"]?.stringValue.map(Address.init),
                 pendingCompanionKeys: b["pendingCompanionKeys"]?.arrayValue?.compactMap { $0["key"]?.stringValue.map(Address.init) } ?? []
             )
-            if let p = b["stakingParameters"], let limit = p["limitMillionth"]?.doubleValue, let edge = p["edgeBillionth"]?.doubleValue {
-                baker?.stakingParameters = StakingParameters(limitMillionth: Int(limit), edgeBillionth: Int(edge))
+            if let p = b["stakingParameters"], let limit = p["limitMillionth"]?.intValue, let edge = p["edgeBillionth"]?.intValue {
+                baker?.stakingParameters = StakingParameters(limitMillionth: limit, edgeBillionth: edge)
             }
             baker?.pendingStakingParameters = b["pendingStakingParameters"]?.arrayValue?.compactMap { p in
-                guard let limit = p["limitMillionth"]?.doubleValue, let edge = p["edgeBillionth"]?.doubleValue else { return nil }
-                return StakingParameters(limitMillionth: Int(limit), edgeBillionth: Int(edge), cycle: p["cycle"]?.doubleValue.map(Int.init))
+                guard let limit = p["limitMillionth"]?.intValue, let edge = p["edgeBillionth"]?.intValue else { return nil }
+                return StakingParameters(limitMillionth: limit, edgeBillionth: edge, cycle: p["cycle"]?.intValue)
             } ?? []
         }
         return DelegateInfo(delegate: r["delegate"]?.stringValue.map(Address.init), baker: baker, delegateAcceptsStaking: r["acceptsStaking"]?.boolValue)
@@ -181,33 +203,30 @@ struct TaquitoChainService: ChainService {
         guard let publicKey = wallet.publicKey else {
             throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
         }
+        try await verifyChain()
         if let contents = rawContents(for: operation) {
             let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
-            let r = try await bridge.call("estimateRawOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, json])
-            let fee = Mutez.toTez(r["feeMutez"]?.stringValue) ?? 0
-            return TransferEstimate(fee: fee, burn: 0, total: fee, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: 0)
+            return try Self.estimate(from: try await bridge.call("estimateRawOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, json], timeout: 120))
         }
         let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-        let r = try await bridge.call("estimateStakingOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, operation.bridgeKind, arg])
-        guard let fee = Mutez.toTez(r["feeMutez"]?.stringValue), let burn = Mutez.toTez(r["burnMutez"]?.stringValue) else {
-            throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: r))")
-        }
+        let r = try await bridge.call("estimateStakingOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, operation.bridgeKind, arg], timeout: 120)
         let amount: Decimal = { if case .stake(let a) = operation { return a } else { return 0 } }()
-        return TransferEstimate(fee: fee, burn: burn, total: amount + fee + burn, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(r["storageLimit"]?.doubleValue ?? 0))
+        return try Self.estimate(from: r, amount: amount)
     }
 
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
+        try await verifyChain()
         let r = try await signing {
             if let contents = rawContents(for: operation) {
                 let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
-                return try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, json])
+                return try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, json, limits.json])
             } else {
                 let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-                return try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg])
+                return try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg, limits.json])
             }
         }
-        guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
-        return hash
+        guard let sent = SentOperation(r) else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
+        return sent
     }
 
     func proofOfPossession(signer: SigningKey) async throws -> String {
@@ -233,19 +252,19 @@ struct TaquitoChainService: ChainService {
         let decimal = { (v: JSONValue?) -> Decimal in v?.stringValue.flatMap { Decimal(string: $0) } ?? v?.doubleValue.map { Decimal($0) } ?? 0 }
         var info = GovernanceInfo()
         info.kind = r["kind"]?.stringValue.flatMap(VotingPeriodKind.init(rawValue:))
-        info.index = r["index"]?.doubleValue.map(Int.init)
-        info.position = r["position"]?.doubleValue.map(Int.init)
-        info.remaining = r["remaining"]?.doubleValue.map(Int.init)
+        info.index = r["index"]?.intValue
+        info.position = r["position"]?.intValue
+        info.remaining = r["remaining"]?.intValue
         info.proposals = (r["proposals"]?.arrayValue ?? []).compactMap { p in
             p["hash"]?.stringValue.map { GovernanceInfo.Proposal(hash: $0, votingPower: decimal(p["votingPower"])) }
         }.sorted { $0.votingPower > $1.votingPower }
         info.currentProposal = r["currentProposal"]?.stringValue
         info.votingPower = r["votingPower"]?.stringValue.flatMap { Decimal(string: $0) }
         info.totalVotingPower = decimal(r["totalVotingPower"])
-        info.quorumPerTenThousand = r["quorumPerTenThousand"]?.doubleValue.map(Int.init)
+        info.quorumPerTenThousand = r["quorumPerTenThousand"]?.intValue
         info.ballots = GovernanceInfo.Ballots(yay: decimal(r["ballots"]?["yay"]), nay: decimal(r["ballots"]?["nay"]), pass: decimal(r["ballots"]?["pass"]))
         info.myBallot = r["myBallot"]?.stringValue.flatMap(BallotVote.init(rawValue:))
-        info.proposalCount = Int(r["proposalCount"]?.doubleValue ?? 0)
+        info.proposalCount = r["proposalCount"]?.intValue ?? 0
         return info
     }
 

@@ -135,3 +135,103 @@ struct TransferHelpersTests {
         #expect(try await service.resolve(name: "this-name-should-not-exist-\(UUID().uuidString.prefix(8)).tez") == nil)
     }
 }
+
+/// S14 and S15: a send carries the approved limits, and a lost reply is never retried as a new payment.
+@MainActor
+struct SendOutcomeTests {
+    /// A chain whose node loses the injection reply once and only sees the operation after a rebroadcast.
+    final class LossyChain: TestChainService, @unchecked Sendable {
+        var sends: [OperationLimits] = []
+        var rebroadcasts = 0
+        var seen = false
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 100, staked: 0) }
+        func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+            sends.append(limits)
+            return SentOperation(hash: "ooLost", injected: false, signedBytes: "abcd")
+        }
+        func rebroadcast(_ sent: SentOperation) async throws -> SentOperation {
+            rebroadcasts += 1
+            seen = true
+            return SentOperation(hash: sent.hash, injected: true, signedBytes: sent.signedBytes)
+        }
+        func waitForConfirmation(of operationHash: String) async throws -> Int {
+            guard seen else { throw ChainError.accountNotOnChain(Address("tz1")) }
+            return 42
+        }
+    }
+
+    @Test func lostReplyKeepsTheHashAndResendsTheSameBytes() async throws {
+        let chain = LossyChain()
+        let send = SendViewModel(sender: SendViewModelTests.me, wallets: [SendViewModelTests.alice], chain: chain, spendable: 100,
+                                 signerProvider: { w, _ in .secret("edskSECRET", passphrase: nil, address: w.address) })
+        send.choose(SendViewModelTests.alice)
+        try await Task.sleep(for: .milliseconds(300))
+        send.amountText = "1"
+        await send.proceedToConfirm()
+        #expect(send.step == .confirm)
+        await send.send()
+        // The estimate's limits went with the operation (S14).
+        #expect(chain.sends == [OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)])
+        // The outcome is unknown: the hash is known, nothing goes back to the confirm step.
+        #expect(send.step == .unknown(hash: "ooLost"))
+        #expect(send.errorMessage?.contains("ooLost") == true)
+        await send.rebroadcast()
+        #expect(chain.rebroadcasts == 1 && chain.sends.count == 1)
+        #expect(send.step == .confirmed(hash: "ooLost", level: 42))
+    }
+
+    @Test func refusesToSendWithoutAnEstimate() async throws {
+        struct NoLimits: TestChainService {
+            func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 100, staked: 0) }
+            func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
+                TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0)
+            }
+            func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+                Issue.record("sent without limits"); return SentOperation(hash: "x")
+            }
+        }
+        let send = SendViewModel(sender: SendViewModelTests.me, wallets: [SendViewModelTests.alice], chain: NoLimits(), spendable: 100,
+                                 signerProvider: { w, _ in .secret("edskSECRET", passphrase: nil, address: w.address) })
+        send.choose(SendViewModelTests.alice)
+        try await Task.sleep(for: .milliseconds(300))
+        send.amountText = "1"
+        await send.proceedToConfirm()
+        await send.send()
+        #expect(send.step == .confirm)
+        #expect(send.errorMessage == SendViewModel.SendError.notEstimated.localizedDescription)
+    }
+}
+
+/// S20: numbers from the node or the bridge never reach a trapping conversion.
+struct CheckedNumberTests {
+    @Test func intValueRefusesWhatIntCannotHold() {
+        #expect(JSONValue.number(42).intValue == 42)
+        #expect(JSONValue.number(-3).intValue == -3)
+        #expect(JSONValue.string("17").intValue == 17)
+        #expect(JSONValue.number(1.5).intValue == nil)
+        #expect(JSONValue.number(.nan).intValue == nil)
+        #expect(JSONValue.number(.infinity).intValue == nil)
+        #expect(JSONValue.number(-.infinity).intValue == nil)
+        #expect(JSONValue.number(1e300).intValue == nil)
+        #expect(JSONValue.number(9_007_199_254_740_994).intValue == nil)
+        #expect(JSONValue.string("12.0").intValue == nil)
+        #expect(JSONValue.bool(true).intValue == nil)
+    }
+
+    @Test func estimatesWithBadFiguresAreErrorsNotZeroes() throws {
+        let good = JSONValue.object(["feeMutez": .string("500"), "burnMutez": .string("0"), "gasLimit": .number(1500), "storageLimit": .number(0),
+                                     "limits": .object(["feeMutez": .string("500"), "gasLimit": .number(1500), "storageLimit": .number(0)])])
+        let estimate = try TaquitoChainService.estimate(from: good, amount: 1)
+        #expect(estimate.fee == Decimal(string: "0.0005") && estimate.limits?.gasLimit == 1500 && estimate.total == Decimal(string: "1.0005"))
+        for bad in [
+            JSONValue.object(["feeMutez": .string("500"), "burnMutez": .string("0"), "gasLimit": .number(.nan), "storageLimit": .number(0), "limits": .object(["feeMutez": .string("500"), "gasLimit": .number(1500), "storageLimit": .number(0)])]),
+            JSONValue.object(["feeMutez": .string("500"), "burnMutez": .string("0"), "gasLimit": .number(1500), "storageLimit": .number(0)]),
+            JSONValue.object(["feeMutez": .string("500"), "burnMutez": .string("0"), "gasLimit": .number(1500), "storageLimit": .number(0), "limits": .object(["feeMutez": .string("-5"), "gasLimit": .number(1500), "storageLimit": .number(0)])]),
+            JSONValue.object(["feeMutez": .string("500"), "burnMutez": .string("0"), "gasLimit": .number(1500), "storageLimit": .number(0), "limits": .object(["feeMutez": .string("500"), "gasLimit": .number(1e20), "storageLimit": .number(0)])]),
+        ] {
+            #expect(throws: (any Error).self) { try TaquitoChainService.estimate(from: bad) }
+        }
+        let info = JSONValue.object(["address": .string("KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi"), "isGenericMultisig": .bool(true), "scriptHash": .string("expr"), "counter": .string("nope"), "threshold": .string("2"), "keys": .array([])])
+        #expect(throws: (any Error).self) { try BridgeMultisigService.info(from: info) }
+    }
+}

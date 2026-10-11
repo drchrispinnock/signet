@@ -225,29 +225,26 @@ function readOnlySigner(publicKey, address) {
   };
 }
 
-/** Fee, burn and total for sending `amountMutez` from `source` to `destination`. No secret needed. */
+/**
+ * Fee, burn and total for sending `amountMutez` from `source` to `destination`, plus the limits
+ * the transfer must then be sent with (S14). No secret needed.
+ */
 export async function estimateTransfer(rpcUrl, source, publicKey, destination, amountMutez) {
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
-  const est = await tk.estimate.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
-  return {
-    feeMutez: String(est.suggestedFeeMutez),
-    burnMutez: String(est.burnFeeMutez),
-    totalCostMutez: String(est.totalCost),
-    gasLimit: est.gasLimit,
-    storageLimit: est.storageLimit,
-  };
+  const params = { to: destination, amount: Number(amountMutez), mutez: true };
+  return approvedEstimate(tk, "transaction", params, await tk.estimate.transfer(params));
 }
 
-const pendingOperations = new Map();
-
-/** Signs (in memory or on a Ledger, see signers.js) and injects a transfer. Returns the operation hash. */
-export async function sendTransfer(rpcUrl, signerSpec, destination, amountMutez) {
+/**
+ * Signs (in memory or on a Ledger, see signers.js) and injects a transfer with exactly the
+ * approved fee, gas and storage (S14). Returns `{ hash, injected, signedBytes }`; `injected`
+ * is false when the node's answer was lost and the outcome is unknown (S15).
+ */
+export async function sendTransfer(rpcUrl, signerSpec, destination, amountMutez, limitsJson) {
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
-  const op = await tk.contract.transfer({ to: destination, amount: Number(amountMutez), mutez: true });
-  pendingOperations.set(op.hash, op);
-  return { hash: op.hash };
+  return sendApproved(tk, rpcUrl, "transaction", { to: destination, amount: Number(amountMutez), mutez: true }, parseLimits(limitsJson));
 }
 
 /** Waits for `confirmations` blocks on an operation sent in this session. Returns the block level. */
@@ -361,45 +358,46 @@ export async function getDelegateInfo(rpcUrl, address) {
   return { delegate: delegate ?? null, isBaker: baker != null, baker, acceptsStaking };
 }
 
-function stakingCall(tk, kind, arg) {
+/** A staking-family operation as Taquito's estimate and prepare providers take it. */
+function stakingParams(kind, arg) {
+  const proof = arg.proof ? { proof: arg.proof } : {};
   switch (kind) {
-    case "setDelegate": return (p) => p.setDelegate({ delegate: arg.delegate || undefined, source: arg.source });
-    case "registerDelegate": return (p) => p.registerDelegate({});
-    case "stake": return (p) => p.stake({ amount: Number(arg.amountMutez), mutez: true });
-    case "unstake": return (p) => p.unstake({ amount: Number(arg.amountMutez), mutez: true });
-    case "finalizeUnstake": return (p) => p.finalizeUnstake({});
-    case "updateConsensusKey": return (p) => p.updateConsensusKey({ pk: arg.pk, ...(arg.proof ? { proof: arg.proof } : {}) });
-    case "updateCompanionKey": return (p) => p.updateCompanionKey({ pk: arg.pk, ...(arg.proof ? { proof: arg.proof } : {}) });
+    case "setDelegate": return { estimate: "setDelegate", prepare: "delegation", params: { delegate: arg.delegate || undefined, source: arg.source } };
+    case "registerDelegate": return { estimate: "registerDelegate", prepare: "registerDelegate", params: {} };
+    case "stake": return { estimate: "stake", prepare: "stake", params: { amount: Number(arg.amountMutez), mutez: true } };
+    case "unstake": return { estimate: "unstake", prepare: "unstake", params: { amount: Number(arg.amountMutez), mutez: true } };
+    case "finalizeUnstake": return { estimate: "finalizeUnstake", prepare: "finalizeUnstake", params: {} };
+    case "updateConsensusKey": return { estimate: "updateConsensusKey", prepare: "updateConsensusKey", params: { pk: arg.pk, ...proof } };
+    case "updateCompanionKey": return { estimate: "updateCompanionKey", prepare: "updateCompanionKey", params: { pk: arg.pk, ...proof } };
     case "setDelegateParameters":
       // A transaction to self with the set_delegate_parameters entrypoint: Pair limit (Pair edge Unit).
-      return (p) => p.transfer({
+      return { estimate: "transfer", prepare: "transaction", params: {
         to: arg.source, amount: 0, mutez: true,
         parameter: {
           entrypoint: "set_delegate_parameters",
           value: { prim: "Pair", args: [{ int: String(arg.limitMillionth) }, { prim: "Pair", args: [{ int: String(arg.edgeBillionth) }, { prim: "Unit" }] }] },
         },
-      });
+      } };
     default: throw new Error(`unknown staking operation ${kind}`);
   }
 }
 
-/** Fee/total for a staking-family operation, with a read-only signer (no secret needed). */
+/** Fee/total for a staking-family operation, with a read-only signer (no secret needed), plus the limits to send it with (S14). */
 export async function estimateStakingOperation(rpcUrl, source, publicKey, kind, argJson) {
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
   const arg = JSON.parse(argJson || "{}");
-  const est = await stakingCall(tk, kind, { ...arg, source })(tk.estimate);
-  return { feeMutez: String(est.suggestedFeeMutez), burnMutez: String(est.burnFeeMutez), totalCostMutez: String(est.totalCost), gasLimit: est.gasLimit, storageLimit: est.storageLimit };
+  const call = stakingParams(kind, { ...arg, source });
+  return approvedEstimate(tk, call.prepare, call.params, await tk.estimate[call.estimate](call.params));
 }
 
-/** Signs and injects a staking-family operation. Returns the operation hash. */
-export async function sendStakingOperation(rpcUrl, signerSpec, kind, argJson) {
+/** Signs and injects a staking-family operation with exactly the approved limits (S14). Returns `{ hash, injected, signedBytes }`. */
+export async function sendStakingOperation(rpcUrl, signerSpec, kind, argJson, limitsJson) {
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
   const arg = JSON.parse(argJson || "{}");
-  const op = await stakingCall(tk, kind, arg)(tk.contract);
-  pendingOperations.set(op.hash, op);
-  return { hash: op.hash };
+  const call = stakingParams(kind, arg);
+  return sendApproved(tk, rpcUrl, call.prepare, call.params, parseLimits(limitsJson));
 }
 
 /** BLS proof of possession for a tz4 key, required when it becomes a consensus or companion key. */
@@ -480,6 +478,8 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 
 import { RpcClient } from "@taquito/rpc";
 import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
+import { approvedEstimate, sendApproved, parseLimits, pendingOperations, injectSigned, checkedLimit } from "./operations.js";
+export { assertChain, injectSignedBytes, checkApproved, parseLimits } from "./operations.js";
 
 const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;
 const HARD_GAS_LIMIT = 1040000, HARD_STORAGE_LIMIT = 60000;
@@ -523,22 +523,28 @@ async function prepareRaw(rpcUrl, source, publicKey, contentsIn) {
   return { rpc, branch, contents: sized, forged, feeMutez: fee, protocol: protocols.protocol };
 }
 
-/** Fee for a raw operation, computed from the node's simulation. */
+/** Fee for a raw operation, computed from the node's simulation; the fee is the limit it is sent with (S14). */
 export async function estimateRawOperation(rpcUrl, source, publicKey, contentsJson) {
   const { feeMutez, contents } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
-  return { feeMutez: String(feeMutez), burnMutez: "0", totalCostMutez: String(feeMutez), gasLimit: contents.reduce((a, c) => a + Number(c.gas_limit), 0), storageLimit: 0 };
+  const gasLimit = contents.reduce((a, c) => a + Number(c.gas_limit), 0);
+  return { feeMutez: String(feeMutez), burnMutez: "0", totalCostMutez: String(feeMutez), gasLimit, storageLimit: 0, limits: { feeMutez: String(feeMutez), gasLimit, storageLimit: 0 } };
 }
 
-/** Signs and injects raw contents from the signer's account. Returns the operation hash. */
-export async function sendRawOperation(rpcUrl, signerSpec, contentsJson) {
+/**
+ * Signs and injects raw contents from the signer's account. The operation is simulated again
+ * (the node must forge the same bytes), but its fee may not exceed what was approved (S14).
+ * Returns `{ hash, injected, signedBytes }` (S15).
+ */
+export async function sendRawOperation(rpcUrl, signerSpec, contentsJson, limitsJson) {
+  const limits = parseLimits(limitsJson);
   const signer = await signerFor(signerSpec);
   const [source, publicKey] = await Promise.all([signer.publicKeyHash(), signer.publicKey()]);
-  const { rpc, branch, contents, forged, protocol } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
+  const { rpc, branch, contents, forged, protocol, feeMutez } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
+  if (feeMutez > limits.feeMutez) throw new Error(`The fee is now ${feeMutez} mutez, above the approved ${limits.feeMutez}; estimate it again`);
   const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
   const pre = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   appliedResults(contents, pre.flatMap((p) => p.contents), "preapply");
-  const hash = await rpc.injectOperation(sbytes);
-  return { hash };
+  return injectSigned(rpc, sbytes);
 }
 
 // Test hooks for the local forger: our bytes, Taquito's for the same contents, and the check.
@@ -550,7 +556,8 @@ export async function verifyRawForgingForTest(branch, contentsJson, nodeHex) { r
 /** Waits for a raw operation to appear in a block (manager operations live in validation pass 3). */
 export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {
   const rpc = new RpcClient(rpcUrl);
-  let last = (await rpc.getBlockHeader()).level;
+  // Start a couple of blocks back: an operation injected a moment ago may already be in a block.
+  let last = Math.max(0, (await rpc.getBlockHeader()).level - 2);
   for (let seen = 0; seen < maxBlocks; ) {
     const header = await rpc.getBlockHeader();
     if (header.level > last) {

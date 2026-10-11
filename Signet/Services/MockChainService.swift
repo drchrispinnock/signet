@@ -53,13 +53,16 @@ struct MockChainService: ChainService {
 
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
         let burn: Decimal = destination == Self.captainStake ? 0 : Decimal(string: "0.06425")!
-        return TransferEstimate(fee: Decimal(string: "0.000521")!, burn: burn, total: amount + Decimal(string: "0.000521")! + burn, gasLimit: 169, storageLimit: burn > 0 ? 257 : 0)
+        return TransferEstimate(fee: Decimal(string: "0.000521")!, burn: burn, total: amount + Decimal(string: "0.000521")! + burn, gasLimit: 169, storageLimit: burn > 0 ? 257 : 0,
+                                limits: OperationLimits(feeMutez: "521", gasLimit: 169, storageLimit: burn > 0 ? 257 : 0))
     }
 
-    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String {
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
         if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
-        return "ooMockOperationHash1111111111111111111111111111111111"
+        return SentOperation(hash: "ooMockOperationHash1111111111111111111111111111111111", signedBytes: "ab")
     }
+
+    func rebroadcast(_ sent: SentOperation) async throws -> SentOperation { SentOperation(hash: sent.hash, signedBytes: sent.signedBytes) }
 
     func waitForConfirmation(of operationHash: String) async throws -> Int {
         9_000_000
@@ -78,12 +81,13 @@ struct MockChainService: ChainService {
     }
 
     func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate {
-        TransferEstimate(fee: Decimal(string: "0.000421")!, burn: 0, total: Decimal(string: "0.000421")!, gasLimit: 200, storageLimit: 0)
+        TransferEstimate(fee: Decimal(string: "0.000421")!, burn: 0, total: Decimal(string: "0.000421")!, gasLimit: 200, storageLimit: 0,
+                         limits: OperationLimits(feeMutez: "421", gasLimit: 200, storageLimit: 0))
     }
 
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
         if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
-        return "ooMockStaking\(operation.bridgeKind)"
+        return SentOperation(hash: "ooMockStaking\(operation.bridgeKind)")
     }
 
     func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigMockProof" }

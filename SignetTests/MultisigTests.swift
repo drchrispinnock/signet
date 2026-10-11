@@ -93,6 +93,7 @@ struct MultisigStorageTests {
 
 @MainActor
 struct MultisigFlowTests {
+    static let limits = OperationLimits(feeMutez: "1000", gasLimit: 1000, storageLimit: 0)
     static let alice = Wallet(alias: "alice", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkALICE", keyKind: .unencrypted)
     static let bob = Wallet(alias: "bob", address: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), publicKey: "sppkBOB", keyKind: .encrypted)
     static let watch = Wallet(alias: "watch", address: Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"))
@@ -131,9 +132,9 @@ struct MultisigFlowTests {
         let service = MockMultisigService()
         let model = makeModel(service)
         model.select(Self.alice)
-        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.createMultisig(alias: "t", threshold: 3, keys: ["edpkALICE", "sppkBOB"], passphrase: nil) }
-        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.createMultisig(alias: "t", threshold: 1, keys: ["edpkALICE", "notakey"], passphrase: nil) }
-        let contract = try await model.createMultisig(alias: "treasury", threshold: 2, keys: ["edpkALICE", "sppkBOB", "edpkOTHERpublickeyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"], passphrase: nil)
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.createMultisig(alias: "t", threshold: 3, keys: ["edpkALICE", "sppkBOB"], limits: Self.limits, passphrase: nil) }
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.createMultisig(alias: "t", threshold: 1, keys: ["edpkALICE", "notakey"], limits: Self.limits, passphrase: nil) }
+        let contract = try await model.createMultisig(alias: "treasury", threshold: 2, keys: ["edpkALICE", "sppkBOB", "edpkOTHERpublickeyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"], limits: Self.limits, passphrase: nil)
         #expect(contract.address == MockMultisigService.sampleAddress)
         #expect(service.threshold == 2 && service.keys.count == 3)
         #expect(model.multisigContracts.map(\.alias) == ["treasury"])
@@ -169,7 +170,7 @@ struct MultisigFlowTests {
         #expect(current.signatures.map(\.signature) == [sig.signature, "spsigBOBBOB"])
         #expect(current.isReady)
 
-        let hash = try await model.submitMultisig(current, from: Self.alice, passphrase: nil)
+        let hash = try await model.submitMultisig(current, from: Self.alice, limits: Self.limits, passphrase: nil)
         #expect(hash == "ooMockSubmit")
         #expect(service.submitted.count == 1 && service.submitted[0].signatures.count == 2)
         #expect(model.multisigProposals.isEmpty)
@@ -214,7 +215,7 @@ struct MultisigFlowTests {
         try await model.signMultisigProposal(setDelegate, with: Self.bob, passphrase: "pw")
         let ready = try #require(model.multisigProposals.first { $0.id == setDelegate.id })
         #expect(ready.isReady)
-        _ = try await model.submitMultisig(ready, from: Self.alice, passphrase: nil)
+        _ = try await model.submitMultisig(ready, from: Self.alice, limits: Self.limits, passphrase: nil)
         #expect(service.submitted.last?.proposal.action == .setDelegate(delegate: baker))
         #expect(model.currentMultisigProposals.count == 2)
     }
@@ -316,7 +317,8 @@ struct ShadownetMultisigTests {
         let keys = [payer.publicKey, second.publicKey, third.publicKey]
         let estimate = try await service.estimateOriginate(rpcURL: rpc, from: payerWallet, threshold: 2, keys: keys)
         #expect(estimate.fee > 0 && estimate.burn > 0)
-        let (_, contract) = try await service.originate(rpcURL: rpc, signer: payerKey, threshold: 2, keys: keys)
+        let (originationHash, contract) = try await service.originate(rpcURL: rpc, signer: payerKey, threshold: 2, keys: keys, limits: try #require(estimate.limits))
+        _ = try await chain.waitForConfirmation(of: originationHash)
         #expect(contract.isContract)
         print("multisig deployed at \(contract.value)")
 
@@ -328,8 +330,9 @@ struct ShadownetMultisigTests {
         #expect(try await service.revealedPublicKey(rpcURL: rpc, address: Address(recipient.address)) == nil)
 
         // Fund the multisig (its default entrypoint takes tez).
-        let fundHash = try await chain.sendTransfer(from: payerWallet, signer: payerKey, to: contract, amount: 3)
-        _ = try await chain.waitForConfirmation(of: fundHash)
+        let fundEstimate = try await chain.estimateTransfer(from: payerWallet, to: contract, amount: 3)
+        let funding = try await chain.sendTransfer(from: payerWallet, signer: payerKey, to: contract, amount: 3, limits: try #require(fundEstimate.limits))
+        _ = try await chain.waitForConfirmation(of: funding.hash)
 
         // Propose 1 tez to the recipient; our packed bytes must equal the node's packing.
         let transfer = MultisigAction.transfer(amountMutez: "1000000", destination: recipient.address)
@@ -356,8 +359,9 @@ struct ShadownetMultisigTests {
 
         let fee = try await service.estimateSubmit(rpcURL: rpc, from: payerWallet, proposal: proposal, signatures: [sig3.signature, sig1.signature])
         #expect(fee.fee > 0)
-        let hash = try await service.submit(rpcURL: rpc, signer: payerKey, proposal: proposal, signatures: [sig3.signature, sig1.signature])
+        let hash = try await service.submit(rpcURL: rpc, signer: payerKey, proposal: proposal, signatures: [sig3.signature, sig1.signature], limits: try #require(fee.limits))
         print("multisig transfer \(hash)")
+        _ = try await chain.waitForConfirmation(of: hash)
 
         try await Task.sleep(for: .seconds(4))
         let after = try await service.info(rpcURL: rpc, address: contract)
@@ -383,7 +387,7 @@ struct ShadownetMultisigTests {
         let dsig3 = try await chain.signPayload(signer: .secret(third.secretKey, passphrase: nil, address: Address(third.address)), payloadHex: bytes2)
         let delegation = MultisigProposal(contractAlias: "test", contractAddress: contract.value, networkName: "Shadownet", chainID: chainID, counter: 1, threshold: 2, keys: keys,
                                           action: delegateAction, bytes: bytes2)
-        let delegateHash = try await service.submit(rpcURL: rpc, signer: payerKey, proposal: delegation, signatures: [dsig2.signature, dsig3.signature])
+        let delegateHash = try await service.submit(rpcURL: rpc, signer: payerKey, proposal: delegation, signatures: [dsig2.signature, dsig3.signature], limits: try #require(try await service.estimateSubmit(rpcURL: rpc, from: payerWallet, proposal: delegation, signatures: [dsig2.signature, dsig3.signature]).limits))
         print("multisig delegation \(delegateHash)")
         try await Task.sleep(for: .seconds(4))
         let delegated = try await chain.delegateInfo(for: contract)

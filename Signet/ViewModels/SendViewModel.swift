@@ -10,6 +10,8 @@ final class SendViewModel {
         case confirm
         case sending
         case sent(hash: String)
+        /// The node's answer to the injection was lost: the operation may be on its way (S15).
+        case unknown(hash: String)
         case confirmed(hash: String, level: Int)
     }
 
@@ -20,6 +22,8 @@ final class SendViewModel {
         case noSecretKey
         case sendingToSelf
         case passphraseRequired
+        case notEstimated
+        case notSeenYet(String)
 
         var errorDescription: String? {
             switch self {
@@ -29,6 +33,8 @@ final class SendViewModel {
             case .noSecretKey: "Signet has no usable secret key for this account."
             case .sendingToSelf: "That is this account's own address."
             case .passphraseRequired: "Enter the password for this account's key."
+            case .notEstimated: "The fee has not been estimated yet; go back and try again."
+            case .notSeenYet(let hash): "Operation \(hash.prefix(12))… has not appeared in a block yet. The node may still have it; wait, or send the same signed operation again. It cannot be paid twice."
             }
         }
     }
@@ -68,6 +74,8 @@ final class SendViewModel {
     private(set) var step: Step = .compose
     private(set) var errorMessage: String?
     private(set) var isBusy = false
+    /// What was signed and handed to the node; kept so an unknown outcome can be watched or resent, never redone.
+    private(set) var sent: SentOperation?
 
     private var resolveTask: Task<Void, Never>?
 
@@ -183,6 +191,9 @@ final class SendViewModel {
 
     // MARK: Send
 
+    /// Signs and sends exactly what the confirm step showed: the approved estimate's limits are
+    /// the operation's limits (S14). A lost reply leaves the sheet on the unknown-outcome step,
+    /// where only watching the chain or resending the same bytes is possible (S15).
     func send() async {
         guard step == .confirm, let recipient, let amount else { return }
         errorMessage = nil
@@ -190,15 +201,41 @@ final class SendViewModel {
         defer { isBusy = false }
         do {
             if needsPassphrase, passphrase.isEmpty { throw SendError.passphraseRequired }
+            guard let limits = estimate?.limits else { throw SendError.notEstimated }
             guard let signer = try signerProvider(sender, needsPassphrase ? passphrase : nil) else { throw SendError.noSecretKey }
             step = .sending
-            let hash = try await chain.sendTransfer(from: sender, signer: signer, to: recipient.address, amount: amount)
-            step = .sent(hash: hash)
-            let level = try await chain.waitForConfirmation(of: hash)
-            step = .confirmed(hash: hash, level: level)
+            let sent = try await chain.sendTransfer(from: sender, signer: signer, to: recipient.address, amount: amount, limits: limits)
+            self.sent = sent
+            await follow(sent)
         } catch {
             errorMessage = error.localizedDescription
             if case .sending = step { step = .confirm }
+        }
+    }
+
+    /// Watches the chain for the sent operation; an unknown outcome stays visible until it is seen.
+    private func follow(_ sent: SentOperation) async {
+        step = sent.injected ? .sent(hash: sent.hash) : .unknown(hash: sent.hash)
+        do {
+            let level = try await chain.waitForConfirmation(of: sent.hash)
+            step = .confirmed(hash: sent.hash, level: level)
+        } catch {
+            errorMessage = sent.injected ? error.localizedDescription : SendError.notSeenYet(sent.hash).localizedDescription
+        }
+    }
+
+    /// Sends the same signed bytes again after an unknown outcome. Nothing new is signed.
+    func rebroadcast() async {
+        guard case .unknown = step, let sent, !isBusy else { return }
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            let again = try await chain.rebroadcast(sent)
+            self.sent = again
+            await follow(again)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

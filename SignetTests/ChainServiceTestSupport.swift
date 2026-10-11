@@ -12,14 +12,15 @@ extension TestChainService {
     func resolveDomain(_ name: String) async throws -> Address? { nil }
     func accountProfile(for address: Address) async throws -> AccountProfile? { nil }
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
-        TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0)
+        TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0))
     }
-    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal) async throws -> String { "ooTest" }
+    func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
+    func rebroadcast(_ sent: SentOperation) async throws -> SentOperation { sent }
     func waitForConfirmation(of operationHash: String) async throws -> Int { 1 }
     func delegateInfo(for address: Address) async throws -> DelegateInfo { DelegateInfo(delegate: nil, baker: nil, delegateAcceptsStaking: nil) }
     func bakers(limit: Int) async throws -> [BakerCandidate] { [] }
-    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0) }
-    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey) async throws -> String { "ooTest" }
+    func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)) }
+    func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
     func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigTest" }
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload { SignedPayload(publicKey: "edpkTest", signature: "edsigTest") }
     func governanceInfo(for address: Address) async throws -> GovernanceInfo { GovernanceInfo() }

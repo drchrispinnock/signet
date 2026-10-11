@@ -13,6 +13,8 @@ final class WalletViewModel {
         case unsupportedScheme(AddressScheme)
         case passphraseTooShort
         case directoryChanged
+        case notEstimated
+        case outcomeUnknown(String)
 
         var errorDescription: String? {
             switch self {
@@ -23,6 +25,8 @@ final class WalletViewModel {
             case .passphraseTooShort: "Use a password of at least \(WalletViewModel.minimumPassphraseLength) characters."
             case .unsupportedScheme(let scheme): scheme.unavailableReason ?? "\(scheme.rawValue) is not supported yet."
             case .directoryChanged: "The wallet directory changed while this was being confirmed. Nothing was done; please try again."
+            case .notEstimated: "The fee has not been estimated yet; wait for the estimate and try again."
+            case .outcomeUnknown(let hash): "The node did not confirm receiving operation \(hash.prefix(12))… and it has not appeared in a block yet. Check the explorer before trying again; do not repeat it blindly."
             }
         }
     }
@@ -703,15 +707,23 @@ final class WalletViewModel {
         faucetStatus = .idle
     }
 
-    /// Runs a staking-family operation for the selected wallet and waits one block.
-    /// Returns the operation hash and the block it landed in, then refreshes.
-    func performStaking(_ operation: StakingOperation, passphrase: String?) async throws -> (hash: String, level: Int) {
+    /// Runs a staking-family operation for the selected wallet with the limits of the estimate
+    /// the user approved (S14) and waits one block on the chain service the operation went
+    /// through (S16). Returns the operation hash and the block it landed in, then refreshes.
+    func performStaking(_ operation: StakingOperation, limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let limits else { throw WalletError.notEstimated }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
-        let hash = try await chain.performStaking(operation, from: wallet, signer: signer)
-        let level = try await chain.waitForConfirmation(of: hash)
+        let chain = self.chain
+        let sent = try await chain.performStaking(operation, from: wallet, signer: signer, limits: limits)
+        let level: Int
+        do {
+            level = try await chain.waitForConfirmation(of: sent.hash)
+        } catch where !sent.injected {
+            throw WalletError.outcomeUnknown(sent.hash)
+        }
         await refreshAfterOperation()
-        return (hash, level)
+        return (sent.hash, level)
     }
 
     /// Refreshes now and again a little later: the node confirms a block before the indexer has it,
@@ -955,15 +967,19 @@ extension WalletViewModel {
         guard threshold >= 1, threshold <= keys.count else { throw MultisigError.thresholdOutOfRange(threshold, keys.count) }
     }
 
-    /// Deploys a multisig from the selected account and records it under `alias`.
-    func createMultisig(alias: String, threshold: Int, keys: [String], passphrase: String?) async throws -> MultisigContract {
+    /// Deploys a multisig from the selected account with the approved estimate's limits (S14),
+    /// waits for its block and records it under `alias`.
+    func createMultisig(alias: String, threshold: Int, keys: [String], limits: OperationLimits?, passphrase: String?) async throws -> MultisigContract {
+        guard let limits else { throw WalletError.notEstimated }
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw WalletError.emptyAlias }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
         try Self.checkMultisig(threshold: threshold, keys: keys)
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
-        let (_, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys)
+        let chain = self.chain
+        let (hash, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys, limits: limits)
+        _ = try await chain.waitForConfirmation(of: hash)
         return try await recordContract(MultisigContract(alias: name, address: address))
     }
 
@@ -1073,9 +1089,12 @@ extension WalletViewModel {
 
     /// Submits the proposal with its signatures from `wallet` (which pays the fee), waits one block
     /// and forgets the proposal. Returns the operation hash.
-    func submitMultisig(_ proposal: MultisigProposal, from wallet: Wallet, passphrase: String?) async throws -> String {
+    func submitMultisig(_ proposal: MultisigProposal, from wallet: Wallet, limits: OperationLimits?, passphrase: String?) async throws -> String {
+        guard let limits else { throw WalletError.notEstimated }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
-        let hash = try await multisig.submit(rpcURL: network.rpcURL, signer: signer, proposal: proposal, signatures: proposal.signatures.map(\.signature))
+        let chain = self.chain
+        let hash = try await multisig.submit(rpcURL: network.rpcURL, signer: signer, proposal: proposal, signatures: proposal.signatures.map(\.signature), limits: limits)
+        _ = try await chain.waitForConfirmation(of: hash)
         try removeMultisigProposal(proposal)
         await refreshAfterOperation()
         return hash

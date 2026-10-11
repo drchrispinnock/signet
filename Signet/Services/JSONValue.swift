@@ -36,6 +36,19 @@ enum JSONValue: Sendable, Equatable {
     var stringValue: String? { if case .string(let s) = self { return s } else { return nil } }
     var boolValue: Bool? { if case .bool(let b) = self { return b } else { return nil } }
     var doubleValue: Double? { if case .number(let n) = self { return n } else { return nil } }
+    /// A whole number the server sent that fits an `Int`; `nil` for anything else (NaN, infinity,
+    /// fractions, values beyond 2^53 or `Int`), so a bad reply is an error rather than a trap (S20).
+    var intValue: Int? {
+        switch self {
+        case .number(let n):
+            guard n.isFinite, n == n.rounded(), abs(n) < 9_007_199_254_740_992 else { return nil }
+            return Int(exactly: n)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
     var objectValue: [String: JSONValue]? { if case .object(let o) = self { return o } else { return nil } }
     var arrayValue: [JSONValue]? { if case .array(let a) = self { return a } else { return nil } }
 

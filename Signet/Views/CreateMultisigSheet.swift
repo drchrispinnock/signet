@@ -216,7 +216,7 @@ struct CreateMultisigSheet: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            created = try await model.createMultisig(alias: alias, threshold: threshold, keys: keys, passphrase: needsPassphrase ? passphrase : nil)
+            created = try await model.createMultisig(alias: alias, threshold: threshold, keys: keys, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil)
         } catch {
             errorMessage = error.localizedDescription
         }

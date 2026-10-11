@@ -12,7 +12,7 @@ import { TezosToolkit } from "@taquito/taquito";
 import { signerFor } from "./signers.js";
 import { RpcClient } from "@taquito/rpc";
 import { localForger } from "@taquito/local-forging";
-import { encodeOpHash } from "@taquito/utils";
+import { assertChain, injectSigned, checkedLimit } from "./operations.js";
 
 class NativeStorage extends Storage {
   static async isSupported() { return true; }
@@ -424,12 +424,6 @@ function freezePrepared(ops, estimates, operation) {
   return result;
 }
 
-function checkedLimit(value) {
-  const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 0) throw new Error("Invalid operation limit");
-  return number;
-}
-
 /**
  * Simulates a dApp's operation request from `source` (read-only: no key involved) so the
  * approval sheet can show exact fees, burn, totals and effects before anything is signed.
@@ -474,47 +468,6 @@ export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson, expe
   const results = replies.flatMap(r => r.contents ?? []);
   if (results.length !== contents.length || results.some(c => c.metadata?.operation_result?.status !== "applied")) throw new Error("The prepared batch was not applied; prepare it again before approving");
   return injectSigned(rpc, sbytes);
-}
-
-/**
- * Refuses a node that serves another chain than the one the user believes they are on (S12).
- * `expectedChainId` is null for networks that restart too often to pin one.
- */
-export async function assertChain(rpcUrl, expectedChainId) {
-  if (expectedChainId == null || expectedChainId === "") return { chainId: null };
-  const chainId = await new RpcClient(rpcUrl).getChainId();
-  if (chainId !== expectedChainId) throw new Error(`The node at ${new URL(rpcUrl).host} serves chain ${chainId}, not ${expectedChainId}. Check the node in Settings.`);
-  return { chainId };
-}
-
-/**
- * Injects signed bytes. The operation hash is computed locally first, so when the node's answer
- * is lost after it may have taken the operation the caller still learns the hash and that the
- * outcome is unknown, instead of an error that invites a second, different payment (S15).
- * A definite rejection by the node is still thrown.
- */
-export async function injectSigned(rpc, sbytes) {
-  const hash = encodeOpHash(sbytes);
-  try {
-    const confirmed = await rpc.injectOperation(sbytes);
-    return { hash: confirmed || hash, injected: true, signedBytes: sbytes };
-  } catch (error) {
-    if (isDefiniteRejection(error)) throw error;
-    console.warn("octez.connect: injection outcome unknown", hash, error?.message ?? error);
-    return { hash, injected: false, signedBytes: sbytes };
-  }
-}
-
-/** An HTTP reply from the node (it saw the request and said no), as opposed to no reply at all. */
-export function isDefiniteRejection(error) {
-  const status = Number(error?.status);
-  return Number.isFinite(status) && status >= 400 && status < 600;
-}
-
-/** Sends already-signed bytes again after an unknown outcome; the hash cannot change (S15). */
-export async function injectSignedBytes(rpcUrl, sbytes) {
-  if (typeof sbytes !== "string" || !/^[0-9a-f]+$/i.test(sbytes) || sbytes.length < 2 * (32 + 64)) throw new Error("not a signed operation");
-  return injectSigned(new RpcClient(rpcUrl), sbytes);
 }
 
 // ---- Describing operations --------------------------------------------------------------------

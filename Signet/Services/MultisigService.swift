@@ -13,13 +13,15 @@ protocol MultisigService: Sendable {
     /// with what it showed the user. `proposal.bytes` is never used.
     func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String)
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate
-    /// Deploys a multisig and waits one block. Returns the operation hash and the new address.
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String]) async throws -> (hash: String, address: Address)
+    /// Deploys a multisig with the approved limits (S14). Returns the operation hash and the new
+    /// address as soon as it is injected; the caller waits for the block (S15).
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address)
     /// The contract's state plus the bytes every signer signs for this action at its current counter.
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String)
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate
-    /// Calls the contract's `main` entrypoint with the signatures and waits one block. Returns the operation hash.
-    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String]) async throws -> String
+    /// Calls the contract's `main` entrypoint with the signatures, with the approved limits (S14).
+    /// Returns the operation hash once injected; the caller waits for the block (S15).
+    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String
 }
 
 struct BridgeMultisigService: MultisigService {
@@ -31,22 +33,28 @@ struct BridgeMultisigService: MultisigService {
         guard let address = r["address"]?.stringValue, let generic = r["isGenericMultisig"]?.boolValue, let hash = r["scriptHash"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected multisig payload: \(String(describing: r))")
         }
+        // A generic multisig always has a counter and a threshold; a malformed one is an error,
+        // not a contract at counter 0 (S20).
+        var counter = 0, threshold = 0
+        if generic {
+            guard let c = r["counter"]?.intValue, let t = r["threshold"]?.intValue, c >= 0, t >= 0 else {
+                throw TaquitoBridge.BridgeError.javaScript("The multisig's counter or threshold is unreadable: \(String(describing: r))")
+            }
+            counter = c; threshold = t
+        }
         return MultisigInfo(
             address: Address(address),
             isGenericMultisig: generic,
             scriptHash: hash,
-            counter: Int(r["counter"]?.stringValue ?? "") ?? 0,
-            threshold: Int(r["threshold"]?.stringValue ?? "") ?? 0,
+            counter: counter,
+            threshold: threshold,
             keys: r["keys"]?.arrayValue?.compactMap(\.stringValue) ?? [],
             balance: Mutez.toTez(r["balanceMutez"]?.stringValue) ?? 0
         )
     }
 
     private static func estimate(from r: JSONValue) throws -> MultisigEstimate {
-        guard let fee = Mutez.toTez(r["feeMutez"]?.stringValue), let burn = Mutez.toTez(r["burnMutez"]?.stringValue) else {
-            throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: r))")
-        }
-        return MultisigEstimate(fee: fee, burn: burn, total: fee + burn, gasLimit: Int(r["gasLimit"]?.doubleValue ?? 0), storageLimit: Int(r["storageLimit"]?.doubleValue ?? 0))
+        try TaquitoChainService.estimate(from: r)
     }
 
     private static func json(_ object: Any) throws -> String {
@@ -91,8 +99,8 @@ struct BridgeMultisigService: MultisigService {
         return try Self.estimate(from: try await bridge.call("multisigEstimateOriginate", [rpcURL.absoluteString, wallet.address.value, publicKey, threshold, try Self.json(keys)]))
     }
 
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String]) async throws -> (hash: String, address: Address) {
-        let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys)])
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) {
+        let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json])
         guard let hash = r["hash"]?.stringValue, let address = r["address"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected origination payload: \(String(describing: r))") }
         return (hash, Address(address))
     }
@@ -110,9 +118,9 @@ struct BridgeMultisigService: MultisigService {
         ]))
     }
 
-    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String]) async throws -> String {
+    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String {
         let r = try await bridge.call("multisigSubmit", [
-            rpcURL.absoluteString, signer.bridgeSpec, proposal.contractAddress, try Self.json(proposal.action), proposal.counter, try Self.json(signatures),
+            rpcURL.absoluteString, signer.bridgeSpec, proposal.contractAddress, try Self.json(proposal.action), proposal.counter, try Self.json(signatures), limits.json,
         ])
         guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected submit payload: \(String(describing: r))") }
         return hash
@@ -162,19 +170,21 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
         return (bytes, "edsigMock" + String(bytes.suffix(12)) + String(signer.bridgeSpec.hashValue.magnitude % 1000))
     }
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
-        MultisigEstimate(fee: 0.002, burn: 0.5, total: 0.502, gasLimit: 1000, storageLimit: 500)
+        MultisigEstimate(fee: 0.002, burn: 0.5, total: 0.502, gasLimit: 1000, storageLimit: 500, limits: OperationLimits(feeMutez: "2000", gasLimit: 1000, storageLimit: 500))
     }
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String]) async throws -> (hash: String, address: Address) {
+    private(set) var originations: [OperationLimits] = []
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) {
         self.keys = keys; self.threshold = threshold; counter = 0
+        originations.append(limits)
         return ("ooMockOrigination", Self.sampleAddress)
     }
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String) {
         (info(contract), "NetXMock", Self.mockBytes(chainID: "NetXMock", contract: contract.value, counter: counter, action: action))
     }
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate {
-        MultisigEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 1000, storageLimit: 0)
+        MultisigEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 1000, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 1000, storageLimit: 0))
     }
-    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String]) async throws -> String {
+    func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String {
         submitted.append((proposal, signatures)); counter += 1
         return "ooMockSubmit"
     }
