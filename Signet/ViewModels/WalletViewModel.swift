@@ -220,6 +220,11 @@ final class WalletViewModel {
     }
     var defaultBackupDirectory: URL? { backupSettings?.defaultDirectory }
     private let storeFactory: (@Sendable (URL) -> (wallets: any WalletStore, state: any AppStateStore))?
+    /// Builds the Octez Connect storage for a wallet directory: each directory is its own dApp
+    /// session, with its own peers and grants (S08).
+    private let dappStorageFactory: (@Sendable (URL) -> any BridgeStorage)?
+    private let dappDiagnostics: Bool
+    private let startsDApps: Bool
     private let keyGenerator: KeyGenerator
     /// Ledger discovery and key derivation.
     let ledger: any LedgerService
@@ -257,6 +262,8 @@ final class WalletViewModel {
         backupSettings: BackupSettings? = nil,
         nodeProbe: NodeMonitor.Probe? = nil,
         dappStorage: (any BridgeStorage)? = nil,
+        dappStorageFactory: (@Sendable (URL) -> any BridgeStorage)? = nil,
+        dappDiagnostics: Bool = false,
         startDApps: Bool = false
     ) {
         self.backupSettings = backupSettings
@@ -311,14 +318,14 @@ final class WalletViewModel {
         self.errorMessage = loadError
         self.importableWalletCount = Self.countImportable(at: importSource, excluding: loaded)
 
+        self.dappStorageFactory = dappStorageFactory
+        self.dappDiagnostics = dappDiagnostics
+        self.startsDApps = startDApps
+
         // Startup backup of the key files.
         Task { await backUp() }
 
-        self.dapps = DAppConnectionManager(
-            storage: dappStorage ?? InMemoryBridgeStorage(),
-            wallets: { [unowned self] in self.wallets },
-            signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
-        )
+        self.dapps = makeDApps(storage: dappStorage ?? directory.flatMap { dappStorageFactory?($0) } ?? InMemoryBridgeStorage())
         if startDApps, !self.wallets.isEmpty {
             Task { await dapps.start() }
         }
@@ -327,6 +334,29 @@ final class WalletViewModel {
         nodeMonitor.onNewHead = { [weak self] _ in
             guard let self, !self.isLoading, self.selectedWallet != nil else { return }
             Task { await self.refresh() }
+        }
+    }
+
+    private func makeDApps(storage: any BridgeStorage) -> DAppConnectionManager {
+        DAppConnectionManager(
+            storage: storage,
+            diagnostics: dappDiagnostics,
+            wallets: { [unowned self] in self.wallets },
+            signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
+        )
+    }
+
+    /// A directory change ends the dApp session: the old client is stopped (its waiting requests
+    /// aborted) and a new manager is built on the new directory's storage, so sessions paired
+    /// under one wallet can never ask about another's accounts (S08).
+    private func replaceDApps(for directory: URL) {
+        let old: DAppConnectionManager = dapps
+        let fresh = makeDApps(storage: dappStorageFactory?(directory) ?? InMemoryBridgeStorage())
+        dapps = fresh
+        let start = startsDApps && !wallets.isEmpty
+        Task {
+            await old.stop()
+            if start { await fresh.start() }
         }
     }
 
@@ -385,6 +415,7 @@ final class WalletViewModel {
         selectedWalletID = wallets.first { $0.alias == state.selectedWalletAlias }?.id ?? wallets.first?.id
         if let remembered = Network.named(state.networkName) { switchNetwork(to: remembered) }
         importableWalletCount = Self.countImportable(at: importSource, excluding: wallets)
+        replaceDApps(for: directory)
         assets = []
         domains = []
         nfts = []

@@ -14,7 +14,8 @@ struct SignetApp: App {
             (wallets: TezosClientStore(directory: directory), state: FileAppStateStore(directory: directory))
         },
         backupSettings: BackupSettings(),
-        dappStorage: OctezConnectStorage(directory: WalletDirectorySettings().current),
+        dappStorageFactory: { directory in OctezConnectStorage(directory: directory) },
+        dappDiagnostics: DeveloperSettings.dappDiagnostics,
         // Never run the dApp client inside a test host: tests drive the bridge themselves and the
         // app's client would share (and could clobber) real state.
         startDApps: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil

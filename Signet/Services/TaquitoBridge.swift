@@ -9,13 +9,17 @@ import Security
 /// The polyfills in `TaquitoBridge/src/polyfills.js` call back into the `__signet` native object
 /// installed here for timers, HTTP and randomness; those run on the same queue.
 ///
-/// Private keys never enter the JavaScript runtime.
+/// Secret keys enter the JavaScript runtime only for the one operation they sign (Taquito's
+/// `InMemorySigner`, see `src/signers.js`) and are not kept there; Ledger keys never leave the
+/// device.
 final class TaquitoBridge: @unchecked Sendable {
     enum BridgeError: LocalizedError {
         case bundleMissing
         case loadFailed(String)
         case javaScript(String)
         case notAFunction(String)
+        case timedOut(String, TimeInterval)
+        case responseTooLarge(Int)
 
         var errorDescription: String? {
             switch self {
@@ -23,9 +27,15 @@ final class TaquitoBridge: @unchecked Sendable {
             case .loadFailed(let message): "Taquito bridge failed to load: \(message)"
             case .javaScript(let message): message
             case .notAFunction(let name): "TaquitoBridge.\(name) is not a function"
+            case .timedOut(let name, let seconds): "\(name) did not finish within \(Int(seconds)) seconds."
+            case .responseTooLarge(let limit): "The server's reply was larger than \(limit / (1024 * 1024)) MB and was dropped."
             }
         }
     }
+
+    /// The most a single HTTP reply may carry into JavaScript (S19). Blocks fetched while waiting
+    /// for an operation are the largest legitimate replies and stay well under this.
+    static let maxResponseBytes = 32 * 1024 * 1024
 
     static let shared = TaquitoBridge()
 
@@ -35,6 +45,8 @@ final class TaquitoBridge: @unchecked Sendable {
     private var loadError: Error?
     private var timers: [Int: DispatchWorkItem] = [:]
     private var fetches: [Int: URLSessionDataTask] = [:]
+    /// Per-fetch delegates that stop a reply at `maxResponseBytes`; keyed like `fetches`.
+    private var collectors: [Int: ResponseCollector] = [:]
 
     /// Backing store for the Octez Connect SDK. Set before the first call that loads the bundle.
     var storage: any BridgeStorage {
@@ -58,7 +70,12 @@ final class TaquitoBridge: @unchecked Sendable {
     // MARK: - Public API
 
     /// Calls `TaquitoBridge.<name>(...args)` and awaits the result, unwrapping promises.
-    func call(_ name: String, _ args: [any Sendable] = []) async throws -> JSONValue {
+    ///
+    /// With a `timeout`, a promise that has not settled by then fails the call with
+    /// `BridgeError.timedOut` so the caller is released (S19). The JavaScript work itself is not
+    /// cancelled, so signing calls must not carry a timeout: an operation could still be injected
+    /// after the caller gave up. Reads and preparation can.
+    func call(_ name: String, _ args: [any Sendable] = [], timeout: TimeInterval? = nil) async throws -> JSONValue {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<JSONValue, Error>) in
             queue.async {
                 do {
@@ -76,7 +93,7 @@ final class TaquitoBridge: @unchecked Sendable {
                         context.exception = nil
                         throw BridgeError.javaScript(exception.toString())
                     }
-                    self.resolve(result, in: context, continuation: continuation)
+                    self.resolve(result, in: context, name: name, timeout: timeout, continuation: continuation)
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -86,12 +103,12 @@ final class TaquitoBridge: @unchecked Sendable {
 
     // MARK: - Promise handling
 
-    private func resolve(_ value: JSValue, in context: JSContext, continuation: CheckedContinuation<JSONValue, Error>) {
+    private func resolve(_ value: JSValue, in context: JSContext, name: String, timeout: TimeInterval?, continuation: CheckedContinuation<JSONValue, Error>) {
         guard value.isObject, let then = value.objectForKeyedSubscript("then"), !then.isUndefined else {
             continuation.resume(returning: JSONValue(bridged: value.toObject()))
             return
         }
-        // Box the continuation so exactly one of the two blocks consumes it.
+        // Box the continuation so exactly one of the blocks consumes it.
         final class Once: @unchecked Sendable {
             var continuation: CheckedContinuation<JSONValue, Error>?
             init(_ c: CheckedContinuation<JSONValue, Error>) { continuation = c }
@@ -119,6 +136,14 @@ final class TaquitoBridge: @unchecked Sendable {
             once.continuation = nil
             context.exception = nil
             c.resume(throwing: BridgeError.javaScript(exception.toString()))
+        }
+        if let timeout, once.continuation != nil {
+            queue.asyncAfter(deadline: .now() + timeout) { [weak self] in
+                guard let c = once.continuation else { return }
+                once.continuation = nil
+                self?.note("\(name) timed out after \(Int(timeout)) s")
+                c.resume(throwing: BridgeError.timedOut(name, timeout))
+            }
         }
     }
 
@@ -251,7 +276,7 @@ final class TaquitoBridge: @unchecked Sendable {
         }
         let ledgerExchange: @convention(block) (Int, String, String, Double) -> Void = { [weak self] id, deviceID, apduHex, timeoutMs in
             guard let self else { return }
-            self.trace("ledger #\(id) → \(apduHex.prefix(24))…")
+            self.trace("ledger #\(id) → \(apduHex.prefix(8)) \(apduHex.count / 2) bytes")
             LedgerHID.shared.exchange(deviceID: deviceID, apdu: Self.bytes(fromHex: apduHex), timeout: timeoutMs / 1000, completionQueue: self.queue) { [weak self] result in
                 guard let self else { return }
                 switch result {
@@ -282,15 +307,43 @@ final class TaquitoBridge: @unchecked Sendable {
 
     // MARK: - fetch
 
+    /// Collects a reply as it streams and cancels the task once it passes the size limit (S19),
+    /// so an oversized or endless body never reaches JavaScript or memory.
+    private final class ResponseCollector: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        let limit: Int
+        var data = Data()
+        var overflowed = false
+        let completion: (Data?, URLResponse?, Error?, Bool) -> Void
+
+        init(limit: Int, completion: @escaping (Data?, URLResponse?, Error?, Bool) -> Void) {
+            self.limit = limit
+            self.completion = completion
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+            data.append(chunk)
+            if data.count > limit {
+                overflowed = true
+                data = Data()
+                dataTask.cancel()
+            }
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            completion(overflowed ? nil : data, task.response, error, overflowed)
+        }
+    }
+
     private func startFetch(id: Int, urlString: String, method: String, headersJSON: String, body: JSValue?) {
         dispatchPrecondition(condition: .onQueue(queue))
-        trace("fetch #\(id) \(method) \(urlString)")
+        trace("fetch #\(id) \(method) \(Self.redacted(urlString))")
         guard let url = URL(string: urlString) else {
-            finishFetch(id: id, error: "Invalid URL: \(urlString)")
+            finishFetch(id: id, error: "Invalid URL")
             return
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.timeoutInterval = 60
         if let data = headersJSON.data(using: .utf8),
            let headers = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
             for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
@@ -299,10 +352,15 @@ final class TaquitoBridge: @unchecked Sendable {
             request.httpBody = body.toString().data(using: .utf8)
         }
 
-        let task = session.dataTask(with: request) { [weak self] data, response, error in
+        let collector = ResponseCollector(limit: Self.maxResponseBytes) { [weak self] data, response, error, overflowed in
             guard let self else { return }
             self.queue.async {
+                self.collectors.removeValue(forKey: id)
                 guard self.fetches.removeValue(forKey: id) != nil else { return } // cancelled
+                if overflowed {
+                    self.finishFetch(id: id, error: BridgeError.responseTooLarge(Self.maxResponseBytes).localizedDescription)
+                    return
+                }
                 if let error {
                     self.finishFetch(id: id, error: error.localizedDescription)
                     return
@@ -317,8 +375,31 @@ final class TaquitoBridge: @unchecked Sendable {
                 self.finishFetch(id: id, status: status, statusText: HTTPURLResponse.localizedString(forStatusCode: status), headersJSON: headersJSON, body: text)
             }
         }
+        let task = session.dataTask(with: request)
+        task.delegate = collector
+        collectors[id] = collector
         fetches[id] = task
         task.resume()
+    }
+
+    /// A URL as it may appear in the log: scheme, host and path only. Query strings and
+    /// fragments can carry tokens (the relay's sync endpoint does) and are dropped (S11).
+    static func redacted(_ urlString: String) -> String {
+        guard let url = URL(string: urlString), let host = url.host() else { return "<url>" }
+        var path = url.path(percentEncoded: true)
+        if path.count > 80 { path = String(path.prefix(80)) + "…" }
+        return "\(url.scheme ?? "")://\(host)\(path)"
+    }
+
+    /// A log line with anything that could be a secret or private content kept out: at most
+    /// `maxLineLength` characters, and hex or base58 runs long enough to be keys, signatures or
+    /// payloads replaced by their length (S11).
+    static let maxLineLength = 1024
+    static func redactedLine(_ line: String) -> String {
+        var text = line.replacing(/[0-9a-fA-F]{48,}/) { "<\($0.output.count) hex chars>" }
+        text = text.replacing(/\b(edsk|edesk|spsk|spesk|p2sk|p2esk|BLsk|BLesk|mdsk|mdesk|edsig|spsig1|p2sig|BLsig|mdsig|sig)[1-9A-HJ-NP-Za-km-z]{20,}/) { "\($0.output.1)<redacted>" }
+        if text.count > maxLineLength { text = String(text.prefix(maxLineLength)) + "…" }
+        return text
     }
 
     /// Appends a line to `consoleLines` from Swift (fetch tracing).
@@ -331,39 +412,58 @@ final class TaquitoBridge: @unchecked Sendable {
         record("[app] \(line)")
     }
 
-    /// Rolling log of bridge activity for support: `~/Library/Logs/Signet/bridge.log`.
+    /// Rolling log of bridge activity for support: `~/Library/Logs/Signet/bridge.log`, readable
+    /// by this user only, rotated to `bridge.log.1` once it passes `maxLogBytes` (S11).
     static let logFileURL: URL = {
         let dir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Logs/Signet", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         return dir.appendingPathComponent("bridge.log")
     }()
-    private lazy var logHandle: FileHandle? = {
+    static let maxLogBytes = 5_000_000
+    private var logHandle: FileHandle?
+    private var logBytes = 0
+
+    private func openLog() -> FileHandle? {
         let url = Self.logFileURL
-        if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > 5_000_000 {
-            try? FileManager.default.removeItem(at: url)
-        }
-        if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
-        let handle = try? FileHandle(forWritingTo: url)
-        try? handle?.seekToEnd()
-        return handle
-    }()
+        let fd = open(url.path, O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { return nil }
+        fchmod(fd, 0o600)
+        logBytes = Int((try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0)
+        return FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+    }
+
+    private func rotateLogIfNeeded() {
+        guard logBytes > Self.maxLogBytes else { return }
+        try? logHandle?.close()
+        logHandle = nil
+        let url = Self.logFileURL
+        try? FileManager.default.removeItem(at: url.appendingPathExtension("1"))
+        try? FileManager.default.moveItem(at: url, to: url.appendingPathExtension("1"))
+        logBytes = 0
+    }
+
     private static let stamp: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "HH:mm:ss.SSS"; return f
     }()
 
-    private func record(_ line: String) {
+    private func record(_ rawLine: String) {
+        let line = Self.redactedLine(rawLine)
         lock.withLock {
             _consoleLines.append(line)
             if _consoleLines.count > 300 { _consoleLines.removeFirst(_consoleLines.count - 300) }
+            rotateLogIfNeeded()
+            if logHandle == nil { logHandle = openLog() }
             if let data = "\(Self.stamp.string(from: Date())) \(line)\n".data(using: .utf8) {
                 try? logHandle?.write(contentsOf: data)
+                logBytes += data.count
             }
         }
     }
 
     private func finishFetch(id: Int, status: Int = 0, statusText: String = "", headersJSON: String = "{}", body: String = "", error: String? = nil) {
-        trace("fetch #\(id) ← \(error ?? "\(status) \(body.prefix(body.contains("next_batch") ? 3000 : 160))")")
+        trace("fetch #\(id) ← \(error ?? "\(status) \(body.utf8.count) bytes")")
         context?.objectForKeyedSubscript("__signet_fetchDone")?.call(withArguments: [
             id, status, statusText, headersJSON, body, error ?? NSNull(),
         ])

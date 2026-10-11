@@ -19,9 +19,10 @@ struct SettingsView: View {
                 backupSection(backupDirectory)
             }
             updatesSection
+            developerSection
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 900)
+        .frame(width: 480, height: 960)
         .navigationTitle("Settings")
         .appliesStoredAppearance()
     }
@@ -156,7 +157,23 @@ struct SettingsView: View {
             nodeError = nil
             syncNodeText()
         } else {
-            nodeError = "Enter a host name such as rpc.tzbeta.net."
+            nodeError = Network.nodeURLProblem(nodeText)
+        }
+    }
+
+    @AppStorage(DeveloperSettings.dappDiagnosticsKey) private var dappDiagnosticsArmed = false
+
+    private var developerSection: some View {
+        Section {
+            Toggle("Verbose dApp log on the next launch", isOn: $dappDiagnosticsArmed)
+            if model.dapps.diagnostics {
+                Text("Verbose dApp logging is on for this run; it switches itself off at the next launch.").font(.callout).foregroundStyle(.orange)
+            }
+        } header: {
+            Text("Developer")
+        } footer: {
+            Text("The bridge log (~/Library/Logs/Signet/bridge.log) never contains keys, signatures or message contents. The verbose dApp log adds the relay SDK's own debugging output, which includes decrypted dApp traffic; it is armed for one launch only.")
+                .font(.callout).foregroundStyle(.secondary)
         }
     }
 

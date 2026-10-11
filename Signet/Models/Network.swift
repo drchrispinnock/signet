@@ -24,6 +24,10 @@ struct Network: Hashable, Identifiable, Sendable {
     var faucetKind: FaucetKind = .teztnets
     /// Block explorer for this network, used to link operations; `nil` when there is none.
     var explorerURL: URL? = nil
+    /// The chain id a node for this network must report (`/chains/main/chain_id`), when the
+    /// network is long-lived enough to pin one (S12). The node monitor shows a node serving
+    /// another chain in red, and nothing is estimated or signed through it.
+    var expectedChainID: String? = nil
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -33,7 +37,7 @@ struct Network: Hashable, Identifiable, Sendable {
     }
 
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
-         faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil) {
+         faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil) {
         self.name = name
         self.chain = chain
         self.rpcURL = rpcURL
@@ -43,6 +47,7 @@ struct Network: Hashable, Identifiable, Sendable {
         self.faucetURL = faucetURL
         self.faucetKind = faucetKind
         self.explorerURL = explorerURL
+        self.expectedChainID = expectedChainID
     }
 
     /// Where to look an operation up, if this network has an explorer.
@@ -68,10 +73,11 @@ struct Network: Hashable, Identifiable, Sendable {
         return copy
     }
 
-    /// Parses what the user typed into the node field: an absolute http(s) URL with a host,
-    /// trailing slashes dropped so paths append cleanly. `nil` when it is not one.
-    /// Parses what the user typed for a node. A bare host such as `rpc.tzbeta.net` (optionally with
-    /// a port or path) is taken as HTTPS; an explicit `http://` or `https://` is kept.
+    /// Parses what the user typed for a node: an absolute URL with a host, trailing slashes dropped
+    /// so paths append cleanly, or `nil` when it is not one. A bare host such as `rpc.tzbeta.net`
+    /// (optionally with a port or path) is taken as HTTPS. Plain `http://` is accepted only for
+    /// this machine and the local network, where there is nothing to intercept (a node you run
+    /// yourself); anything further away must be HTTPS. Credentials in the URL are refused (S12).
     static func nodeURL(from text: String) -> URL? {
         var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         while trimmed.hasSuffix("/") { trimmed.removeLast() }
@@ -79,8 +85,19 @@ struct Network: Hashable, Identifiable, Sendable {
         if !trimmed.lowercased().hasPrefix("http://"), !trimmed.lowercased().hasPrefix("https://") {
             trimmed = "https://" + trimmed
         }
-        guard let url = URL(string: trimmed), let host = url.host(), !host.isEmpty, host.contains(".") || host == "localhost" else { return nil }
+        guard let url = URL(string: trimmed), let host = url.host(percentEncoded: false), !host.isEmpty, url.user == nil, url.password == nil else { return nil }
+        let local = EndpointPolicy.isLocalOrPrivateHost(host)
+        guard local || host.contains(".") else { return nil }
+        if url.scheme?.lowercased() == "http", !local { return nil }
         return url
+    }
+
+    /// Why `nodeURL(from:)` refused `text`, for the Settings field.
+    static func nodeURLProblem(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed.hasPrefix("http://") { return "Plain http is only allowed for a node on this machine or your local network; use https for anything else." }
+        if trimmed.contains("@") { return "Leave credentials out of the node URL." }
+        return "Enter a host name such as rpc.tzbeta.net."
     }
 
     /// The node as shown to the user: the full URL.
@@ -92,7 +109,8 @@ struct Network: Hashable, Identifiable, Sendable {
         rpcURL: URL(string: "https://rpc.tzbeta.net")!,
         tezosDomainsURL: URL(string: "https://api.tezos.domains/graphql")!,
         tzktURL: URL(string: "https://api.tzkt.io")!,
-        explorerURL: URL(string: "https://tzkt.io")!
+        explorerURL: URL(string: "https://tzkt.io")!,
+        expectedChainID: "NetXdQprcVkpaWU"
     )
     static let shadownet = Network(
         name: "Shadownet",
@@ -100,7 +118,8 @@ struct Network: Hashable, Identifiable, Sendable {
         rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")!,
         tezosDomainsURL: nil,
         tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
-        faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!
+        faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!,
+        expectedChainID: "NetXsqzbfFenSTS"
     )
     static let bakingnet = Network(
         name: "Bakingnet",

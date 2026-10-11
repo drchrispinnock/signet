@@ -37,12 +37,14 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
               let type = message["type"] as? String
         else { return nil }
 
+        // The bridge rebuilt this message from the peer the transport authenticated (S04): the
+        // sender id is the message's own, never the self-asserted one inside `appMetadata`.
         let meta = message["appMetadata"] as? [String: Any] ?? [:]
         let app = DAppInfo(
             name: meta["name"] as? String ?? "Unknown dApp",
             icon: (meta["icon"] as? String).flatMap(URL.init(string:)),
             url: (meta["appUrl"] as? String).flatMap(URL.init(string:)),
-            senderId: meta["senderId"] as? String ?? message["senderId"] as? String ?? ""
+            senderId: message["senderId"] as? String ?? ""
         )
         let network = message["network"] as? [String: Any]
         let networkType = network?["type"] as? String ?? "mainnet"
@@ -75,16 +77,47 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
     }
 
     /// Which of our networks a request's network refers to, or `nil` if we cannot serve it.
+    ///
+    /// A dApp's "custom" network names an RPC endpoint of the dApp's choosing (S12): it is
+    /// accepted only as a public HTTPS endpoint without credentials, or when it is exactly the
+    /// node the user configured for one of our networks (scheme, host, port and path). A dApp
+    /// cannot point the wallet at this machine or the local network, and a user-configured
+    /// local node is never reachable through a dApp's request unless the dApp names it exactly.
     static func network(forType type: String, rpcURL: URL?) -> Network? {
+        let kind = type.lowercased()
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
-        if let match = Network.all.first(where: { $0.chain == type.lowercased() && $0.chain != "custom" }) { return match }
-        if type.lowercased() == "custom", let rpcURL {
-            if let known = Network.all.first(where: { $0.rpcURL.host() == rpcURL.host() }) { return known }
-            return Network(name: "Custom (\(rpcURL.host() ?? rpcURL.absoluteString))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
+        if let match = Network.all.first(where: { $0.chain == kind && $0.chain != "custom" }) { return match }
+        if kind == "custom", let rpcURL {
+            if let known = Network.all.first(where: { sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
+            guard EndpointPolicy.isPublicHTTPS(rpcURL) else { return nil }
+            return Network(name: "Custom (\(endpointDescription(rpcURL)))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
         }
         // Currentnet is whatever proposal net is live; accept its current protocol name too.
-        if type.lowercased() == "ushuaianet" { return .currentnet }
+        if kind == "ushuaianet" { return .currentnet }
         return nil
+    }
+
+    /// Two endpoints are the same only when scheme, host, port and path all agree (S12).
+    static func sameEndpoint(_ a: URL?, _ b: URL?) -> Bool {
+        guard let a, let b else { return a == nil && b == nil }
+        func key(_ url: URL) -> String? {
+            guard let scheme = url.scheme?.lowercased(), let host = url.host(percentEncoded: false)?.lowercased() else { return nil }
+            let port = url.port ?? (scheme == "https" ? 443 : 80)
+            var path = url.path(percentEncoded: true)
+            while path.hasSuffix("/") { path.removeLast() }
+            return "\(scheme)://\(host):\(port)\(path)"
+        }
+        guard let ka = key(a), let kb = key(b) else { return false }
+        return ka == kb
+    }
+
+    /// Host, port and path of an endpoint, for showing where a custom network points.
+    static func endpointDescription(_ url: URL) -> String {
+        var text = url.host(percentEncoded: false) ?? url.absoluteString
+        if let port = url.port { text += ":\(port)" }
+        let path = url.path(percentEncoded: false)
+        if !path.isEmpty, path != "/" { text += path }
+        return text
     }
 }
 
@@ -140,6 +173,8 @@ struct DAppPermission: Identifiable, Hashable, Sendable {
     let appName: String
     let appIcon: URL?
     let networkType: String
+    /// The endpoint a custom-network grant was made for; `nil` for named networks.
+    var networkRPCURL: URL? = nil
     let scopes: [String]
     let connectedAt: Date?
 

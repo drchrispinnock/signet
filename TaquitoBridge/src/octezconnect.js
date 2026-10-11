@@ -6,12 +6,13 @@
 // file Swift provides through `__signet.storageGet/Set/Delete` so sessions survive restarts.
 
 import { WalletClient } from "@tezos-x/octez.connect-wallet";
-import { Serializer, setDebugEnabled } from "@tezos-x/octez.connect-core";
+import { Serializer, setDebugEnabled, getSenderId } from "@tezos-x/octez.connect-core";
 import { Storage, defaultValues as storageDefaults } from "@tezos-x/octez.connect-types";
 import { TezosToolkit } from "@taquito/taquito";
 import { signerFor } from "./signers.js";
 import { RpcClient } from "@taquito/rpc";
 import { localForger } from "@taquito/local-forging";
+import { encodeOpHash } from "@taquito/utils";
 
 class NativeStorage extends Storage {
   static async isSupported() { return true; }
@@ -32,42 +33,193 @@ class NativeStorage extends Storage {
 }
 
 let client = null;
-const peersById = new Map();
+/** The start in progress, so concurrent starts share one attempt and a failed one leaves no client (S18). */
+let starting = null;
+/** Request id → authenticated sender id, for the per-peer in-flight budget (S19). */
+const inflight = new Map();
 
 function emit(event) {
   globalThis.__signet.octezConnectEvent(JSON.stringify(event));
 }
 
-/** Creates the WalletClient, restores stored peers and starts listening. Idempotent. */
-export async function octezConnectStart(appName, iconUrl, debug) {
-  if (client) return { started: true };
-  if (debug) setDebugEnabled(true);
-  const fresh = new WalletClient({ name: appName, iconUrl: iconUrl || undefined, storage: new NativeStorage() });
-  let transport;
-  try {
-    transport = await fresh.init();
-  } catch (error) {
-    console.error("octez.connect: init failed", error);
-    throw error;
+// ---- What a paired dApp may ask (S04, S08, S19) ---------------------------------------------------
+
+/** Budgets for untrusted input from a paired peer. */
+export const REQUEST_LIMITS = Object.freeze({
+  messageChars: 256 * 1024,   // the whole decrypted request as JSON
+  operations: 64,             // operations in one batch
+  idChars: 128,
+  textChars: 256,             // names, scopes, signing types
+  urlChars: 2048,
+  payloadHex: 64 * 1024,      // sign_payload hex (the signing rule applies the same bound)
+  pendingPerPeer: 4,          // requests a peer may have waiting for the user
+});
+
+const REQUEST_TYPES = ["permission_request", "operation_request", "sign_payload_request"];
+const OPERATION_KINDS = ["transaction", "delegation", "origination"];
+
+const clipText = (value, max = REQUEST_LIMITS.textChars) => (typeof value === "string" && value.length <= max ? value : null);
+function httpURL(value) {
+  if (typeof value !== "string" || value.length > REQUEST_LIMITS.urlChars) return null;
+  try { const u = new URL(value); return u.protocol === "https:" || u.protocol === "http:" ? u.href : null; } catch { return null; }
+}
+/** A dApp's `network` field, reduced to what the wallet reads. */
+function cleanNetwork(network) {
+  if (!network || typeof network !== "object") return null;
+  const type = clipText(network.type, 64);
+  if (!type) return null;
+  const out = { type };
+  const rpcUrl = httpURL(network.rpcUrl);
+  if (rpcUrl) out.rpcUrl = rpcUrl;
+  const name = clipText(network.name, 64);
+  if (name) out.name = name;
+  return out;
+}
+const sameNetwork = (a, b) => !!a && !!b && a.type === b.type && (a.type !== "custom" || httpURL(a.rpcUrl) === httpURL(b.rpcUrl));
+
+/**
+ * Rebuilds an incoming request from authenticated state only (S04, S08, S19). Pure, so it can be
+ * tested offline. `auth` is what the transport proved: the peer whose session key decrypted the
+ * message (`peer`, the record the user pasted when pairing), its `senderId` (derived from that
+ * peer's public key here, not read from the message), the app metadata the SDK stored for that
+ * sender at permission time, and the wallet's current permissions.
+ *
+ * Returns `{ request }` with only allow-listed fields, every identity field replaced by the
+ * authenticated one, or `{ refused, errorType }` naming why the request must be answered with an
+ * error instead of shown. Identity fields the message itself carries (`senderId`,
+ * `appMetadata.senderId`) must agree with the authenticated sender: the SDK records grants under
+ * the id the message claims, so a mismatch is refused outright rather than corrected.
+ */
+export function sanitizeIncomingRequest(message, auth) {
+  const refuse = (refused, errorType = "NOT_GRANTED_ERROR") => ({ refused, errorType });
+  if (!message || typeof message !== "object") return refuse("not an object", "PARAMETERS_INVALID_ERROR");
+  if (!auth?.peer || typeof auth.senderId !== "string" || auth.senderId.length === 0) return refuse("message from a peer that is not paired");
+  const id = clipText(message.id, REQUEST_LIMITS.idChars);
+  const type = clipText(message.type, 64);
+  if (!id || !type) return refuse("no request id or type", "PARAMETERS_INVALID_ERROR");
+  if (!REQUEST_TYPES.includes(type)) return refuse(`"${type}" requests are not supported`);
+  let size = 0;
+  try { size = JSON.stringify(message).length; } catch { return refuse("unreadable message", "PARAMETERS_INVALID_ERROR"); }
+  if (size > REQUEST_LIMITS.messageChars) return refuse(`the request is too large (${size} characters)`, "PARAMETERS_INVALID_ERROR");
+  if (typeof message.senderId === "string" && message.senderId !== auth.senderId) return refuse("the message claims another sender id");
+  const claimed = message.appMetadata?.senderId;
+  if (typeof claimed === "string" && claimed !== auth.senderId) return refuse("the message's app metadata claims another sender id");
+  const pendingHere = Number(auth.pendingFromPeer ?? 0);
+  if (pendingHere >= REQUEST_LIMITS.pendingPerPeer) return refuse(`${pendingHere} requests from this dApp are already waiting`, "ABORTED_ERROR");
+
+  // Branding is self-asserted, but it must be the branding the user paired with or granted to.
+  const peer = auth.peer;
+  const stored = auth.storedMetadata && typeof auth.storedMetadata === "object" ? auth.storedMetadata : null;
+  const network = cleanNetwork(message.network);
+  const base = { type, id, version: clipText(message.version, 16) ?? "2", senderId: auth.senderId };
+
+  if (type === "permission_request") {
+    const offered = message.appMetadata && typeof message.appMetadata === "object" ? message.appMetadata : {};
+    const appMetadata = {
+      senderId: auth.senderId,
+      name: clipText(offered.name) ?? clipText(peer.name) ?? "dApp",
+      icon: httpURL(offered.icon) ?? httpURL(peer.icon) ?? undefined,
+      appUrl: httpURL(offered.appUrl) ?? httpURL(peer.appUrl) ?? undefined,
+    };
+    const scopes = Array.isArray(message.scopes) ? message.scopes.filter((s) => clipText(s, 64)).slice(0, 16) : [];
+    if (!network) return refuse("no network in the permission request", "PARAMETERS_INVALID_ERROR");
+    return { request: { ...base, appMetadata, network, scopes } };
   }
-  client = fresh;
-  console.log("octez.connect: wallet client initialised, transport", transport);
-  await client.connect((message, context) => {
-    console.log("octez.connect: request received", message?.type, message?.id, "from", message?.appMetadata?.name);
-    try {
-      emit({ kind: "request", message, context: { origin: context?.origin, id: context?.id } });
-    } catch (error) {
-      console.error("octez.connect: failed to forward request", error);
-    }
-  });
-  console.log("octez.connect: listening for dApp requests");
-  installRelayDiagnostics(client).catch((e) => console.warn("octez.connect: diagnostics not installed", e?.message ?? e));
-  return { started: true };
+
+  // Everything else needs a grant for this exact peer, account and scope (S08).
+  const appMetadata = {
+    senderId: auth.senderId,
+    name: clipText(stored?.name) ?? clipText(peer.name) ?? "dApp",
+    icon: httpURL(stored?.icon) ?? httpURL(peer.icon) ?? undefined,
+    appUrl: httpURL(stored?.appUrl) ?? httpURL(peer.appUrl) ?? undefined,
+  };
+  const sourceAddress = clipText(message.sourceAddress, 64);
+  if (!sourceAddress) return refuse("no source address", "PARAMETERS_INVALID_ERROR");
+  const scope = type === "operation_request" ? "operation_request" : "sign";
+  const permissions = Array.isArray(auth.permissions) ? auth.permissions : [];
+  const grant = permissions.find((p) => p?.senderId === auth.senderId && p?.address === sourceAddress && Array.isArray(p?.scopes) && p.scopes.includes(scope));
+  if (!grant) return refuse(`${appMetadata.name} has no permission to ${scope === "sign" ? "sign messages" : "request operations"} for ${sourceAddress}`);
+
+  if (type === "operation_request") {
+    if (!network) return refuse("no network in the operation request", "PARAMETERS_INVALID_ERROR");
+    if (!sameNetwork(network, grant.network)) return refuse(`the permission is for ${grant.network?.type ?? "another network"}, not ${network.type}`);
+    const ops = message.operationDetails;
+    if (!Array.isArray(ops) || ops.length === 0) return refuse("no operations", "PARAMETERS_INVALID_ERROR");
+    if (ops.length > REQUEST_LIMITS.operations) return refuse(`${ops.length} operations in one request`, "TOO_MANY_OPERATIONS");
+    if (ops.some((op) => !op || typeof op !== "object" || !OPERATION_KINDS.includes(op.kind))) return refuse("an operation of an unsupported kind", "PARAMETERS_INVALID_ERROR");
+    return { request: { ...base, appMetadata, network, sourceAddress, operationDetails: ops } };
+  }
+
+  const payload = message.payload;
+  if (typeof payload !== "string" || payload.length === 0 || payload.length > REQUEST_LIMITS.payloadHex) return refuse("the payload is missing or too long", "SIGNATURE_TYPE_NOT_SUPPORTED");
+  return { request: { ...base, appMetadata, sourceAddress, signingType: clipText(message.signingType, 32) ?? "raw", payload } };
+}
+
+/** What the transport proved about an incoming message, gathered from the SDK's state. */
+async function authenticatedContext(wallet, context) {
+  const publicKey = typeof context?.id === "string" ? context.id : null;
+  if (!publicKey) return null;
+  const peers = await wallet.getPeers();
+  const peer = peers.find((p) => p?.publicKey === publicKey);
+  if (!peer) return null;
+  const senderId = await getSenderId(publicKey);
+  const [storedMetadata, permissions] = await Promise.all([wallet.getAppMetadata(senderId).catch(() => null), wallet.getPermissions()]);
+  let pendingFromPeer = 0;
+  for (const owner of inflight.values()) if (owner === senderId) pendingFromPeer++;
+  return { peer, senderId, storedMetadata, permissions, pendingFromPeer };
+}
+
+async function refuseRequest(wallet, message, refused, errorType) {
+  console.warn("octez.connect: refused request", message?.type, message?.id, refused);
+  emit({ kind: "refused", id: message?.id ?? null, type: message?.type ?? null, reason: refused });
+  if (typeof message?.id !== "string") return;
+  try { await wallet.respond({ type: "error", id: message.id, errorType }); } catch (error) { console.warn("octez.connect: could not answer refused request", error?.message ?? error); }
 }
 
 /**
- * Logs every relay message as it arrives and tries the SDK's own decryption for each known peer,
- * so a message the SDK drops silently (it swallows decryption errors) shows up with a reason.
+ * Creates the WalletClient, restores stored peers and starts listening. Concurrent calls share
+ * one attempt; the client is published only once the transport is connected, so a failed start
+ * leaves nothing behind and the next call tries again (S18).
+ */
+export async function octezConnectStart(appName, iconUrl, debug) {
+  if (client) return { started: true };
+  if (starting) return starting;
+  starting = (async () => {
+    if (debug) setDebugEnabled(true);
+    const fresh = new WalletClient({ name: appName, iconUrl: iconUrl || undefined, storage: new NativeStorage() });
+    try {
+      const transport = await fresh.init();
+      console.log("octez.connect: wallet client initialised, transport", transport);
+      await fresh.connect(async (message, context) => {
+        const auth = await authenticatedContext(fresh, context);
+        const result = sanitizeIncomingRequest(message, auth);
+        if (result.refused) { await refuseRequest(fresh, message, result.refused, result.errorType); return; }
+        const request = result.request;
+        inflight.set(request.id, request.senderId);
+        console.log("octez.connect: request received", request.type, request.id, "from", request.appMetadata?.name);
+        try {
+          emit({ kind: "request", message: request, context: { origin: context?.origin, senderId: request.senderId } });
+        } catch (error) {
+          console.error("octez.connect: failed to forward request", error);
+        }
+      });
+    } catch (error) {
+      console.error("octez.connect: start failed", error?.message ?? error);
+      try { const t = await fresh.transport; await t?.disconnect?.(); } catch {}
+      throw error;
+    }
+    client = fresh;
+    console.log("octez.connect: listening for dApp requests");
+    if (debug) installRelayDiagnostics(client).catch((e) => console.warn("octez.connect: diagnostics not installed", e?.message ?? e));
+    return { started: true };
+  })();
+  try { return await starting; } finally { starting = null; }
+}
+
+/**
+ * Developer diagnostics only (S11): logs every relay message and tries the SDK's own decryption for
+ * each known peer, so a message the SDK drops silently shows up with a reason. Decrypted text is
+ * logged, so this is installed only when the app was started with debug on.
  */
 async function installRelayDiagnostics(wallet) {
   const transport = await wallet.transport;
@@ -78,7 +230,7 @@ async function installRelayDiagnostics(wallet) {
     try {
       const m = event?.content?.message ?? {};
       const body = String(m.content ?? "");
-      console.log("relay message:", "room", event?.content?.roomId, "sender", m.sender, "len", body.length, "head", body.slice(0, 24));
+      console.log("relay message:", "room", event?.content?.roomId, "sender", m.sender, "len", body.length);
       if (!/^[0-9a-f]+$/i.test(body)) { console.log("relay message: not hex, pairing/channel-open traffic"); return; }
       const peers = await wallet.getPeers();
       const keyPair = p2p.keyPair;
@@ -100,24 +252,36 @@ async function installRelayDiagnostics(wallet) {
   console.log("octez.connect: relay diagnostics installed");
 }
 
-/** Pairs with a dApp from the code it shows under "pair with another wallet". */
+/**
+ * Pairs with a dApp from the code it shows under "pair with another wallet". Returns at once with
+ * the dApp's name; the pairing itself (the dApp joining the relay room) finishes later and is
+ * reported with a `paired` or `error` event, so the UI never shows queued work as done (S18).
+ */
 export async function octezConnectPair(pairingCode) {
   if (!client) throw new Error("Octez Connect is not started");
   const peer = await new Serializer().deserialize(pairingCode.trim());
   if (!peer || !peer.publicKey || !peer.relayServer) throw new Error("That is not an Octez Connect pairing code");
+  const name = clipText(peer.name) ?? "dApp";
   // addPeer with sendPairingResponse waits for the dApp to join the relay room, which can take a
   // while (or never happen if the dApp was closed). Do not hold the UI on it.
-  client.addPeer(peer, true).catch((error) => {
-    emit({ kind: "error", message: `Pairing with ${peer.name} failed: ${error?.message ?? error}` });
-  });
-  peersById.set(peer.id, peer);
-  return { id: peer.id, name: peer.name, icon: peer.icon ?? null, appUrl: peer.appUrl ?? null, relayServer: peer.relayServer };
+  client.addPeer(peer, true).then(
+    () => emit({ kind: "paired", id: peer.id, name }),
+    (error) => emit({ kind: "error", message: `Pairing with ${name} failed: ${error?.message ?? error}` }),
+  );
+  return { id: peer.id, name, icon: httpURL(peer.icon), appUrl: httpURL(peer.appUrl), relayServer: peer.relayServer, pending: true };
 }
 
 export async function octezConnectRespond(responseJson) {
   if (!client) throw new Error("Octez Connect is not started");
-  await client.respond(JSON.parse(responseJson));
+  const response = JSON.parse(responseJson);
+  await client.respond(response);
+  if (typeof response?.id === "string") inflight.delete(response.id);
   return { ok: true };
+}
+
+/** Request ids still waiting for an answer, by authenticated sender id (S19 budget). */
+export function octezConnectInflight() {
+  return Array.from(inflight, ([id, senderId]) => ({ id, senderId }));
 }
 
 export async function octezConnectPermissions() {
@@ -270,9 +434,11 @@ function checkedLimit(value) {
  * Simulates a dApp's operation request from `source` (read-only: no key involved) so the
  * approval sheet can show exact fees, burn, totals and effects before anything is signed.
  */
-export async function octezConnectPrepare(rpcUrl, source, publicKey, operationsJson) {
+export async function octezConnectPrepare(rpcUrl, source, publicKey, operationsJson, expectedChainId) {
   const ops = JSON.parse(operationsJson);
   if (!Array.isArray(ops) || ops.length === 0) throw new Error("The dApp sent no operations");
+  if (ops.length > REQUEST_LIMITS.operations) throw new Error(`The dApp sent ${ops.length} operations; at most ${REQUEST_LIMITS.operations} are accepted`);
+  await assertChain(rpcUrl, expectedChainId);
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
   const estimates = await tk.estimate.batch(ops.map(toTaquitoParams));
@@ -288,10 +454,11 @@ export async function octezConnectPrepare(rpcUrl, source, publicKey, operationsJ
  * Signs and injects a prepared batch, exactly as prepared: every operation must carry the fee,
  * gas and storage the user saw, so nothing is re-estimated or taken from the dApp here.
  */
-export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson) {
+export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson, expectedChainId) {
   const operation = JSON.parse(preparedJson);
   const { branch, contents, protocol } = operation;
   if (typeof branch !== "string" || typeof protocol !== "string" || !Array.isArray(contents) || contents.length === 0) throw new Error("This batch was not prepared");
+  await assertChain(rpcUrl, expectedChainId);
   for (const [i, op] of contents.entries()) {
     if (!["transaction", "delegation", "origination"].includes(op.kind) && !(i === 0 && op.kind === "reveal")) throw new Error(`Operation kind "${op.kind}" is not supported`);
     for (const field of ["fee", "gas_limit", "storage_limit", "counter"]) checkedLimit(op[field]);
@@ -306,7 +473,48 @@ export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson) {
   const replies = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   const results = replies.flatMap(r => r.contents ?? []);
   if (results.length !== contents.length || results.some(c => c.metadata?.operation_result?.status !== "applied")) throw new Error("The prepared batch was not applied; prepare it again before approving");
-  return { hash: await rpc.injectOperation(sbytes) };
+  return injectSigned(rpc, sbytes);
+}
+
+/**
+ * Refuses a node that serves another chain than the one the user believes they are on (S12).
+ * `expectedChainId` is null for networks that restart too often to pin one.
+ */
+export async function assertChain(rpcUrl, expectedChainId) {
+  if (expectedChainId == null || expectedChainId === "") return { chainId: null };
+  const chainId = await new RpcClient(rpcUrl).getChainId();
+  if (chainId !== expectedChainId) throw new Error(`The node at ${new URL(rpcUrl).host} serves chain ${chainId}, not ${expectedChainId}. Check the node in Settings.`);
+  return { chainId };
+}
+
+/**
+ * Injects signed bytes. The operation hash is computed locally first, so when the node's answer
+ * is lost after it may have taken the operation the caller still learns the hash and that the
+ * outcome is unknown, instead of an error that invites a second, different payment (S15).
+ * A definite rejection by the node is still thrown.
+ */
+export async function injectSigned(rpc, sbytes) {
+  const hash = encodeOpHash(sbytes);
+  try {
+    const confirmed = await rpc.injectOperation(sbytes);
+    return { hash: confirmed || hash, injected: true, signedBytes: sbytes };
+  } catch (error) {
+    if (isDefiniteRejection(error)) throw error;
+    console.warn("octez.connect: injection outcome unknown", hash, error?.message ?? error);
+    return { hash, injected: false, signedBytes: sbytes };
+  }
+}
+
+/** An HTTP reply from the node (it saw the request and said no), as opposed to no reply at all. */
+export function isDefiniteRejection(error) {
+  const status = Number(error?.status);
+  return Number.isFinite(status) && status >= 400 && status < 600;
+}
+
+/** Sends already-signed bytes again after an unknown outcome; the hash cannot change (S15). */
+export async function injectSignedBytes(rpcUrl, sbytes) {
+  if (typeof sbytes !== "string" || !/^[0-9a-f]+$/i.test(sbytes) || sbytes.length < 2 * (32 + 64)) throw new Error("not a signed operation");
+  return injectSigned(new RpcClient(rpcUrl), sbytes);
 }
 
 // ---- Describing operations --------------------------------------------------------------------
@@ -440,6 +648,7 @@ export async function octezConnectMakePairingCode(peerJson) {
 
 /** Stops the wallet client so a later start creates a fresh one (tests, storage changes). */
 export async function octezConnectStop() {
+  if (starting) { try { await starting; } catch {} }
   if (!client) return { stopped: false };
   // Never call destroy(): it wipes the SDK's storage (seed, peers, permissions). Just drop the
   // transport connection and forget the instance.
@@ -450,7 +659,7 @@ export async function octezConnectStop() {
     console.warn("octez.connect: disconnect failed", error?.message ?? error);
   }
   client = null;
-  peersById.clear();
+  inflight.clear();
   return { stopped: true };
 }
 

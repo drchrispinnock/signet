@@ -2,7 +2,7 @@ import Foundation
 
 /// Key/value store the Octez Connect SDK persists its peers, permissions and seed in.
 /// Synchronous because the bridge calls it from JavaScript on the bridge queue.
-protocol BridgeStorage: Sendable {
+protocol BridgeStorage: AnyObject, Sendable {
     func get(_ key: String) -> String?
     func set(_ key: String, _ value: String)
     func delete(_ key: String)

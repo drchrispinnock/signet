@@ -70,6 +70,16 @@ struct ConnectDAppSheet: View {
             .formStyle(.grouped)
             .frame(height: 360)
 
+            switch dapps.pairing {
+            case .waiting(let name):
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Pairing with \(name)… waiting for the dApp to answer over the relay.").font(.callout).foregroundStyle(.secondary) }
+            case .paired(let name):
+                Text("Paired with \(name). It will now ask for permission; approve it in the next window.").font(.callout).foregroundStyle(.green)
+            case .failed(let why):
+                Text(why).font(.callout).foregroundStyle(.red)
+            case .idle:
+                EmptyView()
+            }
             if let message {
                 Text(message).font(.callout).foregroundStyle(isError ? .red : .green)
             }
@@ -107,9 +117,9 @@ struct ConnectDAppSheet: View {
         Task {
             defer { isPairing = false }
             do {
-                let name = try await dapps.pair(code: code)
+                _ = try await dapps.pair(code: code)
                 isError = false
-                message = "Paired with \(name). It will now ask for permission; approve it in the next window."
+                message = nil
                 code = ""
             } catch {
                 isError = true

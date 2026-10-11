@@ -18,7 +18,11 @@ struct DAppRequestSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            content
+            if let reply = dapps.undelivered[request.id] {
+                undeliveredView(reply)
+            } else {
+                content
+            }
             if let error = dapps.lastError {
                 Text(error).font(.callout).foregroundStyle(.red)
             }
@@ -55,6 +59,15 @@ struct DAppRequestSheet: View {
         }
     }
 
+    /// The work is done; only the reply to the dApp is outstanding (S17). Nothing can be redone here.
+    private func undeliveredView(_ reply: DAppConnectionManager.UndeliveredReply) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(reply.summary, systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+            Text("The dApp has not received the reply yet (\(reply.attempts) attempt\(reply.attempts == 1 ? "" : "s")). Send the reply again when the relay is back, or dismiss this and tell the dApp yourself. Nothing is signed or sent again either way.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
     private var title: String {
         switch request {
         case .permission: "Connection request"
@@ -88,7 +101,7 @@ struct DAppRequestSheet: View {
         case .operation(_, _, let networkType, let rpcURL, let source, _):
             Form {
                 sourceRow(source)
-                LabeledContent("Network", value: DAppRequest.network(forType: networkType, rpcURL: rpcURL)?.name ?? networkType)
+                networkRow(networkType, rpcURL)
                 let shown = prepared?.operations ?? summaries
                 if shown.isEmpty {
                     LabeledContent("Operations") { ProgressView().controlSize(.small) }
@@ -182,6 +195,30 @@ struct DAppRequestSheet: View {
         }
     }
 
+    /// The network by name, and for a dApp-chosen endpoint the exact host, port and path it
+    /// points at: a name is not a chain, so the user sees where the batch would really go (S12).
+    @ViewBuilder
+    private func networkRow(_ networkType: String, _ rpcURL: URL?) -> some View {
+        if let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) {
+            LabeledContent("Network") {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(network.name)
+                    if network.chain == "custom" || !network.isUsingDefaultNode {
+                        Text(DAppRequest.endpointDescription(network.rpcURL)).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    }
+                    if network.expectedChainID == nil {
+                        Text("chain not pinned; the node is trusted to serve \(network.name)").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } else {
+            LabeledContent("Network") {
+                Label("\(networkType)\(rpcURL.map { " at \(DAppRequest.endpointDescription($0))" } ?? "") is not a network Signet will use", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
     private func sourceRow(_ source: Address) -> some View {
         LabeledContent("Account") {
             HStack(spacing: 8) {
@@ -216,13 +253,23 @@ struct DAppRequestSheet: View {
         HStack {
             if isWorking { ProgressView().controlSize(.small); Text(workingText).font(.callout).foregroundStyle(.secondary) }
             Spacer()
-            Button("Reject", role: .cancel) { Task { await dapps.reject(request) } }
-                .keyboardShortcut(.cancelAction)
-                .disabled(isWorking)
-            Button(approveTitle) { approve() }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(isWorking || (request.isPermission && chosenWallet == nil) || (needsPassphrase && passphrase.isEmpty) || (request.isOperation && prepared?.requestID != request.id))
+            if dapps.undelivered[request.id] != nil {
+                Button("Dismiss", role: .cancel) { Task { await dapps.reject(request) } }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isWorking)
+                Button("Send reply again") { isWorking = true; Task { defer { isWorking = false }; await dapps.resendReply(request) } }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isWorking)
+            } else {
+                Button("Reject", role: .cancel) { Task { await dapps.reject(request) } }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isWorking)
+                Button(approveTitle) { approve() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isWorking || (request.isPermission && chosenWallet == nil) || (needsPassphrase && passphrase.isEmpty) || (request.isOperation && prepared?.requestID != request.id))
+            }
         }
     }
 
