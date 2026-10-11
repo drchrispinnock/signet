@@ -93,6 +93,8 @@ final class WalletViewModel {
     private(set) var tokens: [AssetBalance] = []
     private(set) var tezBalance: TezBalance?
     private(set) var nfts: [NFT] = []
+    /// Whether `tokens` and `nfts` are the whole story (S26).
+    private(set) var portfolioState: Portfolio.State = .complete
     private(set) var transactions: [TezosTransaction] = []
     private(set) var delegateInfo: DelegateInfo?
     static let recentTransactionLimit = 25
@@ -155,6 +157,7 @@ final class WalletViewModel {
         delegateInfo = nil
         tezBalance = nil
         accountNotOnChain = false
+        portfolioState = .complete
         faucetStatus = .idle
     }
 
@@ -490,9 +493,8 @@ final class WalletViewModel {
         struct Snapshot {
             var tezBalance: TezBalance?
             var assets: [AssetBalance] = []
-            var tokens: [AssetBalance] = []
+            var portfolio = Portfolio.empty
             var domains: [String] = []
-            var nfts: [NFT] = []
             var transactions: [TezosTransaction] = []
             var delegateInfo: DelegateInfo?
             var notOnChain = false
@@ -501,9 +503,8 @@ final class WalletViewModel {
         var snapshot = Snapshot()
         do {
             async let tez = chain.tezBalance(for: address)
-            async let tokens = chain.tokenBalances(for: address)
+            async let holdings = chain.portfolio(for: address)
             async let names = chain.domains(for: address)
-            async let collectibles = chain.nfts(for: address)
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
 
@@ -515,16 +516,14 @@ final class WalletViewModel {
             }
             snapshot.tezBalance = tezBalance
             snapshot.assets = list
-            snapshot.tokens = try await tokens
+            snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
             snapshot.domains = try await names
-            snapshot.nfts = try await collectibles
             snapshot.transactions = try await history
             snapshot.delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
             snapshot.notOnChain = true
-            snapshot.tokens = (try? await chain.tokenBalances(for: address)) ?? []
+            snapshot.portfolio = (try? await chain.portfolio(for: address)) ?? .empty
             snapshot.domains = (try? await chain.domains(for: address)) ?? []
-            snapshot.nfts = (try? await chain.nfts(for: address)) ?? []
         } catch {
             snapshot.error = error.localizedDescription
         }
@@ -538,9 +537,13 @@ final class WalletViewModel {
         }
         tezBalance = snapshot.tezBalance
         assets = snapshot.assets
-        tokens = snapshot.tokens
+        portfolioState = snapshot.portfolio.state
+        // An unavailable indexer keeps the last known lists (they are from this same context).
+        if case .unavailable = snapshot.portfolio.state {} else {
+            tokens = snapshot.portfolio.tokens
+            nfts = snapshot.portfolio.nfts
+        }
         domains = snapshot.domains
-        nfts = snapshot.nfts
         transactions = snapshot.transactions
         delegateInfo = snapshot.delegateInfo
         accountNotOnChain = snapshot.notOnChain

@@ -277,11 +277,18 @@ struct TaquitoChainService: ChainService {
 
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
         guard let tzkt = network.tzktURL else { return [] }
+        return try await TzKTService(baseURL: tzkt, session: session).fungibleTokens(for: address)
+    }
+
+    /// One paginated indexer snapshot for both tabs. Indexer trouble is reported as
+    /// `.unavailable`, never as an account with nothing in it (S26).
+    func portfolio(for address: Address) async throws -> Portfolio {
+        guard let tzkt = network.tzktURL else { return .empty }
         do {
-            return try await TzKTService(baseURL: tzkt, session: session).fungibleTokens(for: address)
+            return try await TzKTService(baseURL: tzkt, session: session).portfolio(for: address)
         } catch {
-            NSLog("TzKT token lookup failed for %@: %@", address.value, error.localizedDescription)
-            return []
+            NSLog("TzKT portfolio lookup failed for %@: %@", address.value, error.localizedDescription)
+            return Portfolio(tokens: [], nfts: [], state: .unavailable(error.localizedDescription))
         }
     }
 
@@ -298,16 +305,10 @@ struct TaquitoChainService: ChainService {
         }
     }
 
-    /// NFTs from the TzKT indexer. Indexer trouble is logged and shown as an empty grid rather
-    /// than failing the whole refresh.
+    /// NFTs from the TzKT indexer.
     func nfts(for address: Address) async throws -> [NFT] {
         guard let tzkt = network.tzktURL else { return [] }
-        do {
-            return try await TzKTService(baseURL: tzkt, session: session).nfts(for: address)
-        } catch {
-            NSLog("TzKT NFT lookup failed for % %@", address.value, error.localizedDescription)
-            return []
-        }
+        return try await TzKTService(baseURL: tzkt, session: session).nfts(for: address)
     }
 }
 

@@ -20,9 +20,9 @@ struct ActivityTabsView: View {
             case .transactions:
                 TransactionListView(model: model)
             case .assets:
-                TokenListView(tokens: model.tokens, isLoading: model.isLoading, network: model.network)
+                TokenListView(tokens: model.tokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network)
             case .nfts:
-                NFTGridView(nfts: model.nfts, isLoading: model.isLoading)
+                NFTGridView(nfts: model.nfts, isLoading: model.isLoading, state: model.portfolioState)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

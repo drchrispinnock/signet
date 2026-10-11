@@ -8,6 +8,8 @@ protocol ChainService: Sendable {
     func tokenBalances(for address: Address) async throws -> [AssetBalance]
     func domains(for address: Address) async throws -> [String]
     func nfts(for address: Address) async throws -> [NFT]
+    /// Tokens and NFTs from one indexer snapshot, with whether it is complete (S26).
+    func portfolio(for address: Address) async throws -> Portfolio
     /// Most recent operations touching the address, newest first.
     func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction]
 
@@ -43,6 +45,30 @@ protocol ChainService: Sendable {
     func governanceInfo(for address: Address) async throws -> GovernanceInfo
     /// Injects an upvote or ballot. Returns the operation hash.
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String
+}
+
+/// Everything the indexer knows the account holds, and how much of it was fetched (S26): a
+/// partial page or an unavailable indexer is said so, never shown as "no tokens".
+struct Portfolio: Equatable, Sendable {
+    enum State: Equatable, Sendable {
+        case complete
+        /// The indexer has more than was fetched; older holdings may be missing.
+        case partial(fetched: Int)
+        case unavailable(String)
+    }
+    var tokens: [AssetBalance]
+    var nfts: [NFT]
+    var state: State
+
+    static let empty = Portfolio(tokens: [], nfts: [], state: .complete)
+}
+
+extension ChainService {
+    func portfolio(for address: Address) async throws -> Portfolio {
+        async let tokens = tokenBalances(for: address)
+        async let nfts = nfts(for: address)
+        return Portfolio(tokens: try await tokens, nfts: try await nfts, state: .complete)
+    }
 }
 
 struct SignedPayload: Equatable, Sendable {

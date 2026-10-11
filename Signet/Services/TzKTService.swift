@@ -30,8 +30,14 @@ struct TzKTService: Sendable {
                     let mimeType: String?
                 }
 
-                /// Decimals come back as a string in TZIP-21 metadata.
-                var decimalPlaces: Int { Int(decimals ?? "") ?? 0 }
+                /// Decimals come back as a string in TZIP-21 metadata. Only a whole number in
+                /// 0...36 counts; anything else is treated as missing, so a token cannot claim
+                /// nonsensical scaling (S26).
+                var decimalPlaces: Int? {
+                    guard let decimals else { return nil }
+                    guard let value = Int(decimals.trimmingCharacters(in: .whitespaces)), (0...36).contains(value) else { return nil }
+                    return value
+                }
             }
             let contract: Contract
             let tokenId: String
@@ -42,13 +48,18 @@ struct TzKTService: Sendable {
         let token: Token
     }
 
-    /// All tokens the account holds a positive balance of.
-    func tokenBalances(for address: Address, limit: Int = 200) async throws -> [TokenBalance] {
+    static let pageSize = 200
+    /// At most this many pages per snapshot; beyond that the portfolio is reported as partial.
+    static let maxPages = 5
+
+    /// One page of the tokens the account holds a positive balance of, most recently changed first.
+    func tokenBalances(for address: Address, limit: Int = pageSize, offset: Int = 0) async throws -> [TokenBalance] {
         var components = URLComponents(url: baseURL.appendingPathComponent("v1/tokens/balances"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "account", value: address.value),
             URLQueryItem(name: "balance.gt", value: "0"),
             URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset)),
             URLQueryItem(name: "sort.desc", value: "lastLevel"),
         ]
         var request = URLRequest(url: components.url!)
@@ -66,23 +77,42 @@ struct TzKTService: Sendable {
         try JSONDecoder().decode([TokenBalance].self, from: data)
     }
 
+    /// Every page up to `maxPages`, and whether that was all of them (S26).
+    func allTokenBalances(for address: Address) async throws -> (rows: [TokenBalance], complete: Bool) {
+        var rows: [TokenBalance] = []
+        for page in 0..<Self.maxPages {
+            let batch = try await tokenBalances(for: address, limit: Self.pageSize, offset: page * Self.pageSize)
+            rows += batch
+            if batch.count < Self.pageSize { return (rows, true) }
+        }
+        return (rows, false)
+    }
+
+    /// Tokens and NFTs from one snapshot, marked partial when the account holds more than was fetched.
+    func portfolio(for address: Address) async throws -> Portfolio {
+        let (rows, complete) = try await allTokenBalances(for: address)
+        return Portfolio(tokens: Self.fungibleTokens(from: rows), nfts: Self.nfts(from: rows), state: complete ? .complete : .partial(fetched: rows.count))
+    }
+
     /// NFTs are tokens with no decimal places and some image to show.
     func nfts(for address: Address) async throws -> [NFT] {
-        Self.nfts(from: try await tokenBalances(for: address))
+        Self.nfts(from: try await allTokenBalances(for: address).rows)
     }
 
     /// Fungible (DeFi) tokens: anything with decimal places, or an FA1.2 token (always fungible).
     /// Tokens with zero decimals and no image, such as Tezos Domains, are neither NFT nor asset.
     func fungibleTokens(for address: Address) async throws -> [AssetBalance] {
-        Self.fungibleTokens(from: try await tokenBalances(for: address))
+        Self.fungibleTokens(from: try await allTokenBalances(for: address).rows)
     }
 
     static func fungibleTokens(from balances: [TokenBalance]) -> [AssetBalance] {
         balances.compactMap { row in
             let metadata = row.token.metadata
-            let decimals = metadata?.decimalPlaces ?? 0
-            guard decimals > 0 || row.token.standard?.lowercased() == "fa1.2" else { return nil }
-            guard let raw = Decimal(string: row.balance) else { return nil }
+            let isFA12 = row.token.standard?.lowercased() == "fa1.2"
+            // A token whose decimals are unreadable is not scaled by a guess: FA1.2 is taken as 0, anything else is skipped.
+            guard let decimals = metadata?.decimalPlaces ?? (isFA12 ? 0 : nil) else { return nil }
+            guard decimals > 0 || isFA12 else { return nil }
+            guard let raw = Decimal(string: row.balance), raw.isFinite, raw >= 0 else { return nil }
             let amount = raw / pow(Decimal(10), decimals)
             let contract = row.token.contract.address
             let symbol = metadata?.symbol?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty

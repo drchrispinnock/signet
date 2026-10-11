@@ -4,26 +4,52 @@ import SwiftUI
 struct TokenListView: View {
     let tokens: [AssetBalance]
     let isLoading: Bool
+    var state: Portfolio.State = .complete
     let network: Network
 
     var body: some View {
-        if tokens.isEmpty {
-            Text(isLoading ? "Loading…" : "No tokens in this account.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, 24)
-        } else {
-            ScrollView(.vertical) {
-                LazyVStack(spacing: 0) {
-                    ForEach(tokens) { token in
-                        TokenRowView(token: token, network: network)
-                        Divider().padding(.leading, 56)
+        VStack(spacing: 0) {
+            if tokens.isEmpty {
+                Text(isLoading ? "Loading…" : (state.isUnavailable ? "Token data is unavailable." : "No tokens in this account."))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 24)
+            } else {
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(tokens) { token in
+                            TokenRowView(token: token, network: network)
+                            Divider().padding(.leading, 56)
+                        }
                     }
                 }
             }
+            PortfolioStateNote(state: state)
         }
     }
+}
+
+/// A line under the Assets and NFTs tabs when the list is not the whole story (S26).
+struct PortfolioStateNote: View {
+    let state: Portfolio.State
+
+    var body: some View {
+        switch state {
+        case .complete:
+            EmptyView()
+        case .partial(let fetched):
+            Label("Showing the \(fetched) most recently changed tokens; older holdings may be missing.", systemImage: "exclamationmark.triangle")
+                .font(.caption).foregroundStyle(.orange).padding(.vertical, 6)
+        case .unavailable(let reason):
+            Label("The indexer could not be read (\(reason)). Showing the last known list.", systemImage: "exclamationmark.triangle")
+                .font(.caption).foregroundStyle(.orange).padding(.vertical, 6).lineLimit(2)
+        }
+    }
+}
+
+extension Portfolio.State {
+    var isUnavailable: Bool { if case .unavailable = self { return true } else { return false } }
 }
 
 struct TokenRowView: View {

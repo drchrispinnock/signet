@@ -4,14 +4,15 @@ import SwiftUI
 struct NFTGridView: View {
     let nfts: [NFT]
     let isLoading: Bool
+    var state: Portfolio.State = .complete
 
     private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 12)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-
+            PortfolioStateNote(state: state)
             if nfts.isEmpty {
-                Text(isLoading ? "Loading…" : "No NFTs in this account.")
+                Text(isLoading ? "Loading…" : (state.isUnavailable ? "NFT data is unavailable." : "No NFTs in this account."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

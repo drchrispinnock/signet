@@ -38,3 +38,45 @@ struct FungibleTokenTests {
         #expect(symbols.isSuperset(of: ["PEPE", "TKEY", "GINE"]), Comment(rawValue: "got \(symbols)"))
     }
 }
+
+/// S26: a portfolio says when it is incomplete or unavailable, and token metadata cannot lie about scaling.
+struct PortfolioStateTests {
+    @Test func unreadableDecimalsAreNotGuessed() throws {
+        let rows = try TzKTService.decode(Data("""
+        [
+          {"balance":"100","token":{"contract":{"address":"KT1A"},"tokenId":"0","standard":"fa2","metadata":{"name":"Huge","symbol":"HUGE","decimals":"400"}}},
+          {"balance":"100","token":{"contract":{"address":"KT1B"},"tokenId":"0","standard":"fa2","metadata":{"name":"Neg","symbol":"NEG","decimals":"-3"}}},
+          {"balance":"100","token":{"contract":{"address":"KT1C"},"tokenId":"0","standard":"fa2","metadata":{"name":"Text","symbol":"TXT","decimals":"lots"}}},
+          {"balance":"100","token":{"contract":{"address":"KT1D"},"tokenId":"0","standard":"fa1.2","metadata":{"name":"Old","symbol":"OLD","decimals":"1e2"}}},
+          {"balance":"-5","token":{"contract":{"address":"KT1E"},"tokenId":"0","standard":"fa2","metadata":{"name":"Neg balance","symbol":"NB","decimals":"2"}}},
+          {"balance":"250","token":{"contract":{"address":"KT1F"},"tokenId":"0","standard":"fa2","metadata":{"name":"Fine","symbol":"OK","decimals":"2"}}}
+        ]
+        """.utf8))
+        let tokens = TzKTService.fungibleTokens(from: rows)
+        #expect(tokens.map(\.symbol) == ["OLD", "OK"])
+        #expect(tokens.first { $0.symbol == "OLD" }?.amount == 100)   // FA1.2 with unreadable decimals: shown unscaled
+        #expect(tokens.first { $0.symbol == "OK" }?.amount == Decimal(string: "2.5"))
+        #expect(TzKTService.nfts(from: rows).isEmpty)
+    }
+
+    @MainActor
+    @Test func anUnavailableIndexerKeepsTheLastKnownListAndSaysSo() async throws {
+        final class Flaky: TestChainService, @unchecked Sendable {
+            var fail = false
+            func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1, staked: 0) }
+            func portfolio(for address: Address) async throws -> Portfolio {
+                fail ? Portfolio(tokens: [], nfts: [], state: .unavailable("HTTP 503"))
+                     : Portfolio(tokens: [AssetBalance(id: "t", kind: .token(contract: "KT1x", tokenId: "0"), name: "Tok", symbol: "TOK", amount: 1)], nfts: [], state: .partial(fetched: 1000))
+            }
+        }
+        let chain = Flaky()
+        let model = WalletViewModel(wallets: [Wallet(alias: "A", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), keyKind: .unencrypted)], chain: chain)
+        await model.refresh()
+        #expect(model.tokens.map(\.symbol) == ["TOK"])
+        #expect(model.portfolioState == .partial(fetched: 1000))
+        chain.fail = true
+        await model.refresh()
+        #expect(model.tokens.map(\.symbol) == ["TOK"], "last known holdings stay on screen")
+        #expect(model.portfolioState == .unavailable("HTTP 503"))
+    }
+}
