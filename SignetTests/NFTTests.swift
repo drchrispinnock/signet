@@ -15,7 +15,7 @@ struct IPFSTests {
     }
 
     @Test func offersEveryGatewayForIPFSButOnlyOneForHTTPS() {
-        let ipfs = IPFS.candidateURLs(for: "ipfs://QmCid")
+        let ipfs = IPFS.candidateURLs(for: "ipfs://QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc")
         #expect(ipfs.count == IPFS.gateways.count)
         #expect(ipfs.map(\.host) == IPFS.gateways.map(\.host))
         #expect(IPFS.candidateURLs(for: "https://example.com/x.png").count == 1)
@@ -51,18 +51,18 @@ struct NFTClassificationTests {
     [
       { "balance": "1", "token": { "contract": { "address": "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" }, "tokenId": "634799", "standard": "fa2",
         "metadata": { "name": "United in Baking", "symbol": "OBJKT", "decimals": "0",
-                      "thumbnailUri": "ipfs://QmThumb", "displayUri": "ipfs://QmDisplay", "artifactUri": "ipfs://QmArt",
-                      "formats": [ { "uri": "ipfs://QmArt", "mimeType": "image/jpeg" } ] } } },
+                      "thumbnailUri": "ipfs://QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP", "displayUri": "ipfs://QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc", "artifactUri": "ipfs://Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9",
+                      "formats": [ { "uri": "ipfs://Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9", "mimeType": "image/jpeg" } ] } } },
       { "balance": "20", "token": { "contract": { "address": "KT1F139Vd1mcqYejDnzQQkVQcQboPc4EUbqx" }, "tokenId": "0", "standard": "fa2",
-        "metadata": { "name": "Captain Stake", "decimals": "0", "artifactUri": "ipfs://QmOnlyArt",
-                      "formats": [ { "uri": "ipfs://QmOnlyArt", "mimeType": "image/png" } ] } } },
+        "metadata": { "name": "Captain Stake", "decimals": "0", "artifactUri": "ipfs://QmSowixsFjPYXBbZecwPvgEw7TrV4bm6DN7nfJQmNS1ccv",
+                      "formats": [ { "uri": "ipfs://QmSowixsFjPYXBbZecwPvgEw7TrV4bm6DN7nfJQmNS1ccv", "mimeType": "image/png" } ] } } },
       { "balance": "1", "token": { "contract": { "address": "KT1GBZmSxmnKJXGMdMLbugPfLyUPmuLSMwKS" }, "tokenId": "143032", "standard": "fa2",
         "metadata": { "name": "captstake.tez", "decimals": "0", "symbol": "TD" } } },
       { "balance": "30000000000", "token": { "contract": { "address": "KT1FfjhvJZppBFQuUzNAdFPR1Z2jpD4XiXrF" }, "tokenId": "0", "standard": "fa2",
-        "metadata": { "name": "Aubergine", "decimals": "6", "symbol": "GINE", "thumbnailUri": "https://gateway.pinata.cloud/ipfs/Qmaf8" } } },
+        "metadata": { "name": "Aubergine", "decimals": "6", "symbol": "GINE", "thumbnailUri": "https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9" } } },
       { "balance": "1", "token": { "contract": { "address": "KT1video" }, "tokenId": "7", "standard": "fa2",
-        "metadata": { "name": "Clip", "decimals": "0", "artifactUri": "ipfs://QmMovie",
-                      "formats": [ { "uri": "ipfs://QmMovie", "mimeType": "video/mp4" } ] } } }
+        "metadata": { "name": "Clip", "decimals": "0", "artifactUri": "ipfs://Qmb9QUXYn1PW8e7E2CwpBMgEur7gFAPPpq2Zh7H2D7eQcT",
+                      "formats": [ { "uri": "ipfs://Qmb9QUXYn1PW8e7E2CwpBMgEur7gFAPPpq2Zh7H2D7eQcT", "mimeType": "video/mp4" } ] } } }
     ]
     """.data(using: .utf8)!
 
@@ -74,10 +74,10 @@ struct NFTClassificationTests {
         #expect(nfts.map(\.name) == ["United in Baking", "Captain Stake"])
         #expect(nfts[0].id == "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton:634799")
         // displayUri beats thumbnailUri and artifactUri.
-        #expect(nfts[0].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmDisplay")
+        #expect(nfts[0].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc")
         #expect(nfts[0].imageURLs.count == IPFS.gateways.count)
         // An image artifact is acceptable when there is nothing else.
-        #expect(nfts[1].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmOnlyArt")
+        #expect(nfts[1].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmSowixsFjPYXBbZecwPvgEw7TrV4bm6DN7nfJQmNS1ccv")
         #expect(nfts[1].balance == 20)
         // Fungible tokens, image-less tokens and video-only artifacts are not shown.
     }

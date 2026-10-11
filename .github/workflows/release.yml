@@ -5,6 +5,11 @@ name: Release
 # releases/latest/download/appcast.xml). The appcast is signed with the SPARKLE_PRIVATE_KEY
 # secret (the output of Sparkle's `generate_keys -x`); without it no appcast is attached and the
 # release is not offered as an update.
+#
+# Fail closed (S25): the release is created as a draft, so `releases/latest` never points at a
+# release whose build failed or whose assets are incomplete; it is published only after the zip
+# and the appcast are both attached. The committed bridge bundle must match a clean rebuild from
+# the lockfile, and the offline bridge regression must pass, before anything is archived.
 on:
   push:
     tags: ["v*"]
@@ -21,7 +26,7 @@ jobs:
       HAS_NOTARY: ${{ secrets.NOTARY_APPLE_ID != '' }}
       HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 0  # build number = commit count
 
@@ -58,14 +63,26 @@ jobs:
             --password "${{ secrets.NOTARY_PASSWORD }}"
           echo "NOTARY_PROFILE=signet-notary" >> "$GITHUB_ENV"
 
-      - name: Create GitHub release
-        # Created first (without assets) so its generated notes can go into the appcast.
+      - name: Check the committed bridge bundle and run its offline regressions
+        # The shipped taquito-bridge.js must be exactly what the lockfile builds; a bundle edited
+        # by hand or built from other dependencies fails the release here.
+        working-directory: TaquitoBridge
+        run: |
+          npm ci
+          npm run build
+          git diff --exit-code -- ../Signet/Resources/taquito-bridge.js || {
+            echo "::error::Signet/Resources/taquito-bridge.js differs from a clean build of TaquitoBridge; rebuild and commit it"; exit 1; }
+          npm run test:dapp-prepared
+
+      - name: Create GitHub release (draft)
+        # Created first (as a draft, without assets) so its generated notes can go into the
+        # appcast. A draft is invisible to releases/latest, so a failed build never becomes the
+        # update feed. Safe to rerun: an existing release is kept (its notes included).
         env:
           GH_TOKEN: ${{ github.token }}
-        # Safe to rerun: an existing release is kept (its notes included) rather than recreated.
         run: |
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" \
+            gh release create "$GITHUB_REF_NAME" --draft \
               --title "Signet $GITHUB_REF_NAME" --generate-notes
           else
             echo "Release $GITHUB_REF_NAME already exists; reusing it"
@@ -79,10 +96,26 @@ jobs:
           SPARKLE_APPCAST: ${{ env.HAS_SPARKLE_KEY == 'true' && '1' || '0' }}
         run: scripts/release.sh "${GITHUB_REF_NAME#v}"
 
+      - name: Check the build output
+        # With the Sparkle key configured, a release without its appcast would silently stop
+        # updates: refuse to publish it.
+        run: |
+          ls dist/Signet-*.zip
+          if [ "$HAS_SPARKLE_KEY" = "true" ] && [ ! -f dist/appcast.xml ]; then
+            echo "::error::SPARKLE_PRIVATE_KEY is set but no appcast.xml was produced"; exit 1
+          fi
+
       - name: Attach assets
         env:
           GH_TOKEN: ${{ github.token }}
-        # --clobber so a rerun replaces the assets (the appcast's signature must match the zip it sits beside).
+        # --clobber so a rerun replaces the assets (the appcast's signature must match the zip it
+        # sits beside). Both are attached before the release becomes visible.
         run: |
           gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
           if [ -f dist/appcast.xml ]; then gh release upload "$GITHUB_REF_NAME" dist/appcast.xml --clobber; fi
+
+      - name: Publish the release
+        # Only now does releases/latest (and so the update feed) move to this version.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
