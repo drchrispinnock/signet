@@ -83,6 +83,7 @@ struct Network: Hashable, Identifiable, Sendable {
         while trimmed.hasSuffix("/") { trimmed.removeLast() }
         guard !trimmed.isEmpty, !trimmed.contains(" ") else { return nil }
         if !trimmed.lowercased().hasPrefix("http://"), !trimmed.lowercased().hasPrefix("https://") {
+            guard !trimmed.contains("://") else { return nil }   // some other scheme
             trimmed = "https://" + trimmed
         }
         guard let url = URL(string: trimmed), let host = url.host(percentEncoded: false), !host.isEmpty, url.user == nil, url.password == nil else { return nil }

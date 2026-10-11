@@ -477,14 +477,13 @@ final class WalletViewModel {
     /// Loads the dashboard for the selected account. Everything is fetched into a local snapshot
     /// through the chain service captured at the start, and published in one step only if the
     /// account, network, directory and refresh generation are still the ones it was started for;
-    /// a slow reply from a previous context can never land on the screen (S16).
+    /// a slow reply from a previous context can never land on the screen (S16). Two refreshes of
+    /// the same context may both publish: both describe the same account on the same chain.
     func refresh() async {
-        guard let context = currentContext else {
+        guard let mine = currentContext else {
             clearChainData()
             return
         }
-        refreshGeneration += 1
-        let mine = RefreshContext(generation: refreshGeneration, address: context.address, network: context.network, revision: context.revision)
         let chain = self.chain
         let address = mine.address
         isLoading = true
