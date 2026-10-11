@@ -65,6 +65,67 @@ enum LedgerFraming {
     }
 }
 
+/// Which exchange the reports arriving on a channel belong to (S22). An exchange that timed out
+/// or failed to write leaves the channel desynchronised: its late reports must never satisfy a
+/// later exchange, so the tracker refuses to start another until it is reset, which the HID layer
+/// does by closing and reopening the device. Pure, so the tests can cover it.
+extension LedgerFraming {
+    struct ExchangeTracker: Sendable {
+        enum TrackerError: Error, Equatable { case desynchronised, busy }
+
+        private(set) var current: Int?
+        private(set) var isDesynchronised = false
+        private var reassembler = Reassembler()
+
+        /// Exchange ids are unique for the life of the process, so an id from a channel that was
+        /// closed can never name an exchange on the one that replaced it.
+        private static let ids = IDSource()
+        private final class IDSource: @unchecked Sendable {
+            private let lock = NSLock()
+            private var next = 1
+            func take() -> Int { lock.withLock { defer { next += 1 }; return next } }
+        }
+
+        init() {}
+
+        /// Begins an exchange and returns its id; refuses while another is pending or after a fault.
+        mutating func start() throws -> Int {
+            if isDesynchronised { throw TrackerError.desynchronised }
+            if current != nil { throw TrackerError.busy }
+            let id = Self.ids.take()
+            current = id
+            reassembler = Reassembler()
+            return id
+        }
+
+        /// The exchange timed out or could not be written: whatever the device sends next is stale.
+        mutating func abandon(_ id: Int) {
+            guard current == id else { return }
+            current = nil
+            isDesynchronised = true
+            reassembler = Reassembler()
+        }
+
+        /// A report arrived. Returns the complete response when it finishes the current exchange,
+        /// `nil` when more is needed or when there is no current exchange (a stale report, dropped).
+        /// A framing error marks the channel desynchronised.
+        mutating func receive(_ packet: [UInt8]) throws -> (id: Int, response: [UInt8])? {
+            guard let id = current, !isDesynchronised else { return nil }
+            do {
+                guard let response = try reassembler.add(packet) else { return nil }
+                current = nil
+                return (id, response)
+            } catch {
+                abandon(id)
+                throw error
+            }
+        }
+
+        /// Whether a report arriving now would count towards exchange `id`.
+        func belongs(to id: Int) -> Bool { current == id && !isDesynchronised }
+    }
+}
+
 /// A Ledger plugged in over USB, as the HID layer sees it.
 struct LedgerDevice: Identifiable, Hashable, Sendable, Codable {
     /// IOKit registry entry id: stable while the device stays plugged in.
@@ -122,8 +183,8 @@ final class LedgerHID: @unchecked Sendable {
     private final class OpenDevice {
         let device: IOHIDDevice
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: LedgerFraming.packetSize)
-        var reassembler = LedgerFraming.Reassembler()
-        var pending: (completion: (Result<[UInt8], Error>) -> Void, timer: Timer?)?
+        var tracker = LedgerFraming.ExchangeTracker()
+        var pending: (id: Int, completion: (Result<[UInt8], Error>) -> Void, timer: Timer?)?
         init(device: IOHIDDevice) { self.device = device }
         deinit { buffer.deallocate() }
     }
@@ -201,20 +262,25 @@ final class LedgerHID: @unchecked Sendable {
             do {
                 let open = try openDevice(id: deviceID)
                 guard open.pending == nil else { throw HIDError.busy }
-                open.reassembler = LedgerFraming.Reassembler()
+                let exchangeID = try open.tracker.start()
                 let timer = Timer(timeInterval: timeout, repeats: false) { [weak self] _ in
-                    self?.timedOut(deviceID: deviceID)
+                    self?.timedOut(deviceID: deviceID, exchangeID: exchangeID)
                 }
                 RunLoop.current.add(timer, forMode: .default)
-                open.pending = (finish, timer)
+                open.pending = (exchangeID, finish, timer)
                 for packet in LedgerFraming.packets(for: apdu) {
                     let status = packet.withUnsafeBufferPointer { IOHIDDeviceSetReport(open.device, kIOHIDReportTypeOutput, 0, $0.baseAddress!, packet.count) }
                     guard status == kIOReturnSuccess else {
+                        // A half-written APDU leaves the device in an unknown state: drop the channel.
                         open.pending = nil
                         timer.invalidate()
+                        open.tracker.abandon(exchangeID)
+                        desynchronise(open)
                         throw HIDError.writeFailed(status)
                     }
                 }
+            } catch LedgerFraming.ExchangeTracker.TrackerError.busy {
+                finish(.failure(HIDError.busy))
             } catch {
                 finish(.failure(error))
             }
@@ -239,24 +305,38 @@ final class LedgerHID: @unchecked Sendable {
         return entry
     }
 
-    private func timedOut(deviceID: String) {
-        guard let entry = open[deviceID], let pending = entry.pending else { return }
+    /// A timed-out exchange may still be answered later; that answer must not reach the next
+    /// exchange, so the channel is closed and the device reopened fresh next time (S22).
+    private func timedOut(deviceID: String, exchangeID: Int) {
+        guard let entry = open[deviceID], let pending = entry.pending, pending.id == exchangeID else { return }
         entry.pending = nil
+        entry.tracker.abandon(exchangeID)
+        desynchronise(entry)
         pending.completion(.failure(HIDError.timeout))
     }
 
     private func received(_ packet: [UInt8], on entry: OpenDevice) {
-        guard let pending = entry.pending else { return }
+        guard let pending = entry.pending else { return }   // nothing in flight: a stale report, dropped
         do {
-            guard let response = try entry.reassembler.add(packet) else { return }
+            guard let done = try entry.tracker.receive(packet), done.id == pending.id else { return }
             entry.pending = nil
             pending.timer?.invalidate()
-            pending.completion(.success(response))
+            pending.completion(.success(done.response))
         } catch {
             entry.pending = nil
             pending.timer?.invalidate()
+            desynchronise(entry)
             pending.completion(.failure(error))
         }
+    }
+
+    /// Stops listening to the device and closes it. Late reports from it are never delivered; the
+    /// next exchange opens it again with a fresh tracker.
+    private func desynchronise(_ entry: OpenDevice) {
+        for (id, candidate) in open where candidate === entry { open[id] = nil }
+        IOHIDDeviceRegisterInputReportCallback(entry.device, entry.buffer, LedgerFraming.packetSize, nil, nil)
+        IOHIDDeviceUnscheduleFromRunLoop(entry.device, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
+        IOHIDDeviceClose(entry.device, IOOptionBits(kIOHIDOptionsTypeNone))
     }
 
     private func removed(_ device: IOHIDDevice) {

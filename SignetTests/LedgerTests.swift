@@ -141,6 +141,53 @@ struct LedgerFramingTests {
         let packets = LedgerFraming.packets(for: (0..<100).map { UInt8($0) })
         #expect(throws: LedgerFraming.Reassembler.FramingError.self) { try assembler.add(packets[1]) }
     }
+
+    /// S22: a response that arrives after its exchange timed out must not be taken as the
+    /// answer to the next exchange. Once an exchange is abandoned the channel is dead until the
+    /// device is reopened (a fresh tracker), and stale reports in between are dropped.
+    @Test("a late response never satisfies a later exchange")
+    func staleResponsesAreDropped() throws {
+        let first = LedgerFraming.packets(for: [0xde, 0xad, 0x90, 0x00])
+        let second = LedgerFraming.packets(for: [0xbe, 0xef, 0x90, 0x00])
+        var tracker = LedgerFraming.ExchangeTracker()
+
+        let one = try tracker.start()
+        #expect(tracker.belongs(to: one))
+        tracker.abandon(one)                       // timed out
+        #expect(tracker.isDesynchronised)
+        #expect(try tracker.receive(first[0]) == nil)   // the device answers late: dropped
+        #expect(throws: LedgerFraming.ExchangeTracker.TrackerError.desynchronised) { try tracker.start() }
+
+        // The HID layer reopens the device, which means a new tracker.
+        var reopened = LedgerFraming.ExchangeTracker()
+        let two = try reopened.start()
+        #expect(!reopened.belongs(to: one))
+        let done = try #require(try reopened.receive(second[0]))
+        #expect(done.id == two && done.response == [0xbe, 0xef, 0x90, 0x00])
+        #expect(try reopened.receive(first[0]) == nil)  // nothing pending now: dropped
+    }
+
+    @Test("a long stale response mid-flight breaks the exchange rather than completing it")
+    func partialStaleResponseFailsTheExchange() throws {
+        let long = LedgerFraming.packets(for: (0..<150).map { UInt8($0 & 0xff) })
+        var tracker = LedgerFraming.ExchangeTracker()
+        let id = try tracker.start()
+        // The second report of an older multi-packet answer arrives first: out of order, so the
+        // exchange fails and the channel is marked desynchronised instead of mixing bytes.
+        #expect(throws: LedgerFraming.Reassembler.FramingError.self) { try tracker.receive(long[1]) }
+        #expect(!tracker.belongs(to: id) && tracker.isDesynchronised)
+        #expect(throws: LedgerFraming.ExchangeTracker.TrackerError.desynchronised) { try tracker.start() }
+    }
+
+    @Test("one exchange at a time per channel")
+    func oneAtATime() throws {
+        var tracker = LedgerFraming.ExchangeTracker()
+        let id = try tracker.start()
+        #expect(throws: LedgerFraming.ExchangeTracker.TrackerError.busy) { try tracker.start() }
+        let reply = LedgerFraming.packets(for: [0x90, 0x00])
+        #expect(try tracker.receive(reply[0])?.id == id)
+        #expect(try tracker.start() > id)
+    }
 }
 
 @Suite("Ledger bridge")

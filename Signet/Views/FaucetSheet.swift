@@ -57,6 +57,9 @@ struct FaucetSheet: View {
             status
 
             HStack {
+                if case .solving = model.faucetStatus {
+                    Button("Cancel") { model.cancelFaucetRequest() }
+                }
                 Spacer()
                 Button(isBusy ? "Close" : "Done") { dismiss() }
                     .keyboardShortcut(.cancelAction)
