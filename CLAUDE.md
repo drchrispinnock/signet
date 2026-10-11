@@ -33,6 +33,19 @@ xcodebuild -project Signet.xcodeproj -scheme Signet -destination 'platform=macOS
 Tests use the Swift Testing framework (`import Testing`, `@Test`, `#expect`), not XCTest.
 Quit any running Signet first: the app sets `LSMultipleInstancesProhibited`, so the test host
 (Signet.app itself) cannot launch while one is open and xcodebuild reports "Could not launch".
+Function-level `-only-testing` selection can silently run nothing; select suites.
+
+Live tests are opt-in (S24). Everything tagged `.network` also carries the `.liveNetwork`
+condition (`SignetTests/LiveTestTraits.swift`) and is skipped unless the runner sets
+`SIGNET_NETWORK_TESTS=1`; `xcodebuild` passes it through as
+`TEST_RUNNER_SIGNET_NETWORK_TESTS=1 xcodebuild … test`. The few tests that read the developer's
+real `~/.tezos-client` or `~/.signet` state need `TEST_RUNNER_SIGNET_REAL_WALLET_TESTS=1` as
+well. Tests that swap the shared bridge's storage or event handler wrap themselves in
+`SharedBridge.shared.run { … }` so they never overlap. Under the test host the app itself builds
+an in-memory model (`SignetApp.makeModel(isTestHost:)`): no wallet directory, backup, dApp
+storage or client is touched (`TestHostIsolationTests`). The bridge has its own offline
+regressions: `cd TaquitoBridge && npm test` (dApp preparation, dApp identity and grants,
+approved limits and injection outcomes).
 
 ## Releases
 
@@ -88,7 +101,19 @@ automatic download is off by default. The updater is not started under the test 
 - **Wallet storage is `~/.signet`, in octez-client's format.** `TezosClientStore` reads and writes
   `{public_key_hashs,public_keys,secret_keys}` exactly as octez-client lays them out,
   joining entries by alias, appending only, replacing files atomically and holding `wallet_lock`
-  while writing. A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
+  while writing. Reads take the lock too, and so do backups (S09); the lock is tried with a
+  5 s deadline (`StoreError.locked`), never waited for forever. A change that touches several
+  files writes `wallet_journal` first (previous contents of every file, base64) and removes it
+  after the last replacement; a journal found by any later read or write means the change was
+  cut short and the files are rolled back before anything else happens, so the key files always
+  agree with each other. Every file holding secrets or state (`PrivateFile.write`, S10) is
+  created `O_CREAT|O_EXCL|O_NOFOLLOW` with mode 0600 before a byte is written, fsynced, renamed
+  into place with the directory synced, and reads refuse symlinks; directories we write into
+  are hardened to 0700 when we own them and refused otherwise; stale `.<file>.<uuid>.tmp`
+  leftovers are swept under the lock. `OctezConnectStorage`, `FileAppStateStore`,
+  `FileMultisigProposalStore` and `WalletBackup` use the same primitive. Proposal changes go
+  through `MultisigProposalStore.update(_:)`, which merges into what is on disk under the lock,
+  and oversized proposals another program wrote are left out (S19). A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
   unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
   (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
   `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
@@ -102,7 +127,9 @@ automatic download is off by default. The updater is not started under the test 
   `WalletBackup` copies the wallet files (plus `state`, `contracts` and the multisig proposals)
   into a timestamped generation under `~/.signet_backups` on launch, after key creation/rename
   and on directory change, skipping when unchanged and keeping the newest N (default 10); folder
-  and N are `BackupSettings` in UserDefaults and editable in Settings. A generation is worth
+  and N are `BackupSettings` in UserDefaults and editable in Settings. The files are read as one
+  locked snapshot and written into a uniquely named `.<uuid>.partial` staging folder that is
+  removed if the job fails. A generation is worth
   writing when any key file, `contracts` or proposals file exists (S28). Each generation carries
   a `.signet-backup` manifest (version, date, source directory, files), and pruning (S05) deletes
   only stamp-named, non-symlink generations directly under the backup folder with a supported,
@@ -132,7 +159,23 @@ automatic download is off by default. The updater is not started under the test 
   sender → recipient with avatars, the recipient named from our records (verified) or from the
   TzProfiles data TzKT carries in `extras.profile` ("Not verified"), plus fee/allocation/total from
   `estimateTransfer`, which runs in the bridge with a read-only signer so no secret is needed to
-  estimate. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
+  estimate. **The approved estimate is the execution limit (S14).** `TransferEstimate.limits`
+  (`OperationLimits`: fee, gas, storage, plus the reveal Taquito will prepend for an unrevealed
+  account, priced as it will be sent) travels with the send: `sendTransfer(…limits:)`,
+  `performStaking(…limits:)`, `multisigOriginate`/`multisigSubmit` take it and the bridge
+  (`src/operations.js`: `prepareApproved`, `checkApproved`, `signAndInject`) prepares the
+  operation again with exactly those limits, refuses it if any figure differs or the reveal
+  would cost more, forges and signs locally, preapplies and injects; nothing is re-estimated
+  after approval, and the raw path refuses a fee above the approved one. A send without limits
+  is refused (`SendError.notEstimated`, `WalletError.notEstimated`). **A lost node reply is an
+  unknown outcome, not a failure (S15):** the operation hash is computed from the signed bytes
+  before injection (`injectSigned`), so a network error without an HTTP status returns
+  `SentOperation(hash:, injected: false, signedBytes:)`; `SendViewModel` goes to `.unknown`,
+  watches the chain (`waitForConfirmation`, which falls back to the block watcher for locally
+  forged operations) and offers "Send the same operation again" (`rebroadcast`, the same
+  bytes, so it cannot pay twice); a definite rejection (an HTTP error) still throws and nothing
+  was injected. Multisig origination and submission return on injection and the model waits
+  for the block itself. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
   `octezConnectExecute`/`octezConnectSign`) takes a `SigningKey`: `.secret(key, passphrase:, address:)` or
   `.ledger(LedgerKey, address:)`, serialised by `bridgeSpec` into the JSON the bridge's
   `signerFor` (`src/signers.js`) turns into an `InMemorySigner` or a `LedgerSigner` for the one
@@ -275,6 +318,35 @@ automatic download is off by default. The updater is not started under the test 
   before it is queued (the dApp gets `SIGNATURE_TYPE_NOT_SUPPORTED`) and the bridge's
   `octezConnectSign` applies the same rule.
   Wrong password or a Ledger that is not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`.
+  **Identity and grants (S04, S08).** The bridge forwards nothing the SDK hands it as is:
+  `sanitizeIncomingRequest` (pure, tested offline by `test/dapp-identity.cjs`) rebuilds every
+  request from authenticated state only: the peer whose session key decrypted the message
+  (`context.id`), the sender id derived from that peer's public key, the app metadata the SDK
+  stored for that sender at permission time and the wallet's current permissions. A message
+  whose own `senderId` or `appMetadata.senderId` claims another sender is refused outright (the
+  SDK records grants under the id the message claims, so correcting it would be unsafe);
+  branding comes from the pairing record or the stored grant, never from the request; only
+  allow-listed fields survive. Operation and sign requests need a stored grant for that exact
+  sender, account and scope (and, for operations, the same network type and custom endpoint),
+  else `NOT_GRANTED_ERROR`. Swift takes the sender id from the message's own field (the one
+  the bridge set), never from `appMetadata`, and `DAppConnectionManager.grant(for:)` checks the
+  grant again, freshly read, right before signing. Revoking a grant (`disconnect`) refuses the
+  queued requests it covered; a wallet directory change stops the old client (aborting its
+  queue) and builds a new manager on the new directory's storage (`dappStorageFactory`), so
+  sessions never cross directories. **Budgets (S19):** `REQUEST_LIMITS` in the bridge (message
+  256 KB, 64 operations, id/text/URL lengths, 64 KB sign payload, 4 pending requests per peer)
+  are enforced before anything is queued; Swift keeps at most 16 pending requests;
+  `TaquitoBridge.call(_:_:timeout:)` releases callers of reads and preparation after a timeout
+  (never signing calls, whose JavaScript work cannot be cancelled); HTTP replies are collected
+  by a streaming delegate and dropped past 32 MB (`maxResponseBytes`). **Replies (S17):** a
+  completed request whose reply the relay did not take is kept in `undelivered` with its
+  response; the sheet offers "Send reply again" or Dismiss and never signs or injects a second
+  time (`redeliver`). **Startup (S18):** the bridge publishes the client only after `connect()`
+  succeeds and shares one in-flight start (`starting`); Swift shares one `startTask`;
+  pairing returns at once and reports `paired` / `error` events (`DAppConnectionManager.pairing`).
+  **Endpoints (S12):** a dApp's custom RPC must be public HTTPS without credentials
+  (`EndpointPolicy`), or exactly one of our networks' default endpoints (scheme, host, port and
+  path; `DAppRequest.sameEndpoint`); the sheet shows the endpoint for custom networks.
 - **Multisig (0.8).** Octez-client's generic multisig, driven through Taquito. Menu section
   (burger and Operations, after Connect to dApp): Create multisig, Add multisig, Sign multisig
   transaction, Submit multisig transaction. Contract aliases are octez-client's `contracts` file in
@@ -334,6 +406,15 @@ automatic download is off by default. The updater is not started under the test 
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
   classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
   connection); `NodeStatusBar` pins it to the bottom of the window. `evaluate` is pure for tests.
+  **Chain identity (S12).** Long-lived networks pin `Network.expectedChainID` (mainnet
+  `NetXdQprcVkpaWU`, Shadownet `NetXsqzbfFenSTS`); before any estimate or signing
+  `TaquitoChainService.verifyChain` and the dApp prepare/execute calls ask the node for
+  `/chains/main/chain_id` through the bridge's `assertChain` and refuse a node serving another
+  chain. The Settings node field (`Network.nodeURL(from:)`) takes `https` anywhere, plain `http`
+  only for this machine or the local network, and refuses credentials and other schemes
+  (`nodeURLProblem` words the refusal). `EndpointPolicy` (`Signet/Services`) is the one place
+  that decides what counts as local or private (loopback, link-local, RFC 1918, CGNAT, ULA,
+  `.local`, bare names) and can resolve a host to check it.
 - **Balances.** The node's `balance` is only the spendable part. `TezBalance` carries spendable,
   staked, unstaked-frozen and unstaked-finalizable tez; the tez row shows the total (the node's
   `full_balance`) and expands into those lines. Fetched via Taquito's RPC client for tz1 to tz4
@@ -342,7 +423,8 @@ automatic download is off by default. The updater is not started under the test 
   which the dashboard shows as "Key not found on chain" in place of the balance rows, with a
   "Get test tez" button on testnets and a Receive/buy prompt on mainnet. `FaucetService` speaks the
   teztnets faucet API directly (`/info`, `/challenge`, SHA-256 proof-of-work, `/verify`, as the
-  `get-tez` CLI does, no captcha); `WalletViewModel.requestTestTez` drives it and polls until the
+  `get-tez` CLI does, no captcha, with strict challenge validation, a bounded, cancellable
+  solver and capped rounds, S21); `WalletViewModel.requestTestTez` drives it and polls until the
   account appears. Faucet URLs are `Network.faucetURL` from teztnets.json. `refresh()` fans out all loads concurrently.
 - **Views** map one-to-one onto the sketch: `WalletHomeView` composes `WalletHeaderView`
   (the alias is a dropdown that switches wallets; shortened address with copy button; Tezos
@@ -427,7 +509,16 @@ cd TaquitoBridge && npm install && npm run build      # minified; `npm run build
 On the Swift side `TaquitoBridge.swift` owns the `JSContext` on a serial queue, installs the
 `__signet` native object the polyfills call for timers, HTTP (URLSession), randomness and Ledger
 HID exchanges (`LedgerHID`), and
-exposes `call(name, args)` which unwraps promises into a `Sendable` `JSONValue`. Promise
+exposes `call(name, args, timeout:)` which unwraps promises into a `Sendable` `JSONValue`. Promise
 callbacks must be attached with `invokeMethod("then", ...)`, never a bare `then.call`, or the
 continuation leaks and the caller hangs forever. `TaquitoChainService` uses the bridge for live
-data and delegates anything not yet implemented to a fallback `ChainService`.
+data and delegates anything not yet implemented to a fallback `ChainService`. Numbers from the
+bridge or the node go through `JSONValue.intValue` (finite, whole, within 2^53; S20) and
+estimates through `TaquitoChainService.estimate(from:)`, so a bad reply is an error, never a
+trap. **Logging (S11).** The bridge log (`~/Library/Logs/Signet/bridge.log`, 0600 in a 0700
+folder, rotated to `.1` at 5 MB during writes) records fetches as method, host and path only
+(query strings carry relay tokens), status and byte count, no bodies; every line goes through
+`redactedLine` (long hex runs and base58 keys or signatures replaced, 1 KB cap). The SDK's
+debug mode and the decrypting relay diagnostics run only when "Verbose dApp log on the next
+launch" was armed in Settings > Developer (`DeveloperSettings`, consumed at that launch). Ledger
+traces show the APDU header and length only.
