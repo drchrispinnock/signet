@@ -8,7 +8,7 @@ import Testing
 /// Known blocker (2026-10-08): the Shadownet faucet rejects tz5 destinations with
 /// "The address 'tz5…' is invalid", so this fails at the funding step until the faucet is fixed.
 struct PostQuantumSendTests {
-    @Test(.tags(.network), .timeLimit(.minutes(5)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(5)))
     func tz5WalletCanReceiveAndSendOnShadownet() async throws {
         let generator = KeyGenerator()
         let quantum = try await generator.generate(scheme: .tz5)
@@ -41,7 +41,7 @@ struct PostQuantumSendTests {
 
 /// The same story on Quantumnet, whose faucet accepts tz5 and whose blocks are 6 s apart.
 struct QuantumnetPostQuantumSendTests {
-    @Test(.tags(.network), .timeLimit(.minutes(4)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(4)))
     func tz5WalletCanReceiveAndSendOnQuantumnet() async throws {
         let quantum = try await KeyGenerator().generate(scheme: .tz5)
         let wallet = Wallet(alias: "pq-test", address: Address(quantum.address), scheme: .tz5, publicKey: quantum.publicKey, keyKind: .unencrypted)

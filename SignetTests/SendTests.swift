@@ -117,7 +117,7 @@ struct TransferHelpersTests {
     }
 
     /// Estimation needs no secret: Captain Stake's public key is enough for the node to simulate.
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func estimatesAMainnetTransferWithoutASecretKey() async throws {
         let captain = Wallet(alias: "Captain Stake", address: MockChainService.captainStake,
                              publicKey: "edpku5dNSxAs5R7g91zm9mDcfYVGsM4gCniaDSPVwYPt3xtszyzgJD", keyKind: .unencrypted)
@@ -128,7 +128,7 @@ struct TransferHelpersTests {
         #expect(estimate.total == 1 + estimate.fee + estimate.burn)
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func forwardDomainLookupFindsCaptainStake() async throws {
         let service = TezosDomainsService(endpoint: Network.mainnet.tezosDomainsURL!)
         #expect(try await service.resolve(name: "captstake.tez") == MockChainService.captainStake)

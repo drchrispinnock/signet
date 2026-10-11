@@ -67,6 +67,7 @@
 		78CE24F5EAB7F18B76FA8B5C /* TezosDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */; };
 		797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7E3944EC2E0534678CCBD8 /* Micheline.swift */; };
 		7B96FA319FEEBEDB31EDBAE1 /* TezosClientStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A237F56680C24625B031AEF /* TezosClientStoreTests.swift */; };
+		7E50AA94FD93517E66818B1B /* TestHostIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */; };
 		7F077A5907D72A9379B6A1AD /* DAppPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */; };
 		87EF0C514614D59FEC8B90B8 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = EC49F06EDD571F1736674E8F /* Sparkle */; };
 		883F4ADFF59858290E77FF20 /* CreateWalletSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F999353F1C6082368B01FE9C /* CreateWalletSheet.swift */; };
@@ -95,6 +96,7 @@
 		A888988B53D51769A9E2D113 /* TezosClientStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741349B359248E0F53BDF375 /* TezosClientStore.swift */; };
 		ACEEFBEA79DEAC5A35BA2E00 /* SignMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */; };
 		B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B85C43802035F011273672C /* LedgerHID.swift */; };
+		B596AE3B5A3C8D5D11BAAD84 /* LiveTestTraits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59BE6FB05DF0E663E5CC8E0E /* LiveTestTraits.swift */; };
 		B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9682C459E924F07DEF53FC3 /* Theme.swift */; };
 		BB762E536DA58062274B723C /* TaquitoChainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */; };
 		BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */; };
@@ -180,6 +182,7 @@
 		41AADDEDE2F5B7EE9F4DFF8F /* OctezConnectCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectCryptoTests.swift; sourceTree = "<group>"; };
 		42FFEDDCB3BE24F2E5C54DE0 /* Governance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Governance.swift; sourceTree = "<group>"; };
 		431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectStorage.swift; sourceTree = "<group>"; };
+		4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHostIsolationTests.swift; sourceTree = "<group>"; };
 		445064DD790420A57A0362DD /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
 		479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignMultisigSheet.swift; sourceTree = "<group>"; };
 		49EBC889E951D255F516827F /* NodeMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeMonitorTests.swift; sourceTree = "<group>"; };
@@ -198,6 +201,7 @@
 		53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclaimerAlert.swift; sourceTree = "<group>"; };
 		553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTests.swift; sourceTree = "<group>"; };
 		558CDF12CE81034B95FF02F4 /* SignetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		59BE6FB05DF0E663E5CC8E0E /* LiveTestTraits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTestTraits.swift; sourceTree = "<group>"; };
 		5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAddressSheet.swift; sourceTree = "<group>"; };
 		5C368DB40E25AA303DD76D49 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		5DC50BA0743BD7F6C02007F2 /* PrivateFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateFile.swift; sourceTree = "<group>"; };
@@ -396,6 +400,7 @@
 				553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */,
 				E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */,
 				41A0D0255843FAE3AF79D460 /* LedgerTests.swift */,
+				59BE6FB05DF0E663E5CC8E0E /* LiveTestTraits.swift */,
 				72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */,
 				94605277BB0DFFCEF9946DCE /* MultisigTests.swift */,
 				A8C3E5BA111A78690461B8D9 /* NFTTests.swift */,
@@ -409,6 +414,7 @@
 				088C8CA0ACEDD480A9684481 /* SendTests.swift */,
 				76F6224B138E3946294DCF2F /* StakingTests.swift */,
 				728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */,
+				4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */,
 				615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */,
 				12061334BC624B52CD710148 /* TezClientStoreDirectoryTests.swift */,
 				3A237F56680C24625B031AEF /* TezosClientStoreTests.swift */,
@@ -738,6 +744,7 @@
 				6D5DD41FA174C1D5D5195EDB /* ImportTests.swift in Sources */,
 				6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */,
 				557958E2DA023D11DAECD05E /* LedgerTests.swift in Sources */,
+				B596AE3B5A3C8D5D11BAAD84 /* LiveTestTraits.swift in Sources */,
 				61427263DE2738E1B8AE3743 /* MtPelerinTests.swift in Sources */,
 				C12C8C59B8BDCF5A428BD14F /* MultisigTests.swift in Sources */,
 				35314BD0A346AF35E1FD69A5 /* NFTTests.swift in Sources */,
@@ -751,6 +758,7 @@
 				A739ED053C1344CED9AEB04E /* SendTests.swift in Sources */,
 				CEA73B444F784FD76B29360A /* StakingTests.swift in Sources */,
 				BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */,
+				7E50AA94FD93517E66818B1B /* TestHostIsolationTests.swift in Sources */,
 				4F54FA31553D267CCB65ED14 /* TezBalanceTests.swift in Sources */,
 				D64977C485264CB70239E5A6 /* TezClientStoreDirectoryTests.swift in Sources */,
 				7B96FA319FEEBEDB31EDBAE1 /* TezosClientStoreTests.swift in Sources */,

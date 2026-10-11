@@ -15,7 +15,7 @@ struct OctezConnectEndToEnd {
         var all: [String] { lock.withLock { events } }
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(3)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(3)))
     func pairsAndGrantsPermissionToARealDApp() async throws {
         // Give a running harness a few seconds to publish its code; otherwise skip.
         var code: String?
@@ -29,8 +29,11 @@ struct OctezConnectEndToEnd {
         }
 
         let box = EventBox()
+        try await SharedBridge.shared.run {
+        _ = try? await TaquitoBridge.shared.call("octezConnectStop")
         TaquitoBridge.shared.storage = InMemoryBridgeStorage()
         TaquitoBridge.shared.eventHandler = { box.add($0) }
+        defer { TaquitoBridge.shared.eventHandler = nil }
         _ = try await TaquitoBridge.shared.call("octezConnectStart", ["Signet e2e", "", true])
         let paired = try await TaquitoBridge.shared.call("octezConnectPair", [code])
         #expect(paired["name"]?.stringValue == "Signet harness dApp")
@@ -62,5 +65,7 @@ struct OctezConnectEndToEnd {
         #expect(stored.arrayValue?.first?["address"]?.stringValue == material.address,
                 Comment(rawValue: "permissions after respond: \(stored)\n--- console ---\n\(TaquitoBridge.shared.consoleLines.suffix(30).joined(separator: "\n"))"))
         try? await Task.sleep(for: .seconds(3))  // let the response reach the dApp before the test host exits
+        _ = try? await TaquitoBridge.shared.call("octezConnectStop")
+        }
     }
 }

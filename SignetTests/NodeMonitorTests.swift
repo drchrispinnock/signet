@@ -64,7 +64,7 @@ struct NodeMonitorTests {
         monitor.stop()
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func mainnetIsReachable() async throws {
         let reply = try await NodeMonitor.urlSessionProbe(Network.mainnet.rpcURL.appendingPathComponent("chains/main/blocks/head/header"))
         let status = NodeMonitor.evaluate(.success(reply), now: Date())

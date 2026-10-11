@@ -23,14 +23,14 @@ struct TaquitoBridgeTests {
         #expect(valid == .bool(expected))
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1))) func fetchesHeadFromShadownet() async throws {
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1))) func fetchesHeadFromShadownet() async throws {
         let head = try await TaquitoBridge.shared.call("getHead", [Network.shadownet.rpcURL.absoluteString])
         let level = try #require(head["level"]?.doubleValue)
         #expect(level > 0)
         #expect(head["hash"]?.stringValue?.hasPrefix("B") == true)
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1))) func fetchesBalanceThroughChainService() async throws {
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1))) func fetchesBalanceThroughChainService() async throws {
         let service = TaquitoChainService(network: .shadownet)
         // Any valid address works since the RPC returns 0 for unknown accounts; this only checks the round trip.
         let balance = try await service.tezBalance(for: Address("tz1a4GT7THHaGDiTxgXoatDWcZfJ5j29z5RC"))

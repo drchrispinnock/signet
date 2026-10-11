@@ -11,7 +11,7 @@ struct AvatarTests {
     }
 
     /// Captain Stake's avatar is served as WebP; ImageIO must decode it.
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func captainStakeAvatarDecodes() async throws {
         let url = try #require(Profiles.avatarURL(for: Address("tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N")))
         let image = await ImageLoader().image(for: [url], maxPixelSize: 96)

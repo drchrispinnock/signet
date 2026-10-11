@@ -280,23 +280,27 @@ struct OctezConnectBridgeTests {
         #expect(summary.parameters?.contains("Unit") == true)
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(2)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(2)))
     func startsTheWalletClientAgainstTheRelay() async throws {
-        TaquitoBridge.shared.storage = InMemoryBridgeStorage()
-        let result = try await TaquitoBridge.shared.call("octezConnectStart", ["Signet tests", ""])
-        #expect(result["started"] == .bool(true))
-        let permissions = try await TaquitoBridge.shared.call("octezConnectPermissions")
-        #expect(permissions.arrayValue?.isEmpty == true)
-        // Missing storage keys must read as the SDK's defaults (empty lists), not undefined.
-        let peers = try await TaquitoBridge.shared.call("octezConnectPeers")
-        #expect(peers.arrayValue?.isEmpty == true)
+        try await SharedBridge.shared.run {
+            _ = try? await TaquitoBridge.shared.call("octezConnectStop")
+            TaquitoBridge.shared.storage = InMemoryBridgeStorage()
+            let result = try await TaquitoBridge.shared.call("octezConnectStart", ["Signet tests", ""])
+            #expect(result["started"] == .bool(true))
+            let permissions = try await TaquitoBridge.shared.call("octezConnectPermissions")
+            #expect(permissions.arrayValue?.isEmpty == true)
+            // Missing storage keys must read as the SDK's defaults (empty lists), not undefined.
+            let peers = try await TaquitoBridge.shared.call("octezConnectPeers")
+            #expect(peers.arrayValue?.isEmpty == true)
+            _ = try? await TaquitoBridge.shared.call("octezConnectStop")
+        }
     }
 }
 
 /// Live, on Shadownet: a dApp batch (transfer + delegation) from a faucet-funded key is simulated
 /// with a read-only signer, then the prepared batch is signed and sent exactly as prepared.
 struct ShadownetDAppPrepareTests {
-    @Test(.tags(.network), .timeLimit(.minutes(5)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(5)))
     func preparesThenExecutesABatchAsPrepared() async throws {
         let chain = TaquitoChainService(network: .shadownet)
         let rpc = Network.shadownet.rpcURL

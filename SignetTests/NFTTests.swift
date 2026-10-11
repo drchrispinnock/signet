@@ -82,7 +82,7 @@ struct NFTClassificationTests {
         // Fungible tokens, image-less tokens and video-only artifacts are not shown.
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func captainStakeHasNFTsWithImages() async throws {
         let service = TzKTService(baseURL: Network.mainnet.tzktURL!)
         let nfts = try await service.nfts(for: Address("tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"))
@@ -107,7 +107,7 @@ struct ImageLoaderTests {
         #expect(ImageLoader.downsample(Data("not an image".utf8), maxPixelSize: 200) == nil)
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func fallsThroughRateLimitedGatewaysToAWorkingOne() async {
         // A gateway that always 429s first, then one that works.
         let urls = [

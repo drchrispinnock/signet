@@ -274,7 +274,7 @@ struct MultisigFlowTests {
 /// Live, on Shadownet: a 2-of-3 multisig deployed by Signet on 2026-10-10 reads back as a generic
 /// multisig with its three keys (one per curve).
 struct ShadownetMultisigReadTests {
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func readsADeployedMultisig() async throws {
         let info = try await BridgeMultisigService().info(rpcURL: Network.shadownet.rpcURL, address: Address("KT1UqzPQCEb6bVYKeab9EXjVcQsUGT8iLC2m"))
         #expect(info.isGenericMultisig)
@@ -295,7 +295,7 @@ struct ShadownetMultisigReadTests {
 /// transfer, sign with two keys, submit, and see the tez arrive. Also checks our local packing of
 /// the signed bytes against the node's `pack_data`, since that is what octez-client signs.
 struct ShadownetMultisigTests {
-    @Test(.tags(.network), .timeLimit(.minutes(8)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
     func twoOfThreeTransferEndToEnd() async throws {
         let chain = TaquitoChainService(network: .shadownet)
         let service = BridgeMultisigService()

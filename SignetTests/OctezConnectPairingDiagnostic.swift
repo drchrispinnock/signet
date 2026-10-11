@@ -8,9 +8,11 @@ import Testing
 struct OctezConnectPairingDiagnostic {
     static let transcriptURL = URL(fileURLWithPath: "/private/tmp/claude-501/-Users-chris-tezos-signet/2d828a9a-b659-4771-9927-f86e491779b8/scratchpad/pairing-transcript.txt")
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func pairingCompletesAgainstTheRelay() async throws {
         let storage = InMemoryBridgeStorage()
+        try await SharedBridge.shared.run {
+        _ = try? await TaquitoBridge.shared.call("octezConnectStop")
         TaquitoBridge.shared.storage = storage
         let snapshots = Task.detached {
             while !Task.isCancelled {
@@ -36,10 +38,13 @@ struct OctezConnectPairingDiagnostic {
         _ = try await TaquitoBridge.shared.call("octezConnectPair", [code])
         try? await Task.sleep(for: .seconds(8))
         let transcript = TaquitoBridge.shared.consoleLines
-        let longPolls = transcript.filter { $0.contains("/_matrix/client/r0/sync?") && $0.contains("since=") }
-        #expect(!longPolls.isEmpty, Comment(rawValue: "no parameterised sync seen:\n" + transcript.suffix(30).joined(separator: "\n")))
+        // Query strings are redacted from the log (S11), so only the path is visible.
+        let longPolls = transcript.filter { $0.contains("/_matrix/client/r0/sync") }
+        #expect(!longPolls.isEmpty, Comment(rawValue: "no sync seen:\n" + transcript.suffix(30).joined(separator: "\n")))
         #expect(!transcript.contains { $0.contains("URLSearchParams") || $0.contains("Can't find variable") },
                 Comment(rawValue: transcript.filter { $0.contains("[error]") }.joined(separator: "\n")))
         #expect(transcript.contains { $0.contains("/invite") }, "the pairing response room invite should have been sent")
+        _ = try? await TaquitoBridge.shared.call("octezConnectStop")
+        }
     }
 }

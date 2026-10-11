@@ -76,7 +76,7 @@ struct StakingViewModelTests {
 
 /// Live: a fresh tz1 on Quantumnet delegates to a baker, stakes, and registers as a baker itself.
 struct QuantumnetStakingTests {
-    @Test(.tags(.network), .timeLimit(.minutes(6)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(6)))
     func delegateStakeAndRegisterOnQuantumnet() async throws {
         let chain = TaquitoChainService(network: .quantumnet)
         let material = try await KeyGenerator().generate(scheme: .tz1)
@@ -142,7 +142,7 @@ struct StakingParametersTests {
 /// public key is available from the local octez-client wallet, points its consensus key at it
 /// through the raw node-forged path.
 struct QuantumnetBakerParametersTests {
-    @Test(.tags(.network), .timeLimit(.minutes(6)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(6)))
     func setsParametersAndMaybeATz6ConsensusKey() async throws {
         let chain = TaquitoChainService(network: .quantumnet)
         let material = try await KeyGenerator().generate(scheme: .tz1)
@@ -166,9 +166,11 @@ struct QuantumnetBakerParametersTests {
         #expect(info.baker?.pendingStakingParameters.contains { $0.limitMillionth == 5_000_000 && $0.edgeBillionth == 100_000_000 } == true,
                 Comment(rawValue: "pending: \(String(describing: info.baker?.pendingStakingParameters))"))
 
-        // tz6 consensus key via the raw path, if we have an xmpk public key to hand.
+        // tz6 consensus key via the raw path, if we have an xmpk public key to hand. Reading the
+        // developer's real octez wallet is a separate opt-in (S24).
         let octezKeys = TezosClientStore.octezClientDirectory.appendingPathComponent("public_keys")
-        if let data = try? Data(contentsOf: octezKeys), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+        if ProcessInfo.processInfo.environment["SIGNET_REAL_WALLET_TESTS"] == "1",
+           let data = try? Data(contentsOf: octezKeys), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
            let xmpk = rows.compactMap({ ($0["value"] as? [String: Any])?["key"] as? String }).first(where: { $0.hasPrefix("xmpk") }) {
             let hash: String
             do {
@@ -277,7 +279,7 @@ struct RawForgingTests {
 
     /// Live: the one key kind Taquito cannot oracle. The Quantumnet node's forge helper must agree
     /// with our encoding of an XMSS (tz6) consensus key, taken from the local octez-client wallet.
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .realWalletState, .timeLimit(.minutes(1)))
     func forgesAnXMSSKeyLikeTheQuantumnetNode() async throws {
         let octezKeys = TezosClientStore.octezClientDirectory.appendingPathComponent("public_keys")
         guard let data = try? Data(contentsOf: octezKeys), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],

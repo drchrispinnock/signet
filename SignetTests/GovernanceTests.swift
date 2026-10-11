@@ -66,7 +66,7 @@ struct GovernanceTests {
         #expect(result.hash == "ooMockGovernanceballot")
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func readsTheLivePeriodOnShadownet() async throws {
         let info = try await TaquitoChainService(network: .shadownet).governanceInfo(for: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"))
         #expect(info.kind != nil)

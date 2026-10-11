@@ -31,7 +31,7 @@ struct FungibleTokenTests {
         #expect(TzKTService.nfts(from: rows).map(\.name) == ["Picture"])
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func liveMainnetTokens() async throws {
         let tokens = try await TzKTService(baseURL: Network.mainnet.tzktURL!).fungibleTokens(for: MockChainService.captainStake)
         let symbols = Set(tokens.map(\.symbol))

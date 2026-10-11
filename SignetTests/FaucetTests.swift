@@ -75,7 +75,7 @@ struct FaucetServiceTests {
         #expect(throws: FaucetService.FaucetError.self) { try FaucetService.challenge(from: Data(#"{"message":"Too many requests"}"#.utf8)) }
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(3)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(3)))
     func shadownetFaucetFundsAFreshAddress() async throws {
         let fresh = Address(try await KeyGenerator().generate(scheme: .tz1).address)
         let faucet = FaucetService(baseURL: Network.shadownet.faucetURL!)
@@ -100,7 +100,7 @@ struct QuantumnetTests {
         #expect(Network.all.map(\.name).contains("Quantumnet"))
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func quantumnetNodeFaucetAndIndexerAnswer() async throws {
         let faucet = try #require(FaucetService(network: .quantumnet))
         let info = try await faucet.info()

@@ -86,7 +86,7 @@ struct TransactionParsingTests {
         #expect(model.activityTab == .transactions)
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(1)))
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func captainStakeHasHistoryOnTzKT() async throws {
         let txs = try await TzKTService(baseURL: Network.mainnet.tzktURL!).recentOperations(for: Self.me, limit: 10)
         #expect(!txs.isEmpty)

@@ -2,29 +2,39 @@ import SwiftUI
 
 @main
 struct SignetApp: App {
-    @State private var model = WalletViewModel(
-        chainFactory: { network in TaquitoChainService(network: network) },
-        keyGenerator: KeyGenerator(),
-        ledger: BridgeLedgerService(),
-        keyImporter: BridgeKeyImporter(),
-        multisig: BridgeMultisigService(),
-        importSource: TezosClientStore.octezClientDirectory,
-        directorySettings: WalletDirectorySettings(),
-        storeFactory: { directory in
-            (wallets: TezosClientStore(directory: directory), state: FileAppStateStore(directory: directory))
-        },
-        backupSettings: BackupSettings(),
-        dappStorageFactory: { directory in OctezConnectStorage(directory: directory) },
-        dappDiagnostics: DeveloperSettings.dappDiagnostics,
-        // Never run the dApp client inside a test host: tests drive the bridge themselves and the
-        // app's client would share (and could clobber) real state.
-        startDApps: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
-    )
+    /// True when this process is the host for `SignetTests`.
+    static var isTestHost: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
+
+    /// The app's model. Under the test host it is built on in-memory stores only (S24): no wallet
+    /// directory is read, no backup is scheduled, no dApp storage or client is touched, so tests
+    /// never see or change the developer's real wallet state. Tests construct their own models.
+    @MainActor
+    static func makeModel(isTestHost: Bool = isTestHost) -> WalletViewModel {
+        if isTestHost {
+            return WalletViewModel(wallets: [], chain: MockChainService(), multisig: MockMultisigService(), walletStore: InMemoryWalletStore())
+        }
+        return WalletViewModel(
+            chainFactory: { network in TaquitoChainService(network: network) },
+            keyGenerator: KeyGenerator(),
+            ledger: BridgeLedgerService(),
+            keyImporter: BridgeKeyImporter(),
+            multisig: BridgeMultisigService(),
+            importSource: TezosClientStore.octezClientDirectory,
+            directorySettings: WalletDirectorySettings(),
+            storeFactory: { directory in
+                (wallets: TezosClientStore(directory: directory), state: FileAppStateStore(directory: directory))
+            },
+            backupSettings: BackupSettings(),
+            dappStorageFactory: { directory in OctezConnectStorage(directory: directory) },
+            dappDiagnostics: DeveloperSettings.dappDiagnostics,
+            startDApps: true
+        )
+    }
+
+    @State private var model = SignetApp.makeModel()
     // Sparkle: checks the GitHub release appcast daily and on "Check for Updates…". Not started
     // under the test host, which would otherwise reach the network and may put up a dialog.
-    @State private var updater = UpdaterService(
-        starting: ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
-    )
+    @State private var updater = UpdaterService(starting: !SignetApp.isTestHost)
 
     var body: some Scene {
         // A single window: a WindowGroup would open a second one when a signet:// link arrives.
