@@ -138,11 +138,37 @@ final class WalletViewModel {
             nodeURLs[network.name] = network.isUsingDefaultNode ? nil : network.rpcURL.absoluteString
             state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
             persistState()
-            assets = []
-            domains = []
-            nfts = []
+            clearChainData()
             Task { await refresh() }
         }
+    }
+
+    /// Everything on the dashboard that came from the chain for the previous context (S16).
+    private func clearChainData() {
+        refreshGeneration += 1
+        isLoading = false
+        assets = []
+        tokens = []
+        domains = []
+        nfts = []
+        transactions = []
+        delegateInfo = nil
+        tezBalance = nil
+        accountNotOnChain = false
+        faucetStatus = .idle
+    }
+
+    /// Which load is current. Every refresh captures the generation, the account, the network and
+    /// the directory it started under and publishes nothing unless all four still hold (S16).
+    private var refreshGeneration = 0
+    private struct RefreshContext: Equatable {
+        let generation: Int
+        let address: Address
+        let network: Network
+        let revision: UUID
+    }
+    private var currentContext: RefreshContext? {
+        selectedWallet.map { RefreshContext(generation: refreshGeneration, address: $0.address, network: network, revision: walletDirectoryRevision) }
     }
 
     /// `base` with the custom node the user saved for it, or `base` itself.
@@ -422,9 +448,7 @@ final class WalletViewModel {
         if let remembered = Network.named(state.networkName) { switchNetwork(to: remembered) }
         importableWalletCount = Self.countImportable(at: importSource, excluding: wallets)
         replaceDApps(for: directory)
-        assets = []
-        domains = []
-        nfts = []
+        clearChainData()
         Task { await refresh() }
         Task { await backUp() }
     }
@@ -447,19 +471,34 @@ final class WalletViewModel {
         }
     }
 
+    /// Loads the dashboard for the selected account. Everything is fetched into a local snapshot
+    /// through the chain service captured at the start, and published in one step only if the
+    /// account, network, directory and refresh generation are still the ones it was started for;
+    /// a slow reply from a previous context can never land on the screen (S16).
     func refresh() async {
-        guard let wallet = selectedWallet else {
-            assets = []
-            domains = []
-            nfts = []
+        guard let context = currentContext else {
+            clearChainData()
             return
         }
+        refreshGeneration += 1
+        let mine = RefreshContext(generation: refreshGeneration, address: context.address, network: context.network, revision: context.revision)
+        let chain = self.chain
+        let address = mine.address
         isLoading = true
         errorMessage = nil
-        accountNotOnChain = false
-        defer { isLoading = false }
 
-        let address = wallet.address
+        struct Snapshot {
+            var tezBalance: TezBalance?
+            var assets: [AssetBalance] = []
+            var tokens: [AssetBalance] = []
+            var domains: [String] = []
+            var nfts: [NFT] = []
+            var transactions: [TezosTransaction] = []
+            var delegateInfo: DelegateInfo?
+            var notOnChain = false
+            var error: String?
+        }
+        var snapshot = Snapshot()
         do {
             async let tez = chain.tezBalance(for: address)
             async let tokens = chain.tokenBalances(for: address)
@@ -470,47 +509,49 @@ final class WalletViewModel {
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
-            self.tezBalance = tezBalance
             if Self.showsEtherlinkBalance {
                 let etherlink = try await chain.etherlinkBalance(for: address)
                 list.append(AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: etherlink))
             }
-            let tokenList = try await tokens
-
-            // Drop the results if the user switched wallets while we were loading.
-            guard address == selectedWallet?.address else { return }
-            assets = list
-            self.tokens = tokenList
-            domains = try await names
-            nfts = try await collectibles
-            transactions = try await history
-            delegateInfo = (try? await delegation) ?? nil
+            snapshot.tezBalance = tezBalance
+            snapshot.assets = list
+            snapshot.tokens = try await tokens
+            snapshot.domains = try await names
+            snapshot.nfts = try await collectibles
+            snapshot.transactions = try await history
+            snapshot.delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
-            guard address == selectedWallet?.address else { return }
-            accountNotOnChain = true
-            assets = []
-            tokens = (try? await chain.tokenBalances(for: address)) ?? []
-            domains = (try? await chain.domains(for: address)) ?? []
-            nfts = (try? await chain.nfts(for: address)) ?? []
-            transactions = []
+            snapshot.notOnChain = true
+            snapshot.tokens = (try? await chain.tokenBalances(for: address)) ?? []
+            snapshot.domains = (try? await chain.domains(for: address)) ?? []
+            snapshot.nfts = (try? await chain.nfts(for: address)) ?? []
         } catch {
-            errorMessage = error.localizedDescription
+            snapshot.error = error.localizedDescription
         }
+
+        // Publish only into the context the load was started for.
+        guard currentContext == mine else { return }
+        isLoading = false
+        if let error = snapshot.error {
+            errorMessage = error
+            return
+        }
+        tezBalance = snapshot.tezBalance
+        assets = snapshot.assets
+        tokens = snapshot.tokens
+        domains = snapshot.domains
+        nfts = snapshot.nfts
+        transactions = snapshot.transactions
+        delegateInfo = snapshot.delegateInfo
+        accountNotOnChain = snapshot.notOnChain
     }
 
     func select(_ wallet: Wallet) {
         guard wallet.id != selectedWalletID else { return }
         selectedWalletID = wallet.id
         rememberSelection()
-        domains = []
-        assets = []
-        tokens = []
-        nfts = []
-        transactions = []
-        delegateInfo = nil
-        tezBalance = nil
-        accountNotOnChain = false
         cancelFaucetRequest()
+        clearChainData()
         Task { await refresh() }
     }
 
@@ -766,6 +807,7 @@ final class WalletViewModel {
     func performGovernance(_ operation: GovernanceOperation, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let chain = self.chain
         let hash = try await chain.performGovernance(operation, from: wallet, signer: signer)
         let level = try await chain.waitForConfirmation(of: hash)
         await refreshAfterOperation()
@@ -903,6 +945,7 @@ extension WalletViewModel {
         case keyAddressMismatch(Address, Address)
         case wrongNetwork(String)
         case tampered
+        case contextChanged(Address)
 
         var errorDescription: String? {
             switch self {
@@ -919,6 +962,7 @@ extension WalletViewModel {
             case .keyAddressMismatch(let wanted, let got): "The node answered with a key for \(got.shortened()), not \(wanted.shortened()). Nothing was added; check the node or paste the public key."
             case .wrongNetwork(let name): "This proposal was made on \(name); switch to that network to sign it."
             case .tampered: "This proposal does not match what the multisig would sign for it now. Nothing was signed; discard it and propose it again."
+            case .contextChanged(let address): "The wallet directory or network changed while the multisig \(address.shortened()) was being set up. It exists on chain but was not recorded here; add it with Add multisig… where it belongs."
             }
         }
     }
@@ -978,13 +1022,19 @@ extension WalletViewModel {
         try Self.checkMultisig(threshold: threshold, keys: keys)
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
         let chain = self.chain
+        let context = (revision: walletDirectoryRevision, network: network.name)
         let (hash, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys, limits: limits)
         _ = try await chain.waitForConfirmation(of: hash)
-        return try await recordContract(MultisigContract(alias: name, address: address))
+        return try await recordContract(MultisigContract(alias: name, address: address), startedIn: context)
     }
 
-    /// Writes the contract alias, puts it in the address book and shows it.
-    private func recordContract(_ contract: MultisigContract) async throws -> MultisigContract {
+    /// Writes the contract alias, puts it in the address book and shows it. The alias goes to the
+    /// directory the operation started in: after a directory or network switch it is refused,
+    /// and the address is reported so the user can add it where it belongs (S16).
+    private func recordContract(_ contract: MultisigContract, startedIn context: (revision: UUID, network: String)) async throws -> MultisigContract {
+        guard walletDirectoryRevision == context.revision, network.name == context.network else {
+            throw MultisigError.contextChanged(contract.address)
+        }
         try walletStore.addContract(contract)
         let entry = Wallet(alias: contract.alias, address: contract.address, keyKind: .none)
         wallets = (try? walletStore.load()) ?? wallets + [entry]
@@ -1002,10 +1052,11 @@ extension WalletViewModel {
         guard address.isContract, address.isValidAccount else { throw MultisigError.invalidAddress }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
         if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
+        let context = (revision: walletDirectoryRevision, network: network.name)
         let info = try await multisig.info(rpcURL: network.rpcURL, address: address)
         guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
         guard !info.members(among: wallets).isEmpty else { throw MultisigError.notAMember }
-        return try await recordContract(MultisigContract(alias: name, address: address))
+        return try await recordContract(MultisigContract(alias: name, address: address), startedIn: context)
     }
 
     /// Fetches the contract's state and makes an unsigned proposal for this transfer at its current counter.
@@ -1015,7 +1066,9 @@ extension WalletViewModel {
 
     /// Fetches the contract's state and makes an unsigned proposal for this action at its current counter.
     func proposeMultisig(_ action: MultisigAction, from contract: MultisigContract) async throws -> MultisigProposal {
+        let context = (revision: walletDirectoryRevision, network: network.name)
         let (info, chainID, bytes) = try await multisig.prepare(rpcURL: network.rpcURL, contract: contract.address, action: action)
+        guard walletDirectoryRevision == context.revision, network.name == context.network else { throw WalletError.directoryChanged }
         guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
         // The same action proposed twice is the same proposal: reuse it so signatures accumulate.
         if let existing = multisigProposals.first(where: { $0.contractAddress == contract.address.value && $0.networkName == network.name && $0.bytes == bytes }) {
@@ -1093,9 +1146,11 @@ extension WalletViewModel {
         guard let limits else { throw WalletError.notEstimated }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
         let chain = self.chain
+        let revision = walletDirectoryRevision
         let hash = try await multisig.submit(rpcURL: network.rpcURL, signer: signer, proposal: proposal, signatures: proposal.signatures.map(\.signature), limits: limits)
         _ = try await chain.waitForConfirmation(of: hash)
-        try removeMultisigProposal(proposal)
+        // The proposal file belongs to the directory the submission started in.
+        if walletDirectoryRevision == revision { try removeMultisigProposal(proposal) }
         await refreshAfterOperation()
         return hash
     }
