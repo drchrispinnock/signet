@@ -112,6 +112,8 @@ final class WalletViewModel {
         case failed(String)
     }
     private(set) var faucetStatus: FaucetStatus = .idle
+    /// The faucet request in flight, so switching accounts (or the user) can cancel the proof of work.
+    private var faucetTask: Task<Void, Never>?
     static let faucetAmountTez: Double = 100
     private(set) var isCreatingWallet = false
     private(set) var errorMessage: String?
@@ -504,7 +506,7 @@ final class WalletViewModel {
         delegateInfo = nil
         tezBalance = nil
         accountNotOnChain = false
-        faucetStatus = .idle
+        cancelFaucetRequest()
         Task { await refresh() }
     }
 
@@ -656,30 +658,49 @@ final class WalletViewModel {
     }
 
     /// Asks the current testnet's faucet to fund the selected address, then polls until the
-    /// account appears on chain.
+    /// account appears on chain. The work runs in a cancellable task (S21): selecting another
+    /// account or calling `cancelFaucetRequest` stops the proof of work.
     func requestTestTez(amount: Double = WalletViewModel.faucetAmountTez) async {
         guard let wallet = selectedWallet, let service = FaucetService(network: network) else { return }
+        faucetTask?.cancel()
         let address = wallet.address
         faucetStatus = .solving(done: 0, total: 1)
-        do {
-            let hash = try await Task.detached(priority: .userInitiated) {
-                try await service.requestTez(to: address, amount: amount) { done, total in
-                    Task { @MainActor in
-                        if case .solving = self.faucetStatus { self.faucetStatus = .solving(done: done, total: total) }
+        let task = Task {
+            do {
+                // Solving runs off the main actor; cancelling this task cancels the worker too.
+                let worker = Task.detached(priority: .userInitiated) {
+                    try await service.requestTez(to: address, amount: amount) { done, total in
+                        Task { @MainActor in
+                            guard case .solving = self.faucetStatus else { return }
+                            self.faucetStatus = .solving(done: done, total: total)
+                        }
                     }
                 }
-            }.value
-            faucetStatus = .sent(hash: hash)
-            // The faucet's transfer needs a block; refresh until the balance moves (or give up quietly).
-            let before = tezBalance?.spendable ?? 0
-            for _ in 0..<12 where selectedWallet?.address == address {
-                try? await Task.sleep(for: .seconds(5))
-                await refresh()
-                if !accountNotOnChain, (tezBalance?.spendable ?? 0) > before { faucetStatus = .received(hash: hash); break }
+                let hash = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
+                guard !Task.isCancelled else { return }
+                faucetStatus = .sent(hash: hash)
+                // The faucet's transfer needs a block; refresh until the balance moves (or give up quietly).
+                let before = tezBalance?.spendable ?? 0
+                for _ in 0..<12 where selectedWallet?.address == address && !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(5))
+                    await refresh()
+                    if !accountNotOnChain, (tezBalance?.spendable ?? 0) > before { faucetStatus = .received(hash: hash); break }
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                faucetStatus = .failed(error.localizedDescription)
             }
-        } catch {
-            faucetStatus = .failed(error.localizedDescription)
         }
+        faucetTask = task
+        await task.value
+        if faucetTask == task { faucetTask = nil }
+    }
+
+    /// Stops a faucet request in flight and clears its status.
+    func cancelFaucetRequest() {
+        faucetTask?.cancel()
+        faucetTask = nil
+        faucetStatus = .idle
     }
 
     /// Runs a staking-family operation for the selected wallet and waits one block.

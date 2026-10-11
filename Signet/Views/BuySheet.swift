@@ -21,6 +21,8 @@ struct BuySheet: View {
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var errorMessage: String?
+    /// What the embedded page is showing, so the user can see whose site they are on.
+    @State private var currentURL: URL?
 
     private var wallet: Wallet? { model.selectedWallet }
     private var canSign: Bool { wallet?.keyKind.canSign == true }
@@ -89,7 +91,16 @@ struct BuySheet: View {
 
     private func widget(_ url: URL) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            BuyWebView(url: url, provider: provider, isLoading: $isLoading, loadError: $loadError)
+            HStack(spacing: 6) {
+                let host = (currentURL ?? url).host() ?? ""
+                let trusted = BuyWebView.isTrusted(currentURL ?? url, provider: provider)
+                Image(systemName: trusted ? "lock.fill" : "lock.open")
+                    .foregroundStyle(trusted ? Color.secondary : Color.orange)
+                Text(host).font(.callout.monospaced()).foregroundStyle(.secondary)
+                Spacer()
+            }
+            .help("Only \(provider.title)'s own HTTPS pages can show here; other sites open in your browser.")
+            BuyWebView(url: url, provider: provider, isLoading: $isLoading, loadError: $loadError, currentURL: $currentURL)
                 .frame(height: 620)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.secondary.opacity(0.25)))

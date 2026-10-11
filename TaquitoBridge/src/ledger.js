@@ -28,14 +28,20 @@ export class NativeLedgerTransport extends Transport {
     super();
     this.deviceId = deviceId;
     this.setExchangeTimeout(LEDGER_EXCHANGE_TIMEOUT_MS);
+    // Exchanges on one device run strictly one after another (S22): a signing session is
+    // several APDUs, and two callers interleaving theirs would cross their answers.
+    this.queue = Promise.resolve();
   }
 
   exchange(apdu, { abortTimeoutMs } = {}) {
-    return new Promise((resolve, reject) => {
+    const run = () => new Promise((resolve, reject) => {
       const id = nextExchangeId++;
       pendingExchanges.set(id, { resolve, reject });
       native.ledgerExchange(id, this.deviceId, Buffer.from(apdu).toString("hex"), abortTimeoutMs || LEDGER_EXCHANGE_TIMEOUT_MS);
     });
+    const turn = this.queue.then(run, run);
+    this.queue = turn.catch(() => {});
+    return turn;
   }
 
   setScrambleKey() {}
