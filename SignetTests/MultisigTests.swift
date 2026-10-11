@@ -83,7 +83,7 @@ struct MultisigStorageTests {
                                  counter: 4, threshold: 2, keys: ["edpkA", "edpkB", "edpkC"], action: .transfer(amountMutez: "5000000", destination: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), bytes: "0507")
         p.signatures = [MultisigSignature(publicKey: "edpkA", signature: "edsigA")]
         p.created = Date(timeIntervalSince1970: 1_760_000_000)  // whole seconds survive ISO 8601
-        try store.save([p])
+        try store.update { $0 = [p] }
         let back = store.load()
         #expect(back == [p])
         #expect(back[0].amount == 5)
@@ -99,7 +99,7 @@ struct MultisigFlowTests {
 
     private func makeModel(_ service: MockMultisigService, store: InMemoryWalletStore = InMemoryWalletStore(), proposals: [MultisigProposal] = []) -> WalletViewModel {
         let proposalStore = InMemoryMultisigProposalStore()
-        try? proposalStore.save(proposals)
+        _ = try? proposalStore.update { $0 = proposals }
         let model = WalletViewModel(wallets: [Self.alice, Self.bob, Self.watch], chain: MockChainService(), multisig: service, proposalStore: proposalStore, walletStore: store)
         try? store.add(Self.alice, secretKey: "edskALICE")
         try? store.add(Self.bob, secretKey: "edeskBOB")

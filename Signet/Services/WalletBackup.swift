@@ -115,10 +115,15 @@ struct WalletBackup: Sendable {
         try Self.checkSeparate(backup: backupDirectory, wallet: walletDirectory)
 
         let fm = FileManager.default
-        try fm.createDirectory(at: backupDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try PrivateFile.hardenDirectory(backupDirectory)
 
+        // The files are read under the wallet lock, so a change in progress (ours or
+        // octez-client's) is never copied half done (S09).
+        let snapshot: [(String, Data)] = try TezosClientStore.withWalletLock(in: walletDirectory) {
+            try present.compactMap { file in try PrivateFile.read(walletDirectory.appendingPathComponent(file)).map { (file, $0) } }
+        }
         let existing = try Self.generations(in: backupDirectory, source: walletDirectory)
-        if !force, let latest = existing.last, try Self.fingerprint(of: walletDirectory) == Self.fingerprint(of: latest) {
+        if !force, let latest = existing.last, Self.fingerprint(of: snapshot) == (try Self.fingerprint(of: latest)) {
             try prune(existing)
             return .unchanged(latest: latest)
         }
@@ -132,23 +137,22 @@ struct WalletBackup: Sendable {
             target = backupDirectory.appendingPathComponent(stamp, isDirectory: true)
         }
 
-        // Build in a temporary folder and rename into place so a half-written generation never counts.
-        let staging = backupDirectory.appendingPathComponent(".\(stamp).partial", isDirectory: true)
-        try? fm.removeItem(at: staging)
-        try fm.createDirectory(at: staging, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        for file in present {
-            let destination = staging.appendingPathComponent(file)
-            try fm.copyItem(at: walletDirectory.appendingPathComponent(file), to: destination)
-            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
+        // Build in a folder of our own (a fresh name, so two jobs never share one) and rename it
+        // into place, so a half-written generation never counts; a failed job removes it.
+        let staging = backupDirectory.appendingPathComponent(".\(UUID().uuidString).partial", isDirectory: true)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        var moved = false
+        defer { if !moved { try? fm.removeItem(at: staging) } }
+        for (file, data) in snapshot {
+            try PrivateFile.write(data, to: staging.appendingPathComponent(file))
         }
-        let manifest = Manifest(created: now, source: Self.normalized(walletDirectory).path, files: present)
+        let manifest = Manifest(created: now, source: Self.normalized(walletDirectory).path, files: snapshot.map(\.0))
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        let manifestURL = staging.appendingPathComponent(Self.manifestFile)
-        try encoder.encode(manifest).write(to: manifestURL, options: .atomic)
-        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: manifestURL.path)
+        try PrivateFile.write(try encoder.encode(manifest), to: staging.appendingPathComponent(Self.manifestFile))
         try fm.moveItem(at: staging, to: target)
+        moved = true
 
         let created = Self.normalized(target)
         try prune(existing + [created])
@@ -222,12 +226,15 @@ struct WalletBackup: Sendable {
 
     /// SHA-256 over each saved file's name and contents, so identical wallets compare equal.
     static func fingerprint(of directory: URL) throws -> Data {
+        fingerprint(of: try files.compactMap { file in try PrivateFile.read(directory.appendingPathComponent(file)).map { (file, $0) } })
+    }
+
+    static func fingerprint(of snapshot: [(String, Data)]) -> Data {
         var hasher = SHA256()
         for file in files {
-            let url = directory.appendingPathComponent(file)
-            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            guard let data = snapshot.first(where: { $0.0 == file })?.1 else { continue }
             hasher.update(data: Data(file.utf8))
-            hasher.update(data: try Data(contentsOf: url))
+            hasher.update(data: data)
         }
         return Data(hasher.finalize())
     }

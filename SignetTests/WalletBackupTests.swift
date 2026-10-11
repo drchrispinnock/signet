@@ -222,3 +222,22 @@ struct ForcedBackupTests {
         #expect(try WalletBackup.generations(in: backups).count == 2)
     }
 }
+
+/// S09, S10: a backup is taken from a locked snapshot into a private, uniquely named staging folder.
+struct WalletBackupIntegrityTests {
+    @Test func generationsArePrivateAndStagingIsCleanedUp() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("signet-backup-int-\(UUID().uuidString)", isDirectory: true)
+        let wallet = base.appendingPathComponent("wallet"), backups = base.appendingPathComponent("backups")
+        try FileManager.default.createDirectory(at: wallet, withIntermediateDirectories: true)
+        try TezosClientStore(directory: wallet).add(Wallet(alias: "a", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkA", keyKind: .unencrypted), secretKey: "edskA")
+        let job = WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 3)
+        guard case .created(let generation) = try job.run() else { Issue.record("no generation"); return }
+        let mode = { (url: URL) in (try? FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int).map { $0 & 0o777 } }
+        #expect(mode(backups) == 0o700)
+        #expect(mode(generation.appendingPathComponent("secret_keys")) == 0o600)
+        #expect(mode(generation.appendingPathComponent(WalletBackup.manifestFile)) == 0o600)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: backups.path).filter { $0.hasSuffix(".partial") }.isEmpty)
+        // Unchanged files: no second generation, same fingerprint through the locked snapshot.
+        guard case .unchanged = try job.run() else { Issue.record("expected unchanged"); return }
+    }
+}

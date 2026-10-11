@@ -182,33 +182,54 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
 
 // MARK: - Proposals on disk
 
-/// Proposals awaiting signatures, kept beside the wallet files.
+/// Proposals awaiting signatures, kept beside the wallet files. Changes go through `update`,
+/// which reads the stored list, applies the change and writes it back as one step, so two
+/// Signets (or a sheet holding a stale copy) cannot drop each other's proposals or signatures (S09).
 protocol MultisigProposalStore: Sendable {
     func load() -> [MultisigProposal]
-    func save(_ proposals: [MultisigProposal]) throws
+    /// Applies `change` to what is on disk right now and returns the stored list afterwards.
+    @discardableResult
+    func update(_ change: (inout [MultisigProposal]) throws -> Void) throws -> [MultisigProposal]
 }
 
-/// `<wallet dir>/multisig-proposals.json`.
+/// `<wallet dir>/multisig-proposals.json`, read and written under the wallet lock.
 struct FileMultisigProposalStore: MultisigProposalStore {
     static let fileName = "multisig-proposals.json"
+    /// Budgets for a file another program could have edited (S19).
+    static let maxFileBytes = 8 * 1024 * 1024
+    static let maxBytesHex = 128 * 1024
+    static let maxKeys = 256
     let url: URL
 
     init(directory: URL) { url = directory.appendingPathComponent(Self.fileName) }
 
     func load() -> [MultisigProposal] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode([MultisigProposal].self, from: data)) ?? []
+        (try? TezosClientStore.withWalletLock(in: url.deletingLastPathComponent()) { read() }) ?? read()
     }
 
-    func save(_ proposals: [MultisigProposal]) throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(proposals).write(to: url, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    private func read() -> [MultisigProposal] {
+        guard let data = try? PrivateFile.read(url), data.count <= Self.maxFileBytes else { return [] }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return ((try? decoder.decode([MultisigProposal].self, from: data)) ?? []).filter(Self.isReasonable)
+    }
+
+    /// A proposal within the budgets; anything else is left out rather than loaded into memory or shown.
+    static func isReasonable(_ p: MultisigProposal) -> Bool {
+        p.bytes.count <= maxBytesHex && p.keys.count <= maxKeys && p.signatures.count <= maxKeys && p.threshold >= 0 && p.counter >= 0
+            && p.keys.allSatisfy { $0.count <= 256 } && p.signatures.allSatisfy { $0.signature.count <= 512 && ($0.publicKey?.count ?? 0) <= 256 }
+    }
+
+    func update(_ change: (inout [MultisigProposal]) throws -> Void) throws -> [MultisigProposal] {
+        try TezosClientStore.withWalletLock(in: url.deletingLastPathComponent()) {
+            var proposals = read()
+            try change(&proposals)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            try PrivateFile.write(try encoder.encode(proposals), to: url)
+            return proposals
+        }
     }
 }
 
@@ -216,5 +237,7 @@ final class InMemoryMultisigProposalStore: MultisigProposalStore, @unchecked Sen
     private let lock = NSLock()
     private var proposals: [MultisigProposal] = []
     func load() -> [MultisigProposal] { lock.withLock { proposals } }
-    func save(_ proposals: [MultisigProposal]) throws { lock.withLock { self.proposals = proposals } }
+    func update(_ change: (inout [MultisigProposal]) throws -> Void) throws -> [MultisigProposal] {
+        try lock.withLock { try change(&proposals); return proposals }
+    }
 }

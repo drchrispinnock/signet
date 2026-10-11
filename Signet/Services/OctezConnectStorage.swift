@@ -17,7 +17,7 @@ final class OctezConnectStorage: BridgeStorage, @unchecked Sendable {
 
     init(directory: URL = TezosClientStore.defaultDirectory) {
         url = directory.appendingPathComponent("octez-connect.json")
-        if let data = try? Data(contentsOf: url), let stored = try? JSONDecoder().decode([String: String].self, from: data) {
+        if let data = try? PrivateFile.read(url), let stored = try? JSONDecoder().decode([String: String].self, from: data) {
             values = stored
         } else {
             values = [:]
@@ -42,12 +42,9 @@ final class OctezConnectStorage: BridgeStorage, @unchecked Sendable {
 
     private func persist() {
         do {
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
-                                                    attributes: [.posixPermissions: 0o700])
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
-            try encoder.encode(values).write(to: url, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            try PrivateFile.write(try encoder.encode(values), to: url)
         } catch {
             NSLog("Signet: could not save Octez Connect state: %@", error.localizedDescription)
         }

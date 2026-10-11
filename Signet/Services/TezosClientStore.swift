@@ -22,6 +22,8 @@ struct TezosClientStore: WalletStore {
         /// The alias now names a different address than the `Wallet` the caller holds.
         case addressMismatch(alias: String, expected: Address, found: Address?)
         case walletChanged(String)
+        /// Another program (octez-client, another Signet) held the wallet lock for too long.
+        case locked
 
         var errorDescription: String? {
             switch self {
@@ -33,6 +35,8 @@ struct TezosClientStore: WalletStore {
                 "Account “\(alias)” is \(found?.shortened() ?? "missing") in the wallet directory, not \(expected.shortened()) as expected. The directory may have changed; please try again."
             case .walletChanged(let alias):
                 "Account “\(alias)” or its key entries changed while removal was being confirmed. Nothing was removed; please try again."
+            case .locked:
+                "The wallet directory is locked by another program (octez-client?). Please try again in a moment."
             }
         }
     }
@@ -41,6 +45,9 @@ struct TezosClientStore: WalletStore {
     static let publicKeysFile = "public_keys"
     static let secretKeysFile = "secret_keys"
     static let lockFile = "wallet_lock"
+    /// Written before a change touches several files, removed after the last one (S09). If it is
+    /// still there, the change did not finish and every file it names is put back as it was.
+    static let journalFile = "wallet_journal"
     /// octez-client's named contracts (`[{name, value: "KT1…"}]`); multisigs live here.
     static let contractsFile = "contracts"
 
@@ -72,9 +79,13 @@ struct TezosClientStore: WalletStore {
     // MARK: WalletStore
 
     func load() throws -> [Wallet] {
-        let hashes = try readEntries(Self.publicKeyHashesFile)
-        let publicKeys = try index(readEntries(Self.publicKeysFile))
-        let secretKeys = try index(readEntries(Self.secretKeysFile))
+        // A read takes the same lock octez-client writes under, so it never sees a half-done
+        // change, and an unfinished change of ours is rolled back first (S09).
+        let (hashes, publicKeys, secretKeys, contractRows) = try withWalletLock {
+            try recoverIfNeeded()
+            PrivateFile.removeStaleTemporaries(in: directory, for: Self.aliasFiles + [Self.journalFile])
+            return (try readEntries(Self.publicKeyHashesFile), try index(readEntries(Self.publicKeysFile)), try index(readEntries(Self.secretKeysFile)), try readEntries(Self.contractsFile))
+        }
 
         let accounts: [Wallet] = hashes.compactMap { entry in
             guard let address = entry.value as? String else { return nil }
@@ -92,7 +103,7 @@ struct TezosClientStore: WalletStore {
         // hold tz addresses (it refuses to read the file otherwise), so Signet keeps them apart
         // on disk too and joins them here.
         let taken = Set(accounts.map(\.alias))
-        let contracts = try loadContracts().filter { !taken.contains($0.alias) }.map { Wallet(alias: $0.alias, address: $0.address, keyKind: .none) }
+        let contracts = Self.contracts(from: contractRows).filter { !taken.contains($0.alias) }.map { Wallet(alias: $0.alias, address: $0.address, keyKind: .none) }
         return accounts + contracts
     }
 
@@ -101,9 +112,9 @@ struct TezosClientStore: WalletStore {
         // octez-client points the public key at the same place as the secret: the file for
         // in-memory keys, the device for Ledger keys.
         let publicKeyLocator = locator.lowercased().hasPrefix("ledger://") ? locator : "unencrypted:\(publicKey)"
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
+        try PrivateFile.hardenDirectory(directory)
         try withWalletLock {
+            try recoverIfNeeded()
             var hashes = try readRaw(Self.publicKeyHashesFile)
             var publicKeys = try readRaw(Self.publicKeysFile)
             var secretKeys = try readRaw(Self.secretKeysFile)
@@ -116,29 +127,31 @@ struct TezosClientStore: WalletStore {
             publicKeys.append(["name": wallet.alias, "value": ["locator": publicKeyLocator, "key": publicKey]])
             secretKeys.append(["name": wallet.alias, "value": locator])
 
-            try write(hashes, to: Self.publicKeyHashesFile)
-            try write(publicKeys, to: Self.publicKeysFile)
-            try write(secretKeys, to: Self.secretKeysFile)
+            try commit([(Self.publicKeyHashesFile, hashes), (Self.publicKeysFile, publicKeys), (Self.secretKeysFile, secretKeys)])
         }
     }
 
     func loadContracts() throws -> [MultisigContract] {
-        try readEntries(Self.contractsFile).compactMap { entry in
+        Self.contracts(from: try withWalletLock { try recoverIfNeeded(); return try readEntries(Self.contractsFile) })
+    }
+
+    private static func contracts(from entries: [Entry]) -> [MultisigContract] {
+        entries.compactMap { entry in
             guard let address = entry.value as? String else { return nil }
             return MultisigContract(alias: entry.name, address: Address(address))
         }
     }
 
     func addContract(_ contract: MultisigContract) throws {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
+        try PrivateFile.hardenDirectory(directory)
         try withWalletLock {
+            try recoverIfNeeded()
             var contracts = try readRaw(Self.contractsFile)
             let taken = try [contracts, readRaw(Self.publicKeyHashesFile), readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile)]
                 .contains { $0.contains { ($0["name"] as? String) == contract.alias } }
             guard !taken else { throw StoreError.aliasExists(contract.alias) }
             contracts.append(["name": contract.alias, "value": contract.address.value])
-            try write(contracts, to: Self.contractsFile)
+            try commit([(Self.contractsFile, contracts)])
         }
     }
 
@@ -148,20 +161,21 @@ struct TezosClientStore: WalletStore {
             try addContract(MultisigContract(alias: wallet.alias, address: wallet.address))
             return
         }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
+        try PrivateFile.hardenDirectory(directory)
         try withWalletLock {
+            try recoverIfNeeded()
             var hashes = try readRaw(Self.publicKeyHashesFile)
             let taken = try [hashes, readRaw(Self.publicKeysFile), readRaw(Self.secretKeysFile), readRaw(Self.contractsFile)]
                 .contains { $0.contains { ($0["name"] as? String) == wallet.alias } }
             guard !taken else { throw StoreError.aliasExists(wallet.alias) }
             hashes.append(["name": wallet.alias, "value": wallet.address.value])
-            try write(hashes, to: Self.publicKeyHashesFile)
+            try commit([(Self.publicKeyHashesFile, hashes)])
         }
     }
 
     func rename(alias: String, to newAlias: String) throws {
         try withWalletLock {
+            try recoverIfNeeded()
             var files = try Self.aliasFiles.map { ($0, try readRaw($0)) }
             let names = { (list: [[String: Any]]) in list.compactMap { $0["name"] as? String } }
             guard !files.contains(where: { names($0.1).contains(newAlias) }) else { throw StoreError.aliasExists(newAlias) }
@@ -177,13 +191,14 @@ struct TezosClientStore: WalletStore {
                     return renamed
                 }
             }
-            for (file, entries) in files { try write(entries, to: file) }
+            try commit(files.filter { FileManager.default.fileExists(atPath: directory.appendingPathComponent($0.0).path) })
         }
     }
 
     func removalSnapshot(for wallet: Wallet) throws -> WalletRemovalSnapshot {
         try withWalletLock {
-            try snapshot(for: wallet, files: Self.aliasFiles.map { ($0, try readRaw($0)) })
+            try recoverIfNeeded()
+            return try snapshot(for: wallet, files: Self.aliasFiles.map { ($0, try readRaw($0)) })
         }
     }
 
@@ -219,44 +234,49 @@ struct TezosClientStore: WalletStore {
     func remove(_ wallet: Wallet, matching expected: WalletRemovalSnapshot) throws {
         let alias = wallet.alias
         try withWalletLock {
+            try recoverIfNeeded()
             let files = try Self.aliasFiles.map { ($0, try readRaw($0)) }
             guard files.contains(where: { $0.1.contains { ($0["name"] as? String) == alias } }) else { throw StoreError.unknownAlias(alias) }
             let current = try snapshot(for: wallet, files: files)
             guard expected.wallet == wallet, expected.storageID == current.storageID,
                   expected.fingerprint == current.fingerprint else { throw StoreError.walletChanged(alias) }
+            var updates: [(String, [[String: Any]])] = []
             for (file, entries) in files {
                 let kept = entries.filter { ($0["name"] as? String) != alias }
-                if kept.count != entries.count { try write(kept, to: file) }
+                if kept.count != entries.count { updates.append((file, kept)) }
             }
+            try commit(updates)
         }
     }
 
     func importWallets(from directory: URL) throws -> Int {
         let source = TezosClientStore(directory: directory)
         guard source.hasWallets else { return 0 }
-        try FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
+        try PrivateFile.hardenDirectory(self.directory)
         return try withWalletLock {
+            try recoverIfNeeded()
             let existing = Set(try readEntries(Self.publicKeyHashesFile).map(\.name))
             let incoming = try source.readEntries(Self.publicKeyHashesFile).map(\.name).filter { !existing.contains($0) }
             let accepted = Set(incoming)
+            var copies: [(String, Data)] = []
+            var merges: [(String, [[String: Any]])] = []
             for file in Self.walletFiles {
                 let sourceURL = directory.appendingPathComponent(file)
-                guard FileManager.default.fileExists(atPath: sourceURL.path) else { continue }
+                guard let data = try PrivateFile.read(sourceURL) else { continue }
                 let target = self.directory.appendingPathComponent(file)
                 if !FileManager.default.fileExists(atPath: target.path) {
                     // Cold start: take an exact copy of the file.
-                    try FileManager.default.copyItem(at: sourceURL, to: target)
-                    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+                    copies.append((file, data))
                 } else {
                     // Merge: append only aliases we do not already have.
                     var entries = try readRaw(file)
                     let additions = try source.readRaw(file).filter { ($0["name"] as? String).map(accepted.contains) ?? false }
                     guard !additions.isEmpty else { continue }
                     entries.append(contentsOf: additions)
-                    try write(entries, to: file)
+                    merges.append((file, entries))
                 }
             }
+            try commit(merges, raw: copies)
             return incoming.count
         }
     }
@@ -264,21 +284,19 @@ struct TezosClientStore: WalletStore {
     /// The base58 secret key for `unencrypted:` and `encrypted:` entries (the caller supplies the
     /// password for the latter); `nil` for ledger, remote and watch-only aliases.
     func secretKey(for wallet: Wallet) throws -> String? {
-        let secretKeys = try index(readEntries(Self.secretKeysFile))
+        let (secretKeys, hashes) = try withWalletLock {
+            try recoverIfNeeded()
+            return (try index(readEntries(Self.secretKeysFile)), try index(readEntries(Self.publicKeyHashesFile)))
+        }
         guard let locator = secretKeys[wallet.alias] as? String else { return nil }
-        try verifyAddress(of: wallet)
+        let found = (hashes[wallet.alias] as? String).map(Address.init)
+        guard found == wallet.address else {
+            throw StoreError.addressMismatch(alias: wallet.alias, expected: wallet.address, found: found)
+        }
         for prefix in ["unencrypted:", "encrypted:"] where locator.hasPrefix(prefix) {
             return String(locator.dropFirst(prefix.count))
         }
         return nil
-    }
-
-    /// Fails unless `public_key_hashs` still maps the wallet's alias to its address.
-    private func verifyAddress(of wallet: Wallet) throws {
-        let found = (try index(readEntries(Self.publicKeyHashesFile))[wallet.alias] as? String).map(Address.init)
-        guard found == wallet.address else {
-            throw StoreError.addressMismatch(alias: wallet.alias, expected: wallet.address, found: found)
-        }
     }
 
     // MARK: - Parsing
@@ -290,9 +308,7 @@ struct TezosClientStore: WalletStore {
 
     private func readRaw(_ file: String) throws -> [[String: Any]] {
         let url = directory.appendingPathComponent(file)
-        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
-        let data = try Data(contentsOf: url)
-        guard !data.isEmpty else { return [] }
+        guard let data = try PrivateFile.read(url), !data.isEmpty else { return [] }
         guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             throw StoreError.malformed(file, "expected a JSON array of objects")
         }
@@ -324,24 +340,78 @@ struct TezosClientStore: WalletStore {
 
     // MARK: - Writing
 
-    private func write(_ entries: [[String: Any]], to file: String) throws {
-        let data = try JSONSerialization.data(withJSONObject: entries, options: [.prettyPrinted, .withoutEscapingSlashes])
-        let target = directory.appendingPathComponent(file)
-        let temporary = directory.appendingPathComponent(".\(file).\(UUID().uuidString).tmp")
-        try data.write(to: temporary, options: [.atomic])
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
-        _ = try FileManager.default.replaceItemAt(target, withItemAt: temporary)
-        // replaceItemAt keeps the original file's metadata, so re-apply the private mode.
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+    /// A change to several files as one unit (S09). Before the first file is replaced, a journal
+    /// records what every named file held (or that it did not exist); the journal is removed
+    /// after the last replacement. Found at the start of any later read or write, it means the
+    /// change was cut short, and the files are put back exactly as they were, so the three key
+    /// files (and `contracts`) always agree with each other. Must be called under the lock.
+    private func commit(_ updates: [(String, [[String: Any]])], raw: [(String, Data)] = []) throws {
+        let payloads = try updates.map { ($0.0, try JSONSerialization.data(withJSONObject: $0.1, options: [.prettyPrinted, .withoutEscapingSlashes])) } + raw
+        guard !payloads.isEmpty else { return }
+        let names = payloads.map(\.0)
+        guard Set(names).count == names.count, names.allSatisfy(Self.aliasFiles.contains) else { throw StoreError.malformed(Self.journalFile, "unexpected files in a transaction") }
+        if payloads.count > 1 {
+            var before: [String: Any] = [:]
+            for name in names {
+                before[name] = try PrivateFile.read(directory.appendingPathComponent(name)).map { $0.base64EncodedString() } ?? NSNull()
+            }
+            let journal = try JSONSerialization.data(withJSONObject: ["version": 1, "files": before])
+            try PrivateFile.write(journal, to: directory.appendingPathComponent(Self.journalFile))
+        }
+        for (name, data) in payloads {
+            try PrivateFile.write(data, to: directory.appendingPathComponent(name))
+        }
+        if payloads.count > 1 {
+            try FileManager.default.removeItem(at: directory.appendingPathComponent(Self.journalFile))
+            PrivateFile.syncDirectory(directory)
+        }
+    }
+
+    /// Rolls back a change the journal says never finished. Must be called under the lock.
+    private func recoverIfNeeded() throws {
+        let url = directory.appendingPathComponent(Self.journalFile)
+        guard let data = try PrivateFile.read(url) else { return }
+        guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              object["version"] as? Int == 1, let files = object["files"] as? [String: Any] else {
+            throw StoreError.malformed(Self.journalFile, "unreadable; an earlier change did not finish. Restore from a backup or remove the file by hand.")
+        }
+        for (name, previous) in files where Self.aliasFiles.contains(name) {
+            let target = directory.appendingPathComponent(name)
+            if let encoded = previous as? String, let bytes = Data(base64Encoded: encoded) {
+                try PrivateFile.write(bytes, to: target)
+            } else {
+                try? FileManager.default.removeItem(at: target)
+            }
+        }
+        try FileManager.default.removeItem(at: url)
+        PrivateFile.syncDirectory(directory)
     }
 
     /// Holds the same advisory lock octez-client takes while it edits the wallet files.
     private func withWalletLock<T>(_ body: () throws -> T) throws -> T {
-        let path = directory.appendingPathComponent(Self.lockFile).path
-        let fd = open(path, O_RDWR | O_CREAT, 0o644)
+        try Self.withWalletLock(in: directory, body)
+    }
+
+    /// How long a caller waits for the lock before giving up; octez-client holds it for milliseconds.
+    static let lockTimeout: TimeInterval = 5
+
+    /// The wallet lock, tried rather than waited for, so the main actor is never blocked for
+    /// good on a program that keeps it (S09). Readers and backups take it too.
+    static func withWalletLock<T>(in directory: URL, _ body: () throws -> T) throws -> T {
+        // No directory yet means no files and nobody else to lock out.
+        guard FileManager.default.fileExists(atPath: directory.path) else { return try body() }
+        let path = directory.appendingPathComponent(lockFile).path
+        let fd = open(path, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { close(fd) }
-        guard lockf(fd, F_LOCK, 0) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let deadline = Date().addingTimeInterval(lockTimeout)
+        while lockf(fd, F_TLOCK, 0) != 0 {
+            let busy = errno == EAGAIN || errno == EACCES
+            guard busy, Date() < deadline else {
+                throw busy ? StoreError.locked : POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            usleep(50_000)
+        }
         defer { _ = lockf(fd, F_ULOCK, 0) }
         return try body()
     }

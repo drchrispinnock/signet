@@ -386,3 +386,118 @@ struct FileAppStateStoreTests {
         #expect(model.selectedWallet?.alias == "pq")
     }
 }
+
+/// S09 and S10: wallet changes are one unit, files are private from creation, reads are locked.
+struct TezosClientStoreIntegrityTests {
+    private func makeDirectory(mode: Int = 0o700) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("signet-integrity-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: mode])
+        return url
+    }
+
+    private func mode(_ url: URL) throws -> Int {
+        try #require(FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int) & 0o777
+    }
+
+    @Test func filesAreCreatedPrivateAndTheDirectoryIsHardened() throws {
+        let dir = try makeDirectory(mode: 0o755)
+        let store = TezosClientStore(directory: dir)
+        try store.add(Wallet(alias: "a", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkA", keyKind: .unencrypted), secretKey: "edskA")
+        #expect(try mode(dir) == 0o700)
+        for file in TezosClientStore.walletFiles { #expect(try mode(dir.appendingPathComponent(file)) == 0o600) }
+        // No temporary or journal is left behind.
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".tmp") || $0 == TezosClientStore.journalFile }
+        #expect(leftovers.isEmpty)
+        // A directory someone else owns (simulated by a symlink) is refused.
+        let link = FileManager.default.temporaryDirectory.appendingPathComponent("signet-link-\(UUID().uuidString)")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: dir)
+        #expect(throws: PrivateFile.FileError.self) { try PrivateFile.hardenDirectory(link) }
+    }
+
+    @Test func anUnfinishedChangeIsRolledBackBeforeTheNextRead() throws {
+        let dir = try makeDirectory()
+        let store = TezosClientStore(directory: dir)
+        try store.add(Wallet(alias: "a", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkA", keyKind: .unencrypted), secretKey: "edskA")
+        let before = try TezosClientStore.walletFiles.map { try Data(contentsOf: dir.appendingPathComponent($0)) }
+        // Simulate a crash after the first of three files was replaced: the journal still names
+        // all three with their previous contents, and public_key_hashs already has the new alias.
+        var files: [String: Any] = [:]
+        for (file, data) in zip(TezosClientStore.walletFiles, before) { files[file] = data.base64EncodedString() }
+        files[TezosClientStore.contractsFile] = NSNull()
+        try JSONSerialization.data(withJSONObject: ["version": 1, "files": files]).write(to: dir.appendingPathComponent(TezosClientStore.journalFile))
+        try #"[{"name":"a","value":"tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"},{"name":"b","value":"tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"}]"#.write(to: dir.appendingPathComponent("public_key_hashs"), atomically: true, encoding: .utf8)
+        try #"[{"name":"orphan","value":"KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi"}]"#.write(to: dir.appendingPathComponent("contracts"), atomically: true, encoding: .utf8)
+        try "junk".write(to: dir.appendingPathComponent(".secret_keys.deadbeef.tmp"), atomically: true, encoding: .utf8)
+
+        let wallets = try store.load()
+        #expect(wallets.map(\.alias) == ["a"])
+        #expect(try TezosClientStore.walletFiles.map { try Data(contentsOf: dir.appendingPathComponent($0)) } == before)
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent("contracts").path))
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent(TezosClientStore.journalFile).path))
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent(".secret_keys.deadbeef.tmp").path))
+        // A journal that cannot be read is an error, never silently ignored.
+        try "{".write(to: dir.appendingPathComponent(TezosClientStore.journalFile), atomically: true, encoding: .utf8)
+        #expect(throws: TezosClientStore.StoreError.self) { try store.load() }
+    }
+
+    @Test func renameAndRemoveAreJournaledAsOneUnit() throws {
+        let dir = try makeDirectory()
+        let store = TezosClientStore(directory: dir)
+        let wallet = Wallet(alias: "a", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkA", keyKind: .unencrypted)
+        try store.add(wallet, secretKey: "edskA")
+        try store.rename(alias: "a", to: "b")
+        let renamed = try #require(try store.load().first)
+        #expect(renamed.alias == "b" && renamed.publicKey == "edpkA" && renamed.keyKind == .unencrypted)
+        let snapshot = try store.removalSnapshot(for: renamed)
+        try store.remove(renamed, matching: snapshot)
+        #expect(try store.load().isEmpty)
+        for file in TezosClientStore.walletFiles {
+            #expect((try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent(file))) as? [[String: Any]])?.isEmpty == true)
+        }
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent(TezosClientStore.journalFile).path))
+    }
+
+    @Test func proposalUpdatesMergeWhatIsOnDisk() throws {
+        let dir = try makeDirectory()
+        let one = FileMultisigProposalStore(directory: dir), two = FileMultisigProposalStore(directory: dir)
+        func proposal(_ n: Int) -> MultisigProposal {
+            MultisigProposal(contractAlias: "m", contractAddress: "KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi", networkName: "Shadownet", chainID: "NetX", counter: n, threshold: 2,
+                             keys: ["edpk1", "edpk2"], action: .setDelegate(delegate: nil), bytes: "05\(n)")
+        }
+        // Each instance holds a stale in-memory view; neither write may drop the other's proposal.
+        let first = proposal(1), second = proposal(2)
+        try one.update { $0.append(first) }
+        try two.update { $0.append(second) }
+        #expect(one.load().map(\.counter).sorted() == [1, 2])
+        try one.update { stored in stored[stored.firstIndex { $0.id == first.id }!].signatures.append(MultisigSignature(publicKey: "edpk1", signature: "edsig1")) }
+        try two.update { stored in stored[stored.firstIndex { $0.id == second.id }!].signatures.append(MultisigSignature(publicKey: "edpk2", signature: "edsig2")) }
+        let stored = two.load()
+        #expect(stored.first { $0.id == first.id }?.signatures.count == 1 && stored.first { $0.id == second.id }?.signatures.count == 1)
+        #expect(try mode(dir.appendingPathComponent(FileMultisigProposalStore.fileName)) == 0o600)
+        // Oversized entries another program wrote are left out (S19).
+        var huge = proposal(3); huge.bytes = String(repeating: "0", count: FileMultisigProposalStore.maxBytesHex + 2)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode([first, huge]).write(to: dir.appendingPathComponent(FileMultisigProposalStore.fileName))
+        #expect(one.load().map(\.counter) == [1])
+    }
+
+    @Test func aHeldLockMakesCallersWaitThenFail() throws {
+        let dir = try makeDirectory()
+        // The lock is advisory per process; hold it from a child process with a short timeout.
+        let script = "import fcntl,time,sys\nf=open(sys.argv[1],'a+')\nfcntl.lockf(f,fcntl.LOCK_EX)\nprint('locked',flush=True)\ntime.sleep(2.5)\n"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = ["-c", script, dir.appendingPathComponent(TezosClientStore.lockFile).path]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        // Wait until the child reports that it holds the lock.
+        #expect(String(data: pipe.fileHandleForReading.readData(ofLength: 6), encoding: .utf8) == "locked")
+        let started = Date()
+        // Taking the lock waits for the child (well under the 5 s timeout) rather than failing at once.
+        try TezosClientStore.withWalletLock(in: dir) { }
+        #expect(Date().timeIntervalSince(started) > 1)
+        process.waitUntilExit()
+        #expect(process.terminationStatus == 0)
+    }
+}

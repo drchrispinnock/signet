@@ -1007,9 +1007,11 @@ extension WalletViewModel {
         }
         let proposal = MultisigProposal(contractAlias: contract.alias, contractAddress: contract.address.value, networkName: network.name, chainID: chainID,
                                         counter: info.counter, threshold: info.threshold, keys: info.keys, action: action, bytes: bytes)
-        multisigProposals.append(proposal)
-        try proposalStore.save(multisigProposals)
-        return proposal
+        let same = { (p: MultisigProposal) in p.contractAddress == proposal.contractAddress && p.networkName == proposal.networkName && p.bytes == proposal.bytes }
+        multisigProposals = try proposalStore.update { stored in
+            if !stored.contains(where: same) { stored.append(proposal) }
+        }
+        return multisigProposals.first(where: same) ?? proposal
     }
 
     /// Signs a proposal with one of our accounts (a key of the multisig) and keeps the signature with it.
@@ -1054,14 +1056,15 @@ extension WalletViewModel {
     }
 
     func removeMultisigProposal(_ proposal: MultisigProposal) throws {
-        multisigProposals.removeAll { $0.id == proposal.id }
-        try proposalStore.save(multisigProposals)
+        multisigProposals = try proposalStore.update { $0.removeAll { $0.id == proposal.id } }
     }
 
+    /// Changes one stored proposal; the change is applied to the copy on disk, not the one in memory.
     private func updateProposal(_ id: MultisigProposal.ID, _ change: (inout MultisigProposal) -> Void) throws {
-        guard let index = multisigProposals.firstIndex(where: { $0.id == id }) else { return }
-        change(&multisigProposals[index])
-        try proposalStore.save(multisigProposals)
+        multisigProposals = try proposalStore.update { stored in
+            guard let index = stored.firstIndex(where: { $0.id == id }) else { return }
+            change(&stored[index])
+        }
     }
 
     func estimateSubmitMultisig(_ proposal: MultisigProposal, from wallet: Wallet) async throws -> MultisigEstimate {
