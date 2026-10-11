@@ -1,0 +1,8 @@
+
+There is going to be a resurgence of storing keys cold.
+
+We need to be able to:
+
+a) Import a key just for the length of the session. A restart will purge the key out of memory. The key can be encrypted with a password in memory.
+
+b) Generate a paper key and hold it just in memory.
