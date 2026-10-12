@@ -389,6 +389,7 @@ struct ShadownetMultisigTests {
                                           action: delegateAction, bytes: bytes2)
         let delegateHash = try await service.submit(rpcURL: rpc, signer: payerKey, proposal: delegation, signatures: [dsig2.signature, dsig3.signature], limits: try #require(try await service.estimateSubmit(rpcURL: rpc, from: payerWallet, proposal: delegation, signatures: [dsig2.signature, dsig3.signature]).limits))
         print("multisig delegation \(delegateHash)")
+        _ = try await chain.waitForConfirmation(of: delegateHash)
         try await Task.sleep(for: .seconds(4))
         let delegated = try await chain.delegateInfo(for: contract)
         #expect(delegated.delegate?.value == baker)
