@@ -1,9 +1,13 @@
 
 # Rough version list
 
-0.9 - Codex code audit
+# 0.9 and friends
 
-0.9.1 - UX tidy up
+- See LAYER2.md
+
+# 0.9.5 
+
+- Codex Slop clearup
 
 # Other Ideas
 - Expert mode (TBA)
