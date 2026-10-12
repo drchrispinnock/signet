@@ -54,7 +54,7 @@ struct AccountNotOnChainTests {
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MissingChain())
         await model.refresh()
         #expect(model.accountNotOnChain)
-        #expect(model.assets.isEmpty)
+        #expect(model.assets.isEmpty)  // the Etherlink row is not shown either
         #expect(model.errorMessage == nil)
         #expect(model.domains == ["ghost.tez"])  // other lookups still run
     }

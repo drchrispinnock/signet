@@ -53,7 +53,11 @@ struct TaquitoChainService: ChainService {
 
     /// `GET /chains/main/blocks/head/context/contracts/<pkh>/<field>` → `"<mutez>"`.
     private func rpcMutez(_ field: String, for address: Address) async throws -> String {
-        let url = network.rpcURL.appendingPathComponent("chains/main/blocks/head/context/contracts/\(address.value)/\(field)")
+        try await rpcMutez(field, for: address, at: network.rpcURL)
+    }
+
+    private func rpcMutez(_ field: String, for address: Address, at node: URL) async throws -> String {
+        let url = node.appendingPathComponent("chains/main/blocks/head/context/contracts/\(address.value)/\(field)")
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw RPCError(status: (response as? HTTPURLResponse)?.statusCode ?? 0, field: field, address: address,
@@ -65,8 +69,30 @@ struct TaquitoChainService: ChainService {
         return text
     }
 
+    /// `GET <node>/<path>` → a JSON string (such as `/chains/main/chain_id`).
+    private func rpcString(_ path: String, at node: URL) async throws -> String {
+        var request = URLRequest(url: node.appendingPathComponent(path))
+        request.timeoutInterval = 20
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              let text = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? String else {
+            throw URLError(.badServerResponse)
+        }
+        return text
+    }
+
+    /// The account's tez on Etherlink, through the rollup's Tezos-style RPC (`Network.l2RPCURL`):
+    /// the same `…/contracts/<pkh>/balance` call as a layer 1 node answers. An account the
+    /// rollup has never seen is simply 0. The node must report the pinned Etherlink chain id.
     func etherlinkBalance(for address: Address) async throws -> Decimal {
-        try await fallback.etherlinkBalance(for: address)
+        guard network.hasL2, let l2 = network.l2RPCURL else { throw ChainError.noEtherlinkNode }
+        if let expected = network.expectedL2ChainID {
+            let found = try await rpcString("chains/main/chain_id", at: l2)
+            guard found == expected else { throw ChainError.wrongChain(expected: expected, found: found) }
+        }
+        let mutez = try await rpcMutez("balance", for: address, at: l2)
+        guard let amount = Decimal(string: mutez) else { throw URLError(.cannotParseResponse) }
+        return amount / Mutez.perTez
     }
 
     func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] {

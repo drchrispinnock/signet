@@ -7,6 +7,11 @@ struct AppState: Codable, Equatable, Sendable {
     var networkName: String?
     /// Custom RPC nodes by network name, for networks where the user replaced the default.
     var nodeURLs: [String: String]?
+    /// Etherlink on or off by network name, only where the user changed it from the default
+    /// (on where we ship an Etherlink endpoint, off elsewhere).
+    var l2Enabled: [String: Bool]?
+    /// Etherlink RPC nodes by network name, where the user replaced (or supplied) one.
+    var l2NodeURLs: [String: String]?
 }
 
 protocol AppStateStore: Sendable {

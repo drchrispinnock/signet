@@ -27,6 +27,9 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
     var iconURLs: [URL] = []
     /// `fa1.2` / `fa2` for tokens.
     var standard: String?
+    /// Why the amount could not be read (the Etherlink node unreachable); the row shows this
+    /// instead of a figure.
+    var unavailable: String? = nil
 
     var formattedAmount: String { Self.format(amount, symbol: symbol) }
 

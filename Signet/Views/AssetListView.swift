@@ -23,8 +23,14 @@ struct AssetRowView: View {
             HStack(spacing: 16) {
                 icon
                     .frame(width: 44, height: 44)
-                Text(asset.formattedAmount)
-                    .font(.title3.monospacedDigit())
+                if let unavailable = asset.unavailable {
+                    Text("—").font(.title3.monospacedDigit()).foregroundStyle(.secondary)
+                        .help(unavailable)
+                    Text(unavailable).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+                } else {
+                    Text(asset.formattedAmount)
+                        .font(.title3.monospacedDigit())
+                }
                 Spacer()
                 if !asset.details.isEmpty {
                     Button {

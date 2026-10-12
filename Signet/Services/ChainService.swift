@@ -96,10 +96,16 @@ enum ChainError: LocalizedError, Equatable {
     case ledgerWrongDevice(String)
     /// The secret key on disk does not derive the account's address (edited or swapped directory).
     case keyAddressMismatch(String)
+    /// The network has Etherlink off or no Etherlink node to ask.
+    case noEtherlinkNode
+    /// A node answered with another chain's id than the one pinned for it (S12).
+    case wrongChain(expected: String, found: String)
 
     var errorDescription: String? {
         switch self {
         case .accountNotOnChain: "Key not found on chain"
+        case .noEtherlinkNode: "Etherlink is not enabled for this network."
+        case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."
         case .ledgerAppNotOpen: "Open the Tezos app on your Ledger and try again."

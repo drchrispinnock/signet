@@ -31,8 +31,21 @@ final class WalletViewModel {
         }
     }
 
-    /// Etherlink is not relevant yet; flip this to bring the row (icon, balance fetch) back.
-    static let showsEtherlinkBalance = false
+    /// The keys the Etherlink rollup accepts through its Tezos-style RPC (tz1 to tz3 for now).
+    nonisolated static func usableOnEtherlink(_ address: Address) -> Bool {
+        address.scheme.map { [.tz1, .tz2, .tz3].contains($0) } ?? false
+    }
+
+    /// The Etherlink row of the dashboard: only on networks with Etherlink on and for keys the
+    /// rollup accepts. An unreachable Etherlink node blanks this row alone, never the dashboard.
+    private nonisolated static func etherlinkRow(for address: Address, on network: Network, chain: any ChainService) async -> AssetBalance? {
+        guard network.hasL2, usableOnEtherlink(address) else { return nil }
+        do {
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
+        } catch {
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: 0, unavailable: "Etherlink balance unavailable: \(error.localizedDescription)")
+        }
+    }
 
     /// Every account: those from the wallet directory (accounts, address book, contracts), then
     /// the keys held for this session only. Assigning replaces the stored part.
@@ -148,6 +161,7 @@ final class WalletViewModel {
             var nodeURLs = state.nodeURLs ?? [:]
             nodeURLs[network.name] = network.isUsingDefaultNode ? nil : network.rpcURL.absoluteString
             state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
+            rememberL2(of: network)
             persistState()
             clearChainData()
             Task { await refresh() }
@@ -191,8 +205,55 @@ final class WalletViewModel {
     }
 
     private static func resolve(_ base: Network, in state: AppState) -> Network {
-        guard let saved = state.nodeURLs?[base.name], let url = Network.nodeURL(from: saved) else { return base }
-        return base.usingNode(url)
+        var network = base
+        if let saved = state.nodeURLs?[base.name], let url = Network.nodeURL(from: saved) { network = network.usingNode(url) }
+        let l2Node = state.l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
+        let l2Enabled = state.l2Enabled?[base.name] ?? (base.l2DefaultRPCURL != nil)
+        return network.usingL2(enabled: l2Enabled, node: l2Node)
+    }
+
+    /// Records `net`'s Etherlink choices in the saved state, only where they differ from the
+    /// defaults (on with our endpoint for mainnet and Shadownet, off elsewhere).
+    private func rememberL2(of net: Network) {
+        var nodes = state.l2NodeURLs ?? [:]
+        nodes[net.name] = net.isUsingDefaultL2Node ? nil : net.l2RPCURL?.absoluteString
+        state.l2NodeURLs = nodes.isEmpty ? nil : nodes
+        var flags = state.l2Enabled ?? [:]
+        flags[net.name] = net.l2Enabled == (net.l2DefaultRPCURL != nil) ? nil : net.l2Enabled
+        state.l2Enabled = flags.isEmpty ? nil : flags
+    }
+
+    /// Whether the Etherlink balance is shown for `base` (saved or default), without switching.
+    func isL2Enabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).l2Enabled }
+
+    /// The Etherlink node in use for `base`, if it has one.
+    func l2NodeURL(for base: Network) -> URL? { resolved(Network.named(base.name) ?? base).l2RPCURL }
+
+    func setL2Enabled(_ enabled: Bool, for base: Network) {
+        changeL2(of: base) { $0.usingL2(enabled: enabled, node: $0.l2RPCURL) }
+    }
+
+    /// Points `base`'s Etherlink at the node typed in Settings; false when it is not a URL.
+    @discardableResult
+    func setL2Node(_ text: String, for base: Network) -> Bool {
+        guard let url = Network.nodeURL(from: text) else { return false }
+        changeL2(of: base) { $0.usingL2(enabled: $0.l2Enabled, node: url) }
+        return true
+    }
+
+    func useDefaultL2Node(for base: Network) {
+        changeL2(of: base) { $0.usingL2(enabled: $0.l2Enabled, node: $0.l2DefaultRPCURL) }
+    }
+
+    /// Applies an Etherlink change: through `network` (which persists and reloads) when `base`
+    /// is in use, else straight into the saved state.
+    private func changeL2(of base: Network, _ change: (Network) -> Network) {
+        if base.name == network.name {
+            network = change(network)
+        } else {
+            rememberL2(of: change(resolved(Network.named(base.name) ?? base)))
+            persistState()
+        }
     }
 
     /// Switches to another network, talking to whatever node was last set for it.
@@ -223,7 +284,7 @@ final class WalletViewModel {
         guard let url = Network.nodeURL(from: text) else { return false }
         let template = Network.named(base.name) ?? base
         if base.name == network.name {
-            network = template.usingNode(url)      // didSet persists it
+            network = network.usingNode(url)      // didSet persists it
         } else {
             var nodeURLs = state.nodeURLs ?? [:]
             nodeURLs[base.name] = url == template.defaultRPCURL ? nil : url.absoluteString
@@ -237,7 +298,7 @@ final class WalletViewModel {
     func useDefaultNode(for base: Network) {
         let template = Network.named(base.name) ?? base
         if base.name == network.name {
-            network = template.usingNode(template.defaultRPCURL)
+            network = network.usingNode(template.defaultRPCURL)
         } else {
             var nodeURLs = state.nodeURLs ?? [:]
             nodeURLs[base.name] = nil
@@ -502,6 +563,7 @@ final class WalletViewModel {
         }
         let chain = self.chain
         let address = mine.address
+        let network = self.network
         isLoading = true
         errorMessage = nil
 
@@ -522,13 +584,11 @@ final class WalletViewModel {
             async let names = chain.domains(for: address)
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
+            async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
-            if Self.showsEtherlinkBalance {
-                let etherlink = try await chain.etherlinkBalance(for: address)
-                list.append(AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: etherlink))
-            }
+            if let row = await etherlink { list.append(row) }
             snapshot.tezBalance = tezBalance
             snapshot.assets = list
             snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
@@ -536,6 +596,7 @@ final class WalletViewModel {
             snapshot.transactions = try await history
             snapshot.delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
+            // Not on layer 1: no balance rows at all, the Etherlink one included.
             snapshot.notOnChain = true
             snapshot.portfolio = (try? await chain.portfolio(for: address)) ?? .empty
             snapshot.domains = (try? await chain.domains(for: address)) ?? []

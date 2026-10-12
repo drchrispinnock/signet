@@ -28,6 +28,15 @@ struct Network: Hashable, Identifiable, Sendable {
     /// network is long-lived enough to pin one (S12). The node monitor shows a node serving
     /// another chain in red, and nothing is estimated or signed through it.
     var expectedChainID: String? = nil
+    /// Etherlink, the layer 2 rollup, through its Tezos-style ("michelson") RPC, where tz1 to
+    /// tz3 keys are used directly. `l2DefaultRPCURL` is the endpoint we ship (mainnet and
+    /// Shadownet), `l2RPCURL` the one in use, and `l2Enabled` whether the dashboard shows the
+    /// Etherlink balance at all; networks without a shipped endpoint start disabled.
+    var l2DefaultRPCURL: URL? = nil
+    var l2RPCURL: URL? = nil
+    var l2Enabled = false
+    /// The chain id the Etherlink RPC must report (`/chains/main/chain_id`), when pinned (S12).
+    var expectedL2ChainID: String? = nil
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -37,7 +46,8 @@ struct Network: Hashable, Identifiable, Sendable {
     }
 
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
-         faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil) {
+         faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
+         l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil) {
         self.name = name
         self.chain = chain
         self.rpcURL = rpcURL
@@ -48,6 +58,22 @@ struct Network: Hashable, Identifiable, Sendable {
         self.faucetKind = faucetKind
         self.explorerURL = explorerURL
         self.expectedChainID = expectedChainID
+        self.l2DefaultRPCURL = l2RPCURL
+        self.l2RPCURL = l2RPCURL
+        self.l2Enabled = l2RPCURL != nil
+        self.expectedL2ChainID = expectedL2ChainID
+    }
+
+    /// Etherlink is on and has a node to ask.
+    var hasL2: Bool { l2Enabled && l2RPCURL != nil }
+    var isUsingDefaultL2Node: Bool { l2RPCURL == l2DefaultRPCURL }
+
+    /// The same network with Etherlink switched on or off and pointed at `node`.
+    func usingL2(enabled: Bool, node: URL?) -> Network {
+        var copy = self
+        copy.l2Enabled = enabled
+        copy.l2RPCURL = node
+        return copy
     }
 
     /// Where to look an operation up, if this network has an explorer.
@@ -117,7 +143,9 @@ struct Network: Hashable, Identifiable, Sendable {
         tezosDomainsURL: URL(string: "https://api.tezos.domains/graphql")!,
         tzktURL: URL(string: "https://api.tzkt.io")!,
         explorerURL: URL(string: "https://tzkt.io")!,
-        expectedChainID: "NetXdQprcVkpaWU"
+        expectedChainID: "NetXdQprcVkpaWU",
+        l2RPCURL: URL(string: "https://michelson.etherlink.mainnet.octez.io")!,
+        expectedL2ChainID: "NetXohUVN5QWR4f"
     )
     static let shadownet = Network(
         name: "Shadownet",
@@ -127,7 +155,9 @@ struct Network: Hashable, Identifiable, Sendable {
         tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
         faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!,
         explorerURL: URL(string: "https://shadownet.tzkt.io")!,
-        expectedChainID: "NetXsqzbfFenSTS"
+        expectedChainID: "NetXsqzbfFenSTS",
+        l2RPCURL: URL(string: "https://michelson.etherlink.shadownet.octez.io")!,
+        expectedL2ChainID: "NetXtLrzvQDobza"
     )
     static let bakingnet = Network(
         name: "Bakingnet",

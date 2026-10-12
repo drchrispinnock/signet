@@ -490,8 +490,21 @@ automatic download is off by default. The updater is not started under the test 
   tz1/tz3 is in Swift; secrets enter the bridge only for the one operation they sign (Taquito's
   `InMemorySigner`), and Ledger keys never leave the device. Use the bridge for RPC, forging,
   encoding, metadata and the Ledger APDU protocol.
-- Etherlink is out of scope for now. The row is hidden behind `WalletViewModel.showsEtherlinkBalance`;
-  the asset kind, logo asset and fetch path are kept so it can be switched back on.
+- **Etherlink (0.9).** The layer 2 rollup is reached through its Tezos-style ("michelson")
+  RPC, where tz1, tz2 and tz3 keys are used directly (tz4 and tz5 are not accepted by the
+  rollup yet). `Network.l2DefaultRPCURL` ships the endpoint for Mainnet
+  (`michelson.etherlink.mainnet.octez.io`, chain `NetXohUVN5QWR4f`) and Shadownet
+  (`michelson.etherlink.shadownet.octez.io`, chain `NetXtLrzvQDobza`); `l2Enabled` defaults to
+  on there and off elsewhere, and `l2RPCURL` is the node in use. Settings has "Enable Layer 2"
+  and a "Layer 2 Michelson node" field per network (same URL policy as the layer 1 node; the
+  word Etherlink is kept for the dashboard row only),
+  saved in `AppState.l2Enabled` / `l2NodeURLs` only where they differ from the defaults.
+  `TaquitoChainService.etherlinkBalance` checks the pinned Etherlink chain id, then reads
+  `…/contracts/<pkh>/balance` from the Etherlink node (an unseen account is 0; reveal state is
+  not shown). `WalletViewModel.etherlinkRow` adds the Etherlink row (logo `EtherlinkLogo`,
+  symbol tz, no breakdown) under the tez row only when `network.hasL2` and the key is usable
+  there and the account is on layer 1 (the "Key not found on chain" state shows no rows); an
+  unreachable Etherlink node blanks that row alone (`AssetBalance.unavailable`). The bridge dialogue is 0.9.1 (`docs/spec/LAYER2.md`).
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

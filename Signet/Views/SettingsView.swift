@@ -82,6 +82,8 @@ struct SettingsView: View {
     /// replace the default for that network. The text is applied on Return or with Apply.
     @State private var nodeText = ""
     @State private var nodeError: String?
+    @State private var l2NodeText = ""
+    @State private var l2NodeError: String?
 
     private var nodeSection: some View {
         Section {
@@ -92,7 +94,7 @@ struct SettingsView: View {
             }
             LabeledContent("Node") {
                 VStack(alignment: .trailing, spacing: 8) {
-                    TextField("Node", text: $nodeText)
+                    TextField("", text: $nodeText)
                         .font(.callout.monospaced())
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
@@ -113,6 +115,30 @@ struct SettingsView: View {
                     }
                 }
             }
+            Toggle("Enable Layer 2", isOn: l2Enabled)
+            if let base = editingNetwork, model.isL2Enabled(for: base) {
+                LabeledContent("Layer 2 Michelson node") {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        TextField("", text: $l2NodeText, prompt: Text("https://…"))
+                            .font(.callout.monospaced())
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                            .onSubmit(applyL2Node)
+                            .frame(minWidth: 280)
+                        if let l2NodeError {
+                            Text(l2NodeError).font(.callout).foregroundStyle(.red)
+                        } else if model.l2NodeURL(for: base) == nil {
+                            Text("Enter the Layer 2 Michelson node to use; the balance is not shown until then.").font(.callout).foregroundStyle(.orange)
+                        }
+                        HStack {
+                            Button("Use Default") { model.useDefaultL2Node(for: base); syncNodeText() }
+                                .disabled(base.l2DefaultRPCURL == nil || model.l2NodeURL(for: base) == base.l2DefaultRPCURL)
+                            Button("Apply", action: applyL2Node)
+                                .disabled(!l2NodeIsDirty)
+                        }
+                    }
+                }
+            }
         } footer: {
             Text(nodeFooter)
                 .font(.callout)
@@ -121,6 +147,28 @@ struct SettingsView: View {
         .onAppear { editingNetworkName = model.network.name; syncNodeText() }
         .onChange(of: editingNetworkName) { syncNodeText() }
         .onChange(of: model.network) { if editingNetworkName == model.network.name { syncNodeText() } }
+    }
+
+    private var l2Enabled: Binding<Bool> {
+        Binding(
+            get: { editingNetwork.map { model.isL2Enabled(for: $0) } ?? false },
+            set: { on in if let base = editingNetwork { model.setL2Enabled(on, for: base); syncNodeText() } }
+        )
+    }
+
+    private var l2NodeIsDirty: Bool {
+        guard let base = editingNetwork else { return false }
+        return Network.nodeURL(from: l2NodeText) != model.l2NodeURL(for: base)
+    }
+
+    private func applyL2Node() {
+        guard let base = editingNetwork else { return }
+        if model.setL2Node(l2NodeText, for: base) {
+            l2NodeError = nil
+            syncNodeText()
+        } else {
+            l2NodeError = Network.nodeURLProblem(l2NodeText)
+        }
     }
 
     private var editingNetwork: Network? { Network.named(editingNetworkName) }
@@ -141,14 +189,20 @@ struct SettingsView: View {
         if base.chain == "weeklynet" {
             text += " Weeklynet restarts every Wednesday and its address carries that date, so the default follows the calendar."
         }
+        if model.isL2Enabled(for: base) {
+            text += " With Layer 2 on, the dashboard shows each tz1, tz2 or tz3 account's balance on Etherlink, read from the Layer 2 Michelson node"
+            text += base.l2DefaultRPCURL.map { " (default \($0.absoluteString))." } ?? " you enter here."
+        }
         return text
     }
 
     private func syncNodeText() {
         if let base = editingNetwork {
             nodeText = model.nodeURL(for: base).nodeDisplayTextStandalone
+            l2NodeText = model.l2NodeURL(for: base)?.nodeDisplayTextStandalone ?? ""
         }
         nodeError = nil
+        l2NodeError = nil
     }
 
     private func applyNode() {
