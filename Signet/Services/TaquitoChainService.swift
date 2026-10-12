@@ -149,6 +149,26 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    func estimateEtherlinkDeposit(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        guard network.canDepositToL2, let helper = network.l2BridgeHelper, let rollup = network.l2Rollup else { throw ChainError.noEtherlinkBridge }
+        try await verifyChain()
+        let result = try await bridge.call("estimateEtherlinkDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount)], timeout: 120)
+        return try Self.estimate(from: result, amount: amount)
+    }
+
+    func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+        guard network.canDepositToL2, let helper = network.l2BridgeHelper, let rollup = network.l2Rollup else { throw ChainError.noEtherlinkBridge }
+        try await verifyChain()
+        let result = try await signing { try await bridge.call("sendEtherlinkDeposit", [network.rpcURL.absoluteString, signer.bridgeSpec, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount), limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected deposit payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     func pendingOperation(for address: Address) async throws -> SentOperation? {
         try await verifyChain()
         let value = try await bridge.call("pendingOperation", [network.rpcURL.absoluteString, address.value], timeout: 30)

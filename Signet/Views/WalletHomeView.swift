@@ -59,6 +59,7 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectDApp) {
             ConnectDAppSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingBridge) { BridgeSheet(model: model) }
         .sheet(isPresented: $model.isPresentingCreateMultisig) { CreateMultisigSheet(model: model) }
         .sheet(isPresented: $model.isPresentingAddMultisig) { AddMultisigSheet(model: model) }
         .sheet(isPresented: $model.isPresentingSignMultisig, onDismiss: { model.signMultisigPreset = nil }) { SignMultisigSheet(model: model) }

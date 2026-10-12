@@ -101,6 +101,7 @@ final class WalletViewModel {
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     var isPresentingGovernance = false
+    var isPresentingBridge = false
     var isPresentingBuy = false
 
     /// Governance is for bakers whose key we can sign with.
@@ -890,6 +891,41 @@ final class WalletViewModel {
     }
 
     /// Fee estimate for a staking-family operation from the selected wallet.
+    // MARK: Etherlink bridge (0.9.1)
+
+    /// The Bridge item: Layer 2 on with a known bridge, and a tz1 to tz3 account we can sign for.
+    var canBridge: Bool {
+        guard network.canDepositToL2, let wallet = selectedWallet else { return false }
+        return Self.usableOnEtherlink(wallet.address) && wallet.keyKind.canSign
+    }
+
+    func estimateBridgeDeposit(amount: Decimal) async throws -> TransferEstimate {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
+        return try await chain.estimateEtherlinkDeposit(from: wallet, amount: amount)
+    }
+
+    /// Moves `amount` tez from the selected account on layer 1 to the same account on Etherlink,
+    /// with the approved limits (S14), and waits for the layer 1 block. The rollup credits the
+    /// account on its own shortly after.
+    func bridgeToEtherlink(amount: Decimal, limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let limits else { throw WalletError.notEstimated }
+        guard canBridge else { throw ChainError.noEtherlinkBridge }
+        guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let chain = self.chain
+        let sent = try await chain.sendEtherlinkDeposit(from: wallet, signer: signer, amount: amount, limits: limits)
+        let level: Int
+        do {
+            level = try await chain.waitForConfirmation(of: sent.hash)
+        } catch where !sent.injected {
+            throw WalletError.outcomeUnknown(sent.hash)
+        }
+        await refreshAfterOperation()
+        return (sent.hash, level)
+    }
+
     func estimateStaking(_ operation: StakingOperation) async throws -> TransferEstimate {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         return try await chain.estimateStaking(operation, from: wallet)

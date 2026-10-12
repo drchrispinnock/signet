@@ -83,6 +83,9 @@ struct SignetApp: App {
                 Divider()
                 Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                if model.canBridge {
+                    Button("Bridge…") { model.isPresentingBridge = true }
+                }
                 Divider()
                 Button("Create multisig…") { model.isPresentingCreateMultisig = true }
                 Button("Add multisig…") { model.isPresentingAddMultisig = true }

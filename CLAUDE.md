@@ -504,7 +504,21 @@ automatic download is off by default. The updater is not started under the test 
   not shown). `WalletViewModel.etherlinkRow` adds the Etherlink row (logo `EtherlinkLogo`,
   symbol tz, no breakdown) under the tez row only when `network.hasL2` and the key is usable
   there and the account is on layer 1 (the "Key not found on chain" state shows no rows); an
-  unreachable Etherlink node blanks that row alone (`AssetBalance.unavailable`). The bridge dialogue is 0.9.1 (`docs/spec/LAYER2.md`).
+  unreachable Etherlink node blanks that row alone (`AssetBalance.unavailable`). **Bridge (0.9.1).** "Bridge…" (burger and Operations
+  menus, shown when `WalletViewModel.canBridge`: `Network.canDepositToL2`, a tz1 to tz3 account
+  we can sign for) opens `BridgeSheet`: Tezos left, Etherlink right, the arrow between them the
+  direction, an amount, and Fast / Slow for Etherlink → Tezos. A deposit is a layer 1 transfer
+  to Etherlink's bridge helper (`Network.l2BridgeHelper`, `deposit %evm_address %l2_address`,
+  mainnet `KT1Wj8SUGmnEPFqyahHAcjcNQwe6YGhEXJb5`, Shadownet `KT19aBsSWvWtvEkbiqReJnD8UzQMWcD8SHUD`)
+  naming the Smart Rollup (`l2Rollup`) and routing data for the same tz address on the
+  Michelson interface, `0x01 ++ rlp([[0x01, forged address], []])` as baking-bad's
+  `xtz_deposit_michelson.py` builds it (`src/bridge.js`, `michelsonRoutingData`; vectors in
+  `test/bridge.cjs`); `estimateEtherlinkDeposit` / `sendEtherlinkDeposit` go through the
+  approved-limits path and `WalletViewModel.bridgeToEtherlink` waits for the layer 1 block (the
+  rollup credits the account within about a minute). Etherlink → Tezos is shown but disabled:
+  Etherlink does not yet offer withdrawals from Michelson-interface accounts (October 2026);
+  wire it up when it does (standard withdrawals take 15 days, fast ones about a minute for a
+  fee). `ShadownetBridgeTests` is the live deposit round trip.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

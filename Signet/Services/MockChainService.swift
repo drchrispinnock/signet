@@ -85,6 +85,16 @@ struct MockChainService: ChainService {
                          limits: OperationLimits(feeMutez: "421", gasLimit: 200, storageLimit: 0))
     }
 
+    func estimateEtherlinkDeposit(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
+        TransferEstimate(fee: Decimal(string: "0.001234")!, burn: 0, total: amount + Decimal(string: "0.001234")!, gasLimit: 3000, storageLimit: 0,
+                         limits: OperationLimits(feeMutez: "1234", gasLimit: 3000, storageLimit: 0))
+    }
+
+    func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        return SentOperation(hash: "ooMockDeposit")
+    }
+
     func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
         if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return SentOperation(hash: "ooMockStaking\(operation.bridgeKind)")

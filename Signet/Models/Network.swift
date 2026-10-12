@@ -37,6 +37,11 @@ struct Network: Hashable, Identifiable, Sendable {
     var l2Enabled = false
     /// The chain id the Etherlink RPC must report (`/chains/main/chain_id`), when pinned (S12).
     var expectedL2ChainID: String? = nil
+    /// Etherlink's bridge helper contract on layer 1 (`deposit %evm_address %l2_address`) and the
+    /// Smart Rollup it feeds, for depositing tez to a Michelson-interface account. Shipped for
+    /// mainnet and Shadownet; a user-supplied Layer 2 node does not come with a bridge.
+    var l2BridgeHelper: Address? = nil
+    var l2Rollup: String? = nil
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -47,7 +52,7 @@ struct Network: Hashable, Identifiable, Sendable {
 
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
-         l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil) {
+         l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil) {
         self.name = name
         self.chain = chain
         self.rpcURL = rpcURL
@@ -62,10 +67,14 @@ struct Network: Hashable, Identifiable, Sendable {
         self.l2RPCURL = l2RPCURL
         self.l2Enabled = l2RPCURL != nil
         self.expectedL2ChainID = expectedL2ChainID
+        self.l2BridgeHelper = l2BridgeHelper.map(Address.init)
+        self.l2Rollup = l2Rollup
     }
 
     /// Etherlink is on and has a node to ask.
     var hasL2: Bool { l2Enabled && l2RPCURL != nil }
+    /// Tez can be moved from layer 1 to Etherlink here: Layer 2 is on and the bridge is known.
+    var canDepositToL2: Bool { hasL2 && l2BridgeHelper != nil && l2Rollup != nil }
     var isUsingDefaultL2Node: Bool { l2RPCURL == l2DefaultRPCURL }
 
     /// The same network with Etherlink switched on or off and pointed at `node`.
@@ -145,7 +154,9 @@ struct Network: Hashable, Identifiable, Sendable {
         explorerURL: URL(string: "https://tzkt.io")!,
         expectedChainID: "NetXdQprcVkpaWU",
         l2RPCURL: URL(string: "https://michelson.etherlink.mainnet.octez.io")!,
-        expectedL2ChainID: "NetXohUVN5QWR4f"
+        expectedL2ChainID: "NetXohUVN5QWR4f",
+        l2BridgeHelper: "KT1Wj8SUGmnEPFqyahHAcjcNQwe6YGhEXJb5",
+        l2Rollup: "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf"
     )
     static let shadownet = Network(
         name: "Shadownet",
@@ -157,7 +168,9 @@ struct Network: Hashable, Identifiable, Sendable {
         explorerURL: URL(string: "https://shadownet.tzkt.io")!,
         expectedChainID: "NetXsqzbfFenSTS",
         l2RPCURL: URL(string: "https://michelson.etherlink.shadownet.octez.io")!,
-        expectedL2ChainID: "NetXtLrzvQDobza"
+        expectedL2ChainID: "NetXtLrzvQDobza",
+        l2BridgeHelper: "KT19aBsSWvWtvEkbiqReJnD8UzQMWcD8SHUD",
+        l2Rollup: "sr19fMYrr5C4qqvQqQrDSjtP31GcrWjodzvg"
     )
     static let bakingnet = Network(
         name: "Bakingnet",

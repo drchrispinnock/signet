@@ -38,6 +38,11 @@ protocol ChainService: Sendable {
     /// BLS proof of possession for one of our tz4 keys.
     func proofOfPossession(signer: SigningKey) async throws -> String
 
+    // Etherlink bridge (0.9.1): a layer 1 deposit to the wallet's own account on the rollup.
+    func estimateEtherlinkDeposit(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate
+    /// Signs and injects the deposit with exactly the approved `limits` (S14).
+    func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
+
     /// Signs raw bytes (hex) with no watermark, e.g. a packed "Tezos Signed Message". Returns the
     /// signer's public key and the prefixed signature (edsig/spsig/p2sig…).
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload
@@ -98,6 +103,8 @@ enum ChainError: LocalizedError, Equatable {
     case keyAddressMismatch(String)
     /// The network has Etherlink off or no Etherlink node to ask.
     case noEtherlinkNode
+    /// The network has no known bridge contract for depositing to Etherlink.
+    case noEtherlinkBridge
     /// A node answered with another chain's id than the one pinned for it (S12).
     case wrongChain(expected: String, found: String)
 
@@ -105,6 +112,7 @@ enum ChainError: LocalizedError, Equatable {
         switch self {
         case .accountNotOnChain: "Key not found on chain"
         case .noEtherlinkNode: "Etherlink is not enabled for this network."
+        case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."

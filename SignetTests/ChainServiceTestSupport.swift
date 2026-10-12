@@ -22,6 +22,8 @@ extension TestChainService {
     func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)) }
     func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
     func proofOfPossession(signer: SigningKey) async throws -> String { "BLsigTest" }
+    func estimateEtherlinkDeposit(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)) }
+    func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload { SignedPayload(publicKey: "edpkTest", signature: "edsigTest") }
     func governanceInfo(for address: Address) async throws -> GovernanceInfo { GovernanceInfo() }
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String { "ooTest" }
