@@ -70,8 +70,13 @@ struct ForgetAccountSheet: View {
         .formStyle(.grouped).scrollDisabled(true)
     }
 
+    private var isSessionOnly: Bool { wallet?.isSessionOnly == true }
+
     private var firstText: String {
-        switch wallet?.keyKind {
+        if isSessionOnly {
+            return "This is a paper key held in memory for this session only; it was never written to disk. Forgetting wipes it now. Without the key or its recovery phrase elsewhere, the account and its tez are lost."
+        }
+        return switch wallet?.keyKind {
         case .unencrypted, .encrypted: "Signet holds this account's secret key. Forgetting deletes that key from ~/.signet. Without another copy of the key or its recovery phrase, the account and its tez are lost."
         case .ledger: "This account's key stays on your Ledger; Signet will only forget how to reach it. You can connect it again later."
         case .remote, .unknown: "Signet will forget this account's signer entry. The key itself lives elsewhere and is not touched."
@@ -82,13 +87,17 @@ struct ForgetAccountSheet: View {
     private var secondWarning: some View {
         Form {
             Label {
-                Text("Last chance. The secret key will be deleted from this Mac's wallet directory. Make sure you have exported it or have the recovery phrase first.")
+                Text(isSessionOnly
+                     ? "Last chance. The key will be wiped from memory. Make sure you have the paper copy or the recovery phrase first."
+                     : "Last chance. The secret key will be deleted from this Mac's wallet directory. Make sure you have exported it or have the recovery phrase first.")
             } icon: { Image(systemName: "exclamationmark.octagon.fill") }
                 .foregroundStyle(.red)
-            Label {
-                Text("Earlier backups in \(backupFolder) may still contain this key. Delete those too if you need the key gone from this Mac entirely.")
-            } icon: { Image(systemName: "externaldrive.badge.exclamationmark") }
-                .font(.callout).foregroundStyle(.secondary)
+            if !isSessionOnly {
+                Label {
+                    Text("Earlier backups in \(backupFolder) may still contain this key. Delete those too if you need the key gone from this Mac entirely.")
+                } icon: { Image(systemName: "externaldrive.badge.exclamationmark") }
+                    .font(.callout).foregroundStyle(.secondary)
+            }
             if needsPassphrase, let wallet {
                 SecureField("Password for “\(wallet.alias)”", text: $passphrase)
                     .onSubmit { if !passphrase.isEmpty { forget() } }

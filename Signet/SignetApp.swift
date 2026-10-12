@@ -5,6 +5,14 @@ struct SignetApp: App {
     /// True when this process is the host for `SignetTests`.
     static var isTestHost: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
 
+    init() {
+        // Session-only keys live in memory (`SessionKeyStore`); a core dump would write that
+        // memory to disk. macOS crash reports carry no heap, and this makes sure no core file is
+        // ever produced either.
+        var none = rlimit(rlim_cur: 0, rlim_max: 0)
+        setrlimit(RLIMIT_CORE, &none)
+    }
+
     /// The app's model. Under the test host it is built on in-memory stores only (S24): no wallet
     /// directory is read, no backup is scheduled, no dApp storage or client is touched, so tests
     /// never see or change the developer's real wallet state. Tests construct their own models.

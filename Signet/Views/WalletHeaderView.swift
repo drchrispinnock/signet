@@ -61,6 +61,7 @@ struct WalletIdentityView: View {
                     .foregroundStyle(.secondary)
                 if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
                 if wallet.keyKind == .ledger { ledgerTag }
+                if wallet.isSessionOnly { sessionTag }
             }
         }
         .menuStyle(.borderlessButton)
@@ -87,6 +88,16 @@ struct WalletIdentityView: View {
             .background(Capsule().fill(.quaternary))
             .foregroundStyle(.secondary)
             .help("Signet has no key for this address; you can watch it and send to it.")
+    }
+
+    private var sessionTag: some View {
+        Label("This session", systemImage: "clock")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("A paper key held in memory only. It is not in the wallet directory or any backup and is forgotten when Signet quits.")
     }
 
     private var ledgerTag: some View {

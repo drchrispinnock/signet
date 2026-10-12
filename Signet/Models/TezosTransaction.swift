@@ -22,6 +22,10 @@ struct TezosTransaction: Identifiable, Hashable, Sendable {
     /// Entrypoint for contract calls.
     let entrypoint: String?
     let isApplied: Bool
+    /// The contract that carried this out on our behalf: an internal operation a multisig (or any
+    /// contract we called) emitted, which the indexer lists under our account with the contract
+    /// as sender and us as initiator. `nil` for operations we sent ourselves.
+    var via: Address? = nil
     /// Delegations only: where the delegator was pointing before.
     var previousDelegate: Address? = nil
     /// Delegations only: the delegator's balance at the time (what moved in or out of our stake).

@@ -270,7 +270,10 @@ struct RawForgingTests {
 
         await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, substituted]) }
         // A single changed byte (fee, branch, key…) is refused too; the honest bytes pass.
-        var tampered = honest; tampered.replaceSubrange(tampered.index(tampered.startIndex, offsetBy: 70)..<tampered.index(tampered.startIndex, offsetBy: 72), with: "ff")
+        // The byte at offset 35 lies inside the (random) source address; write whatever it is not.
+        var tampered = honest
+        let byte = tampered.index(tampered.startIndex, offsetBy: 70)..<tampered.index(tampered.startIndex, offsetBy: 72)
+        tampered.replaceSubrange(byte, with: honest[byte] == "ff" ? "00" : "ff")
         await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, tampered]) }
         await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, honest + "00"]) }
         await #expect(throws: (any Error).self) { try await Self.bridge.call("verifyRawForgingForTest", [Self.branch, json, ""]) }

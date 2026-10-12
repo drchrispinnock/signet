@@ -34,7 +34,16 @@ final class WalletViewModel {
     /// Etherlink is not relevant yet; flip this to bring the row (icon, balance fetch) back.
     static let showsEtherlinkBalance = false
 
-    private(set) var wallets: [Wallet]
+    /// Every account: those from the wallet directory (accounts, address book, contracts), then
+    /// the keys held for this session only. Assigning replaces the stored part.
+    private(set) var wallets: [Wallet] {
+        get { storedWallets + sessionWallets }
+        set { storedWallets = newValue.filter { !$0.isSessionOnly } }
+    }
+    private var storedWallets: [Wallet]
+    /// Paper keys imported for this run only: in memory, never in the directory or a backup.
+    private(set) var sessionWallets: [Wallet] = []
+    private let sessionKeys = SessionKeyStore()
     /// Named contracts (octez-client `contracts` aliases): the KT1 entries of the address book,
     /// which is where created and added multisigs go.
     var multisigContracts: [MultisigContract] {
@@ -349,7 +358,7 @@ final class WalletViewModel {
                 loadError = "Could not load accounts: \(error.localizedDescription)"
             }
         }
-        self.wallets = loaded
+        self.storedWallets = loaded
         // Restore the wallet that was showing last time, if it still exists.
         let remembered = state.selectedWalletAlias
         self.selectedWalletID = loaded.first { $0.alias == remembered }?.id ?? loaded.first?.id
@@ -607,6 +616,10 @@ final class WalletViewModel {
     /// know its password. Earlier backups keep their copies.
     func forgetSelectedWallet(passphrase: String?) async throws {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        if wallet.isSessionOnly {
+            try await forgetSessionWallet(wallet, passphrase: passphrase)
+            return
+        }
         let revision = walletDirectoryRevision
         let store = walletStore
         let snapshot = try store.removalSnapshot(for: wallet)
@@ -620,6 +633,24 @@ final class WalletViewModel {
         guard walletDirectoryRevision == revision else { throw WalletError.directoryChanged }
         try store.remove(wallet, matching: snapshot)
         wallets = (try? store.load()) ?? wallets.filter { $0.id != wallet.id }
+        selectAfterRemoval()
+        await backUp()
+    }
+
+    /// Drops a session-only key: wiped from memory now (it was never on disk). An encrypted one
+    /// is opened first, as for a stored key, so the password proves the owner is asking.
+    private func forgetSessionWallet(_ wallet: Wallet, passphrase: String?) async throws {
+        if wallet.keyKind == .encrypted {
+            guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
+            guard let stored = try sessionKeys.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+            _ = try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase)
+        }
+        sessionKeys.remove(wallet)
+        sessionWallets = sessionKeys.wallets
+        selectAfterRemoval()
+    }
+
+    private func selectAfterRemoval() {
         if let next = wallets.first {
             select(next)
         } else {
@@ -627,7 +658,6 @@ final class WalletViewModel {
             rememberSelection()
             domains = []; assets = []; tokens = []; nfts = []; transactions = []; delegateInfo = nil; tezBalance = nil
         }
-        await backUp()
     }
 
     /// What Export puts on screen: the clear key, and the encrypted form when that is how it is stored.
@@ -640,7 +670,7 @@ final class WalletViewModel {
     /// surfaces as `ChainError.wrongPassphrase`.
     func exportSecretKey(passphrase: String?) async throws -> ExportedKey {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
-        guard let stored = try walletStore.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+        guard let stored = try softwareSecret(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
         switch wallet.keyKind {
         case .unencrypted:
             return ExportedKey(clear: stored, encrypted: nil)
@@ -654,7 +684,10 @@ final class WalletViewModel {
 
     /// Adds an account from key material obtained elsewhere (a pasted key or a recovery phrase).
     /// Stores it clear, or encrypted with `storePassphrase`; an already-encrypted key is kept as is.
-    func importAccount(alias: String, material: KeyMaterial, alreadyEncrypted: Bool = false, storePassphrase: String? = nil) async throws {
+    /// With `keepForSession` the key is a paper key for this run only: held in memory (encrypted
+    /// there too when a password is given), never written to the directory or a backup, and gone
+    /// when Signet quits.
+    func importAccount(alias: String, material: KeyMaterial, alreadyEncrypted: Bool = false, storePassphrase: String? = nil, keepForSession: Bool = false) async throws {
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw WalletError.emptyAlias }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
@@ -667,7 +700,14 @@ final class WalletViewModel {
             secretKey = try await keyGenerator.encrypt(secretKey: material.secretKey, passphrase: storePassphrase)
             kind = .encrypted
         }
-        let wallet = Wallet(alias: name, address: Address(material.address), scheme: material.scheme, publicKey: material.publicKey, keyKind: kind)
+        var wallet = Wallet(alias: name, address: Address(material.address), scheme: material.scheme, publicKey: material.publicKey, keyKind: kind)
+        if keepForSession {
+            wallet.isSessionOnly = true
+            sessionKeys.add(wallet, secretKey: secretKey)
+            sessionWallets = sessionKeys.wallets
+            select(wallet)
+            return
+        }
         try walletStore.add(wallet, secretKey: secretKey)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
@@ -838,10 +878,16 @@ final class WalletViewModel {
 
     /// What signs for one of our wallets: its secret key from the store (with `passphrase` if
     /// encrypted) or its Ledger key. `nil` for watch-only and remote-signer aliases.
+    /// A software key's secret (clear or octez-encrypted) from the directory, or from memory for
+    /// a session-only key; both check the alias still maps to the wallet's address.
+    private func softwareSecret(for wallet: Wallet) throws -> String? {
+        wallet.isSessionOnly ? try sessionKeys.secretKey(for: wallet) : try walletStore.secretKey(for: wallet)
+    }
+
     func signingKey(for wallet: Wallet, passphrase: String?) throws -> SigningKey? {
         switch wallet.keyKind {
         case .unencrypted, .encrypted:
-            guard let secretKey = try walletStore.secretKey(for: wallet) else { return nil }
+            guard let secretKey = try softwareSecret(for: wallet) else { return nil }
             return .secret(secretKey, passphrase: wallet.keyKind == .encrypted ? passphrase : nil, address: wallet.address)
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
@@ -901,11 +947,16 @@ final class WalletViewModel {
         guard name != wallet.alias else { return }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
 
-        try walletStore.rename(alias: wallet.alias, to: name)
-        wallets = try walletStore.load()
+        if wallet.isSessionOnly {
+            sessionKeys.rename(alias: wallet.alias, to: name)
+            sessionWallets = sessionKeys.wallets
+        } else {
+            try walletStore.rename(alias: wallet.alias, to: name)
+            wallets = try walletStore.load()
+        }
         selectedWalletID = name
         rememberSelection()
-        Task { await backUp() }
+        if !wallet.isSessionOnly { Task { await backUp() } }
     }
 
     private func rememberSelection() {
@@ -956,6 +1007,7 @@ extension WalletViewModel {
         case tampered
         case contextChanged(Address)
         case awaitingConfirmation(String, Address)
+        case invalidAmount
 
         var errorDescription: String? {
             switch self {
@@ -973,6 +1025,7 @@ extension WalletViewModel {
             case .wrongNetwork(let name): "This proposal was made on \(name); switch to that network to sign it."
             case .tampered: "This proposal does not match what the multisig would sign for it now. Nothing was signed; discard it and propose it again."
             case .awaitingConfirmation(let hash, let address): "Operation \(hash) has not been confirmed. Its contract address is \(address.value). Open Send from the paying account to recover this operation; do not create another contract."
+            case .invalidAmount: "The initial balance must be a number of tez, zero or more."
             case .contextChanged(let address): "The wallet directory or network changed while the multisig \(address.shortened()) was being set up. It exists on chain but was not recorded here; add it with Add multisig… where it belongs."
             }
         }
@@ -1011,30 +1064,32 @@ extension WalletViewModel {
         try await multisig.info(rpcURL: network.rpcURL, address: contract.address)
     }
 
-    func estimateCreateMultisig(threshold: Int, keys: [String]) async throws -> MultisigEstimate {
+    /// Fee and burn for deploying the multisig, with `amount` tez moved into it on creation.
+    func estimateCreateMultisig(threshold: Int, keys: [String], amount: Decimal = 0) async throws -> MultisigEstimate {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
-        try Self.checkMultisig(threshold: threshold, keys: keys)
-        return try await multisig.estimateOriginate(rpcURL: network.rpcURL, from: wallet, threshold: threshold, keys: keys)
+        try Self.checkMultisig(threshold: threshold, keys: keys, amount: amount)
+        return try await multisig.estimateOriginate(rpcURL: network.rpcURL, from: wallet, threshold: threshold, keys: keys, amount: amount)
     }
 
-    private static func checkMultisig(threshold: Int, keys: [String]) throws {
+    private static func checkMultisig(threshold: Int, keys: [String], amount: Decimal) throws {
         if let bad = keys.first(where: { !isPublicKey($0) }) { throw MultisigError.invalidKey(bad) }
         guard threshold >= 1, threshold <= keys.count else { throw MultisigError.thresholdOutOfRange(threshold, keys.count) }
+        guard amount >= 0, amount.isFinite, Mutez.isValid(Mutez.fromTez(amount)) else { throw MultisigError.invalidAmount }
     }
 
     /// Deploys a multisig from the selected account with the approved estimate's limits (S14),
     /// waits for its block and records it under `alias`.
-    func createMultisig(alias: String, threshold: Int, keys: [String], limits: OperationLimits?, passphrase: String?) async throws -> MultisigContract {
+    func createMultisig(alias: String, threshold: Int, keys: [String], amount: Decimal = 0, limits: OperationLimits?, passphrase: String?) async throws -> MultisigContract {
         guard let limits else { throw WalletError.notEstimated }
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw WalletError.emptyAlias }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
-        try Self.checkMultisig(threshold: threshold, keys: keys)
+        try Self.checkMultisig(threshold: threshold, keys: keys, amount: amount)
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
         let chain = self.chain
         let context = (revision: walletDirectoryRevision, network: network, generation: operationGeneration)
-        let (hash, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys, limits: limits)
+        let (hash, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys, amount: amount, limits: limits)
         do { _ = try await chain.waitForConfirmation(of: hash) }
         catch { throw MultisigError.awaitingConfirmation(hash, address) }
         return try await recordContract(MultisigContract(alias: name, address: address), startedIn: context)

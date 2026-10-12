@@ -235,7 +235,12 @@ extension TzKTService {
             case .origination: other = row["originatedContract"] as? [String: Any]
             case .other: other = nil
             }
-            let outgoing = senderAddress == address.value
+            // An internal operation a contract emitted because we called it (a multisig paying
+            // out) is ours: the indexer lists it under our account with the contract as sender
+            // and us as initiator, so it must not read as money coming in from the contract.
+            let initiator = (row["initiator"] as? [String: Any])?["address"] as? String
+            let initiatedByUs = senderAddress != address.value && initiator == address.value
+            let outgoing = senderAddress == address.value || initiatedByUs
             let direction: Direction = outgoing
                 ? ((other?["address"] as? String) == address.value ? .selfTransfer : .outgoing)
                 : .incoming
@@ -261,6 +266,7 @@ extension TzKTService {
                 tx.delegatedBalance = mutez / Mutez.perTez
                 tx.delegationTarget = address
             }
+            if initiatedByUs { tx.via = Address(senderAddress) }
             return tx
         }
     }

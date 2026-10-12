@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Brings in an existing account from a recovery phrase or a pasted secret key. The secret is
 /// derived or checked through the bridge, previewed, then written to the key store (clear, or
-/// encrypted with a password like Create account).
+/// encrypted with a password like Create account), or kept in memory for this session only: a
+/// paper key that is never written to disk and is forgotten when Signet quits.
 struct ImportAccountSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +12,11 @@ struct ImportAccountSheet: View {
         case secretKey = "Secret key"
         case phrase = "Recovery phrase"
         var id: String { rawValue }
+    }
+
+    /// Where the key goes: the wallet directory, or memory until the app quits.
+    enum Keep: Hashable {
+        case directory, session
     }
 
     @State private var source: Source = .secretKey
@@ -29,6 +35,7 @@ struct ImportAccountSheet: View {
     @State private var keyPassphrase = ""
     @State private var inspected: InspectedSecretKey?
     // Storage
+    @State private var keep: Keep = .directory
     @State private var encrypt: Bool
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -174,13 +181,22 @@ struct ImportAccountSheet: View {
 
     @ViewBuilder
     private var storageFields: some View {
+        Picker("Keep the key", selection: $keep) {
+            Text("In the wallet directory").tag(Keep.directory)
+            Text("Only until Signet quits").tag(Keep.session)
+        }
+        .pickerStyle(.radioGroup)
+        if keep == .session {
+            Label("A paper key for one session: held in memory only, never written to the wallet directory or a backup, and gone when Signet quits (or crashes). Import it again next time.", systemImage: "clock")
+                .font(.callout).foregroundStyle(.secondary)
+        }
         if !keepsOwnEncryption {
-            Toggle("Encrypt with a password", isOn: $encrypt)
+            Toggle(keep == .session ? "Encrypt in memory with a password" : "Encrypt with a password", isOn: $encrypt)
             if encrypt {
                 SecureField("Password", text: $password)
                 SecureField("Confirm password", text: $confirmPassword)
                 if let passwordProblem, !password.isEmpty { Text(passwordProblem).font(.callout).foregroundStyle(.secondary) }
-            } else {
+            } else if keep == .directory {
                 Label("Unencrypted keys are stored on disk unprotected. Anyone who can read ~/.signet can spend from this account.", systemImage: "exclamationmark.triangle")
                     .font(.callout).foregroundStyle(.orange)
             }
@@ -246,7 +262,8 @@ struct ImportAccountSheet: View {
             defer { isImporting = false }
             do {
                 try await model.importAccount(alias: trimmedAlias, material: preview, alreadyEncrypted: keepsOwnEncryption,
-                                              storePassphrase: (!keepsOwnEncryption && encrypt) ? password : nil)
+                                              storePassphrase: (!keepsOwnEncryption && encrypt) ? password : nil,
+                                              keepForSession: keep == .session)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription

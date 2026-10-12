@@ -57,6 +57,9 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     var keyKind: KeyKind
     /// Where the key lives on a Ledger, when `keyKind` is `.ledger` and the locator parsed.
     var ledgerKey: LedgerKey?
+    /// A paper key imported for this run only: its secret is in memory (`SessionKeyStore`), not
+    /// in the wallet directory, and is gone when Signet quits.
+    var isSessionOnly = false
 
     init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil) {
         self.alias = alias
@@ -65,5 +68,18 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
         self.publicKey = publicKey
         self.keyKind = keyKind
         self.ledgerKey = ledgerKey
+    }
+
+    enum CodingKeys: String, CodingKey { case alias, address, scheme, publicKey, keyKind, ledgerKey, isSessionOnly }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        alias = try values.decode(String.self, forKey: .alias)
+        address = try values.decode(Address.self, forKey: .address)
+        scheme = try values.decode(AddressScheme.self, forKey: .scheme)
+        publicKey = try values.decodeIfPresent(String.self, forKey: .publicKey)
+        keyKind = try values.decode(KeyKind.self, forKey: .keyKind)
+        ledgerKey = try values.decodeIfPresent(LedgerKey.self, forKey: .ledgerKey)
+        isSessionOnly = try values.decodeIfPresent(Bool.self, forKey: .isSessionOnly) ?? false
     }
 }

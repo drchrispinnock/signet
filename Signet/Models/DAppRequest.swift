@@ -92,8 +92,6 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
             guard EndpointPolicy.isPublicHTTPS(rpcURL) else { return nil }
             return Network(name: "Custom (\(endpointDescription(rpcURL)))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
         }
-        // Currentnet is whatever proposal net is live; accept its current protocol name too.
-        if kind == "ushuaianet" { return .currentnet }
         return nil
     }
 

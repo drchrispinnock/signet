@@ -16,7 +16,7 @@ struct Network: Hashable, Identifiable, Sendable {
     let defaultRPCURL: URL
     /// Tezos Domains GraphQL endpoint, or `nil` where the service does not run.
     let tezosDomainsURL: URL?
-    /// TzKT indexer base URL (tokens, NFTs), or `nil` where none is available.
+    /// TzKT indexer base URL (tokens, NFTs, history), or `nil` where none is available.
     let tzktURL: URL?
     /// Testnet faucet, or `nil` on mainnet (from teztnets.json).
     var faucetURL: URL? = nil
@@ -53,14 +53,20 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Where to look an operation up, if this network has an explorer.
     func explorerURL(operation hash: String) -> URL? {
         guard let explorerURL else { return nil }
-        // tzkt.io takes the hash as a path; self-hosted TzKT front ends use the hash route.
-        return explorerURL.host() == "tzkt.io" ? explorerURL.appendingPathComponent(hash) : URL(string: "\(explorerURL.absoluteString)/#op/\(hash)")
+        // tzkt.io front ends (mainnet and the testnets) take the hash as a path; self-hosted
+        // TzKT front ends use the hash route.
+        return Self.isTzKTFrontEnd(explorerURL) ? explorerURL.appendingPathComponent(hash) : URL(string: "\(explorerURL.absoluteString)/#op/\(hash)")
     }
 
     /// Where to look a contract up, if this network has an explorer.
     func explorerURL(contract address: String) -> URL? {
         guard let explorerURL else { return nil }
-        return explorerURL.host() == "tzkt.io" ? explorerURL.appendingPathComponent(address) : URL(string: "\(explorerURL.absoluteString)/#contract/\(address)")
+        return Self.isTzKTFrontEnd(explorerURL) ? explorerURL.appendingPathComponent(address) : URL(string: "\(explorerURL.absoluteString)/#contract/\(address)")
+    }
+
+    private static func isTzKTFrontEnd(_ url: URL) -> Bool {
+        let host = url.host()?.lowercased() ?? ""
+        return host == "tzkt.io" || host.hasSuffix(".tzkt.io")
     }
 
     var isMainnet: Bool { chain == "mainnet" }
@@ -120,6 +126,7 @@ struct Network: Hashable, Identifiable, Sendable {
         tezosDomainsURL: nil,
         tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
         faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!,
+        explorerURL: URL(string: "https://shadownet.tzkt.io")!,
         expectedChainID: "NetXsqzbfFenSTS"
     )
     static let bakingnet = Network(
@@ -128,16 +135,21 @@ struct Network: Hashable, Identifiable, Sendable {
         rpcURL: URL(string: "https://rpc.bakingnet.teztnets.com")!,
         tezosDomainsURL: nil,
         tzktURL: URL(string: "https://api.bakingnet.tzkt.io")!,
-        faucetURL: URL(string: "https://faucet.bakingnet.teztnets.com")!
+        faucetURL: URL(string: "https://faucet.bakingnet.teztnets.com")!,
+        explorerURL: URL(string: "https://bakingnet.tzkt.io")!
     )
-    /// The current protocol-proposal testnet (Ushuaianet at the time of writing).
-    static let currentnet = Network(
-        name: "Currentnet",
-        chain: "currentnet",
-        rpcURL: URL(string: "https://rpc.currentnet.teztnets.com")!,
+    /// The protocol-proposal testnet of the day (Ushuaia, October 2026). teztnets.com also
+    /// aliases it as "currentnet", but TzKT names its instance after the protocol, so the entry
+    /// is the protocol's own: when the next proposal's network appears, replace this one.
+    static let ushuaianet = Network(
+        name: "Ushuaianet",
+        chain: "ushuaianet",
+        rpcURL: URL(string: "https://rpc.ushuaianet.teztnets.com")!,
         tezosDomainsURL: nil,
-        tzktURL: nil,
-        faucetURL: URL(string: "https://faucet.currentnet.teztnets.com")!
+        tzktURL: URL(string: "https://api.ushuaianet.tzkt.io")!,
+        faucetURL: URL(string: "https://faucet.ushuaianet.teztnets.com")!,
+        explorerURL: URL(string: "https://ushuaianet.tzkt.io")!,
+        expectedChainID: "NetXpX8WSZkAZZA"
     )
 
     /// Weeklynet restarts every Wednesday from tezos/tezos master and its hosts carry the launch
@@ -190,7 +202,7 @@ struct Network: Hashable, Identifiable, Sendable {
     )
 
     /// Networks offered in Settings, in display order, each with its default node.
-    static var all: [Network] { [.mainnet, .shadownet, .bakingnet, .currentnet, .weeklynet, .quantumnet, .custom] }
+    static var all: [Network] { [.mainnet, .shadownet, .bakingnet, .ushuaianet, .weeklynet, .quantumnet, .custom] }
 
     static func named(_ name: String?) -> Network? {
         all.first { $0.name == name }

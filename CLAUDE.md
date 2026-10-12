@@ -204,7 +204,7 @@ automatic download is off by default. The updater is not started under the test 
   `inspectSecretKey` reports the address and reduces a 64-byte edsk to its seed so it can be
   stored in octez format. Both paths end in `WalletViewModel.importAccount(alias:material:…)`,
   which can encrypt the key for storage like Create account. `KeyImporter` is the protocol
-  (`BridgeKeyImporter`, `MockKeyImporter`).
+  (`BridgeKeyImporter`, `MockKeyImporter`). **Session-only keys (0.8.3).** The sheet's "Keep the key" choice (in the wallet directory, or only until Signet quits) makes a paper key: `importAccount(…keepForSession: true)` puts it in `SessionKeyStore` (`Signet/Services/SessionKeys.swift`, `mlock`ed bytes wiped on forget) instead of the store, `Wallet.isSessionOnly` marks it, and `WalletViewModel.wallets` is the stored list plus `sessionWallets`. It signs, exports, renames and forgets like a stored key (encrypted in memory too when a password is given) but is never written to the directory or a backup and is gone at quit; the header tags it "This session". `SignetApp.init` sets `RLIMIT_CORE` to 0 so no core dump can carry it.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
@@ -387,7 +387,7 @@ automatic download is off by default. The updater is not started under the test 
   signatures from Signet and `octez-client sign multisig transaction` combine; `multisigSubmit`
   places each signature in its key's slot by verification (any order), calls `main` with
   `(Pair (Pair counter (Left lambda)) sigs)` and refuses when the counter moved. `MultisigService`
-  (`BridgeMultisigService`, `MockMultisigService`); `WalletViewModel` has `createMultisig`,
+  (`BridgeMultisigService`, `MockMultisigService`); `WalletViewModel` has `createMultisig` (an optional initial balance, `amount`, is moved in by the origination itself: the bridge passes it as `balance` with `mutez: true`, so the estimate's limits cover it; the sheet's "Initial balance" field defaults to 0),
   `multisigSignerKey(from:)` (a signer given as a public key, one of our accounts, an address-book
   entry or a pasted tz address; addresses resolve to the key they revealed on chain via
   `multisigRevealedKey`, else `MultisigError.notRevealed`; the node is not trusted to say whose
@@ -450,7 +450,7 @@ automatic download is off by default. The updater is not started under the test 
   `WalletViewModel.requestTestTez(amount:)`; on Mainnet Buy opens `BuySheet`. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
   other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
-  into `TezosTransaction`; rows show the counterparty's avatar and name, our alias with a green seal
+  into `TezosTransaction`; an internal operation a contract made because we called it, such as a multisig payout (sender the contract, `initiator` us), is outgoing with `via` the contract, not money coming in from it; rows show the counterparty's avatar and name, our alias with a green seal
   when it is one of ours, else TzKT's alias, via `WalletViewModel.displayName`), `TokenListView`
   (the Assets tab: fungible/DeFi tokens from the same TzKT `/v1/tokens/balances` call via
   `TzKTService.fungibleTokens`: anything with decimal places or FA1.2, amount divided by the
@@ -495,7 +495,8 @@ automatic download is off by default. The updater is not started under the test 
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the
-  URL from the most recent Wednesday (UTC). Each `Network` has a `defaultRPCURL` and the `rpcURL`
+  URL from the most recent Wednesday (UTC). The protocol-proposal testnet is listed under its own name (`Network.ushuaianet`, chain id pinned) rather than teztnets.com's "currentnet" alias, because TzKT names its instance after the protocol (api.ushuaianet.tzkt.io) and the alias has no indexer; replace the entry when the next proposal's network appears. Shadownet, Bakingnet and Ushuaianet link to their tzkt.io explorers.
+  Each `Network` has a `defaultRPCURL` and the `rpcURL`
   in use: Settings shows the network as a dropdown with a free-text node field beneath it, and
   `WalletViewModel.setNode` / `useDefaultNode` replace the node for the current network only.
   Custom nodes are kept per network name in `AppState.nodeURLs`; `switchNetwork(to:)` applies

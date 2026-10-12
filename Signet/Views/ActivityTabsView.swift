@@ -182,6 +182,7 @@ struct TransactionRowView: View {
         var parts = [Self.relative.localizedString(for: transaction.timestamp, relativeTo: Date())]
         if let entrypoint = transaction.entrypoint { parts.append("entrypoint \(entrypoint)") }
         else if transaction.isContractCall { parts.append("contract") }
+        if let via = transaction.via { parts.append("via \(model.displayName(for: via, indexerAlias: nil).name)") }
         if !party.isOurs, transaction.counterpartyAlias != nil { parts.append("name from TzKT") }
         return parts.joined(separator: " · ")
     }

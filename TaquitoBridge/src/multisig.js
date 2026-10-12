@@ -62,6 +62,17 @@ function initialStorage(threshold, keys) {
   return { prim: "Pair", args: [{ int: "0" }, { prim: "Pair", args: [{ int: String(threshold) }, keys.map((k) => ({ string: k }))] }] };
 }
 
+/** A non-negative whole number of mutez to put into the contract when it is created. */
+function initialBalance(amountMutez) {
+  const text = String(amountMutez ?? "0");
+  if (!/^\d{1,20}$/.test(text)) throw new Error(`Invalid initial balance: ${JSON.stringify(amountMutez)}`);
+  return text;
+}
+
+function originationParams(threshold, keys, amountMutez) {
+  return { code: multisigScript, init: initialStorage(threshold, keys), balance: initialBalance(amountMutez), mutez: true };
+}
+
 function checkThreshold(threshold, keys) {
   if (!Array.isArray(keys) || keys.length === 0) throw new Error("A multisig needs at least one key");
   if (!(threshold >= 1)) throw new Error("The threshold must be at least 1");
@@ -69,14 +80,18 @@ function checkThreshold(threshold, keys) {
   if (new Set(keys).size !== keys.length) throw new Error("The same key is listed twice");
 }
 
-/** Fee and burn for deploying a multisig with `threshold` of `keys` from `source`. */
-export async function multisigEstimateOriginate(rpcUrl, source, publicKey, threshold, keysJson) {
+/**
+ * Fee and burn for deploying a multisig with `threshold` of `keys` from `source`, holding
+ * `amountMutez` from the start (0 by default). The balance moves with the origination itself.
+ */
+export async function multisigEstimateOriginate(rpcUrl, source, publicKey, threshold, keysJson, amountMutez = "0") {
   const keys = JSON.parse(keysJson);
   checkThreshold(Number(threshold), keys);
+  const params = originationParams(threshold, keys, amountMutez);
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
-  const est = await tk.estimate.originate({ code: multisigScript, init: initialStorage(threshold, keys) });
-  return approvedEstimate(tk, "originate", { code: multisigScript, init: initialStorage(threshold, keys) }, est);
+  const est = await tk.estimate.originate(params);
+  return approvedEstimate(tk, "originate", params, est);
 }
 
 /**
@@ -85,15 +100,14 @@ export async function multisigEstimateOriginate(rpcUrl, source, publicKey, thres
  * as the operation is injected; the caller waits for the block, so a lost confirmation cannot
  * hide an origination that happened (S15).
  */
-export async function multisigOriginate(rpcUrl, signerSpec, threshold, keysJson, limitsJson) {
+export async function multisigOriginate(rpcUrl, signerSpec, threshold, keysJson, limitsJson, amountMutez = "0") {
   const keys = JSON.parse(keysJson);
   checkThreshold(Number(threshold), keys);
   const limits = parseLimits(limitsJson);
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
-  const op = await prepareApproved(tk, "originate", { code: multisigScript, init: initialStorage(threshold, keys) }, limits);
+  const op = await prepareApproved(tk, "originate", originationParams(threshold, keys, amountMutez), limits);
   return signAndInject(tk, rpcUrl, op);
-
 }
 
 /** Counter, threshold, keys and balance of a multisig, and whether its code is the generic script. */

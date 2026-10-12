@@ -46,7 +46,7 @@ struct DAppRequestParsingTests {
     @Test func mapsRequestNetworksOntoOurs() {
         #expect(DAppRequest.network(forType: "mainnet", rpcURL: nil) == .mainnet)
         #expect(DAppRequest.network(forType: "shadownet", rpcURL: nil) == .shadownet)
-        #expect(DAppRequest.network(forType: "ushuaianet", rpcURL: nil) == .currentnet)
+        #expect(DAppRequest.network(forType: "ushuaianet", rpcURL: nil) == .ushuaianet)
         #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")) == .shadownet)
         #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.example.org"))?.chain == "custom")
         #expect(DAppRequest.network(forType: "ghostnet", rpcURL: nil) == nil)

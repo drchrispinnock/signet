@@ -96,7 +96,7 @@ struct QuantumnetTests {
         #expect(q.faucetKind == .pqpark)
         #expect(q.explorerURL(operation: "ooX")?.absoluteString == "https://quantumnet-tzkt.pqpark.dal.nomadic-labs.com/#op/ooX")
         #expect(Network.mainnet.explorerURL(operation: "ooX")?.absoluteString == "https://tzkt.io/ooX")
-        #expect(Network.shadownet.explorerURL(operation: "ooX") == nil)
+        #expect(Network.shadownet.explorerURL(operation: "ooX") == URL(string: "https://shadownet.tzkt.io/ooX"))
         #expect(Network.all.map(\.name).contains("Quantumnet"))
     }
 

@@ -23,6 +23,42 @@ struct TransactionParsingTests {
     ]
     """.data(using: .utf8)!
 
+    /// A multisig payout we submitted: TzKT lists the contract's internal transfer under our
+    /// account with the contract as sender and us as initiator. It is ours, going out.
+    @Test func internalTransfersWeInitiatedAreOutgoingViaTheContract() throws {
+        let fixture = """
+        [
+          {"type":"transaction","id":10,"hash":"ooMULTI","level":200,"timestamp":"2026-10-11T10:00:00Z","status":"applied","amount":5000000,"bakerFee":0,"nonce":0,
+           "initiator":{"address":"tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"},"sender":{"alias":"Treasury","address":"KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM"},"target":{"alias":"Captain Stake","address":"tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"}},
+          {"type":"transaction","id":9,"hash":"ooMULTI","level":200,"timestamp":"2026-10-11T10:00:00Z","status":"applied","amount":0,"bakerFee":1200,
+           "sender":{"address":"tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"},"target":{"alias":"Treasury","address":"KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM"},"parameter":{"entrypoint":"main","value":{}}},
+          {"type":"transaction","id":11,"hash":"ooPAID","level":201,"timestamp":"2026-10-11T10:01:00Z","status":"applied","amount":2000000,"bakerFee":0,"nonce":0,
+           "initiator":{"address":"tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"},"sender":{"alias":"Treasury","address":"KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM"},"target":{"address":"tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N"}}
+        ]
+        """.data(using: .utf8)!
+        let txs = TzKTService.parseOperations(fixture, for: Self.me)
+        #expect(txs.count == 3)
+
+        let payout = txs[0]
+        #expect(payout.direction == .outgoing)
+        #expect(payout.counterparty?.value == "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        #expect(payout.counterpartyAlias == "Captain Stake")
+        #expect(payout.amount == 5)
+        #expect(payout.via?.value == "KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM")
+
+        // The call that triggered it: nothing to the contract itself, entrypoint main.
+        let call = txs[1]
+        #expect(call.direction == .outgoing)
+        #expect(call.counterparty?.value == "KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM")
+        #expect(call.amount == 0 && call.entrypoint == "main" && call.via == nil)
+
+        // A payout someone else had the contract make to us is simply incoming from the contract.
+        let paid = txs[2]
+        #expect(paid.direction == .incoming)
+        #expect(paid.counterparty?.value == "KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM")
+        #expect(paid.via == nil)
+    }
+
     @Test func classifiesDirectionCounterpartyAndAmounts() throws {
         let txs = TzKTService.parseOperations(Self.fixture, for: Self.me)
         #expect(txs.count == 7)

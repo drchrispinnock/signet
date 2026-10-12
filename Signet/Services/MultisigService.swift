@@ -13,10 +13,11 @@ protocol MultisigService: Sendable {
     /// those fields and only they are signed; they are returned so the caller can compare them
     /// with what it showed the user. `proposal.bytes` is never used.
     func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String)
-    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate
+    /// Fee and burn for deploying the contract with `amount` tez moved into it on creation.
+    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String], amount: Decimal) async throws -> MultisigEstimate
     /// Deploys a multisig with the approved limits (S14). Returns the operation hash and the new
     /// address as soon as it is injected; the caller waits for the block (S15).
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address)
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], amount: Decimal, limits: OperationLimits) async throws -> (hash: String, address: Address)
     /// The contract's state plus the bytes every signer signs for this action at its current counter.
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String)
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate
@@ -110,15 +111,15 @@ struct BridgeMultisigService: MultisigService {
         return (bytes, signature)
     }
 
-    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
+    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String], amount: Decimal) async throws -> MultisigEstimate {
         try await verify(rpcURL)
         guard let publicKey = wallet.publicKey else { throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.") }
-        return try Self.estimate(from: try await bridge.call("multisigEstimateOriginate", [rpcURL.absoluteString, wallet.address.value, publicKey, threshold, try Self.json(keys)]))
+        return try Self.estimate(from: try await bridge.call("multisigEstimateOriginate", [rpcURL.absoluteString, wallet.address.value, publicKey, threshold, try Self.json(keys), Mutez.fromTez(amount)]))
     }
 
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) {
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], amount: Decimal, limits: OperationLimits) async throws -> (hash: String, address: Address) {
         try await verify(rpcURL)
-        let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json])
+        let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json, Mutez.fromTez(amount)])
         guard let hash = r["hash"]?.stringValue, let address = r["address"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected origination payload: \(String(describing: r))") }
         return (hash, Address(address))
     }
@@ -190,13 +191,16 @@ final class MockMultisigService: MultisigService, @unchecked Sendable {
         signed.append((bytes, proposal.action))
         return (bytes, "edsigMock" + String(bytes.suffix(12)) + String(signer.bridgeSpec.hashValue.magnitude % 1000))
     }
-    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
+    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String], amount: Decimal) async throws -> MultisigEstimate {
         MultisigEstimate(fee: 0.002, burn: 0.5, total: 0.502, gasLimit: 1000, storageLimit: 500, limits: OperationLimits(feeMutez: "2000", gasLimit: 1000, storageLimit: 500))
     }
     private(set) var originations: [OperationLimits] = []
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) {
+    /// The initial balance each origination asked for, in tez.
+    private(set) var fundedWith: [Decimal] = []
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], amount: Decimal, limits: OperationLimits) async throws -> (hash: String, address: Address) {
         self.keys = keys; self.threshold = threshold; counter = 0
         originations.append(limits)
+        fundedWith.append(amount)
         return ("ooMockOrigination", Self.sampleAddress)
     }
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String) {

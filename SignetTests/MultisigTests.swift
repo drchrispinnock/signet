@@ -128,6 +128,19 @@ struct MultisigFlowTests {
         await #expect(throws: WalletViewModel.WalletError.self) { try await model.addMultisig(alias: "treasury", address: "KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi") }
     }
 
+    @Test func createMovesTheInitialBalanceIntoTheContract() async throws {
+        let service = MockMultisigService()
+        let model = makeModel(service)
+        model.select(Self.alice)
+        let keys = ["edpkALICE", "sppkBOB"]
+        await #expect(throws: WalletViewModel.MultisigError.self) { try await model.createMultisig(alias: "t", threshold: 1, keys: keys, amount: -1, limits: Self.limits, passphrase: nil) }
+        await #expect(throws: WalletViewModel.MultisigError.self) { _ = try await model.estimateCreateMultisig(threshold: 1, keys: keys, amount: -0.5) }
+        _ = try await model.createMultisig(alias: "empty", threshold: 1, keys: keys, limits: Self.limits, passphrase: nil)
+        model.select(Self.alice)   // a new contract is shown once created; the payer must be selected again
+        _ = try await model.createMultisig(alias: "funded", threshold: 1, keys: keys, amount: Decimal(string: "2.5")!, limits: Self.limits, passphrase: nil)
+        #expect(service.fundedWith == [0, Decimal(string: "2.5")!])
+    }
+
     @Test func createChecksThresholdAndKeysThenRecordsTheAlias() async throws {
         let service = MockMultisigService()
         let model = makeModel(service)
@@ -315,21 +328,23 @@ struct ShadownetMultisigTests {
         #expect(funded)
 
         let keys = [payer.publicKey, second.publicKey, third.publicKey]
-        let estimate = try await service.estimateOriginate(rpcURL: rpc, from: payerWallet, threshold: 2, keys: keys)
+        // Created with 1 tez in it: the initial balance travels with the origination.
+        let estimate = try await service.estimateOriginate(rpcURL: rpc, from: payerWallet, threshold: 2, keys: keys, amount: 1)
         #expect(estimate.fee > 0 && estimate.burn > 0)
-        let (originationHash, contract) = try await service.originate(rpcURL: rpc, signer: payerKey, threshold: 2, keys: keys, limits: try #require(estimate.limits))
+        let (originationHash, contract) = try await service.originate(rpcURL: rpc, signer: payerKey, threshold: 2, keys: keys, amount: 1, limits: try #require(estimate.limits))
         _ = try await chain.waitForConfirmation(of: originationHash)
         #expect(contract.isContract)
         print("multisig deployed at \(contract.value)")
 
         let info = try await service.info(rpcURL: rpc, address: contract)
         #expect(info.isGenericMultisig && info.threshold == 2 && info.keys == keys && info.counter == 0)
+        #expect(info.balance == 1)
         // Originating revealed the payer's key, so its address alone now identifies a signer; the
         // recipient has never sent anything and has no revealed key.
         #expect(try await service.revealedPublicKey(rpcURL: rpc, address: payerWallet.address) == payer.publicKey)
         #expect(try await service.revealedPublicKey(rpcURL: rpc, address: Address(recipient.address)) == nil)
 
-        // Fund the multisig (its default entrypoint takes tez).
+        // Top it up (its default entrypoint takes tez): 1 + 3 = 4 tez.
         let fundEstimate = try await chain.estimateTransfer(from: payerWallet, to: contract, amount: 3)
         let funding = try await chain.sendTransfer(from: payerWallet, signer: payerKey, to: contract, amount: 3, limits: try #require(fundEstimate.limits))
         _ = try await chain.waitForConfirmation(of: funding.hash)
@@ -366,14 +381,14 @@ struct ShadownetMultisigTests {
         try await Task.sleep(for: .seconds(4))
         let after = try await service.info(rpcURL: rpc, address: contract)
         #expect(after.counter == 1)
-        #expect(after.balance == 2)
+        #expect(after.balance == 3)
         let received = try await chain.tezBalance(for: Address(recipient.address))
         #expect(received.spendable == 1)
         // The same signatures cannot be replayed: the counter moved on.
         await #expect(throws: (any Error).self) { try await service.estimateSubmit(rpcURL: rpc, from: payerWallet, proposal: proposal, signatures: [sig3.signature, sig1.signature]) }
         // The dashboard's balance path works for the contract too.
         let contractBalance = try await chain.tezBalance(for: contract)
-        #expect(contractBalance.total == 2 && contractBalance.spendable == 2)
+        #expect(contractBalance.total == 3 && contractBalance.spendable == 3)
 
         // Now delegate the multisig to an active baker, signed by the other two keys.
         let (data, _) = try await URLSession.shared.data(from: rpc.appendingPathComponent("chains/main/blocks/head/context/delegates").appending(queryItems: [URLQueryItem(name: "active", value: "true")]))

@@ -216,8 +216,8 @@ private struct ContextSwitchingMultisig: MultisigService {
     func revealedPublicKey(rpcURL: URL, address: Address) async throws -> String? { throw URLError(.unsupportedURL) }
     func address(forPublicKey publicKey: String) async throws -> Address { throw URLError(.unsupportedURL) }
     func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String) { throw URLError(.unsupportedURL) }
-    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate { throw URLError(.unsupportedURL) }
-    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) { throw URLError(.unsupportedURL) }
+    func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String], amount: Decimal) async throws -> MultisigEstimate { throw URLError(.unsupportedURL) }
+    func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], amount: Decimal, limits: OperationLimits) async throws -> (hash: String, address: Address) { throw URLError(.unsupportedURL) }
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate { throw URLError(.unsupportedURL) }
     func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String { throw URLError(.unsupportedURL) }
 }

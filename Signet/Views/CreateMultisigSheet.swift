@@ -35,6 +35,7 @@ struct CreateMultisigSheet: View {
 
     @State private var alias = ""
     @State private var threshold = 2
+    @State private var amountText = "0"
     @State private var signers: [Signer] = []
     @State private var pasteText = ""
     @State private var estimate: MultisigEstimate?
@@ -47,10 +48,17 @@ struct CreateMultisigSheet: View {
     private var needsPassphrase: Bool { payer?.keyKind == .encrypted }
     private var signsOnLedger: Bool { payer?.keyKind == .ledger }
     private var keys: [String] { signers.compactMap(\.key) }
+    /// Tez to move into the contract when it is created; `nil` when the field is not a number ≥ 0.
+    private var amount: Decimal? {
+        let text = amountText.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        guard let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), value >= 0, value.isFinite else { return nil }
+        return value
+    }
+    private var isFunded: Bool { (amount ?? 0) > 0 }
     private var allResolved: Bool { !signers.isEmpty && signers.allSatisfy { $0.key != nil } }
     private var canCreate: Bool {
         !alias.trimmingCharacters(in: .whitespaces).isEmpty && allResolved && threshold >= 1 && threshold <= keys.count
-            && payer?.keyKind.canSign == true && estimate != nil && !(needsPassphrase && passphrase.isEmpty) && !isWorking
+            && payer?.keyKind.canSign == true && estimate != nil && amount != nil && !(needsPassphrase && passphrase.isEmpty) && !isWorking
     }
     private var mine: [Wallet] { model.wallets.filter { $0.keyKind != KeyKind.none } }
     private var addressBook: [Wallet] { model.wallets.filter { $0.keyKind == KeyKind.none && !$0.address.isContract } }
@@ -71,7 +79,7 @@ struct CreateMultisigSheet: View {
         }
         .padding(20)
         .frame(width: 600)
-        .task(id: "\(threshold)-\(keys.joined())-\(allResolved)") { await refreshEstimate() }
+        .task(id: "\(threshold)-\(keys.joined())-\(allResolved)-\(amountText)") { await refreshEstimate() }
     }
 
     private var form: some View {
@@ -117,6 +125,19 @@ struct CreateMultisigSheet: View {
             Stepper(value: $threshold, in: 1...max(1, signers.count)) {
                 LabeledContent("Signatures required", value: "\(threshold) of \(signers.count)")
             }
+            LabeledContent("Initial balance") {
+                HStack(spacing: 4) {
+                    TextField("tez", text: $amountText, prompt: Text("0"))
+                        .multilineTextAlignment(.trailing).frame(width: 110)
+                    Text("tz").foregroundStyle(.secondary)
+                }
+            }
+            if amount == nil {
+                Text("Enter a number of tez, 0 or more.").font(.caption).foregroundStyle(.orange)
+            } else {
+                Text("Moved into the contract from the paying account as it is created. 0 leaves it empty; it can be sent tez at any time.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let payer {
                 LabeledContent("Paid by") {
                     HStack(spacing: 8) {
@@ -129,7 +150,10 @@ struct CreateMultisigSheet: View {
             if let estimate {
                 LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz"))
                 LabeledContent("Storage", value: AssetBalance.format(estimate.burn, symbol: "tz"))
-            } else if allResolved, threshold <= keys.count {
+                if let amount, amount > 0 {
+                    LabeledContent("Total", value: AssetBalance.format(estimate.fee + estimate.burn + amount, symbol: "tz"))
+                }
+            } else if allResolved, threshold <= keys.count, amount != nil {
                 LabeledContent("Fee") { ProgressView().controlSize(.small) }
             }
             if needsPassphrase, let payer { SecureField("Password for “\(payer.alias)”", text: $passphrase) }
@@ -159,7 +183,9 @@ struct CreateMultisigSheet: View {
                 Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(contract.address.value, forType: .string) } label: { Image(systemName: "doc.on.doc") }
                     .buttonStyle(.borderless).help("Copy address")
             }
-            Text("Send tez to that address to fund it. Give the other signers the address so they can add it on their side.")
+            Text(isFunded
+                 ? "It was created holding \(AssetBalance.format(amount ?? 0, symbol: "tz")). Give the other signers the address so they can add it on their side."
+                 : "Send tez to that address to fund it. Give the other signers the address so they can add it on their side.")
                 .font(.callout).foregroundStyle(.secondary)
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent) }
         }
@@ -207,8 +233,8 @@ struct CreateMultisigSheet: View {
     private func refreshEstimate() async {
         estimate = nil
         errorMessage = nil
-        guard allResolved, threshold <= keys.count, payer?.publicKey != nil else { return }
-        do { estimate = try await model.estimateCreateMultisig(threshold: threshold, keys: keys) } catch { errorMessage = error.localizedDescription }
+        guard allResolved, threshold <= keys.count, payer?.publicKey != nil, let amount else { return }
+        do { estimate = try await model.estimateCreateMultisig(threshold: threshold, keys: keys, amount: amount) } catch { errorMessage = error.localizedDescription }
     }
 
     private func create() async {
@@ -216,7 +242,7 @@ struct CreateMultisigSheet: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            created = try await model.createMultisig(alias: alias, threshold: threshold, keys: keys, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil)
+            created = try await model.createMultisig(alias: alias, threshold: threshold, keys: keys, amount: amount ?? 0, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil)
         } catch {
             errorMessage = error.localizedDescription
         }
