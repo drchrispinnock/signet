@@ -147,6 +147,7 @@ final class WalletViewModel {
 
     /// Everything on the dashboard that came from the chain for the previous context (S16).
     private func clearChainData() {
+        operationGeneration = UUID()
         refreshGeneration += 1
         isLoading = false
         assets = []
@@ -163,6 +164,7 @@ final class WalletViewModel {
 
     /// Which load is current. Every refresh captures the generation, the account, the network and
     /// the directory it started under and publishes nothing unless all four still hold (S16).
+    private var operationGeneration = UUID()
     private var refreshGeneration = 0
     private struct RefreshContext: Equatable {
         let generation: Int
@@ -265,7 +267,8 @@ final class WalletViewModel {
     let ledger: any LedgerService
     /// Pasted secret keys and recovery phrases.
     let keyImporter: any KeyImporter
-    let multisig: any MultisigService
+    private let multisigService: any MultisigService
+    var multisig: any MultisigService { multisigService.forNetwork(network) }
     private var proposalStore: any MultisigProposalStore
     private(set) var isConnectingLedger = false
     private var walletStore: any WalletStore
@@ -327,7 +330,7 @@ final class WalletViewModel {
         self.keyGenerator = keyGenerator
         self.ledger = ledger
         self.keyImporter = keyImporter
-        self.multisig = multisig
+        self.multisigService = multisig
         let proposalStore = proposalStore ?? directory.map { FileMultisigProposalStore(directory: $0) } ?? InMemoryMultisigProposalStore()
         self.proposalStore = proposalStore
         self.walletStore = walletStore
@@ -373,8 +376,11 @@ final class WalletViewModel {
     }
 
     private func makeDApps(storage: any BridgeStorage) -> DAppConnectionManager {
-        DAppConnectionManager(
-            storage: storage,
+        let bridge = TaquitoBridge(requirePublicEndpoints: true)
+        bridge.operationJournal = TaquitoBridge.shared.operationJournal
+        bridge.configureLog(at: TaquitoBridge.shared.configuredLogURL)
+        return DAppConnectionManager(
+            bridge: bridge, storage: storage,
             diagnostics: dappDiagnostics,
             wallets: { [unowned self] in self.wallets },
             signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
@@ -386,12 +392,13 @@ final class WalletViewModel {
     /// under one wallet can never ask about another's accounts (S08).
     private func replaceDApps(for directory: URL) {
         let old: DAppConnectionManager = dapps
+        old.invalidate()
         let fresh = makeDApps(storage: dappStorageFactory?(directory) ?? InMemoryBridgeStorage())
         dapps = fresh
         let start = startsDApps && !wallets.isEmpty
         Task {
             await old.stop()
-            if start { await fresh.start() }
+            if start, self.dapps === fresh { await fresh.start() }
         }
     }
 
@@ -948,6 +955,7 @@ extension WalletViewModel {
         case wrongNetwork(String)
         case tampered
         case contextChanged(Address)
+        case awaitingConfirmation(String, Address)
 
         var errorDescription: String? {
             switch self {
@@ -964,6 +972,7 @@ extension WalletViewModel {
             case .keyAddressMismatch(let wanted, let got): "The node answered with a key for \(got.shortened()), not \(wanted.shortened()). Nothing was added; check the node or paste the public key."
             case .wrongNetwork(let name): "This proposal was made on \(name); switch to that network to sign it."
             case .tampered: "This proposal does not match what the multisig would sign for it now. Nothing was signed; discard it and propose it again."
+            case .awaitingConfirmation(let hash, let address): "Operation \(hash) has not been confirmed. Its contract address is \(address.value). Open Send from the paying account to recover this operation; do not create another contract."
             case .contextChanged(let address): "The wallet directory or network changed while the multisig \(address.shortened()) was being set up. It exists on chain but was not recorded here; add it with Add multisig… where it belongs."
             }
         }
@@ -1024,17 +1033,18 @@ extension WalletViewModel {
         try Self.checkMultisig(threshold: threshold, keys: keys)
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
         let chain = self.chain
-        let context = (revision: walletDirectoryRevision, network: network.name)
+        let context = (revision: walletDirectoryRevision, network: network, generation: operationGeneration)
         let (hash, address) = try await multisig.originate(rpcURL: network.rpcURL, signer: signer, threshold: threshold, keys: keys, limits: limits)
-        _ = try await chain.waitForConfirmation(of: hash)
+        do { _ = try await chain.waitForConfirmation(of: hash) }
+        catch { throw MultisigError.awaitingConfirmation(hash, address) }
         return try await recordContract(MultisigContract(alias: name, address: address), startedIn: context)
     }
 
     /// Writes the contract alias, puts it in the address book and shows it. The alias goes to the
     /// directory the operation started in: after a directory or network switch it is refused,
     /// and the address is reported so the user can add it where it belongs (S16).
-    private func recordContract(_ contract: MultisigContract, startedIn context: (revision: UUID, network: String)) async throws -> MultisigContract {
-        guard walletDirectoryRevision == context.revision, network.name == context.network else {
+    private func recordContract(_ contract: MultisigContract, startedIn context: (revision: UUID, network: Network, generation: UUID)) async throws -> MultisigContract {
+        guard walletDirectoryRevision == context.revision, network == context.network, operationGeneration == context.generation else {
             throw MultisigError.contextChanged(contract.address)
         }
         try walletStore.addContract(contract)
@@ -1054,7 +1064,7 @@ extension WalletViewModel {
         guard address.isContract, address.isValidAccount else { throw MultisigError.invalidAddress }
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
         if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
-        let context = (revision: walletDirectoryRevision, network: network.name)
+        let context = (revision: walletDirectoryRevision, network: network, generation: operationGeneration)
         let info = try await multisig.info(rpcURL: network.rpcURL, address: address)
         guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
         guard !info.members(among: wallets).isEmpty else { throw MultisigError.notAMember }
@@ -1068,9 +1078,9 @@ extension WalletViewModel {
 
     /// Fetches the contract's state and makes an unsigned proposal for this action at its current counter.
     func proposeMultisig(_ action: MultisigAction, from contract: MultisigContract) async throws -> MultisigProposal {
-        let context = (revision: walletDirectoryRevision, network: network.name)
+        let context = (revision: walletDirectoryRevision, network: network, generation: operationGeneration)
         let (info, chainID, bytes) = try await multisig.prepare(rpcURL: network.rpcURL, contract: contract.address, action: action)
-        guard walletDirectoryRevision == context.revision, network.name == context.network else { throw WalletError.directoryChanged }
+        guard walletDirectoryRevision == context.revision, network == context.network, operationGeneration == context.generation else { throw WalletError.directoryChanged }
         guard info.isGenericMultisig else { throw MultisigError.notAMultisig(info.scriptHash) }
         // The same action proposed twice is the same proposal: reuse it so signatures accumulate.
         if let existing = multisigProposals.first(where: { $0.contractAddress == contract.address.value && $0.networkName == network.name && $0.bytes == bytes }) {
@@ -1098,17 +1108,20 @@ extension WalletViewModel {
         guard proposal.networkName == network.name else { throw MultisigError.wrongNetwork(proposal.networkName) }
         let revision = walletDirectoryRevision
         let rpcURL = network.rpcURL
+        let generation = operationGeneration
+        let service = multisig
 
-        let live = try await multisig.prepare(rpcURL: rpcURL, contract: proposal.contract.address, action: proposal.action)
+        let live = try await service.prepare(rpcURL: rpcURL, contract: proposal.contract.address, action: proposal.action)
         guard live.info.isGenericMultisig else { throw MultisigError.notAMultisig(live.info.scriptHash) }
         guard live.chainID == proposal.chainID, live.info.counter == proposal.counter else { throw MultisigError.stale }
         guard live.info.keys == proposal.keys, live.info.threshold == proposal.threshold, live.info.keys.contains(publicKey) else { throw MultisigError.stale }
         guard live.bytes == proposal.bytes else { throw MultisigError.tampered }
 
+        guard walletDirectoryRevision == revision, operationGeneration == generation else { throw WalletError.directoryChanged }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
-        let signed = try await multisig.sign(signer: signer, proposal: proposal)
+        let signed = try await service.sign(signer: signer, proposal: proposal)
         guard signed.bytes == proposal.bytes else { throw MultisigError.tampered }
-        guard walletDirectoryRevision == revision, network.rpcURL == rpcURL else { throw WalletError.directoryChanged }
+        guard walletDirectoryRevision == revision, operationGeneration == generation, network.rpcURL == rpcURL else { throw WalletError.directoryChanged }
 
         let signature = MultisigSignature(publicKey: publicKey, signature: signed.signature)
         try updateProposal(proposal.id) { $0.signatures.append(signature) }
@@ -1149,10 +1162,11 @@ extension WalletViewModel {
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw MultisigError.cannotSign(wallet.alias) }
         let chain = self.chain
         let revision = walletDirectoryRevision
+        let generation = operationGeneration
         let hash = try await multisig.submit(rpcURL: network.rpcURL, signer: signer, proposal: proposal, signatures: proposal.signatures.map(\.signature), limits: limits)
         _ = try await chain.waitForConfirmation(of: hash)
         // The proposal file belongs to the directory the submission started in.
-        if walletDirectoryRevision == revision { try removeMultisigProposal(proposal) }
+        if walletDirectoryRevision == revision, operationGeneration == generation { try removeMultisigProposal(proposal) }
         await refreshAfterOperation()
         return hash
     }

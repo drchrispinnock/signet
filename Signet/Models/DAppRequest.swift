@@ -105,7 +105,7 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
             let port = url.port ?? (scheme == "https" ? 443 : 80)
             var path = url.path(percentEncoded: true)
             while path.hasSuffix("/") { path.removeLast() }
-            return "\(scheme)://\(host):\(port)\(path)"
+            return "\(scheme)://\(host):\(port)\(path)?\(url.query(percentEncoded: true) ?? "")"
         }
         guard let ka = key(a), let kb = key(b) else { return false }
         return ka == kb

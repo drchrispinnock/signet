@@ -52,7 +52,7 @@ struct BuyWebView: NSViewRepresentable {
 
     /// An HTTPS URL on one of the provider's hosts.
     static func isTrusted(_ url: URL?, provider: BuyProvider = .current) -> Bool {
-        guard let url, url.scheme?.lowercased() == "https", url.user == nil, url.password == nil,
+        guard let url, url.scheme?.lowercased() == "https", url.port == nil || url.port == 443, url.user == nil, url.password == nil,
               let host = url.host()?.lowercased() else { return false }
         return isTrustedHost(host, provider: provider)
     }
@@ -85,8 +85,8 @@ struct BuyWebView: NSViewRepresentable {
 
     /// Camera/microphone: the provider's exact hosts, over HTTPS, asked for by the main frame
     /// whose own origin is that host.
-    static func mayCaptureMedia(originProtocol: String, originHost: String, isMainFrame: Bool, frameProtocol: String?, frameHost: String?, provider: BuyProvider) -> Bool {
-        guard originProtocol.lowercased() == "https", isMainFrame else { return false }
+    static func mayCaptureMedia(originProtocol: String, originHost: String, isMainFrame: Bool, frameProtocol: String?, frameHost: String?, provider: BuyProvider, originPort: Int = 443, framePort: Int = 443) -> Bool {
+        guard originProtocol.lowercased() == "https", isMainFrame, (originPort == 0 || originPort == 443), (framePort == 0 || framePort == 443) else { return false }
         let host = originHost.lowercased()
         guard provider.trustedHosts.contains(host) else { return false }
         return frameProtocol?.lowercased() == "https" && frameHost?.lowercased() == host
@@ -158,7 +158,8 @@ struct BuyWebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping @MainActor (WKPermissionDecision) -> Void) {
             let allowed = BuyWebView.mayCaptureMedia(
                 originProtocol: origin.protocol, originHost: origin.host, isMainFrame: frame.isMainFrame,
-                frameProtocol: frame.securityOrigin.protocol, frameHost: frame.securityOrigin.host, provider: parent.provider)
+                frameProtocol: frame.securityOrigin.protocol, frameHost: frame.securityOrigin.host, provider: parent.provider,
+                originPort: origin.port, framePort: frame.securityOrigin.port)
             decisionHandler(allowed ? .grant : .deny)
         }
 

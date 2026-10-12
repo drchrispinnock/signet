@@ -17,21 +17,13 @@ actor ImageLoader {
     static let maxConcurrent = 6
 
     private let cache = NSCache<NSString, NSImage>()
+    private let downloader: @Sendable (URL) async -> Data?
     private var inFlight: [String: Task<NSImage?, Never>] = [:]
-    private let session: URLSession
     private var active = 0
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.urlCache = URLCache(memoryCapacity: 64 << 20, diskCapacity: 512 << 20, diskPath: "org.tezos.signet.images")
-        config.requestCachePolicy = .returnCacheDataElseLoad
-        config.timeoutIntervalForRequest = 20
-        config.timeoutIntervalForResource = 60
-        config.httpMaximumConnectionsPerHost = 4
-        config.httpShouldSetCookies = false
-        config.httpCookieAcceptPolicy = .never
-        session = URLSession(configuration: config)
+    init(download: (@Sendable (URL) async -> Data?)? = nil) {
+        downloader = download ?? { await ImageLoader.download($0) }
         cache.countLimit = 300
         cache.totalCostLimit = 96 << 20
     }
@@ -42,22 +34,21 @@ actor ImageLoader {
         if let cached = cache.object(forKey: key as NSString) { return cached }
         if let task = inFlight[key] { return await task.value }
 
-        let task = Task<NSImage?, Never> { [session] in
+        guard inFlight.count < 128, candidates.count <= 16 else { return nil }
+        let maxPixelSize = min(max(1, maxPixelSize), 2048)
+        let task = Task<NSImage?, Never> {
+            await self.acquireSlot()
+            defer { self.releaseSlot() }
             for url in candidates {
                 guard !Task.isCancelled else { return nil }
-                guard EndpointPolicy.isPublicHTTPS(url), let host = url.host() else { continue }
-                // Resolve off the cooperative pool: getaddrinfo blocks.
-                let publicHost = await Task.detached(priority: .utility) { EndpointPolicy.resolvesPublicly(host) }.value
-                guard publicHost else { continue }
-                guard let data = await Self.download(url, with: session) else { continue }
+                guard EndpointPolicy.isPublicHTTPS(url) else { continue }
+                guard let data = await downloader(url) else { continue }
                 if let image = Self.downsample(data, maxPixelSize: maxPixelSize) { return image }
             }
             return nil
         }
         inFlight[key] = task
-        await acquireSlot()
         let image = await task.value
-        releaseSlot()
         inFlight[key] = nil
         if let image { cache.setObject(image, forKey: key as NSString, cost: Self.cost(of: image)) }
         return image
@@ -72,12 +63,11 @@ actor ImageLoader {
     private func acquireSlot() async {
         if active < Self.maxConcurrent { active += 1; return }
         await withCheckedContinuation { waiting.append($0) }
-        active += 1
     }
 
     private func releaseSlot() {
-        active -= 1
         if !waiting.isEmpty { waiting.removeFirst().resume() }
+        else { active -= 1 }
     }
 
     // MARK: Bounded download
@@ -92,74 +82,12 @@ actor ImageLoader {
     }
 
     /// Downloads `url` with the per-task policy delegate; `nil` on any refusal or failure.
-    private static func download(_ url: URL, with session: URLSession) async -> Data? {
-        await withCheckedContinuation { continuation in
-            let delegate = BoundedDownload(maxBytes: maxBytes, continuation: continuation)
-            var request = URLRequest(url: url)
-            request.setValue("image/*", forHTTPHeaderField: "Accept")
-            let task = session.dataTask(with: request)
-            task.delegate = delegate
-            task.resume()
-        }
-    }
-
-    /// Streams one artwork download: refuses redirects to anywhere but public HTTPS, non-image
-    /// responses and anything past `maxBytes`, cancelling the task as soon as a rule is broken.
-    private final class BoundedDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
-        private let maxBytes: Int
-        private let lock = NSLock()
-        private var data = Data()
-        private var refused = false
-        private var continuation: CheckedContinuation<Data?, Never>?
-
-        init(maxBytes: Int, continuation: CheckedContinuation<Data?, Never>) {
-            self.maxBytes = maxBytes
-            self.continuation = continuation
-        }
-
-        private func finish(_ result: Data?) {
-            let c: CheckedContinuation<Data?, Never>? = lock.withLock { let c = continuation; continuation = nil; return c }
-            c?.resume(returning: result)
-        }
-
-        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
-            guard let next = request.url, EndpointPolicy.isPublicHTTPS(next), let host = next.host(), EndpointPolicy.resolvesPublicly(host) else {
-                lock.withLock { refused = true }
-                completionHandler(nil)
-                task.cancel()
-                return
-            }
-            var redirected = request
-            redirected.setValue("image/*", forHTTPHeaderField: "Accept")
-            completionHandler(redirected)
-        }
-
-        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
-            let http = response as? HTTPURLResponse
-            let length = response.expectedContentLength >= 0 ? response.expectedContentLength : nil
-            guard let http, ImageLoader.acceptsResponse(status: http.statusCode, contentType: http.value(forHTTPHeaderField: "Content-Type"), contentLength: length, maxBytes: maxBytes) else {
-                lock.withLock { refused = true }
-                completionHandler(.cancel)
-                return
-            }
-            completionHandler(.allow)
-        }
-
-        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
-            let over: Bool = lock.withLock {
-                data.append(chunk)
-                return data.count > maxBytes
-            }
-            if over {
-                lock.withLock { refused = true }
-                dataTask.cancel()
-            }
-        }
-
-        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-            let (result, wasRefused): (Data, Bool) = lock.withLock { (data, refused) }
-            finish(error == nil && !wasRefused && !result.isEmpty ? result : nil)
-        }
+    private static func download(_ url: URL) async -> Data? {
+        do {
+            let reply = try await PublicHTTPClient.data(for: URLRequest(url: url), limit: maxBytes, followRedirects: true)
+            guard acceptsResponse(status: reply.status, contentType: reply.headers["content-type"], contentLength: Int64(reply.data.count)) else { return nil }
+            return reply.data
+        } catch { return nil }
     }
 
     /// Decodes at most `maxPixelSize` on the long edge so a grid of large artworks stays cheap.
@@ -180,7 +108,7 @@ actor ImageLoader {
     /// An SVG document as a (vector) NSImage, or `nil` if the data is not one.
     nonisolated static func svg(_ data: Data) -> NSImage? {
         guard let head = String(data: data.prefix(512), encoding: .utf8)?.lowercased(), head.contains("<svg") || head.contains("<?xml") else { return nil }
-        guard let image = NSImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
+        guard let image = NSImage(data: data), image.size.width > 0, image.size.height > 0, image.size.width <= 16384, image.size.height <= 16384 else { return nil }
         return image
     }
 }

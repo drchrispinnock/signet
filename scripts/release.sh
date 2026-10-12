@@ -121,10 +121,14 @@ if [ "${SPARKLE_APPCAST:-1}" != 0 ]; then
       --embed-release-notes "$FEED"; then
     :
   else
-    echo "    no Sparkle key available; skipping appcast (set SPARKLE_PRIVATE_KEY or run generate_keys)"
+    echo "No Sparkle key available; cannot produce an update (set SPARKLE_PRIVATE_KEY or run generate_keys)"; exit 1
   fi
   if [ -f "$FEED/appcast.xml" ]; then
     cp "$FEED/appcast.xml" "$DIST/appcast.xml"
     echo "==> $DIST/appcast.xml"
   fi
+fi
+
+if [ "${SPARKLE_APPCAST:-1}" != 0 ]; then
+  [ -s "$DIST/appcast.xml" ] || { echo "Signed appcast missing"; exit 1; }
 fi

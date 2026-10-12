@@ -103,15 +103,15 @@ struct WalletBackup: Sendable {
 
     /// Files worth saving: the three octez-client wallet files, named contracts, Signet's state
     /// and multisig proposals in flight.
-    static let files = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, "state", FileMultisigProposalStore.fileName]
+    static let files = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, "state", FileMultisigProposalStore.fileName, "pending_operations.json"]
 
     /// Any of these present means there is something to back up (`state` alone is not worth a generation).
-    static let valuableFiles = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, FileMultisigProposalStore.fileName]
+    static let valuableFiles = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, FileMultisigProposalStore.fileName, "pending_operations.json"]
 
     /// - Parameter force: write a generation even if the latest one already matches (explicit user action).
     func run(now: Date = Date(), force: Bool = false) throws -> Outcome {
-        let present = Self.files.filter { FileManager.default.fileExists(atPath: walletDirectory.appendingPathComponent($0).path) }
-        guard present.contains(where: Self.valuableFiles.contains) else { return .nothingToBackUp }
+        let snapshot = try TezosClientStore.snapshot(in: walletDirectory, files: Self.files)
+        guard snapshot.contains(where: { Self.valuableFiles.contains($0.0) }) else { return .nothingToBackUp }
         try Self.checkSeparate(backup: backupDirectory, wallet: walletDirectory)
 
         let fm = FileManager.default
@@ -119,9 +119,6 @@ struct WalletBackup: Sendable {
 
         // The files are read under the wallet lock, so a change in progress (ours or
         // octez-client's) is never copied half done (S09).
-        let snapshot: [(String, Data)] = try TezosClientStore.withWalletLock(in: walletDirectory) {
-            try present.compactMap { file in try PrivateFile.read(walletDirectory.appendingPathComponent(file)).map { (file, $0) } }
-        }
         let existing = try Self.generations(in: backupDirectory, source: walletDirectory)
         if !force, let latest = existing.last, Self.fingerprint(of: snapshot) == (try Self.fingerprint(of: latest)) {
             try prune(existing)

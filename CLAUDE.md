@@ -77,8 +77,8 @@ one item whose enclosure points at the zip on that release's page, release notes
 signed with the EdDSA key. The public half is `SUPublicEDKey` in `Info.plist`; the private half
 lives in the development Mac's login keychain (made by Sparkle's `generate_keys`) and must also
 be the `SPARKLE_PRIVATE_KEY` repository secret (`generate_keys -x file`, then
-`gh secret set SPARKLE_PRIVATE_KEY < file`). Without the secret the workflow still releases but
-attaches no appcast, so that release is never offered as an update. Sparkle verifies the EdDSA
+`gh secret set SPARKLE_PRIVATE_KEY < file`). The workflow requires this secret and a signed appcast before publication; missing signing
+material fails the release. Published release assets are immutable: reruns may reuse drafts only. Sparkle verifies the EdDSA
 signature and the Developer ID signature of every download. `sparkle:version` is
 `CFBundleVersion`, the commit count, so it only ever grows. In the app `UpdaterService`
 (`Signet/Services`) wraps `SPUStandardUpdaterController`; "Check for Updates…" sits under the
@@ -101,7 +101,8 @@ automatic download is off by default. The updater is not started under the test 
 - **Wallet storage is `~/.signet`, in octez-client's format.** `TezosClientStore` reads and writes
   `{public_key_hashs,public_keys,secret_keys}` exactly as octez-client lays them out,
   joining entries by alias, appending only, replacing files atomically and holding `wallet_lock`
-  while writing. Reads take the lock too, and so do backups (S09); the lock is tried with a
+  while writing. A shared per-directory in-process lock also serializes threads, since `lockf`
+  alone only excludes other processes. Reads take the lock too, and so do recovered backup snapshots (S09); the lock is tried with a
   5 s deadline (`StoreError.locked`), never waited for forever. A change that touches several
   files writes `wallet_journal` first (previous contents of every file, base64) and removes it
   after the last replacement; a journal found by any later read or write means the change was
@@ -166,16 +167,22 @@ automatic download is off by default. The updater is not started under the test 
   (`src/operations.js`: `prepareApproved`, `checkApproved`, `signAndInject`) prepares the
   operation again with exactly those limits, refuses it if any figure differs or the reveal
   would cost more, forges and signs locally, preapplies and injects; nothing is re-estimated
-  after approval, and the raw path refuses a fee above the approved one. A send without limits
+  after approval. Raw execution refuses increased fee, gas or storage budgets; estimates include
+  its storage burn. Multisig uses the same checked preparation and local signing pipeline. A send without limits
   is refused (`SendError.notEstimated`, `WalletError.notEstimated`). **A lost node reply is an
   unknown outcome, not a failure (S15):** the operation hash is computed from the signed bytes
-  before injection (`injectSigned`), so a network error without an HTTP status returns
+  before injection (`injectSigned`). Signed bytes, source, chain, branch, contents and any originated
+  contract address are persisted privately in `~/.signet/pending_operations.json` before the node
+  is contacted. Any injection error, including gateway/HTTP errors and mismatched node hashes, returns
   `SentOperation(hash:, injected: false, signedBytes:)`; `SendViewModel` goes to `.unknown`,
   watches the chain (`waitForConfirmation`, which falls back to the block watcher for locally
   forged operations) and offers "Send the same operation again" (`rebroadcast`, the same
-  bytes, so it cannot pay twice); a definite rejection (an HTTP error) still throws and nothing
-  was injected. Multisig origination and submission return on injection and the model waits
-  for the block itself. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
+  bytes, so it cannot pay twice). Opening Send restores outstanding work, verifies its locally
+  forged intent/hash/source and can resume block scanning or replay identical bytes. Outstanding
+  work prevents replacement signing for that account/chain even after an RPC-node change.
+  Scan cursors survive restarts; inclusion removes the record. Pre-injection validation failures
+  still throw without injection. Multisig, governance, raw and staking paths share this recovery
+  boundary; origination confirmation errors retain the computed contract address. Every signing call (`sendTransfer`, `performStaking`, `proofOfPossession`, the dApp
   `octezConnectExecute`/`octezConnectSign`) takes a `SigningKey`: `.secret(key, passphrase:, address:)` or
   `.ledger(LedgerKey, address:)`, serialised by `bridgeSpec` into the JSON the bridge's
   `signerFor` (`src/signers.js`) turns into an `InMemorySigner` or a `LedgerSigner` for the one
@@ -336,17 +343,21 @@ automatic download is off by default. The updater is not started under the test 
   sessions never cross directories. **Budgets (S19):** `REQUEST_LIMITS` in the bridge (message
   256 KB, 64 operations, id/text/URL lengths, 64 KB sign payload, 4 pending requests per peer)
   are enforced before anything is queued; Swift keeps at most 16 pending requests;
-  `TaquitoBridge.call(_:_:timeout:)` releases callers of reads and preparation after a timeout
-  (never signing calls, whose JavaScript work cannot be cancelled); HTTP replies are collected
-  by a streaming delegate and dropped past 32 MB (`maxResponseBytes`). **Replies (S17):** a
+  the SDK serializer checks serialized size/depth before parsing, and native HTTP replies have
+  byte/string/depth/node budgets before SDK parsing/decryption. Foreground bridge calls are
+  serialized and bounded; read/preparation timeout or cancellation tears down the context and
+  its HTTP/timers, while signing/injection and Ledger sessions retain their outcome boundary.
+  Stale callbacks cannot enter a new context. Replies are capped at 32 MB (`maxResponseBytes`). **Replies (S17):** a
   completed request whose reply the relay did not take is kept in `undelivered` with its
   response; the sheet offers "Send reply again" or Dismiss and never signs or injects a second
   time (`redeliver`). **Startup (S18):** the bridge publishes the client only after `connect()`
-  succeeds and shares one in-flight start (`starting`); Swift shares one `startTask`;
+  succeeds and shares one in-flight start (`starting`); starts await full stop/disconnection.
+  Swift shares start/stop tasks, and each directory manager owns a separate bridge/client/storage;
+  invalidation is synchronous at directory replacement and failed grant lookups deny signing;
   pairing returns at once and reports `paired` / `error` events (`DAppConnectionManager.pairing`).
   **Endpoints (S12):** a dApp's custom RPC must be public HTTPS without credentials
   (`EndpointPolicy`), or exactly one of our networks' default endpoints (scheme, host, port and
-  path; `DAppRequest.sameEndpoint`); the sheet shows the endpoint for custom networks.
+  path and query; `DAppRequest.sameEndpoint`); the sheet shows the endpoint for custom networks.
 - **Multisig (0.8).** Octez-client's generic multisig, driven through Taquito. Menu section
   (burger and Operations, after Connect to dApp): Create multisig, Add multisig, Sign multisig
   transaction, Submit multisig transaction. Contract aliases are octez-client's `contracts` file in
@@ -522,3 +533,30 @@ folder, rotated to `.1` at 5 MB during writes) records fetches as method, host a
 debug mode and the decrypting relay diagnostics run only when "Verbose dApp log on the next
 launch" was armed in Settings > Developer (`DeveloperSettings`, consumed at that launch). Ledger
 traces show the APDU header and length only.
+
+
+## Audit repair boundaries (2026-10-12)
+
+- `BridgeMultisigService.forNetwork` binds chain-backed multisig calls to the complete selected
+  network/endpoint and verifies pinned chain identity. Multisig async publication/removal/signing
+  also checks a changing context generation, catching same-name node changes and away/back switches.
+- Untrusted artwork and dApp networking use `PublicHTTPClient`: the system `/usr/bin/curl` TLS
+  client connects only to validated public DNS answers supplied via `--resolve`, retaining hostname
+  certificate validation/SNI. User curl configuration, proxies and automatic redirects are disabled.
+  Artwork redirects are separately validated/pinned; dApp RPC redirects are refused. Streaming
+  byte/time limits and six process-wide slots bound work, including DNS workers awaiting cancellation.
+  Configuration files are private and removed on completion. Native user-selected local RPCs remain
+  supported through the ordinary bridge session.
+- Artwork acquires its slot before DNS/download work, transfers slots directly to waiters, caps its
+  queue/candidate count and downsamples with bounded sizes. `JSONBudget` checks HTTP response
+  structure/string budgets before JavaScript. `PrivateFile.read` accepts bounded regular files only.
+- Ledger sessions have both a JavaScript whole-operation queue and a process-wide native
+  `LedgerSessions` lease, so separate bridge contexts cannot interleave device APDUs.
+- Purchase navigation/media authority includes the effective HTTPS port (443). Alternate ports
+  do not inherit provider trust. Default bridge construction uses in-memory storage and no log
+  directory; only the production composition root selects disk stores/logging.
+- `AuditRepairTests` and `BridgeBoundaryRepairTests` cover locking/recovery, current grants,
+  persistence, connection pinning, response limits, exact origins, test isolation and native device
+  leases. `MultisigContextRepairTests` exercises same-name endpoint and away/back switches.
+  `npm test` also runs `test/audit-boundaries.cjs`, substituting SDK/device dependencies only,
+  to exercise lifecycle ordering, pre-parser limits, complete Ledger sessions and multisig reveals.

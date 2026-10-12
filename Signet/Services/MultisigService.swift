@@ -2,6 +2,7 @@ import Foundation
 
 /// Octez-client's generic multisig, through the bridge (`TaquitoBridge/src/multisig.js`).
 protocol MultisigService: Sendable {
+    func forNetwork(_ network: Network) -> any MultisigService
     /// Counter, threshold, keys, balance and whether the code is the generic multisig script.
     func info(rpcURL: URL, address: Address) async throws -> MultisigInfo
     /// The public key an account has revealed on chain (needed to make it a signer), or `nil`.
@@ -24,10 +25,23 @@ protocol MultisigService: Sendable {
     func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String
 }
 
+extension MultisigService {
+    func forNetwork(_ network: Network) -> any MultisigService { self }
+}
+
 struct BridgeMultisigService: MultisigService {
     let bridge: TaquitoBridge
 
-    init(bridge: TaquitoBridge = .shared) { self.bridge = bridge }
+    private var network: Network?
+    init(bridge: TaquitoBridge = .shared, network: Network? = nil) { self.bridge = bridge; self.network = network }
+    func forNetwork(_ network: Network) -> any MultisigService { BridgeMultisigService(bridge: bridge, network: network) }
+
+    private func verify(_ rpcURL: URL) async throws {
+        guard let network, network.rpcURL == rpcURL else {
+            throw TaquitoBridge.BridgeError.javaScript("The multisig service needs the selected network and endpoint before contacting a node.")
+        }
+        _ = try await bridge.call("assertChain", [rpcURL.absoluteString, network.expectedChainID ?? ""], timeout: 30)
+    }
 
     static func info(from r: JSONValue) throws -> MultisigInfo {
         guard let address = r["address"]?.stringValue, let generic = r["isGenericMultisig"]?.boolValue, let hash = r["scriptHash"]?.stringValue else {
@@ -72,11 +86,13 @@ struct BridgeMultisigService: MultisigService {
     }
 
     func info(rpcURL: URL, address: Address) async throws -> MultisigInfo {
-        try Self.info(from: try await bridge.call("multisigInfo", [rpcURL.absoluteString, address.value]))
+        try await verify(rpcURL)
+        return try Self.info(from: try await bridge.call("multisigInfo", [rpcURL.absoluteString, address.value]))
     }
 
     func revealedPublicKey(rpcURL: URL, address: Address) async throws -> String? {
-        try await bridge.call("multisigRevealedKey", [rpcURL.absoluteString, address.value])["publicKey"]?.stringValue
+        try await verify(rpcURL)
+        return try await bridge.call("multisigRevealedKey", [rpcURL.absoluteString, address.value])["publicKey"]?.stringValue
     }
 
     func address(forPublicKey publicKey: String) async throws -> Address {
@@ -95,23 +111,27 @@ struct BridgeMultisigService: MultisigService {
     }
 
     func estimateOriginate(rpcURL: URL, from wallet: Wallet, threshold: Int, keys: [String]) async throws -> MultisigEstimate {
+        try await verify(rpcURL)
         guard let publicKey = wallet.publicKey else { throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.") }
         return try Self.estimate(from: try await bridge.call("multisigEstimateOriginate", [rpcURL.absoluteString, wallet.address.value, publicKey, threshold, try Self.json(keys)]))
     }
 
     func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], limits: OperationLimits) async throws -> (hash: String, address: Address) {
+        try await verify(rpcURL)
         let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json])
         guard let hash = r["hash"]?.stringValue, let address = r["address"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected origination payload: \(String(describing: r))") }
         return (hash, Address(address))
     }
 
     func prepare(rpcURL: URL, contract: Address, action: MultisigAction) async throws -> (info: MultisigInfo, chainID: String, bytes: String) {
+        try await verify(rpcURL)
         let r = try await bridge.call("multisigPrepare", [rpcURL.absoluteString, contract.value, try Self.json(action)])
         guard let chainID = r["chainId"]?.stringValue, let bytes = r["bytes"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected prepare payload: \(String(describing: r))") }
         return (try Self.info(from: r), chainID, bytes)
     }
 
     func estimateSubmit(rpcURL: URL, from wallet: Wallet, proposal: MultisigProposal, signatures: [String]) async throws -> MultisigEstimate {
+        try await verify(rpcURL)
         guard let publicKey = wallet.publicKey else { throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.") }
         return try Self.estimate(from: try await bridge.call("multisigEstimateSubmit", [
             rpcURL.absoluteString, wallet.address.value, publicKey, proposal.contractAddress, try Self.json(proposal.action), proposal.counter, try Self.json(signatures),
@@ -119,6 +139,7 @@ struct BridgeMultisigService: MultisigService {
     }
 
     func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String {
+        try await verify(rpcURL)
         let r = try await bridge.call("multisigSubmit", [
             rpcURL.absoluteString, signer.bridgeSpec, proposal.contractAddress, try Self.json(proposal.action), proposal.counter, try Self.json(signatures), limits.json,
         ])
@@ -214,7 +235,7 @@ struct FileMultisigProposalStore: MultisigProposalStore {
     init(directory: URL) { url = directory.appendingPathComponent(Self.fileName) }
 
     func load() -> [MultisigProposal] {
-        (try? TezosClientStore.withWalletLock(in: url.deletingLastPathComponent()) { read() }) ?? read()
+        (try? TezosClientStore.withWalletLock(in: url.deletingLastPathComponent()) { read() }) ?? []
     }
 
     private func read() -> [MultisigProposal] {

@@ -12,7 +12,32 @@ import { TezosToolkit } from "@taquito/taquito";
 import { signerFor } from "./signers.js";
 import { RpcClient } from "@taquito/rpc";
 import { localForger } from "@taquito/local-forging";
-import { assertChain, injectSigned, checkedLimit } from "./operations.js";
+import { assertChain, injectSigned, checkedLimit, assertNoPending } from "./operations.js";
+
+import bs58check from "bs58check";
+
+/** Scan serialized text before the SDK JSON parser can allocate a deeply nested object. */
+export function boundedJSON(text, maxBytes = 256 * 1024) {
+  if (typeof text !== "string" || text.length > maxBytes) throw new Error("dApp message exceeds the parsing budget");
+  let depth = 0, nodes = 0, quoted = false, escaped = false;
+  for (const c of text) {
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '\"') quoted = false;
+    } else if (c === '\"') quoted = true;
+    else if (c === "{" || c === "[") {
+      if (++depth > 64 || ++nodes > 8192) throw new Error("dApp message exceeds the structure budget");
+    } else if (c === "}" || c === "]") depth--;
+  }
+  return JSON.parse(text);
+}
+
+Serializer.prototype.deserialize = async function(encoded) {
+  if (typeof encoded !== "string" || encoded.length > 384 * 1024) throw new Error("Encoded dApp message exceeds the transport budget");
+  const text = this.protocolVersion >= 2 ? encoded : Buffer.from(bs58check.decode(encoded)).toString("utf8");
+  return boundedJSON(text);
+};
 
 class NativeStorage extends Storage {
   static async isSupported() { return true; }
@@ -35,6 +60,7 @@ class NativeStorage extends Storage {
 let client = null;
 /** The start in progress, so concurrent starts share one attempt and a failed one leaves no client (S18). */
 let starting = null;
+let stopping = null;
 /** Request id → authenticated sender id, for the per-peer in-flight budget (S19). */
 const inflight = new Map();
 
@@ -182,6 +208,7 @@ async function refuseRequest(wallet, message, refused, errorType) {
  * leaves nothing behind and the next call tries again (S18).
  */
 export async function octezConnectStart(appName, iconUrl, debug) {
+  if (stopping) await stopping;
   if (client) return { started: true };
   if (starting) return starting;
   starting = (async () => {
@@ -462,12 +489,13 @@ export async function octezConnectExecute(rpcUrl, signerSpec, preparedJson, expe
   const source = await signer.publicKeyHash();
   if (contents.some(c => c.source !== source)) throw new Error("The prepared source is not the signing account");
   if (contents[0].kind === "reveal" && contents[0].public_key !== await signer.publicKey()) throw new Error("The prepared reveal is not the signing key");
+  const chainID = await assertNoPending(rpcUrl, source);
   const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
   const rpc = new RpcClient(rpcUrl);
   const replies = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   const results = replies.flatMap(r => r.contents ?? []);
   if (results.length !== contents.length || results.some(c => c.metadata?.operation_result?.status !== "applied")) throw new Error("The prepared batch was not applied; prepare it again before approving");
-  return injectSigned(rpc, sbytes);
+  return injectSigned(rpc, sbytes, { rpcURL: rpcUrl, source, contents, chainID, branch });
 }
 
 // ---- Describing operations --------------------------------------------------------------------
@@ -601,6 +629,12 @@ export async function octezConnectMakePairingCode(peerJson) {
 
 /** Stops the wallet client so a later start creates a fresh one (tests, storage changes). */
 export async function octezConnectStop() {
+  if (stopping) return stopping;
+  stopping = stopClient();
+  try { return await stopping; } finally { stopping = null; }
+}
+
+async function stopClient() {
   if (starting) { try { await starting; } catch {} }
   if (!client) return { stopped: false };
   // Never call destroy(): it wipes the SDK's storage (seed, peers, permissions). Just drop the

@@ -39,12 +39,26 @@ final class TaquitoBridge: @unchecked Sendable {
 
     static let shared = TaquitoBridge()
 
+    private let callGate = BridgeCallGate()
     private let queue = DispatchQueue(label: "org.tezos.signet.taquito-bridge")
     private let session: URLSession
     private var context: JSContext?
     private var loadError: Error?
     private var timers: [Int: DispatchWorkItem] = [:]
     private var fetches: [Int: URLSessionDataTask] = [:]
+    private var publicFetches: [Int: Task<Void, Never>] = [:]
+    private let requirePublicEndpoints: Bool
+    private var contextGeneration = UUID()
+    private var ledgerLeases: [Int: (UUID, String)] = [:]
+    private var ledgerWaiters: [Int: Task<Void, Never>] = [:]
+    private var activeCallID: UUID?
+    private var cancelCurrentCall: (() -> Void)?
+    private final class Cancellation: @unchecked Sendable {
+        let lock = NSLock()
+        var cancelled = false
+        func cancel() { lock.withLock { cancelled = true } }
+        var isCancelled: Bool { lock.withLock { cancelled } }
+    }
     /// Per-fetch delegates that stop a reply at `maxResponseBytes`; keyed like `fetches`.
     private var collectors: [Int: ResponseCollector] = [:]
 
@@ -53,7 +67,7 @@ final class TaquitoBridge: @unchecked Sendable {
         get { lock.withLock { _storage } }
         set { lock.withLock { _storage = newValue } }
     }
-    private var _storage: any BridgeStorage = OctezConnectStorage()
+    private var _storage: any BridgeStorage
 
     /// Receives JSON events pushed from JavaScript (dApp requests). Called on the bridge queue.
     var eventHandler: (@Sendable (String) -> Void)? {
@@ -63,22 +77,50 @@ final class TaquitoBridge: @unchecked Sendable {
     private var _eventHandler: (@Sendable (String) -> Void)?
     private let lock = NSLock()
 
-    init(session: URLSession = .shared) {
+    var operationJournal = OperationJournal()
+    private var logURL: URL?
+    var configuredLogURL: URL? { lock.withLock { logURL } }
+    func configureLog(at url: URL?) {
+        lock.withLock {
+            try? logHandle?.close()
+            logHandle = nil
+            logURL = url
+            logBytes = 0
+        }
+    }
+
+    init(session: URLSession = .shared, storage: any BridgeStorage = InMemoryBridgeStorage(), logURL: URL? = nil, requirePublicEndpoints: Bool = false) {
         self.session = session
+        self.requirePublicEndpoints = requirePublicEndpoints
+        self._storage = storage
+        self.logURL = logURL
     }
 
     // MARK: - Public API
 
     /// Calls `TaquitoBridge.<name>(...args)` and awaits the result, unwrapping promises.
     ///
-    /// With a `timeout`, a promise that has not settled by then fails the call with
-    /// `BridgeError.timedOut` so the caller is released (S19). The JavaScript work itself is not
-    /// cancelled, so signing calls must not carry a timeout: an operation could still be injected
-    /// after the caller gave up. Reads and preparation can.
+    /// Read/preparation deadlines cancel HTTP work and discard the context before reuse.
+    /// Signing, injection and complete Ledger sessions have no generic deadline: abandoning
+    /// those calls could lose an operation outcome or release a device still signing.
     func call(_ name: String, _ args: [any Sendable] = [], timeout: TimeInterval? = nil) async throws -> JSONValue {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<JSONValue, Error>) in
+        try await callGate.acquire()
+        defer { Task { await callGate.release() } }
+        try Task.checkCancellation()
+        // Hardware approval and any call that can sign/inject must complete with an outcome.
+        let signing = ["sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "multisigOriginate", "multisigSubmit", "multisigSign", "signPayload", "provePossession", "octezConnectExecute", "octezConnectSign", "ledgerGetAddress", "ledgerAppVersion"]
+        let deadline = signing.contains(name) ? nil : (timeout ?? 60)
+        guard args.reduce(0, { $0 + (($1 as? String)?.utf8.count ?? 0) }) <= 2 << 20 else {
+            throw BridgeError.javaScript("Bridge arguments exceed the input budget")
+        }
+        let callID = UUID()
+        let cancellation = Cancellation()
+        return try await withTaskCancellationHandler {
+          try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<JSONValue, Error>) in
             queue.async {
                 do {
+                    if cancellation.isCancelled { throw CancellationError() }
+                    self.activeCallID = callID
                     let context = try self.loadedContext()
                     guard let api = context.objectForKeyedSubscript("TaquitoBridge"),
                           let function = api.objectForKeyedSubscript(name),
@@ -93,10 +135,17 @@ final class TaquitoBridge: @unchecked Sendable {
                         context.exception = nil
                         throw BridgeError.javaScript(exception.toString())
                     }
-                    self.resolve(result, in: context, name: name, timeout: timeout, continuation: continuation)
+                    self.resolve(result, in: context, name: name, timeout: deadline, continuation: continuation)
                 } catch {
                     continuation.resume(throwing: error)
                 }
+            }
+          }
+        } onCancel: {
+            cancellation.cancel()
+            // Signing cannot be abandoned after crossing the signing/injection boundary.
+            if !signing.contains(name) {
+                self.queue.async { if self.activeCallID == callID { self.cancelCurrentCall?() } }
             }
         }
     }
@@ -114,14 +163,23 @@ final class TaquitoBridge: @unchecked Sendable {
             init(_ c: CheckedContinuation<JSONValue, Error>) { continuation = c }
         }
         let once = Once(continuation)
+        self.cancelCurrentCall = { [weak self] in
+            guard let c = once.continuation else { return }
+            once.continuation = nil
+            self?.cancelCurrentCall = nil
+            self?.discardContext()
+            c.resume(throwing: CancellationError())
+        }
         let onFulfilled: @convention(block) (JSValue?) -> Void = { result in
             guard let c = once.continuation else { return }
             once.continuation = nil
+            self.cancelCurrentCall = nil
             c.resume(returning: JSONValue(bridged: result?.toObject()))
         }
         let onRejected: @convention(block) (JSValue?) -> Void = { reason in
             guard let c = once.continuation else { return }
             once.continuation = nil
+            self.cancelCurrentCall = nil
             let message = reason?.objectForKeyedSubscript("message")?.toString() ?? reason?.toString() ?? "unknown error"
             c.resume(throwing: BridgeError.javaScript(message))
         }
@@ -141,10 +199,25 @@ final class TaquitoBridge: @unchecked Sendable {
             queue.asyncAfter(deadline: .now() + timeout) { [weak self] in
                 guard let c = once.continuation else { return }
                 once.continuation = nil
+                self?.cancelCurrentCall = nil
+                self?.discardContext()
                 self?.note("\(name) timed out after \(Int(timeout)) s")
                 c.resume(throwing: BridgeError.timedOut(name, timeout))
             }
         }
+    }
+
+    private func discardContext() {
+        contextGeneration = UUID()
+        for waiter in ledgerWaiters.values { waiter.cancel() }
+        for lease in ledgerLeases.values { Task { await LedgerSessions.shared.release(id: lease.0, device: lease.1) } }
+        ledgerWaiters.removeAll(); ledgerLeases.removeAll()
+        for task in fetches.values { task.cancel() }
+        for task in publicFetches.values { task.cancel() }
+        for timer in timers.values { timer.cancel() }
+        fetches.removeAll(); publicFetches.removeAll(); collectors.removeAll(); timers.removeAll()
+        context = nil
+        eventHandler?("{\"kind\":\"stopped\",\"message\":\"The dApp connection timed out; reconnect before signing.\"}")
     }
 
     // MARK: - Loading
@@ -232,8 +305,9 @@ final class TaquitoBridge: @unchecked Sendable {
 
         let setTimer: @convention(block) (Int, Double) -> Void = { [weak self] id, ms in
             guard let self else { return }
+            let generation = self.contextGeneration
             let work = DispatchWorkItem { [weak self] in
-                guard let self, self.timers.removeValue(forKey: id) != nil else { return }
+                guard let self, self.contextGeneration == generation, self.timers.removeValue(forKey: id) != nil else { return }
                 self.context?.objectForKeyedSubscript("__signet_timerFired")?.call(withArguments: [id])
             }
             self.timers[id] = work
@@ -243,6 +317,7 @@ final class TaquitoBridge: @unchecked Sendable {
             self?.timers.removeValue(forKey: id)?.cancel()
         }
         let randomBytes: @convention(block) (Int) -> [UInt8] = { count in
+            guard count >= 0, count <= 1 << 20 else { return [] }
             var bytes = [UInt8](repeating: 0, count: max(0, count))
             let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
             precondition(status == errSecSuccess, "SecRandomCopyBytes failed")
@@ -253,7 +328,24 @@ final class TaquitoBridge: @unchecked Sendable {
         }
         let cancelFetch: @convention(block) (Int) -> Void = { [weak self] id in
             self?.fetches.removeValue(forKey: id)?.cancel()
+            self?.publicFetches.removeValue(forKey: id)?.cancel()
         }
+
+        let operationRead: @convention(block) () -> String = { [weak self] in
+            do { return try self?.operationJournal.read() ?? "[]" }
+            catch { return "{\"error\":\"Operation recovery storage cannot be read\"}" }
+        }
+        let operationSave: @convention(block) (String) -> String = { [weak self] json in
+            do { guard let self else { return "Bridge unavailable" }; try self.operationJournal.save(json); return "" }
+            catch { return "Could not persist the signed operation; nothing was injected" }
+        }
+        let operationRemove: @convention(block) (String) -> String = { [weak self] hash in
+            do { try self?.operationJournal.remove(hash); return "" }
+            catch { return "Could not update operation recovery storage" }
+        }
+        native.setObject(operationRead, forKeyedSubscript: "operationRead" as NSString)
+        native.setObject(operationSave, forKeyedSubscript: "operationSave" as NSString)
+        native.setObject(operationRemove, forKeyedSubscript: "operationRemove" as NSString)
 
         let storageGet: @convention(block) (String) -> Any = { [weak self] key in self?.storage.get(key) ?? NSNull() }
         let storageSet: @convention(block) (String, String) -> Void = { [weak self] key, value in self?.storage.set(key, value) }
@@ -268,6 +360,38 @@ final class TaquitoBridge: @unchecked Sendable {
         native.setObject(randomBytes, forKeyedSubscript: "randomBytes" as NSString)
         native.setObject(fetch, forKeyedSubscript: "fetch" as NSString)
         native.setObject(cancelFetch, forKeyedSubscript: "cancelFetch" as NSString)
+
+        let ledgerSessionBegin: @convention(block) (Int, String) -> Void = { [weak self] id, device in
+            guard let self else { return }
+            let generation = self.contextGeneration
+            self.ledgerWaiters[id] = Task {
+                do {
+                    let token = try await LedgerSessions.shared.acquire(device: device)
+                    self.queue.async {
+                        guard self.contextGeneration == generation else {
+                            Task { await LedgerSessions.shared.release(id: token, device: device) }
+                            return
+                        }
+                        self.ledgerWaiters[id] = nil
+                        self.ledgerLeases[id] = (token, device)
+                        self.context?.objectForKeyedSubscript("__signet_ledgerSessionReady")?.call(withArguments: [id, NSNull()])
+                    }
+                } catch {
+                    let message = error.localizedDescription
+                    self.queue.async {
+                        guard self.contextGeneration == generation else { return }
+                        self.ledgerWaiters[id] = nil
+                        self.context?.objectForKeyedSubscript("__signet_ledgerSessionReady")?.call(withArguments: [id, message])
+                    }
+                }
+            }
+        }
+        let ledgerSessionEnd: @convention(block) (Int) -> Void = { [weak self] id in
+            guard let lease = self?.ledgerLeases.removeValue(forKey: id) else { return }
+            Task { await LedgerSessions.shared.release(id: lease.0, device: lease.1) }
+        }
+        native.setObject(ledgerSessionBegin, forKeyedSubscript: "ledgerSessionBegin" as NSString)
+        native.setObject(ledgerSessionEnd, forKeyedSubscript: "ledgerSessionEnd" as NSString)
 
         // Ledger: USB HID is native (LedgerHID); the bridge's Transport subclass calls these.
         let ledgerDevices: @convention(block) () -> String = {
@@ -352,9 +476,40 @@ final class TaquitoBridge: @unchecked Sendable {
             request.httpBody = body.toString().data(using: .utf8)
         }
 
+        guard fetches.count + publicFetches.count < 32 else {
+            finishFetch(id: id, error: "Too many active bridge HTTP requests")
+            return
+        }
+        let generation = contextGeneration
+        if requirePublicEndpoints {
+            let request = request
+            publicFetches[id] = Task {
+                do {
+                    let reply = try await PublicHTTPClient.data(for: request, limit: Self.maxResponseBytes)
+                    self.queue.async {
+                        guard self.contextGeneration == generation, self.publicFetches.removeValue(forKey: id) != nil else { return }
+                        guard JSONBudget.accepts(reply.data) else {
+                            self.finishFetch(id: id, error: "The server's reply exceeds the JSON parsing budget")
+                            return
+                        }
+                        let headers = (try? JSONSerialization.data(withJSONObject: reply.headers)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+                        self.finishFetch(id: id, status: reply.status, statusText: "", headersJSON: headers, body: String(decoding: reply.data, as: UTF8.self))
+                    }
+                } catch {
+                    let message = error.localizedDescription
+                    self.queue.async {
+                        guard self.contextGeneration == generation, self.publicFetches.removeValue(forKey: id) != nil else { return }
+                        self.finishFetch(id: id, error: message)
+                    }
+                }
+            }
+            return
+        }
+
         let collector = ResponseCollector(limit: Self.maxResponseBytes) { [weak self] data, response, error, overflowed in
             guard let self else { return }
             self.queue.async {
+                guard self.contextGeneration == generation else { return }
                 self.collectors.removeValue(forKey: id)
                 guard self.fetches.removeValue(forKey: id) != nil else { return } // cancelled
                 if overflowed {
@@ -363,6 +518,10 @@ final class TaquitoBridge: @unchecked Sendable {
                 }
                 if let error {
                     self.finishFetch(id: id, error: error.localizedDescription)
+                    return
+                }
+                if let data, !JSONBudget.accepts(data) {
+                    self.finishFetch(id: id, error: "The server's reply exceeds the JSON parsing budget")
                     return
                 }
                 let http = response as? HTTPURLResponse
@@ -417,8 +576,6 @@ final class TaquitoBridge: @unchecked Sendable {
     static let logFileURL: URL = {
         let dir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Logs/Signet", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         return dir.appendingPathComponent("bridge.log")
     }()
     static let maxLogBytes = 5_000_000
@@ -426,7 +583,8 @@ final class TaquitoBridge: @unchecked Sendable {
     private var logBytes = 0
 
     private func openLog() -> FileHandle? {
-        let url = Self.logFileURL
+        guard let url = logURL else { return nil }
+        guard (try? PrivateFile.hardenDirectory(url.deletingLastPathComponent())) != nil else { return nil }
         let fd = open(url.path, O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { return nil }
         fchmod(fd, 0o600)
@@ -438,7 +596,7 @@ final class TaquitoBridge: @unchecked Sendable {
         guard logBytes > Self.maxLogBytes else { return }
         try? logHandle?.close()
         logHandle = nil
-        let url = Self.logFileURL
+        guard let url = logURL else { return }
         try? FileManager.default.removeItem(at: url.appendingPathExtension("1"))
         try? FileManager.default.moveItem(at: url, to: url.appendingPathExtension("1"))
         logBytes = 0

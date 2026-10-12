@@ -11,8 +11,10 @@ struct SignetApp: App {
     @MainActor
     static func makeModel(isTestHost: Bool = isTestHost) -> WalletViewModel {
         if isTestHost {
-            return WalletViewModel(wallets: [], chain: MockChainService(), multisig: MockMultisigService(), walletStore: InMemoryWalletStore())
+            return WalletViewModel(wallets: [], chain: MockChainService(), multisig: MockMultisigService(), walletStore: InMemoryWalletStore(), nodeProbe: { _ in throw URLError(.notConnectedToInternet) })
         }
+        TaquitoBridge.shared.configureLog(at: TaquitoBridge.logFileURL)
+        TaquitoBridge.shared.operationJournal = OperationJournal(directory: TezosClientStore.defaultDirectory)
         return WalletViewModel(
             chainFactory: { network in TaquitoChainService(network: network) },
             keyGenerator: KeyGenerator(),

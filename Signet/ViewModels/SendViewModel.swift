@@ -89,6 +89,19 @@ final class SendViewModel {
         self.suggestions = candidates(matching: "")
     }
 
+    /// Recovery is checked before composing a replacement, including after restarting the app.
+    func recoverPending() async {
+        guard step == .compose else { return }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            if let recovered = try await chain.pendingOperation(for: sender.address) {
+                sent = recovered
+                await follow(recovered)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     // MARK: Compose
 
     var amount: Decimal? {
@@ -162,6 +175,8 @@ final class SendViewModel {
     // MARK: Confirm
 
     func proceedToConfirm() async {
+        await recoverPending()
+        guard step == .compose else { return }
         errorMessage = nil
         guard let recipient else { errorMessage = SendError.noRecipient.localizedDescription; return }
         guard let amount else { errorMessage = SendError.invalidAmount.localizedDescription; return }

@@ -1,11 +1,11 @@
 // Offline regression: a dApp approval must bind every signed operation, including its reveal.
 const fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict');
-const req=require;const {InMemorySigner}=req('@taquito/signer');const {b58Encode,PrefixV2}=req('@taquito/utils');const {localForger}=req('@taquito/local-forging');
-let operation,expectedSigned,preapplies=0,injections=0,mode='honest';
-const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
- Promise.resolve().then(()=>{assert.equal(new URL(url).hostname,'offline.invalid');const data=JSON.parse(body);
+const req=require;const {InMemorySigner}=req('@taquito/signer');const {b58Encode,PrefixV2,encodeOpHash}=req('@taquito/utils');const {localForger}=req('@taquito/local-forging');
+let operation,expectedSigned,preapplies=0,injections=0,mode='honest';const journal=new Map();
+const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),operationRead(){return JSON.stringify([...journal.values()]);},operationSave(json){const record=JSON.parse(json);journal.set(record.hash,record);return "";},operationRemove(hash){journal.delete(hash);return "";},setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
+ Promise.resolve().then(()=>{if(url.endsWith('/chain_id'))return 'NetFixture';assert.equal(new URL(url).hostname,'offline.invalid');const data=JSON.parse(body);
  if(url.endsWith('/preapply/operations')){preapplies++;assert.deepEqual(data[0].contents,operation.contents);return mode==='empty'?[]:[{contents:operation.contents.map(c=>({...c,metadata:{operation_result:{status:mode==='failed'?'failed':'applied'}}}))}];}
- if(url.includes('/injection/operation')){injections++;assert.equal(data,expectedSigned);return 'ooOFFLINE';}throw Error('Unexpected RPC/re-estimation '+url);
+ if(url.includes('/injection/operation')){injections++;assert.equal(data,expectedSigned);return encodeOpHash(data);}throw Error('Unexpected RPC/re-estimation '+url);
  }).then(data=>ctx.__signet_fetchDone(id,200,'OK','{}',JSON.stringify(data),null),e=>ctx.__signet_fetchDone(id,0,'','{}','',e.message));
 }}};vm.createContext(ctx);vm.runInContext(fs.readFileSync(require('node:path').resolve(__dirname, '../../Signet/Resources/taquito-bridge.js'),'utf8'),ctx);const api=ctx.TaquitoBridge;
 (async()=>{
@@ -14,8 +14,13 @@ operation={branch:b58Encode(new Uint8Array(32),PrefixV2.BlockHash),protocol:'moc
 const ops=JSON.stringify([{kind:'transaction',destination:operation.contents[1].destination,amount:'0',fee:'100000000'}]),estimates=JSON.stringify([{suggestedFeeMutez:300,gasLimit:200,storageLimit:0,burnFeeMutez:0},{suggestedFeeMutez:500,gasLimit:1500,storageLimit:0,burnFeeMutez:0}]);
 const result=await api.octezConnectBuildPrepared(ops,estimates,JSON.stringify(operation));assert.equal(result.reveal.feeMutez,'999');assert.equal(result.totalDebitMutez,'1499');assert.ok(result.operations[0].opaque);assert.equal(result.operations[0].entrypoint,'default');assert.ok(result.operations[0].parameters.includes('Unit'));
 const forged=await localForger.forge({branch:operation.branch,contents:operation.contents});expectedSigned=(await signer.sign(forged,new Uint8Array([3]))).sbytes;
-assert.equal((await api.octezConnectExecute('https://offline.invalid',spec,result.prepared)).hash,'ooOFFLINE');assert.equal(injections,1);
+assert.equal((await api.octezConnectExecute('https://offline.invalid',spec,result.prepared)).hash,encodeOpHash(expectedSigned));assert.equal(injections,1);
 console.log('PASS S03: signed/injected bytes equal the complete approved operation, including reveal fee; no re-estimation or node forging');
+const pending=await api.pendingOperation('https://other-node.invalid',source);assert.equal(pending.hash,encodeOpHash(expectedSigned),'changing node cannot bypass same-chain recovery');
+const record=journal.get(pending.hash);record.source='tampered-account';await assert.rejects(api.pendingOperation('https://offline.invalid','tampered-account'),/source/);record.source=source;
+const original=record.signedBytes;record.signedBytes='ab'.repeat(200);await assert.rejects(api.pendingOperation('https://offline.invalid',source),/hash/);record.signedBytes=original;
+console.log('PASS S15: recovery follows the chain across node changes and refuses tampered source/hash/bytes');
+api.forgetOperation(encodeOpHash(expectedSigned));
 for(mode of ['empty','failed']){const before=injections;await assert.rejects(api.octezConnectExecute('https://offline.invalid',spec,result.prepared),/not applied/);assert.equal(injections,before);}
 console.log('PASS S03: incomplete/failed preapply refused; default contract calls show unknown effects and Unit parameters');
 })().catch(e=>{console.error(e);process.exitCode=1});

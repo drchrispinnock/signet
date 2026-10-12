@@ -363,7 +363,7 @@ struct TezosClientStore: WalletStore {
         }
         if payloads.count > 1 {
             try FileManager.default.removeItem(at: directory.appendingPathComponent(Self.journalFile))
-            PrivateFile.syncDirectory(directory)
+            try PrivateFile.syncDirectory(directory)
         }
     }
 
@@ -384,7 +384,7 @@ struct TezosClientStore: WalletStore {
             }
         }
         try FileManager.default.removeItem(at: url)
-        PrivateFile.syncDirectory(directory)
+        try PrivateFile.syncDirectory(directory)
     }
 
     /// Holds the same advisory lock octez-client takes while it edits the wallet files.
@@ -397,14 +397,42 @@ struct TezosClientStore: WalletStore {
 
     /// The wallet lock, tried rather than waited for, so the main actor is never blocked for
     /// good on a program that keeps it (S09). Readers and backups take it too.
+    private final class LocalLocks: @unchecked Sendable {
+        let guardLock = NSLock()
+        var locks: [String: NSLock] = [:]
+        func lock(for directory: URL) -> NSLock {
+            guardLock.withLock {
+                let key = directory.resolvingSymlinksInPath().standardizedFileURL.path
+                if let existing = locks[key] { return existing }
+                let fresh = NSLock()
+                locks[key] = fresh
+                return fresh
+            }
+        }
+    }
+    private static let localLocks = LocalLocks()
+
+    /// Recovery, enumeration and reads share the same transaction boundary as mutations.
+    static func snapshot(in directory: URL, files: [String]) throws -> [(String, Data)] {
+        try withWalletLock(in: directory) {
+            try TezosClientStore(directory: directory).recoverIfNeeded()
+            return try files.compactMap { name in
+                try PrivateFile.read(directory.appendingPathComponent(name)).map { (name, $0) }
+            }
+        }
+    }
+
     static func withWalletLock<T>(in directory: URL, _ body: () throws -> T) throws -> T {
+        let deadline = Date().addingTimeInterval(lockTimeout)
+        let local = localLocks.lock(for: directory)
+        guard local.lock(before: deadline) else { throw StoreError.locked }
+        defer { local.unlock() }
         // No directory yet means no files and nobody else to lock out.
         guard FileManager.default.fileExists(atPath: directory.path) else { return try body() }
         let path = directory.appendingPathComponent(lockFile).path
         let fd = open(path, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { close(fd) }
-        let deadline = Date().addingTimeInterval(lockTimeout)
         while lockf(fd, F_TLOCK, 0) != 0 {
             let busy = errno == EAGAIN || errno == EACCES
             guard busy, Date() < deadline else {

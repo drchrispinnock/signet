@@ -62,21 +62,27 @@ final class DAppConnectionManager {
     private let bridge: TaquitoBridge
     private let storage: any BridgeStorage
     private let walletsProvider: @MainActor () -> [Wallet]
+    private let permissionLoader: (@MainActor () async throws -> [DAppPermission])?
     private let signerProvider: @MainActor (Wallet, String?) throws -> SigningKey?
     private var startTask: Task<Void, Never>?
+    private var stopTask: Task<Void, Never>?
+    private var sessionGeneration = UUID()
+    private var invalidated = false
     /// Only when the user turned developer diagnostics on (S11): the SDK logs decrypted traffic.
     let diagnostics: Bool
 
     var current: DAppRequest? { pending.first }
 
-    init(bridge: TaquitoBridge = .shared,
+    init(bridge: TaquitoBridge = TaquitoBridge(requirePublicEndpoints: true),
          storage: any BridgeStorage,
          diagnostics: Bool = false,
+         permissionLoader: (@MainActor () async throws -> [DAppPermission])? = nil,
          wallets: @escaping @MainActor () -> [Wallet],
          signer: @escaping @MainActor (Wallet, String?) throws -> SigningKey?) {
         self.bridge = bridge
         self.storage = storage
         self.diagnostics = diagnostics
+        self.permissionLoader = permissionLoader
         self.walletsProvider = wallets
         self.signerProvider = signer
     }
@@ -85,8 +91,10 @@ final class DAppConnectionManager {
 
     /// Starts the SDK. Concurrent calls share one attempt (S18).
     func start() async {
+        if let stopTask { await stopTask.value }
         if isStarted { return }
         if let startTask { await startTask.value; return }
+        invalidated = false
         let task = Task { await self.startNow() }
         startTask = task
         await task.value
@@ -114,7 +122,22 @@ final class DAppConnectionManager {
 
     /// Stops the SDK client and drops every waiting request (each dApp gets an abort). Used when
     /// the wallet directory changes: the next directory gets its own manager and storage (S08).
+    func invalidate() {
+        invalidated = true
+        sessionGeneration = UUID()
+        permissions = []
+    }
+
     func stop() async {
+        invalidate()
+        if let stopTask { await stopTask.value; return }
+        let task = Task { await self.stopNow() }
+        stopTask = task
+        await task.value
+        stopTask = nil
+    }
+
+    private func stopNow() async {
         if let startTask { await startTask.value }
         for request in pending { await respondError(id: request.id, errorType: "ABORTED_ERROR") }
         pending = []
@@ -148,8 +171,17 @@ final class DAppConnectionManager {
 
     func reloadPermissions() async {
         if let permissionsOverride { permissions = permissionsOverride; return }
-        guard let list = try? await bridge.call("octezConnectPermissions", timeout: 30).arrayValue else { return }
-        permissions = list.compactMap(Self.permission)
+        do { permissions = try await currentPermissions() }
+        catch { permissions = []; lastError = error.localizedDescription }
+    }
+
+    private func currentPermissions() async throws -> [DAppPermission] {
+        if let permissionsOverride { return permissionsOverride }
+        if let permissionLoader { return try await permissionLoader() }
+        guard let list = try await bridge.call("octezConnectPermissions", timeout: 30).arrayValue else {
+            throw ConnectError.notGranted("Current dApp permissions could not be verified.")
+        }
+        return list.compactMap(Self.permission)
     }
 
     nonisolated static func permission(_ item: JSONValue) -> DAppPermission? {
@@ -193,12 +225,17 @@ final class DAppConnectionManager {
 
     /// Handles one event pushed by the bridge (`request`, `paired`, `refused`, `error`).
     func handle(eventJSON: String) {
-        guard let data = eventJSON.data(using: .utf8),
+        guard eventJSON.utf8.count <= 384 * 1024, let data = eventJSON.data(using: .utf8),
               let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let kind = event["kind"] as? String else { return }
         // Only the shape is logged: request contents are the dApp's business (S11).
         bridge.note("dApp event \(kind) \((event["message"] as? [String: Any])?["type"] as? String ?? "")")
         switch kind {
+        case "stopped":
+            isStarted = false
+            permissions = []
+            pending = []
+            lastError = event["message"] as? String
         case "error":
             lastError = event["message"] as? String
             if case .waiting = pairing { pairing = .failed(lastError ?? "Pairing failed") }
@@ -245,8 +282,12 @@ final class DAppConnectionManager {
 
     /// The grant that covers this request right now, read fresh from the SDK, or why there is none.
     func grant(for request: DAppRequest) async throws -> DAppPermission {
-        await reloadPermissions()
-        return try Self.grant(for: request, in: permissions)
+        let generation = sessionGeneration
+        guard !invalidated else { throw ConnectError.notGranted("This wallet's dApp session has ended.") }
+        let fresh = try await currentPermissions()
+        guard !invalidated, generation == sessionGeneration else { throw ConnectError.notGranted("The dApp session changed while checking permissions.") }
+        permissions = fresh
+        return try Self.grant(for: request, in: fresh)
     }
 
     nonisolated static func grant(for request: DAppRequest, in permissions: [DAppPermission]) throws -> DAppPermission {
@@ -302,7 +343,7 @@ final class DAppConnectionManager {
     /// burn, totals and effects. Nothing is signed; a read-only signer stands in for the account.
     func prepare(_ request: DAppRequest) async throws -> DAppPreparedBatch {
         guard case .operation(let id, _, let networkType, let rpcURL, let source, let operationsJSON) = request else { throw ConnectError.refusedPayload("not an operation request") }
-        _ = try Self.grant(for: request, in: permissions)
+        _ = try await grant(for: request)
         guard let wallet = wallet(for: source) else { throw ConnectError.notOurWallet(source) }
         guard let publicKey = wallet.publicKey else { throw ConnectError.noUsableKey(wallet.alias) }
         guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }

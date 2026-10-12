@@ -460,15 +460,12 @@ export async function getGovernanceInfo(rpcUrl, address) {
 export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson) {
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
+  const source = await tk.signer.publicKeyHash();
   const arg = JSON.parse(argJson || "{}");
-  let op;
-  switch (kind) {
-    case "proposals": op = await tk.contract.proposals({ proposals: arg.proposals }); break;
-    case "ballot": op = await tk.contract.ballot({ proposal: arg.proposal, ballot: arg.ballot }); break;
-    default: throw new Error(`unknown governance operation ${kind}`);
-  }
-  pendingOperations.set(op.hash, op);
-  return { hash: op.hash };
+  const params = kind === "proposals" ? { proposals: arg.proposals, source } : kind === "ballot" ? { proposal: arg.proposal, ballot: arg.ballot, source } : null;
+  if (!params) throw new Error(`unknown governance operation ${kind}`);
+  const { opOb } = await tk.prepare[kind](params);
+  return signAndInject(tk, rpcUrl, opOb);
 }
 
 // ---- Raw operations ---------------------------------------------------------------------------
@@ -478,8 +475,8 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 
 import { RpcClient } from "@taquito/rpc";
 import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
-import { approvedEstimate, sendApproved, parseLimits, pendingOperations, injectSigned, checkedLimit } from "./operations.js";
-export { assertChain, injectSignedBytes, checkApproved, parseLimits } from "./operations.js";
+import { approvedEstimate, sendApproved, parseLimits, pendingOperations, injectSigned, checkedLimit, assertNoPending, forgetOperation, signAndInject, operationRecord, recordCheckedLevel } from "./operations.js";
+export { assertChain, injectSignedBytes, checkApproved, parseLimits, pendingOperation, forgetOperation, originatedAddress } from "./operations.js";
 
 const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;
 const HARD_GAS_LIMIT = 1040000, HARD_STORAGE_LIMIT = 60000;
@@ -527,7 +524,9 @@ async function prepareRaw(rpcUrl, source, publicKey, contentsIn) {
 export async function estimateRawOperation(rpcUrl, source, publicKey, contentsJson) {
   const { feeMutez, contents } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
   const gasLimit = contents.reduce((a, c) => a + Number(c.gas_limit), 0);
-  return { feeMutez: String(feeMutez), burnMutez: "0", totalCostMutez: String(feeMutez), gasLimit, storageLimit: 0, limits: { feeMutez: String(feeMutez), gasLimit, storageLimit: 0 } };
+  const storageLimit = contents.reduce((a, c) => a + checkedLimit(c.storage_limit, "storage"), 0);
+  const burn = BigInt(storageLimit) * 250n;
+  return { feeMutez: String(feeMutez), burnMutez: String(burn), totalCostMutez: String(BigInt(feeMutez) + burn), gasLimit, storageLimit, limits: { feeMutez: String(feeMutez), gasLimit, storageLimit } };
 }
 
 /**
@@ -539,12 +538,16 @@ export async function sendRawOperation(rpcUrl, signerSpec, contentsJson, limitsJ
   const limits = parseLimits(limitsJson);
   const signer = await signerFor(signerSpec);
   const [source, publicKey] = await Promise.all([signer.publicKeyHash(), signer.publicKey()]);
+  const chainID = await assertNoPending(rpcUrl, source);
   const { rpc, branch, contents, forged, protocol, feeMutez } = await prepareRaw(rpcUrl, source, publicKey, JSON.parse(contentsJson));
   if (feeMutez > limits.feeMutez) throw new Error(`The fee is now ${feeMutez} mutez, above the approved ${limits.feeMutez}; estimate it again`);
+  const gas = contents.reduce((sum, c) => sum + checkedLimit(c.gas_limit, "gas"), 0);
+  const storage = contents.reduce((sum, c) => sum + checkedLimit(c.storage_limit, "storage"), 0);
+  if (gas > limits.gasLimit || storage > limits.storageLimit) throw new Error("The raw operation's gas or storage exceeds the approved budget; estimate again");
   const { prefixSig, sbytes } = await signer.sign(forged, new Uint8Array([3]));
   const pre = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   appliedResults(contents, pre.flatMap((p) => p.contents), "preapply");
-  return injectSigned(rpc, sbytes);
+  return injectSigned(rpc, sbytes, { rpcURL: rpcUrl, source, contents, chainID, branch });
 }
 
 // Test hooks for the local forger: our bytes, Taquito's for the same contents, and the check.
@@ -557,13 +560,17 @@ export async function verifyRawForgingForTest(branch, contentsJson, nodeHex) { r
 export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {
   const rpc = new RpcClient(rpcUrl);
   // Start a couple of blocks back: an operation injected a moment ago may already be in a block.
-  let last = Math.max(0, (await rpc.getBlockHeader()).level - 2);
+  const record = operationRecord(hash);
+  let anchor;
+  if (record?.branch) anchor = await rpc.getBlockHeader({ block: record.branch });
+  let last = Math.max(0, (record?.lastCheckedLevel ?? anchor?.level ?? (await rpc.getBlockHeader()).level - 118) - 2);
   for (let seen = 0; seen < maxBlocks; ) {
     const header = await rpc.getBlockHeader();
     if (header.level > last) {
       for (let level = last + 1; level <= header.level; level++) {
         const block = await rpc.getBlock({ block: String(level) });
-        if ((block.operations?.[3] ?? []).some((op) => op.hash === hash)) return level;
+        if ((block.operations ?? []).flat().some((op) => op.hash === hash)) { forgetOperation(hash); return level; }
+        if (level % 16 === 0 || level === header.level) recordCheckedLevel(hash, level);
       }
       seen += header.level - last;
       last = header.level;

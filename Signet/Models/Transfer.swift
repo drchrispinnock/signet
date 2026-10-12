@@ -53,15 +53,16 @@ struct SentOperation: Hashable, Sendable {
     let hash: String
     let injected: Bool
     let signedBytes: String?
+    let originatedAddress: String?
 
-    init(hash: String, injected: Bool = true, signedBytes: String? = nil) {
-        self.hash = hash; self.injected = injected; self.signedBytes = signedBytes
+    init(hash: String, injected: Bool = true, signedBytes: String? = nil, originatedAddress: String? = nil) {
+        self.hash = hash; self.injected = injected; self.signedBytes = signedBytes; self.originatedAddress = originatedAddress
     }
 
     /// From the bridge's `{ hash, injected, signedBytes }`.
     init?(_ value: JSONValue) {
         guard let hash = value["hash"]?.stringValue, !hash.isEmpty else { return nil }
-        self.init(hash: hash, injected: value["injected"]?.boolValue ?? true, signedBytes: value["signedBytes"]?.stringValue)
+        self.init(hash: hash, injected: value["injected"]?.boolValue ?? true, signedBytes: value["signedBytes"]?.stringValue, originatedAddress: value["address"]?.stringValue)
     }
 }
 

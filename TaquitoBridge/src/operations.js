@@ -8,12 +8,67 @@
 // injection, so when the node's answer is lost the caller still learns the hash and that the
 // outcome is unknown, instead of an error that invites a second payment.
 
+import { blake2b } from "@noble/hashes/blake2.js";
 import { RpcClient } from "@taquito/rpc";
+import { forgeRawOperation } from "./rawforge.js";
 import { localForger } from "@taquito/local-forging";
-import { encodeOpHash } from "@taquito/utils";
+import { encodeOpHash, b58DecodeAndCheckPrefix, b58Encode, PrefixV2 } from "@taquito/utils";
 
 /** Operations whose hash Taquito tracks for `waitForConfirmation` (sent in this session). */
 export const pendingOperations = new Map();
+
+const memoryJournal = new Map();
+function records() {
+  const saved = globalThis.__signet?.operationRead?.();
+  const parsed = saved == null ? Array.from(memoryJournal.values()) : JSON.parse(saved);
+  if (!Array.isArray(parsed)) throw new Error("Operation recovery storage is unavailable; refusing to sign");
+  return parsed;
+}
+function save(record) {
+  const error = globalThis.__signet?.operationSave?.(JSON.stringify(record));
+  if (error) throw new Error(error);
+  memoryJournal.set(record.hash, record);
+}
+export function forgetOperation(hash) {
+  const error = globalThis.__signet?.operationRemove?.(hash);
+  if (error) throw new Error(error);
+  memoryJournal.delete(hash);
+}
+async function verifyRecoveryRecord(record) {
+  if (!record.source) return; // Direct/offline injection fixtures have no account intent.
+  if (!record.branch || !Array.isArray(record.contents) || !record.contents.length || record.contents.some(c => c.source !== record.source)) throw new Error("The recovery record's source does not match its signed intent");
+  if (encodeOpHash(record.signedBytes) !== record.hash) throw new Error("The recovery record's hash does not match its signed bytes");
+  let forged;
+  try { forged = await localForger.forge({ branch: record.branch, contents: record.contents }); }
+  catch { forged = forgeRawOperation(record.branch, record.contents); }
+  if (!record.signedBytes.startsWith(forged) || record.signedBytes.length <= forged.length) throw new Error("The recovery record's displayed intent does not match its signed bytes");
+}
+
+export async function pendingOperation(rpcURL, source) {
+  const chainID = await new RpcClient(rpcURL).getChainId();
+  const record = records().find(r => r.source === source && (r.chainID == null || r.chainID === chainID));
+  if (record) await verifyRecoveryRecord(record);
+  return record ? { ...record, rpcURL } : null;
+}
+export async function assertNoPending(rpcURL, source) {
+  const pending = await pendingOperation(rpcURL, source);
+  if (pending) throw new Error(`Operation ${pending.hash} still needs recovery. Open Send to watch it or rebroadcast the same signed bytes; nothing new was signed.`);
+  return new RpcClient(rpcURL).getChainId();
+}
+export function operationRecord(hash) { return records().find(r => r.hash === hash); }
+export function recordCheckedLevel(hash, level) {
+  const record = operationRecord(hash);
+  if (record) save({ ...record, lastCheckedLevel: level });
+}
+
+/** First originated contract uses nonce zero, derived from the locally computed operation hash. */
+export function originatedAddress(hash) {
+  const bytes = b58DecodeAndCheckPrefix(hash, [PrefixV2.OperationHash], true);
+  const nonce = new Uint8Array(bytes.length + 4);
+  nonce.set(bytes);
+  return b58Encode(blake2b(nonce, { dkLen: 20 }), PrefixV2.ContractHash);
+}
+
 
 export function checkedLimit(value, what = "limit") {
   const number = Number(value);
@@ -93,15 +148,16 @@ function describeFailure(results) {
 /** Forges locally, signs, preapplies and injects `opOb` with the toolkit's signer. */
 export async function signAndInject(tk, rpcUrl, opOb) {
   const { branch, contents, protocol } = opOb;
+  const chainID = await assertNoPending(rpcUrl, await tk.signer.publicKeyHash());
   const forged = await localForger.forge({ branch, contents });
   const { prefixSig, sbytes } = await tk.signer.sign(forged, new Uint8Array([3]));
   const rpc = new RpcClient(rpcUrl);
   const replies = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   const results = replies.flatMap((r) => r.contents ?? []);
-  if (results.length !== contents.length || results.some((c) => c.metadata?.operation_result?.status !== "applied")) {
+  if (results.length !== contents.length || results.some((c, i) => ["proposals", "ballot"].includes(contents[i].kind) ? c.kind !== contents[i].kind || c.metadata?.operation_result?.status === "failed" || !!c.errors : c.metadata?.operation_result?.status !== "applied")) {
     throw new Error(`The node did not apply the operation: ${describeFailure(results)}`);
   }
-  return injectSigned(rpc, sbytes);
+  return injectSigned(rpc, sbytes, { rpcURL: rpcUrl, source: contents[0].source, contents, chainID, branch });
 }
 
 /** Prepare with the approved limits, then sign and inject. */
@@ -126,26 +182,33 @@ export async function assertChain(rpcUrl, expectedChainId) {
  * outcome is unknown, instead of an error that invites a second, different payment (S15).
  * A definite rejection by the node is still thrown.
  */
-export async function injectSigned(rpc, sbytes) {
+export async function injectSigned(rpc, sbytes, intent = {}) {
   const hash = encodeOpHash(sbytes);
+  const existing = records().find(r => r.hash === hash);
+  const record = { ...existing, ...intent, hash, injected: false, signedBytes: sbytes, rpcURL: intent.rpcURL ?? existing?.rpcURL ?? rpc.getRpcUrl(), created: existing?.created ?? Date.now() };
+  if (record.contents?.some(c => c.kind === "origination")) record.address = originatedAddress(hash);
+  // Failure here occurs before the injection boundary and must prevent injection.
+  save(record);
   try {
     const confirmed = await rpc.injectOperation(sbytes);
-    return { hash: confirmed || hash, injected: true, signedBytes: sbytes };
+    if (confirmed !== hash) throw new Error("The node's operation hash does not match the signed bytes");
+    // The durable record stays until inclusion is verified, including a crash after acceptance.
+    return { ...record, injected: true };
   } catch (error) {
-    if (isDefiniteRejection(error)) throw error;
-    console.warn("injection outcome unknown", hash, error?.message ?? error);
-    return { hash, injected: false, signedBytes: sbytes };
+    // Even a Tezos error (e.g. counter_in_the_past) can follow an earlier successful acceptance.
+    // Only pre-injection validation failures are safe to treat as definite failures.
+    console.warn("injection outcome unknown", hash);
+    return record;
   }
-}
-
-/** An HTTP reply from the node (it saw the request and said no), as opposed to no reply at all. */
-export function isDefiniteRejection(error) {
-  const status = Number(error?.status);
-  return Number.isFinite(status) && status >= 400 && status < 600;
 }
 
 /** Sends already-signed bytes again after an unknown outcome; the hash cannot change (S15). */
 export async function injectSignedBytes(rpcUrl, sbytes) {
   if (typeof sbytes !== "string" || !/^[0-9a-f]+$/i.test(sbytes) || sbytes.length < 2 * (32 + 64)) throw new Error("not a signed operation");
-  return injectSigned(new RpcClient(rpcUrl), sbytes);
+  const rpc = new RpcClient(rpcUrl);
+  const chainID = await rpc.getChainId();
+  const previous = operationRecord(encodeOpHash(sbytes));
+  if (previous) await verifyRecoveryRecord(previous);
+  if (previous?.chainID != null && previous.chainID !== chainID) throw new Error("This signed operation belongs to another chain; choose its original network");
+  return injectSigned(rpc, sbytes, { rpcURL: rpcUrl, chainID });
 }

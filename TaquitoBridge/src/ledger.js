@@ -20,6 +20,15 @@ g.__signet_ledgerDone = (id, responseHex, errorMessage) => {
   else p.resolve(Buffer.from(responseHex, "hex"));
 };
 
+const pendingSessions = new Map();
+let nextSessionId = 1;
+g.__signet_ledgerSessionReady = (id, error) => {
+  const pending = pendingSessions.get(id);
+  if (!pending) return;
+  pendingSessions.delete(id);
+  if (error) pending.reject(new Error(error)); else pending.resolve();
+};
+
 /** How long we wait for the device: the user may need a while to read and approve on it. */
 export const LEDGER_EXCHANGE_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -31,6 +40,22 @@ export class NativeLedgerTransport extends Transport {
     // Exchanges on one device run strictly one after another (S22): a signing session is
     // several APDUs, and two callers interleaving theirs would cross their answers.
     this.queue = Promise.resolve();
+    this.sessions = Promise.resolve();
+  }
+
+  session(work) {
+    const run = async () => {
+      if (!native.ledgerSessionBegin) return work(); // Offline transports have no physical device.
+      const id = nextSessionId++;
+      await new Promise((resolve, reject) => {
+        pendingSessions.set(id, { resolve, reject });
+        native.ledgerSessionBegin(id, this.deviceId);
+      });
+      try { return await work(); } finally { native.ledgerSessionEnd(id); }
+    };
+    const turn = this.sessions.then(run, run);
+    this.sessions = turn.catch(() => {});
+    return turn;
   }
 
   exchange(apdu, { abortTimeoutMs } = {}) {
@@ -77,7 +102,8 @@ function transportFor(deviceId) {
 
 /** The Tezos Wallet app's version, or an error if another app (or the dashboard) is showing. */
 export async function ledgerAppVersion(deviceId) {
-  const r = await transportFor(deviceId).send(0x80, 0x00, 0x00, 0x00);
+  const transport = transportFor(deviceId);
+  const r = await transport.session(() => transport.send(0x80, 0x00, 0x00, 0x00));
   // appclass (0 = Tezos Wallet, 1 = Tezos Baking), major, minor, patch
   return { appClass: r[0], version: `${r[1]}.${r[2]}.${r[3]}`, isWallet: r[0] === 0 };
 }
@@ -88,18 +114,29 @@ export async function ledgerAppVersion(deviceId) {
  * address and waits for the user to approve it.
  */
 export async function ledgerGetAddress(deviceId, path, derivationType, prompt) {
-  const signer = new LedgerSigner(transportFor(deviceId), path, !!prompt, Number(derivationType));
-  return { publicKey: await signer.publicKey(), address: await signer.publicKeyHash() };
+  const transport = transportFor(deviceId);
+  return transport.session(async () => {
+    const signer = new LedgerSigner(transport, path, !!prompt, Number(derivationType));
+    return { publicKey: await signer.publicKey(), address: await signer.publicKeyHash() };
+  });
 }
 
 /** A signer for a ledger spec `{ deviceId?, path, derivationType, address? }`. */
 export async function ledgerSignerFor(spec) {
-  const signer = new LedgerSigner(transportFor(spec.deviceId || ""), spec.path, false, Number(spec.derivationType ?? DerivationType.ED25519));
-  if (spec.address) {
+  const transport = transportFor(spec.deviceId || "");
+  const signer = new LedgerSigner(transport, spec.path, false, Number(spec.derivationType ?? DerivationType.ED25519));
+  const check = async () => {
     const found = await signer.publicKeyHash();
-    if (found !== spec.address) {
-      throw new Error(`The connected Ledger does not hold this key: it derives ${found} where ${spec.address} was expected. Is it the right device?`);
-    }
-  }
-  return signer;
+    if (!spec.address || found !== spec.address) throw new Error(`The connected Ledger does not hold this key: it derives ${found} where ${spec.address} was expected.`);
+  };
+  await transport.session(check);
+  return {
+    publicKey: () => transport.session(() => signer.publicKey()),
+    publicKeyHash: () => transport.session(() => signer.publicKeyHash()),
+    secretKey: () => signer.secretKey(),
+    sign: (bytes, watermark) => transport.session(async () => {
+      await check();
+      return signer.sign(bytes, watermark);
+    }),
+  };
 }

@@ -4,10 +4,12 @@ import SwiftUI
 struct SendSheet: View {
     @Bindable var model: WalletViewModel
     @State private var send: SendViewModel
+    private let network: Network
     @Environment(\.dismiss) private var dismiss
 
     init(model: WalletViewModel, sender: Wallet) {
         self.model = model
+        self.network = model.network
         _send = State(initialValue: SendViewModel(
             sender: sender,
             wallets: model.wallets,
@@ -21,16 +23,17 @@ struct SendSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             switch send.step {
             case .compose:
-                ComposeTransferView(send: send, network: model.network, onCancel: { dismiss() })
+                ComposeTransferView(send: send, network: network, onCancel: { dismiss() })
             case .confirm, .sending:
-                ConfirmTransferView(send: send, network: model.network)
+                ConfirmTransferView(send: send, network: network)
             case .sent, .unknown, .confirmed:
-                TransferResultView(send: send, network: model.network, onDone: {
+                TransferResultView(send: send, network: network, onDone: {
                     dismiss()
                     Task { await model.refreshAfterOperation() }
                 })
             }
         }
+        .task { await send.recoverPending() }
         .padding(20)
         .frame(width: 520)
         .animation(.easeInOut(duration: 0.15), value: send.step)
@@ -281,6 +284,9 @@ private struct TransferResultView: View {
                 .font(.callout).foregroundStyle(.secondary)
         default:
             EmptyView()
+        }
+        if let address = send.sent?.originatedAddress {
+            LabeledContent("Contract address") { Text(address).font(.callout.monospaced()).textSelection(.enabled) }
         }
         if let error = send.errorMessage {
             Text(error).font(.callout).foregroundStyle(.red)

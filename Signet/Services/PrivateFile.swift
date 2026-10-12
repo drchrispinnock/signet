@@ -58,8 +58,9 @@ enum PrivateFile {
                     offset += written
                 }
             }
-            fchmod(fd, 0o600)
-            fsync(fd)
+            guard fchmod(fd, 0o600) == 0, fsync(fd) == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
             close(fd)
         } catch {
             close(fd)
@@ -67,18 +68,28 @@ enum PrivateFile {
         }
         guard rename(temporary.path, url.path) == 0 else { throw FileError.cannotRename(url.path, errno) }
         ok = true
-        syncDirectory(directory)
+        try syncDirectory(directory)
     }
 
     /// Reads a file, refusing symlinks, so a planted link cannot redirect a read elsewhere.
     static func read(_ url: URL) throws -> Data? {
-        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else {
             if errno == ENOENT { return nil }
             throw FileError.cannotCreate(url.path, errno)
         }
         defer { close(fd) }
-        return FileHandle(fileDescriptor: fd, closeOnDealloc: false).readDataToEndOfFile()
+        var info = stat()
+        guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= 32 << 20 else {
+            throw CocoaError(.fileReadTooLarge)
+        }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+        var bytes = Data()
+        while let chunk = try handle.read(upToCount: 32 * 1024), !chunk.isEmpty {
+            guard bytes.count + chunk.count <= 32 << 20 else { throw CocoaError(.fileReadTooLarge) }
+            bytes.append(chunk)
+        }
+        return bytes
     }
 
     /// Removes temporaries a crash may have left for `names` in `directory`. Call it only while
@@ -92,10 +103,10 @@ enum PrivateFile {
         }
     }
 
-    static func syncDirectory(_ directory: URL) {
+    static func syncDirectory(_ directory: URL) throws {
         let fd = open(directory.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
-        guard fd >= 0 else { return }
-        fsync(fd)
-        close(fd)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(fd) }
+        guard fsync(fd) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     }
 }

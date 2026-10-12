@@ -123,6 +123,12 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    func pendingOperation(for address: Address) async throws -> SentOperation? {
+        try await verifyChain()
+        let value = try await bridge.call("pendingOperation", [network.rpcURL.absoluteString, address.value], timeout: 30)
+        return value == .null ? nil : SentOperation(value)
+    }
+
     func rebroadcast(_ sent: SentOperation) async throws -> SentOperation {
         guard let bytes = sent.signedBytes else { throw TaquitoBridge.BridgeError.javaScript("There are no signed bytes to send again for \(sent.hash).") }
         let result = try await bridge.call("injectSignedBytes", [network.rpcURL.absoluteString, bytes], timeout: 120)
@@ -269,6 +275,7 @@ struct TaquitoChainService: ChainService {
     }
 
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
+        try await verifyChain()
         let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
         let r = try await signing { try await bridge.call("sendGovernanceOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg]) }
         guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }

@@ -40,21 +40,23 @@ enum EndpointPolicy {
     /// Resolves the host and refuses any address in a private range: a public-looking name that
     /// points at this machine or the LAN (DNS rebinding, split-horizon) is caught here. Blocking;
     /// call it off the main actor. Hosts that do not resolve are refused too.
-    static func resolvesPublicly(_ host: String) -> Bool {
-        if isLocalOrPrivateHost(host) { return false }
+    static func resolvesPublicly(_ host: String) -> Bool { !publicAddresses(host).isEmpty }
+
+    static func publicAddresses(_ host: String) -> [String] {
+        if isLocalOrPrivateHost(host) { return [] }
         var hints = addrinfo()
         hints.ai_socktype = SOCK_STREAM
         var result: UnsafeMutablePointer<addrinfo>?
-        guard getaddrinfo(host, nil, &hints, &result) == 0, let first = result else { return false }
+        guard getaddrinfo(host, nil, &hints, &result) == 0, let first = result else { return [] }
         defer { freeaddrinfo(first) }
         var pointer: UnsafeMutablePointer<addrinfo>? = first
-        var seen = false
+        var addresses: [String] = []
         while let info = pointer {
-            seen = true
-            if let text = numericAddress(info), isLocalOrPrivateHost(text) { return false }
+            guard let text = numericAddress(info), !isLocalOrPrivateHost(text) else { return [] }
+            if !addresses.contains(text) { addresses.append(text) }
             pointer = info.pointee.ai_next
         }
-        return seen
+        return addresses
     }
 
     private static func numericAddress(_ info: UnsafeMutablePointer<addrinfo>) -> String? {

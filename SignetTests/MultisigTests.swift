@@ -276,14 +276,14 @@ struct MultisigFlowTests {
 struct ShadownetMultisigReadTests {
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func readsADeployedMultisig() async throws {
-        let info = try await BridgeMultisigService().info(rpcURL: Network.shadownet.rpcURL, address: Address("KT1UqzPQCEb6bVYKeab9EXjVcQsUGT8iLC2m"))
+        let info = try await BridgeMultisigService(network: .shadownet).info(rpcURL: Network.shadownet.rpcURL, address: Address("KT1UqzPQCEb6bVYKeab9EXjVcQsUGT8iLC2m"))
         #expect(info.isGenericMultisig)
         #expect(info.threshold == 2)
         #expect(info.keys == ["edpktnKyTBhma1YNJdJz63gPJSf41FnreC1XmFDwUtUiDHBQpUPscy", "sppk7bh9rrWgzanNhBqCwyKeEHDKXBdGFcJw1F9Eixt1prn8oB6ot5Z", "p2pk68NJBPLa6KmK3Yk4NoKjMuT9j8F6oknXRmKqwNCErwqyiS8YjiD"])
         #expect(info.counter >= 0)
         // Printed so the bytes can be compared with `octez-client prepare multisig transaction on
         // KT1UqzPQCEb6bVYKeab9EXjVcQsUGT8iLC2m transferring 1 to tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb`.
-        let (_, _, bytes) = try await BridgeMultisigService().prepare(rpcURL: Network.shadownet.rpcURL, contract: info.address, action: .transfer(amountMutez: "1000000", destination: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"))
+        let (_, _, bytes) = try await BridgeMultisigService(network: .shadownet).prepare(rpcURL: Network.shadownet.rpcURL, contract: info.address, action: .transfer(amountMutez: "1000000", destination: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"))
         // A contract's balance reads like an account's (the node refuses full_balance for KT1s).
         let balance = try await TaquitoChainService(network: .shadownet).tezBalance(for: info.address)
         #expect(balance.total == info.balance && balance.staked == 0)
@@ -298,7 +298,7 @@ struct ShadownetMultisigTests {
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
     func twoOfThreeTransferEndToEnd() async throws {
         let chain = TaquitoChainService(network: .shadownet)
-        let service = BridgeMultisigService()
+        let service = BridgeMultisigService(network: .shadownet)
         let rpc = Network.shadownet.rpcURL
         let generator = KeyGenerator()
         let payer = try await generator.generate(scheme: .tz1)

@@ -3,10 +3,12 @@
 // as a failure to retry with a fresh operation.
 const fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict');
 const {encodeOpHash}=require('@taquito/utils');
-let mode='ok',injections=0;
-const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
- Promise.resolve().then(()=>{assert.ok(url.includes('/injection/operation'),url);injections++;
+let mode='ok',injections=0,failSave=false;const journal=new Map();
+const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),operationRead(){return JSON.stringify([...journal.values()]);},operationSave(json){if(failSave)return "synthetic disk failure";const record=JSON.parse(json);journal.set(record.hash,record);return "";},operationRemove(hash){journal.delete(hash);return "";},setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
+ Promise.resolve().then(()=>{if(url.endsWith('/chain_id'))return ctx.__signet_fetchDone(id,200,'OK','{}','"NetFixture"',null);assert.ok(url.includes('/injection/operation'),url);injections++;assert.ok(journal.has(encodeOpHash(JSON.parse(body))),"signed bytes must be durably recorded before injection");
   if(mode==='lost')return ctx.__signet_fetchDone(id,0,'','{}','','The network connection was lost.');
+  if(mode==='gateway')return ctx.__signet_fetchDone(id,504,'Gateway Timeout','{}','<html>forwarded upstream, timed out</html>',null);
+  if(mode==='wrongHash')return ctx.__signet_fetchDone(id,200,'OK','{}',JSON.stringify('ooWRONG'),null);
   if(mode==='rejected')return ctx.__signet_fetchDone(id,500,'Internal Server Error','{}','[{"kind":"permanent","id":"proto.alpha.contract.counter_in_the_past"}]',null);
   ctx.__signet_fetchDone(id,200,'OK','{}',JSON.stringify(encodeOpHash(JSON.parse(body))),null);});
 }}};vm.createContext(ctx);vm.runInContext(fs.readFileSync(require('node:path').resolve(__dirname,'../../Signet/Resources/taquito-bridge.js'),'utf8'),ctx);const api=ctx.TaquitoBridge;
@@ -35,8 +37,11 @@ const ok=await api.injectSignedBytes('https://offline.invalid',sbytes);
 assert.equal(ok.injected,true);assert.equal(ok.hash,encodeOpHash(sbytes));assert.equal(ok.signedBytes,sbytes);
 mode='lost';const lost=await api.injectSignedBytes('https://offline.invalid',sbytes);
 assert.equal(lost.injected,false);assert.equal(lost.hash,encodeOpHash(sbytes),'the hash is known before the node answers');assert.equal(lost.signedBytes,sbytes);
-mode='rejected';await assert.rejects(api.injectSignedBytes('https://offline.invalid',sbytes),/counter_in_the_past|500/);
+mode='rejected';const uncertain=await api.injectSignedBytes('https://offline.invalid',sbytes);assert.equal(uncertain.injected,false);assert.equal(uncertain.signedBytes,sbytes);
 await assert.rejects(api.injectSignedBytes('https://offline.invalid','zz'),/not a signed operation/);
-assert.equal(injections,3);
-console.log('PASS S15: a lost reply yields the hash with injected:false; a rejection throws; rebroadcast resends the same bytes');
+mode='gateway';const gateway=await api.injectSignedBytes('https://offline.invalid',sbytes);assert.equal(gateway.injected,false);assert.equal(gateway.hash,encodeOpHash(sbytes));
+mode='wrongHash';const wrong=await api.injectSignedBytes('https://offline.invalid',sbytes);assert.equal(wrong.injected,false);assert.equal(wrong.hash,encodeOpHash(sbytes));
+failSave=true;const before=injections;await assert.rejects(api.injectSignedBytes('https://offline.invalid',sbytes),/disk failure/);assert.equal(injections,before);
+assert.equal(injections,5);
+console.log('PASS S15: a lost reply yields the hash with injected:false; a post-injection error remains uncertain; rebroadcast resends the same bytes');
 })().catch(e=>{console.error(e);process.exitCode=1});

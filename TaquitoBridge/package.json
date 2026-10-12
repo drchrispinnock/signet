@@ -8,8 +8,9 @@
     "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js",
     "test:dapp-prepared": "node test/dapp-prepared.cjs",
     "test:dapp-identity": "node test/dapp-identity.cjs",
-    "test": "npm run test:dapp-prepared && npm run test:dapp-identity && npm run test:approved-limits",
-    "test:approved-limits": "node test/approved-limits.cjs"
+    "test": "npm run test:dapp-prepared && npm run test:dapp-identity && npm run test:approved-limits && npm run test:audit-boundaries",
+    "test:approved-limits": "node test/approved-limits.cjs",
+    "test:audit-boundaries": "node test/audit-boundaries.cjs"
   },
   "devDependencies": {
     "@taquito/taquito": "^25.1.0-beta0",

@@ -23,6 +23,7 @@ protocol ChainService: Sendable {
     /// Signs and injects a transfer with exactly the approved `limits` (S14).
     func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
     /// Sends the same signed bytes again after an unknown outcome; the hash cannot change (S15).
+    func pendingOperation(for address: Address) async throws -> SentOperation?
     func rebroadcast(_ sent: SentOperation) async throws -> SentOperation
     /// Waits for the operation to be included. Returns the block level.
     func waitForConfirmation(of operationHash: String) async throws -> Int
@@ -64,6 +65,7 @@ struct Portfolio: Equatable, Sendable {
 }
 
 extension ChainService {
+    func pendingOperation(for address: Address) async throws -> SentOperation? { nil }
     func portfolio(for address: Address) async throws -> Portfolio {
         async let tokens = tokenBalances(for: address)
         async let nfts = nfts(for: address)

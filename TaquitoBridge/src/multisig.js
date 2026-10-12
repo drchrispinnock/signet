@@ -17,7 +17,7 @@ import { Parser, packDataBytes } from "@taquito/michel-codec";
 import { b58Encode, getPkhfromPk, PrefixV2, verifySignature } from "@taquito/utils";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { signerFor } from "./signers.js";
-import { parseLimits, pendingOperations } from "./operations.js";
+import { parseLimits, approvedEstimate, prepareApproved, signAndInject } from "./operations.js";
 import { encodedPublicKeyHash, encodedContractAddress } from "./rawforge.js";
 import multisigScript from "./multisig-script.json";
 
@@ -76,7 +76,7 @@ export async function multisigEstimateOriginate(rpcUrl, source, publicKey, thres
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
   const est = await tk.estimate.originate({ code: multisigScript, init: initialStorage(threshold, keys) });
-  return estimateWithLimits(est);
+  return approvedEstimate(tk, "originate", { code: multisigScript, init: initialStorage(threshold, keys) }, est);
 }
 
 /**
@@ -91,9 +91,9 @@ export async function multisigOriginate(rpcUrl, signerSpec, threshold, keysJson,
   const limits = parseLimits(limitsJson);
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
-  const op = await tk.contract.originate({ code: multisigScript, init: initialStorage(threshold, keys), fee: limits.feeMutez, gasLimit: limits.gasLimit, storageLimit: limits.storageLimit });
-  pendingOperations.set(op.hash, op);
-  return { hash: op.hash, address: op.contractAddress };
+  const op = await prepareApproved(tk, "originate", { code: multisigScript, init: initialStorage(threshold, keys) }, limits);
+  return signAndInject(tk, rpcUrl, op);
+
 }
 
 /** Counter, threshold, keys and balance of a multisig, and whether its code is the generic script. */
@@ -298,7 +298,7 @@ export async function multisigEstimateSubmit(rpcUrl, source, publicKey, contract
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
   const est = await tk.estimate.transfer(await submitParams(rpcUrl, contract, actionJson, counter, signaturesJson));
-  return estimateWithLimits(est);
+  return approvedEstimate(tk, "transaction", await submitParams(rpcUrl, contract, actionJson, counter, signaturesJson), est);
 }
 
 /**
@@ -310,7 +310,5 @@ export async function multisigSubmit(rpcUrl, signerSpec, contract, actionJson, c
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
   const params = await submitParams(rpcUrl, contract, actionJson, counter, signaturesJson);
-  const op = await tk.contract.transfer({ ...params, fee: limits.feeMutez, gasLimit: limits.gasLimit, storageLimit: limits.storageLimit });
-  pendingOperations.set(op.hash, op);
-  return { hash: op.hash };
+  return signAndInject(tk, rpcUrl, await prepareApproved(tk, "transaction", params, limits));
 }
