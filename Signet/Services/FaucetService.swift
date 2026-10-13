@@ -193,14 +193,15 @@ struct FaucetService: Sendable {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw FaucetError.unexpectedReply }
-        guard (200..<300).contains(http.statusCode) else {
-            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let reply: BoundedHTTP.Reply
+        do { reply = try await BoundedHTTP.data(for: request, session: session, limit: 64 << 10, json: .record) }
+        catch BoundedHTTP.Failure.notHTTP { throw FaucetError.unexpectedReply }
+        guard reply.isSuccess else {
+            let object = try? JSONSerialization.jsonObject(with: reply.data) as? [String: Any]
             let message = (object?["message"] ?? object?["error"]) as? String
-            throw FaucetError.server(message ?? "HTTP \(http.statusCode)")
+            throw FaucetError.server(message ?? "HTTP \(reply.status)")
         }
-        return data
+        return reply.data
     }
 
     /// Parses a challenge reply and checks it against `Limits`; with `previous`, the counter must

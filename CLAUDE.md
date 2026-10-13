@@ -118,6 +118,10 @@ automatic download is off by default. The updater is not started under the test 
   unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
   (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
   `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
+  `importWallets(from:)` (S09) first takes the source's own locks and rolls back any journal it
+  finds there, copies all three key files as one snapshot, releases that lock and only then takes
+  this directory's lock to merge (no nested locks, so opposite imports cannot deadlock); a
+  directory cannot be imported into itself (`StoreError.sameDirectory`).
   `secretKey(for:)` and `remove(_:)` take the whole `Wallet` and fail with
   `StoreError.addressMismatch` unless `public_key_hashs` still maps its alias to its address: a
   sheet's `Wallet` can outlive a directory switch, and the alias alone must never pick a key or
@@ -204,7 +208,7 @@ automatic download is off by default. The updater is not started under the test 
   `inspectSecretKey` reports the address and reduces a 64-byte edsk to its seed so it can be
   stored in octez format. Both paths end in `WalletViewModel.importAccount(alias:material:…)`,
   which can encrypt the key for storage like Create account. `KeyImporter` is the protocol
-  (`BridgeKeyImporter`, `MockKeyImporter`). **Session-only keys (0.8.3).** The sheet's "Keep the key" choice (in the wallet directory, or only until Signet quits) makes a paper key: `importAccount(…keepForSession: true)` puts it in `SessionKeyStore` (`Signet/Services/SessionKeys.swift`, `mlock`ed bytes wiped on forget) instead of the store, `Wallet.isSessionOnly` marks it, and `WalletViewModel.wallets` is the stored list plus `sessionWallets`. It signs, exports, renames and forgets like a stored key (encrypted in memory too when a password is given) but is never written to the directory or a backup and is gone at quit; the header tags it "This session". `SignetApp.init` sets `RLIMIT_CORE` to 0 so no core dump can carry it.
+  (`BridgeKeyImporter`, `MockKeyImporter`). **Session-only keys (0.8.3).** The sheet's "Keep the key" choice (in the wallet directory, or only until Signet quits) makes a paper key: `importAccount(…keepForSession: true)` puts it in `SessionKeyStore` (`Signet/Services/SessionKeys.swift`, `mlock`ed bytes wiped on forget) instead of the store, `Wallet.isSessionOnly` marks it, and `WalletViewModel.wallets` is the stored list plus `sessionWallets`. It signs, exports, renames and forgets like a stored key (encrypted in memory too when a password is given) but is never written to the directory or a backup and is gone at quit; the header tags it "This session". `SignetApp.init` sets `RLIMIT_CORE` to 0 so no core dump can carry it. Every entry has an identity and a generation that each change bumps, `add` never replaces a taken alias or address, and Forget pins a `RemovalSnapshot` before the password check and removes only that exact entry afterwards (`remove(matching:)`, S07); `importAccount` rechecks alias and address after its encryption await.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
@@ -440,6 +444,13 @@ automatic download is off by default. The updater is not started under the test 
   `get-tez` CLI does, no captcha, with strict challenge validation, a bounded, cancellable
   solver and capped rounds, S21); `WalletViewModel.requestTestTez` drives it and polls until the
   account appears. Faucet URLs are `Network.faucetURL` from teztnets.json. `refresh()` fans out all loads concurrently.
+  **Native HTTP (S19).** Every `URLSession` read outside the bridge (node RPC in
+  `TaquitoChainService`, TzKT, the node monitor's probe, the faucet, Tezos Domains) goes through
+  `BoundedHTTP.data(for:session:limit:json:)` (`Signet/Services/BoundedHTTP.swift`): the body is
+  streamed and dropped the moment it passes the caller's byte cap, declared length or not, and a
+  JSON body must also fit `JSONBudget` depth/node/string limits (`.small`, `.record`, `.page`)
+  before it is parsed; page readers also cut rows to the requested limit. Caps are per purpose
+  (16 KB for a balance or chain id, 256 KB for an account record, 4 MB for a page).
 - **Views** map one-to-one onto the sketch: `WalletHomeView` composes `WalletHeaderView`
   (the alias is a dropdown that switches wallets; shortened address with copy button; Tezos
   Domains name stacked beneath the address, a round `AccountAvatarView` on the left fed by TzKT's
@@ -532,7 +543,16 @@ automatic download is off by default. The updater is not started under the test 
   rebuilds its `SendViewModel` on that service with `implicitAccountsOnly`, so on Etherlink the
   recipient must be a tz1, tz2 or tz3 account (contracts and tz4 are refused and never
   suggested), the spendable figure is the Etherlink balance, and estimate, send, confirmation
-  wait, journal and explorer links all go through the Layer 2 node unchanged.
+  wait, journal and explorer links all go through the Layer 2 node unchanged. Each side is one
+  immutable `SendSheet.SideContext` (network, chain service, spendable, recipient rule) captured
+  by `SendSheet.capture(model)` when the sheet opens (S31): the network shown and linked to is
+  always the one the service talks to, Settings changes after opening change nothing in the
+  sheet, and there is no Etherlink side at all (no fallback to layer 1) unless both its network
+  and service existed then. Deposits are bound the same way: `estimateBridgeDeposit` returns a
+  `BridgeEstimate` carrying the `BridgeContext` (account, whole network with node and Layer 2
+  settings, directory revision) it was made in, refused if that moved during the estimate, and
+  `bridgeToEtherlink(amount:approved:passphrase:)` throws `WalletError.contextChanged` unless the
+  context is still the same; `BridgeSheet` re-estimates whenever it changes.
   `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
@@ -563,7 +583,14 @@ cd TaquitoBridge && npm install && npm run build      # minified; `npm run build
 On the Swift side `TaquitoBridge.swift` owns the `JSContext` on a serial queue, installs the
 `__signet` native object the polyfills call for timers, HTTP (URLSession), randomness and Ledger
 HID exchanges (`LedgerHID`), and
-exposes `call(name, args, timeout:)` which unwraps promises into a `Sendable` `JSONValue`. Promise
+exposes `call(name, args, timeout:)` which unwraps promises into a `Sendable` `JSONValue`.
+**Call policy (S30).** `TaquitoBridge.signingCalls` names every export that signs, injects or
+holds a Ledger session (`kind(of:)` is `.signing` for them); those calls get no deadline and are
+never cancelled, whichever entry point they come through, while reads time out (60 s by default)
+and discard the context. Swift calls them through `bridge.sign(name, args)`, which refuses a name
+not on the list, and `SigningExportsTests` scans the bridge sources' public surface for anything
+that reaches `signerFor`, `sendApproved`, `signAndInject`, `injectSigned` or a `LedgerSigner`
+and fails if it is not declared, so a new signing export cannot be left cancellable. Promise
 callbacks must be attached with `invokeMethod("then", ...)`, never a bare `then.call`, or the
 continuation leaks and the caller hangs forever. `TaquitoChainService` uses the bridge for live
 data and delegates anything not yet implemented to a fallback `ChainService`. Numbers from the
@@ -572,7 +599,10 @@ estimates through `TaquitoChainService.estimate(from:)`, so a bad reply is an er
 trap. **Logging (S11).** The bridge log (`~/Library/Logs/Signet/bridge.log`, 0600 in a 0700
 folder, rotated to `.1` at 5 MB during writes) records fetches as method, host and path only
 (query strings carry relay tokens), status and byte count, no bodies; every line goes through
-`redactedLine` (long hex runs and base58 keys or signatures replaced, 1 KB cap). The SDK's
+`redactedLine` (long hex runs and base58 keys or signatures replaced, 1 KB cap). `record` is the
+only sink: the system log (`NSLog`), `consoleLines` and the file all get the same redacted line,
+and the JavaScript console and uncaught-exception handlers go through it too; nothing calls
+`NSLog` directly. The SDK's
 debug mode and the decrypting relay diagnostics run only when "Verbose dApp log on the next
 launch" was armed in Settings > Developer (`DeveloperSettings`, consumed at that launch). Ledger
 traces show the APDU header and length only.

@@ -195,7 +195,8 @@ final class NodeMonitor {
         request.timeoutInterval = 8
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let started = Date()
-        let (data, response) = try await URLSession.shared.data(for: request)
-        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0, Date().timeIntervalSince(started))
+        // A block header is a few hundred bytes; anything bigger is not a node worth trusting (S19).
+        let reply = try await BoundedHTTP.data(for: request, session: .shared, limit: 16 << 10, json: nil)
+        return (reply.data, reply.status, Date().timeIntervalSince(started))
     }
 }

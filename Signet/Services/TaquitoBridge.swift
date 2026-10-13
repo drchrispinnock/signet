@@ -18,6 +18,7 @@ final class TaquitoBridge: @unchecked Sendable {
         case loadFailed(String)
         case javaScript(String)
         case notAFunction(String)
+        case notASigningCall(String)
         case timedOut(String, TimeInterval)
         case responseTooLarge(Int)
 
@@ -27,6 +28,7 @@ final class TaquitoBridge: @unchecked Sendable {
             case .loadFailed(let message): "Taquito bridge failed to load: \(message)"
             case .javaScript(let message): message
             case .notAFunction(let name): "TaquitoBridge.\(name) is not a function"
+            case .notASigningCall(let name): "TaquitoBridge.\(name) is not declared as a signing call"
             case .timedOut(let name, let seconds): "\(name) did not finish within \(Int(seconds)) seconds."
             case .responseTooLarge(let limit): "The server's reply was larger than \(limit / (1024 * 1024)) MB and was dropped."
             }
@@ -98,18 +100,41 @@ final class TaquitoBridge: @unchecked Sendable {
 
     // MARK: - Public API
 
+    /// What a bridge export may do, which decides how its call is treated (S30): a read gets a
+    /// deadline and is cancelled with the caller; a signing call runs to its outcome.
+    enum CallKind: Sendable { case read, signing }
+
+    /// Every export that signs, injects or holds a Ledger session. A call to one of these has no
+    /// deadline and is never cancelled: abandoning it could lose an operation outcome or release
+    /// a device still signing. `SigningExportsTests` checks the JavaScript sources against this
+    /// list, so a new export that signs cannot be left out unnoticed.
+    static let signingCalls: Set<String> = [
+        "sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "sendEtherlinkDeposit",
+        "injectSignedBytes", "multisigOriginate", "multisigSubmit", "multisigSign", "signPayload", "provePossession",
+        "octezConnectExecute", "octezConnectSign", "ledgerGetAddress", "ledgerAppVersion",
+    ]
+
+    static func kind(of name: String) -> CallKind { signingCalls.contains(name) ? .signing : .read }
+
+    /// The entry point for a signing or injecting call: `name` must be declared in
+    /// `signingCalls`, so a caller cannot sign through a cancellable read by mistake.
+    func sign(_ name: String, _ args: [any Sendable] = []) async throws -> JSONValue {
+        guard Self.kind(of: name) == .signing else { throw BridgeError.notASigningCall(name) }
+        return try await call(name, args)
+    }
+
     /// Calls `TaquitoBridge.<name>(...args)` and awaits the result, unwrapping promises.
     ///
     /// Read/preparation deadlines cancel HTTP work and discard the context before reuse.
-    /// Signing, injection and complete Ledger sessions have no generic deadline: abandoning
-    /// those calls could lose an operation outcome or release a device still signing.
+    /// Signing, injection and complete Ledger sessions (`signingCalls`) have no generic
+    /// deadline, whichever entry point they come through.
     func call(_ name: String, _ args: [any Sendable] = [], timeout: TimeInterval? = nil) async throws -> JSONValue {
         try await callGate.acquire()
         defer { Task { await callGate.release() } }
         try Task.checkCancellation()
         // Hardware approval and any call that can sign/inject must complete with an outcome.
-        let signing = ["sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "multisigOriginate", "multisigSubmit", "multisigSign", "signPayload", "provePossession", "octezConnectExecute", "octezConnectSign", "ledgerGetAddress", "ledgerAppVersion"]
-        let deadline = signing.contains(name) ? nil : (timeout ?? 60)
+        let signing = Self.kind(of: name) == .signing
+        let deadline = signing ? nil : (timeout ?? 60)
         guard args.reduce(0, { $0 + (($1 as? String)?.utf8.count ?? 0) }) <= 2 << 20 else {
             throw BridgeError.javaScript("Bridge arguments exceed the input budget")
         }
@@ -144,7 +169,7 @@ final class TaquitoBridge: @unchecked Sendable {
         } onCancel: {
             cancellation.cancel()
             // Signing cannot be abandoned after crossing the signing/injection boundary.
-            if !signing.contains(name) {
+            if !signing {
                 self.queue.async { if self.activeCallID == callID { self.cancelCurrentCall?() } }
             }
         }
@@ -255,9 +280,10 @@ final class TaquitoBridge: @unchecked Sendable {
         guard let api = context.objectForKeyedSubscript("TaquitoBridge"), api.isObject else {
             throw BridgeError.loadFailed("TaquitoBridge global not defined after evaluating bundle")
         }
-        // Route later uncaught exceptions to the log instead of silently swallowing them.
-        context.exceptionHandler = { _, exception in
-            NSLog("TaquitoBridge JS exception: %@", exception?.toString() ?? "?")
+        // Route later uncaught exceptions to the log instead of silently swallowing them; like
+        // every other line they are redacted and capped before any sink sees them (S11).
+        context.exceptionHandler = { [weak self] _, exception in
+            self?.record("[exception] \(exception?.toString() ?? "?")")
         }
         return context
     }
@@ -269,7 +295,6 @@ final class TaquitoBridge: @unchecked Sendable {
 
     private func installConsole(in context: JSContext) {
         let log: @convention(block) (String, String) -> Void = { [weak self] level, text in
-            NSLog("TaquitoBridge % %@", level, text)
             self?.record("[\(level)] \(text)")
         }
         context.setObject(log, forKeyedSubscript: "__signet_log" as NSString)
@@ -606,8 +631,11 @@ final class TaquitoBridge: @unchecked Sendable {
         let f = DateFormatter(); f.dateFormat = "HH:mm:ss.SSS"; return f
     }()
 
+    /// The one way a line reaches any sink: the system log, `consoleLines` and the bridge
+    /// file all get the same redacted, capped text (S11). Nothing calls `NSLog` directly.
     private func record(_ rawLine: String) {
         let line = Self.redactedLine(rawLine)
+        NSLog("TaquitoBridge %@", line)
         lock.withLock {
             _consoleLines.append(line)
             if _consoleLines.count > 300 { _consoleLines.removeFirst(_consoleLines.count - 300) }

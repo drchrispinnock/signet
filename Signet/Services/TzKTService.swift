@@ -49,6 +49,9 @@ struct TzKTService: Sendable {
     }
 
     static let pageSize = 200
+    /// Reply caps (S19): a page of 200 rows with metadata stays well inside this; one account record is far smaller.
+    static let pageBytes = 4 << 20
+    static let recordBytes = 256 << 10
     /// At most this many pages per snapshot; beyond that the portfolio is reported as partial.
     static let maxPages = 5
 
@@ -66,11 +69,11 @@ struct TzKTService: Sendable {
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"])
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.pageBytes, json: .page)
+        guard reply.isSuccess else {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \(reply.status)"])
         }
-        return try Self.decode(data)
+        return Array(try Self.decode(reply.data).prefix(limit))
     }
 
     static func decode(_ data: Data) throws -> [TokenBalance] {
@@ -179,11 +182,10 @@ extension TzKTService {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        if http.statusCode == 204 || http.statusCode == 404 { return nil }
-        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
-        return Self.profile(from: data)
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.recordBytes, json: .record)
+        if reply.status == 204 || reply.status == 404 { return nil }
+        guard reply.isSuccess else { throw URLError(.badServerResponse) }
+        return Self.profile(from: reply.data)
     }
 
     static func profile(from data: Data) -> AccountProfile? {
@@ -210,11 +212,11 @@ extension TzKTService {
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"])
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.pageBytes, json: .page)
+        guard reply.isSuccess else {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "TzKT returned HTTP \(reply.status)"])
         }
-        return Self.parseOperations(data, for: address)
+        return Array(Self.parseOperations(reply.data, for: address).prefix(limit))
     }
 
     /// Pure parser for `/v1/accounts/{address}/operations`.
@@ -290,9 +292,9 @@ extension TzKTService {
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
-        return Self.parseBakers(data)
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.pageBytes, json: .page)
+        guard reply.isSuccess else { throw URLError(.badServerResponse) }
+        return Array(Self.parseBakers(reply.data).prefix(limit))
     }
 
     static func parseBakers(_ data: Data) -> [BakerCandidate] {

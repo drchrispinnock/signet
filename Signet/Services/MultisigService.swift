@@ -104,7 +104,7 @@ struct BridgeMultisigService: MultisigService {
     }
 
     func sign(signer: SigningKey, proposal: MultisigProposal) async throws -> (bytes: String, signature: String) {
-        let r = try await bridge.call("multisigSign", [signer.bridgeSpec, proposal.chainID, proposal.contractAddress, proposal.counter, try Self.json(proposal.action)])
+        let r = try await bridge.sign("multisigSign", [signer.bridgeSpec, proposal.chainID, proposal.contractAddress, proposal.counter, try Self.json(proposal.action)])
         guard let bytes = r["bytes"]?.stringValue, let signature = r["signature"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected signing payload: \(String(describing: r))")
         }
@@ -119,7 +119,7 @@ struct BridgeMultisigService: MultisigService {
 
     func originate(rpcURL: URL, signer: SigningKey, threshold: Int, keys: [String], amount: Decimal, limits: OperationLimits) async throws -> (hash: String, address: Address) {
         try await verify(rpcURL)
-        let r = try await bridge.call("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json, Mutez.fromTez(amount)])
+        let r = try await bridge.sign("multisigOriginate", [rpcURL.absoluteString, signer.bridgeSpec, threshold, try Self.json(keys), limits.json, Mutez.fromTez(amount)])
         guard let hash = r["hash"]?.stringValue, let address = r["address"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected origination payload: \(String(describing: r))") }
         return (hash, Address(address))
     }
@@ -141,7 +141,7 @@ struct BridgeMultisigService: MultisigService {
 
     func submit(rpcURL: URL, signer: SigningKey, proposal: MultisigProposal, signatures: [String], limits: OperationLimits) async throws -> String {
         try await verify(rpcURL)
-        let r = try await bridge.call("multisigSubmit", [
+        let r = try await bridge.sign("multisigSubmit", [
             rpcURL.absoluteString, signer.bridgeSpec, proposal.contractAddress, try Self.json(proposal.action), proposal.counter, try Self.json(signatures), limits.json,
         ])
         guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected submit payload: \(String(describing: r))") }

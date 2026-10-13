@@ -68,10 +68,12 @@
 		6D5DD41FA174C1D5D5195EDB /* ImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */; };
 		6D72B36ED768416E56BD2AE0 /* Staking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC270D9AC39835A78941A29 /* Staking.swift */; };
 		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
+		7492F277D933572F5A57BCA5 /* BoundedHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */; };
 		78A3D78FBA369C156627C515 /* LedgerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */; };
 		78CE24F5EAB7F18B76FA8B5C /* TezosDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */; };
 		797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7E3944EC2E0534678CCBD8 /* Micheline.swift */; };
 		7B96FA319FEEBEDB31EDBAE1 /* TezosClientStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A237F56680C24625B031AEF /* TezosClientStoreTests.swift */; };
+		7C90079CDB99B2DB05EEBE1F /* AuditRepairTests2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */; };
 		7E50AA94FD93517E66818B1B /* TestHostIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */; };
 		7F077A5907D72A9379B6A1AD /* DAppPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */; };
 		87EF0C514614D59FEC8B90B8 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = EC49F06EDD571F1736674E8F /* Sparkle */; };
@@ -219,6 +221,7 @@
 		53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclaimerAlert.swift; sourceTree = "<group>"; };
 		553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTests.swift; sourceTree = "<group>"; };
 		558CDF12CE81034B95FF02F4 /* SignetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRepairTests2.swift; sourceTree = "<group>"; };
 		59BE6FB05DF0E663E5CC8E0E /* LiveTestTraits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTestTraits.swift; sourceTree = "<group>"; };
 		5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAddressSheet.swift; sourceTree = "<group>"; };
 		5C368DB40E25AA303DD76D49 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
@@ -241,6 +244,7 @@
 		79F498AB6E54AD10BF1747A6 /* TransactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionTests.swift; sourceTree = "<group>"; };
 		7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StakingSheet.swift; sourceTree = "<group>"; };
 		7CC270D9AC39835A78941A29 /* Staking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Staking.swift; sourceTree = "<group>"; };
+		7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedHTTP.swift; sourceTree = "<group>"; };
 		7D7E3944EC2E0534678CCBD8 /* Micheline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Micheline.swift; sourceTree = "<group>"; };
 		809437E1132C36D982D2418B /* AvatarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarTests.swift; sourceTree = "<group>"; };
 		80E99E461133439B04A22C8A /* Signet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Signet.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -418,6 +422,7 @@
 				CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */,
 				A7347B803D9BD4E4E863D671 /* ArtworkPolicyTests.swift */,
 				31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */,
+				57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */,
 				809437E1132C36D982D2418B /* AvatarTests.swift */,
 				BBD13470629CB6326F0858BB /* BridgeConsoleTests.swift */,
 				DFB37E0605BAF6FC87E509D6 /* BridgeTests.swift */,
@@ -492,6 +497,7 @@
 			children = (
 				046B82438F96A071EF2BC434 /* Appearance.swift */,
 				CD834C06F49658A295BADA09 /* AppStateStore.swift */,
+				7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */,
 				6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */,
 				8C97CB8F610E2FEBAE942B50 /* BuyProvider.swift */,
 				C010E1B71F572FFBE46D1233 /* ChainService.swift */,
@@ -687,6 +693,7 @@
 				3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */,
 				28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */,
 				C3AEE7B758748C0997C2FFDD /* Base58.swift in Sources */,
+				7492F277D933572F5A57BCA5 /* BoundedHTTP.swift in Sources */,
 				51D8E8DE8DC6F580C62DBABA /* BridgeCallGate.swift in Sources */,
 				B6F6D9203A13C13BCEF86EEA /* BridgeSheet.swift in Sources */,
 				603EA65D5F475993CF91B710 /* BuyProvider.swift in Sources */,
@@ -783,6 +790,7 @@
 				31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */,
 				145E0B88B61BD0E4C096F15E /* ArtworkPolicyTests.swift in Sources */,
 				D00A61ADCB828C0F5819423F /* AuditRepairTests.swift in Sources */,
+				7C90079CDB99B2DB05EEBE1F /* AuditRepairTests2.swift in Sources */,
 				3B98C6A3453632B148FF3379 /* AvatarTests.swift in Sources */,
 				0520F4FB65E229931D03ED9B /* BridgeConsoleTests.swift in Sources */,
 				8F807D2B9AF176A519A6B93A /* BridgeTests.swift in Sources */,

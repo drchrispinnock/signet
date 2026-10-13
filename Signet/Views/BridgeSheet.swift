@@ -9,7 +9,7 @@ struct BridgeSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
 
-    enum Direction: Equatable { case toEtherlink, toTezos }
+    enum Direction: Hashable { case toEtherlink, toTezos }
     enum Speed: String, CaseIterable, Identifiable {
         case fast = "Fast", slow = "Slow"
         var id: String { rawValue }
@@ -19,7 +19,8 @@ struct BridgeSheet: View {
     @State private var direction: Direction = .toEtherlink
     @State private var speed: Speed = .fast
     @State private var amountText = ""
-    @State private var estimate: TransferEstimate?
+    /// The estimate and the context it was made in (S31); refreshed whenever that context moves.
+    @State private var estimate: WalletViewModel.BridgeEstimate?
     @State private var estimateError: String?
     @State private var passphrase = ""
     @State private var errorMessage: String?
@@ -38,7 +39,7 @@ struct BridgeSheet: View {
     }
     private var exceedsBalance: Bool {
         guard let amount, let spendable else { return false }
-        return amount + (estimate?.fee ?? 0) > spendable
+        return amount + (estimate?.estimate.fee ?? 0) > spendable
     }
     private var canConfirm: Bool {
         direction == .toEtherlink && amount != nil && estimate != nil && !exceedsBalance && model.canBridge
@@ -67,7 +68,7 @@ struct BridgeSheet: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task(id: "\(direction)-\(amountText)") { await refreshEstimate() }
+        .task(id: EstimateKey(direction: direction, amount: amountText, context: model.bridgeContext)) { await refreshEstimate() }
     }
 
     // MARK: Pieces
@@ -129,7 +130,7 @@ struct BridgeSheet: View {
             }
             switch direction {
             case .toEtherlink:
-                if let estimate {
+                if let estimate = estimate?.estimate {
                     LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz"))
                     LabeledContent("Total", value: AssetBalance.format(estimate.total, symbol: "tz"))
                 } else if amount != nil {
@@ -191,6 +192,14 @@ struct BridgeSheet: View {
 
     // MARK: Actions
 
+    /// Everything the estimate depends on: a change of account, network, node, Layer 2 settings
+    /// or wallet directory drops the old estimate and asks again (S31).
+    private struct EstimateKey: Hashable {
+        let direction: Direction
+        let amount: String
+        let context: WalletViewModel.BridgeContext?
+    }
+
     private func refreshEstimate() async {
         estimate = nil
         estimateError = nil
@@ -210,7 +219,7 @@ struct BridgeSheet: View {
         errorMessage = nil
         step = .working
         do {
-            let (hash, level) = try await model.bridgeToEtherlink(amount: amount, limits: estimate?.limits, passphrase: needsPassphrase ? passphrase : nil)
+            let (hash, level) = try await model.bridgeToEtherlink(amount: amount, approved: estimate, passphrase: needsPassphrase ? passphrase : nil)
             step = .done(hash: hash, level: level)
         } catch {
             errorMessage = error.localizedDescription

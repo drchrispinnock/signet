@@ -24,6 +24,8 @@ struct TezosClientStore: WalletStore {
         case walletChanged(String)
         /// Another program (octez-client, another Signet) held the wallet lock for too long.
         case locked
+        /// Import was asked to copy a directory into itself.
+        case sameDirectory
 
         var errorDescription: String? {
             switch self {
@@ -37,6 +39,8 @@ struct TezosClientStore: WalletStore {
                 "Account “\(alias)” or its key entries changed while removal was being confirmed. Nothing was removed; please try again."
             case .locked:
                 "The wallet directory is locked by another program (octez-client?). Please try again in a moment."
+            case .sameDirectory:
+                "The wallet directory cannot be imported into itself."
             }
         }
     }
@@ -249,20 +253,28 @@ struct TezosClientStore: WalletStore {
         }
     }
 
+    /// Copies the aliases of another octez-format directory into this one. The source is read as
+    /// one recovered snapshot under its own locks (S09): an unfinished change there is rolled
+    /// back first and a concurrent writer waits, so the three key files always come from the
+    /// same moment. That lock is released before this directory's is taken, so two imports in
+    /// opposite directions cannot deadlock; a directory cannot be imported into itself.
     func importWallets(from directory: URL) throws -> Int {
         let source = TezosClientStore(directory: directory)
         guard source.hasWallets else { return 0 }
+        guard Self.identity(of: directory) != Self.identity(of: self.directory) else { throw StoreError.sameDirectory }
+        let snapshot = try Self.snapshot(in: directory, files: Self.walletFiles)
+        let sourceFiles = try snapshot.map { ($0.0, try Self.parseRaw($0.1, file: $0.0)) }
+        guard let sourceHashes = sourceFiles.first(where: { $0.0 == Self.publicKeyHashesFile })?.1 else { return 0 }
         try PrivateFile.hardenDirectory(self.directory)
         return try withWalletLock {
             try recoverIfNeeded()
-            let existing = Set(try readEntries(Self.publicKeyHashesFile).map(\.name))
-            let incoming = try source.readEntries(Self.publicKeyHashesFile).map(\.name).filter { !existing.contains($0) }
+            // Every namespace an alias can occupy here, as `add` checks them.
+            let existing = Set(try Self.aliasFiles.flatMap { try readRaw($0).compactMap { $0["name"] as? String } })
+            let incoming = sourceHashes.compactMap { $0["name"] as? String }.filter { !existing.contains($0) }
             let accepted = Set(incoming)
             var copies: [(String, Data)] = []
             var merges: [(String, [[String: Any]])] = []
-            for file in Self.walletFiles {
-                let sourceURL = directory.appendingPathComponent(file)
-                guard let data = try PrivateFile.read(sourceURL) else { continue }
+            for (file, data) in snapshot {
                 let target = self.directory.appendingPathComponent(file)
                 if !FileManager.default.fileExists(atPath: target.path) {
                     // Cold start: take an exact copy of the file.
@@ -270,7 +282,7 @@ struct TezosClientStore: WalletStore {
                 } else {
                     // Merge: append only aliases we do not already have.
                     var entries = try readRaw(file)
-                    let additions = try source.readRaw(file).filter { ($0["name"] as? String).map(accepted.contains) ?? false }
+                    let additions = sourceFiles.first(where: { $0.0 == file })?.1.filter { ($0["name"] as? String).map(accepted.contains) ?? false } ?? []
                     guard !additions.isEmpty else { continue }
                     entries.append(contentsOf: additions)
                     merges.append((file, entries))
@@ -279,6 +291,14 @@ struct TezosClientStore: WalletStore {
             try commit(merges, raw: copies)
             return incoming.count
         }
+    }
+
+    /// Device and inode of a directory, so the same place under two paths is told apart from two places.
+    private static func identity(of directory: URL) -> String? {
+        let resolved = directory.resolvingSymlinksInPath().standardizedFileURL
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: resolved.path),
+              let device = attributes[.systemNumber] as? NSNumber, let inode = attributes[.systemFileNumber] as? NSNumber else { return nil }
+        return "\(device):\(inode)"
     }
 
     /// The base58 secret key for `unencrypted:` and `encrypted:` entries (the caller supplies the
@@ -307,8 +327,12 @@ struct TezosClientStore: WalletStore {
     }
 
     private func readRaw(_ file: String) throws -> [[String: Any]] {
-        let url = directory.appendingPathComponent(file)
-        guard let data = try PrivateFile.read(url), !data.isEmpty else { return [] }
+        guard let data = try PrivateFile.read(directory.appendingPathComponent(file)) else { return [] }
+        return try Self.parseRaw(data, file: file)
+    }
+
+    private static func parseRaw(_ data: Data, file: String) throws -> [[String: Any]] {
+        guard !data.isEmpty else { return [] }
         guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             throw StoreError.malformed(file, "expected a JSON array of objects")
         }

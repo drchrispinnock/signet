@@ -14,6 +14,8 @@ struct TezosDomainsService: Sendable {
 
     let endpoint: URL
     let session: URLSession
+    /// A reverse or forward lookup answers with one name or address (S19).
+    static let replyBytes = 16 << 10
 
     init(endpoint: URL, session: URLSession = .shared) {
         self.endpoint = endpoint
@@ -31,11 +33,9 @@ struct TezosDomainsService: Sendable {
         let query = "query($address: String!) { reverseRecord(address: $address) { domain { name } } }"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": ["address": address.value]])
 
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw DomainsError.badResponse("HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
-        }
-        let decoded = try JSONDecoder().decode(Response.self, from: data)
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.replyBytes)
+        guard reply.isSuccess else { throw DomainsError.badResponse("HTTP \(reply.status)") }
+        let decoded = try JSONDecoder().decode(Response.self, from: reply.data)
         if let errors = decoded.errors, !errors.isEmpty {
             throw DomainsError.badResponse(errors.map(\.message).joined(separator: "; "))
         }
@@ -50,11 +50,9 @@ struct TezosDomainsService: Sendable {
         request.timeoutInterval = 15
         let query = "query($name: String!) { domain(name: $name) { address } }"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": ["name": name.lowercased()]])
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw DomainsError.badResponse("HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
-        }
-        let decoded = try JSONDecoder().decode(ForwardResponse.self, from: data)
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.replyBytes)
+        guard reply.isSuccess else { throw DomainsError.badResponse("HTTP \(reply.status)") }
+        let decoded = try JSONDecoder().decode(ForwardResponse.self, from: reply.data)
         return decoded.data?.domain?.address.map(Address.init)
     }
 

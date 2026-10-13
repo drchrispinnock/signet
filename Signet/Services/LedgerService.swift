@@ -36,12 +36,12 @@ struct BridgeLedgerService: LedgerService {
     }
 
     func appInfo(deviceID: String) async throws -> LedgerAppInfo {
-        let r = try await mapped { try await bridge.call("ledgerAppVersion", [deviceID]) }
+        let r = try await mapped { try await bridge.sign("ledgerAppVersion", [deviceID]) }
         return LedgerAppInfo(version: r["version"]?.stringValue ?? "?", isWallet: r["isWallet"]?.boolValue ?? true)
     }
 
     func address(deviceID: String, key: LedgerKey, prompt: Bool) async throws -> (publicKey: String, address: Address) {
-        let r = try await mapped { try await bridge.call("ledgerGetAddress", [deviceID, key.fullPath, key.curve.derivationType, prompt]) }
+        let r = try await mapped { try await bridge.sign("ledgerGetAddress", [deviceID, key.fullPath, key.curve.derivationType, prompt]) }
         guard let pk = r["publicKey"]?.stringValue, let address = r["address"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected Ledger payload: \(String(describing: r))")
         }
@@ -49,7 +49,7 @@ struct BridgeLedgerService: LedgerService {
     }
 
     func rootAddress(deviceID: String) async throws -> Address {
-        let r = try await mapped { try await bridge.call("ledgerGetAddress", [deviceID, LedgerKey.rootPath.joined(separator: "/"), LedgerCurve.ed25519.derivationType, false]) }
+        let r = try await mapped { try await bridge.sign("ledgerGetAddress", [deviceID, LedgerKey.rootPath.joined(separator: "/"), LedgerCurve.ed25519.derivationType, false]) }
         guard let address = r["address"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no root address from Ledger") }
         return Address(address)
     }

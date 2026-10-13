@@ -7,33 +7,48 @@ struct SendSheet: View {
     @Bindable var model: WalletViewModel
     @State private var send: SendViewModel
     @State private var side: ChainSide = .tezos
-    /// The networks captured when the sheet opened, one per side (S16).
+    /// Everything a side needs, captured together when the sheet opened (S16, S31): the network
+    /// shown and linked to is the one the chain service talks to, whatever Settings does later,
+    /// and neither side ever borrows the other's service.
+    struct SideContext {
+        let network: Network
+        let chain: any ChainService
+        let spendable: Decimal?
+        let implicitAccountsOnly: Bool
+    }
     private let sender: Wallet
-    private let layer1: Network
-    private let layer2: Network?
-    private let layer2Chain: (any ChainService)?
+    private let wallets: [Wallet]
+    private let layer1: SideContext
+    private let layer2: SideContext?
     @Environment(\.dismiss) private var dismiss
 
-    private var network: Network { side == .etherlink ? (layer2 ?? layer1) : layer1 }
-    private var canSwitch: Bool { layer2 != nil && layer2Chain != nil && WalletViewModel.usableOnEtherlink(sender.address) }
+    private var context: SideContext { side == .etherlink ? (layer2 ?? layer1) : layer1 }
+    private var network: Network { context.network }
+    private var canSwitch: Bool { layer2 != nil && WalletViewModel.usableOnEtherlink(sender.address) }
 
     init(model: WalletViewModel, sender: Wallet) {
         self.model = model
         self.sender = sender
-        self.layer1 = model.network
-        self.layer2 = model.network.layer2
-        self.layer2Chain = model.layer2Chain
-        _send = State(initialValue: Self.makeSend(model: model, sender: sender, side: .tezos))
+        self.wallets = model.wallets
+        (layer1, layer2) = Self.capture(model)
+        _send = State(initialValue: Self.makeSend(model: model, sender: sender, wallets: wallets, context: layer1))
     }
 
-    private static func makeSend(model: WalletViewModel, sender: Wallet, side: ChainSide) -> SendViewModel {
-        let onEtherlink = side == .etherlink
-        return SendViewModel(
+    /// Both sides as they are now; the Etherlink side exists only when its network and service
+    /// are both there, and the pair never changes afterwards.
+    static func capture(_ model: WalletViewModel) -> (layer1: SideContext, layer2: SideContext?) {
+        let layer1 = SideContext(network: model.network, chain: model.chainService, spendable: model.tezBalance?.spendable, implicitAccountsOnly: false)
+        guard let network = model.network.layer2, let chain = model.layer2Chain else { return (layer1, nil) }
+        return (layer1, SideContext(network: network, chain: chain, spendable: model.etherlinkSpendable, implicitAccountsOnly: true))
+    }
+
+    private static func makeSend(model: WalletViewModel, sender: Wallet, wallets: [Wallet], context: SideContext) -> SendViewModel {
+        SendViewModel(
             sender: sender,
-            wallets: model.wallets,
-            chain: onEtherlink ? (model.layer2Chain ?? model.chainService) : model.chainService,
-            spendable: onEtherlink ? model.etherlinkSpendable : model.tezBalance?.spendable,
-            implicitAccountsOnly: onEtherlink,
+            wallets: wallets,
+            chain: context.chain,
+            spendable: context.spendable,
+            implicitAccountsOnly: context.implicitAccountsOnly,
             signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) }
         )
     }
@@ -53,7 +68,7 @@ struct SendSheet: View {
             }
         }
         .task(id: side) { await send.recoverPending() }
-        .onChange(of: side) { send = Self.makeSend(model: model, sender: sender, side: side) }
+        .onChange(of: side) { send = Self.makeSend(model: model, sender: sender, wallets: wallets, context: context) }
         .padding(20)
         .frame(width: 520)
         .animation(.easeInOut(duration: 0.15), value: send.step)

@@ -373,7 +373,7 @@ final class DAppConnectionManager {
             _ = try await grant(for: request)
             let (wallet, signer) = try signer(for: source, passphrase: passphrase)
             guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
-            let result = try await bridge.call("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, prepared.preparedJSON, network.expectedChainID ?? NSNull()])
+            let result = try await bridge.sign("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, prepared.preparedJSON, network.expectedChainID ?? NSNull()])
             guard let hash = result["hash"]?.stringValue, !hash.isEmpty else { throw TaquitoBridge.BridgeError.javaScript("no operation hash") }
             let injected = result["injected"]?.boolValue ?? true
             let summary = injected ? "Sent \(hash.prefix(12))… for “\(request.app.name)” from \(wallet.alias)"
@@ -395,7 +395,7 @@ final class DAppConnectionManager {
             if let why = request.signRefusal { throw ConnectError.refusedPayload(why) }
             _ = try await grant(for: request)
             let (_, signer) = try signer(for: source, passphrase: passphrase)
-            let result = try await bridge.call("octezConnectSign", [signer.bridgeSpec, payload, signingType])
+            let result = try await bridge.sign("octezConnectSign", [signer.bridgeSpec, payload, signingType])
             guard let signature = result["signature"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no signature") }
             await deliver(request, ["type": "sign_payload_response", "id": id, "signingType": signingType, "signature": signature],
                           summary: "Signed a message for “\(request.app.name)”")

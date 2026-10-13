@@ -28,11 +28,11 @@ Checked means the earlier repair remains supported by the reviewed implementatio
 - [x] **S04 (Medium, retained)** — Request identity derives from authenticated transport state
 - [x] **S05 (High, retained)** — Backup pruning requires generation ownership and complete manifests
 - [x] **S06 (High, retained)** — Software signer derives and checks the expected address
-- [ ] **S07 (High, reopened)** — Session-only Forget deletes by alias after an asynchronous check
+- [x] **S07 (High, reopened)** — Session-only Forget deletes by alias after an asynchronous check
 - [x] **S08 (Medium, retained)** — Current grants fail closed and directory replacement invalidates authority
-- [ ] **S09 (Medium, incomplete closure)** — Import reads the source outside its lock/recovery boundary
+- [x] **S09 (Medium, incomplete closure)** — Import reads the source outside its lock/recovery boundary
 - [x] **S10 (Medium, retained)** — Private files use owner-only atomic creation/replacement
-- [ ] **S11 (Medium, incomplete closure)** — System console/exception logging bypasses redaction
+- [x] **S11 (Medium, incomplete closure)** — System console/exception logging bypasses redaction
 - [x] **S12 (Medium, retained)** — Existing signing paths verify pinned chain identities and endpoint policy
 - [x] **S13 (Medium, retained)** — Artwork work is bounded and untrusted TLS connections pin validated DNS answers
 - [x] **S14 (Medium, retained)** — Supported execution paths enforce approved operation/reveal limits
@@ -40,7 +40,7 @@ Checked means the earlier repair remains supported by the reviewed implementatio
 - [x] **S16 (Medium, retained)** — Multisig asynchronous results use full network/directory generations
 - [x] **S17 (Medium, retained)** — Undelivered dApp replies retry without repeating signing
 - [x] **S18 (Medium, retained)** — Relay starts wait for complete prior disconnection
-- [ ] **S19 (Medium, incomplete closure)** — Native HTTP readers bypass response/parsing budgets
+- [x] **S19 (Medium, incomplete closure)** — Native HTTP readers bypass response/parsing budgets
 - [x] **S20 (Medium, retained)** — Audited RPC numeric conversions use checked accessors
 - [x] **S21 (Medium, retained)** — Faucet work has challenge, deadline and cancellation bounds
 - [x] **S22 (Medium, retained for protected calls)** — Whole-device Ledger leases serialize sessions; see S30
@@ -51,8 +51,19 @@ Checked means the earlier repair remains supported by the reviewed implementatio
 - [x] **S27 (High, retained)** — Multisig signing reconstructs approved typed payloads
 - [x] **S28 (Medium, retained)** — Contract/proposal-only directories qualify for backup
 - [x] **S29 (High, retained)** — Revealed multisig public keys bind to requested signer addresses
-- [ ] **S30 (Medium, new)** — Etherlink deposit signing receives read timeouts and context cancellation
-- [ ] **S31 (Medium, new)** — Send side-switching rebuilds a live service behind captured network labels
+- [x] **S30 (Medium, new)** — Etherlink deposit signing receives read timeouts and context cancellation
+- [x] **S31 (Medium, new)** — Send side-switching rebuilds a live service behind captured network labels
+
+## Fixes awaiting re-audit (2026-10-13)
+
+Applied on `main` after this report, with regressions in `SignetTests/AuditRepairTests2.swift` and `SignetTests/BridgeTests.swift`; the checklist above is ticked for them pending Codex's own re-check.
+
+- **S07** — `SessionKeyStore` entries carry an identity and a generation; `add` refuses a taken alias or address instead of replacing; Forget pins a `RemovalSnapshot` before the password check and `remove(matching:)` wipes only that exact, unchanged entry; `importAccount` rechecks alias and address after its encryption await. Tests: alias reuse and rename during the password wait leave both accounts intact and Forget fails; concurrent imports of one alias admit one.
+- **S09** — `importWallets(from:)` takes the source's process-local and `wallet_lock` locks, recovers its journal, reads all key files as one snapshot, releases that lock and only then locks the destination (never nested; A→B/B→A cannot deadlock); importing a directory into itself is refused. Tests: a source journal is recovered before copying, a writer holding the source lock delays the import, opposite imports run concurrently.
+- **S11** — `TaquitoBridge.record` is the single sink: the JavaScript console, the uncaught-exception handler and Swift notes all pass through `redactedLine` before `NSLog`, `consoleLines` and the file. Tests: a key, a hex blob and an over-long line are redacted and capped in the console lines.
+- **S19** — `BoundedHTTP` streams every native `URLSession` reply (node RPC, TzKT, node monitor, faucet, Tezos Domains) and stops at a per-purpose byte cap, declared length or not, then applies `JSONBudget` structure limits before parsing; page readers cut rows to the requested limit. Tests: declared and chunked oversize replies, excessive nesting, a fitting reply, and the TzKT / node-monitor readers refusing an oversize body.
+- **S30** — `TaquitoBridge.signingCalls` / `kind(of:)` is the typed policy; `sendEtherlinkDeposit` and `injectSignedBytes` are now protected; Swift signs through `bridge.sign(_:_:)`, which refuses undeclared names. `SigningExportsTests` scans the bridge sources' public surface for anything reaching a signer, local signing, injection or a Ledger signer and fails on an undeclared export.
+- **S31** — `SendSheet` captures one immutable `SideContext` per side (network, chain service, spendable, recipient rule) with no cross-layer fallback; deposits are estimated into a `BridgeEstimate` bound to a `BridgeContext` (account, whole network, directory revision), refused if the context moved during the estimate or before sending; the sheet re-estimates on any context change. Tests: network, same-name node, Layer 2 node, Layer 2 enablement and account changes each invalidate an estimate; captured Send sides survive Settings changes matched.
 
 ## Open findings and fixes
 

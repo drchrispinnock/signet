@@ -5,7 +5,7 @@ import Observation
 @MainActor
 @Observable
 final class WalletViewModel {
-    enum WalletError: LocalizedError {
+    enum WalletError: LocalizedError, Equatable {
         case emptyAlias
         case aliasExists(String)
         case addressExists(String)
@@ -14,6 +14,7 @@ final class WalletViewModel {
         case passphraseTooShort
         case directoryChanged
         case notEstimated
+        case contextChanged
         case outcomeUnknown(String)
 
         var errorDescription: String? {
@@ -26,6 +27,7 @@ final class WalletViewModel {
             case .unsupportedScheme(let scheme): scheme.unavailableReason ?? "\(scheme.rawValue) is not supported yet."
             case .directoryChanged: "The wallet directory changed while this was being confirmed. Nothing was done; please try again."
             case .notEstimated: "The fee has not been estimated yet; wait for the estimate and try again."
+            case .contextChanged: "The account, network or node changed since the fee was estimated. Nothing was sent; the estimate will be made again."
             case .outcomeUnknown(let hash): "The node did not confirm receiving operation \(hash.prefix(12))… and it has not appeared in a block yet. Check the explorer before trying again; do not repeat it blindly."
             }
         }
@@ -704,14 +706,17 @@ final class WalletViewModel {
     }
 
     /// Drops a session-only key: wiped from memory now (it was never on disk). An encrypted one
-    /// is opened first, as for a stored key, so the password proves the owner is asking.
+    /// is opened first, as for a stored key, so the password proves the owner is asking. The
+    /// entry is pinned before the password check and only that exact entry is removed after it
+    /// (S07): a rename, replacement or re-import under the same alias in the meantime means
+    /// nothing is removed.
     private func forgetSessionWallet(_ wallet: Wallet, passphrase: String?) async throws {
+        guard let snapshot = try sessionKeys.removalSnapshot(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
         if wallet.keyKind == .encrypted {
             guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
-            guard let stored = try sessionKeys.secretKey(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
-            _ = try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase)
+            _ = try await keyImporter.decrypt(secretKey: snapshot.secretKey, passphrase: passphrase)
         }
-        sessionKeys.remove(wallet)
+        try sessionKeys.remove(matching: snapshot)
         sessionWallets = sessionKeys.wallets
         selectAfterRemoval()
     }
@@ -756,8 +761,7 @@ final class WalletViewModel {
     func importAccount(alias: String, material: KeyMaterial, alreadyEncrypted: Bool = false, storePassphrase: String? = nil, keepForSession: Bool = false) async throws {
         let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw WalletError.emptyAlias }
-        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
-        if let existing = wallets.first(where: { $0.address.value == material.address }) { throw WalletError.addressExists(existing.alias) }
+        try requireFree(alias: name, address: material.address)
 
         var secretKey = material.secretKey
         var kind: KeyKind = alreadyEncrypted ? .encrypted : .unencrypted
@@ -766,10 +770,12 @@ final class WalletViewModel {
             secretKey = try await keyGenerator.encrypt(secretKey: material.secretKey, passphrase: storePassphrase)
             kind = .encrypted
         }
+        // Another import or a rename may have taken the name or address during the encryption.
+        try requireFree(alias: name, address: material.address)
         var wallet = Wallet(alias: name, address: Address(material.address), scheme: material.scheme, publicKey: material.publicKey, keyKind: kind)
         if keepForSession {
             wallet.isSessionOnly = true
-            sessionKeys.add(wallet, secretKey: secretKey)
+            try sessionKeys.add(wallet, secretKey: secretKey)
             sessionWallets = sessionKeys.wallets
             select(wallet)
             return
@@ -778,6 +784,12 @@ final class WalletViewModel {
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
         await backUp()
+    }
+
+    /// Aliases and addresses are unique across stored, session-only and watch-only accounts.
+    private func requireFree(alias: String, address: String) throws {
+        guard !wallets.contains(where: { $0.alias == alias }) else { throw WalletError.aliasExists(alias) }
+        if let existing = wallets.first(where: { $0.address.value == address }) { throw WalletError.addressExists(existing.alias) }
     }
 
     /// Copies wallets from the octez-client directory into Signet's own. Returns how many were added.
@@ -903,18 +915,44 @@ final class WalletViewModel {
         return Self.usableOnEtherlink(wallet.address) && wallet.keyKind.canSign
     }
 
-    func estimateBridgeDeposit(amount: Decimal) async throws -> TransferEstimate {
-        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+    /// What a deposit estimate was made for (S31): the account, the whole network (node and
+    /// Layer 2 settings included) and the directory the key comes from. The estimate is only
+    /// good for carrying out a deposit in exactly this context.
+    struct BridgeContext: Hashable, Sendable {
+        let wallet: Wallet
+        let network: Network
+        let directoryRevision: UUID
+    }
+
+    /// The context a deposit would run in right now; `nil` when nothing is selected.
+    var bridgeContext: BridgeContext? {
+        selectedWallet.map { BridgeContext(wallet: $0, network: network, directoryRevision: walletDirectoryRevision) }
+    }
+
+    /// A deposit estimate together with the context it is valid for.
+    struct BridgeEstimate: Sendable {
+        let estimate: TransferEstimate
+        let context: BridgeContext
+    }
+
+    func estimateBridgeDeposit(amount: Decimal) async throws -> BridgeEstimate {
+        guard let wallet = selectedWallet, let context = bridgeContext else { throw WalletError.emptyAlias }
         guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
-        return try await chain.estimateEtherlinkDeposit(from: wallet, amount: amount)
+        let chain = self.chain
+        let estimate = try await chain.estimateEtherlinkDeposit(from: wallet, amount: amount)
+        // The account, network, node or directory may have changed while the node was asked.
+        guard bridgeContext == context else { throw WalletError.contextChanged }
+        return BridgeEstimate(estimate: estimate, context: context)
     }
 
     /// Moves `amount` tez from the selected account on layer 1 to the same account on Etherlink,
     /// with the approved limits (S14), and waits for the layer 1 block. The rollup credits the
-    /// account on its own shortly after.
-    func bridgeToEtherlink(amount: Decimal, limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
+    /// account on its own shortly after. The estimate must have been made in the context the
+    /// deposit runs in now (S31): a different account, network, node or directory refuses it.
+    func bridgeToEtherlink(amount: Decimal, approved: BridgeEstimate?, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
-        guard let limits else { throw WalletError.notEstimated }
+        guard let approved, let limits = approved.estimate.limits else { throw WalletError.notEstimated }
+        guard approved.context == bridgeContext else { throw WalletError.contextChanged }
         guard canBridge else { throw ChainError.noEtherlinkBridge }
         guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
@@ -1058,7 +1096,7 @@ final class WalletViewModel {
         guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
 
         if wallet.isSessionOnly {
-            sessionKeys.rename(alias: wallet.alias, to: name)
+            try sessionKeys.rename(alias: wallet.alias, to: name)
             sessionWallets = sessionKeys.wallets
         } else {
             try walletStore.rename(alias: wallet.alias, to: name)

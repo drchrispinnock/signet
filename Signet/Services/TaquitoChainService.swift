@@ -67,12 +67,11 @@ struct TaquitoChainService: ChainService {
 
     private func rpcMutez(_ field: String, for address: Address, at node: URL) async throws -> String {
         let url = node.appendingPathComponent("chains/main/blocks/head/context/contracts/\(address.value)/\(field)")
-        let (data, response) = try await session.data(from: url)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw RPCError(status: (response as? HTTPURLResponse)?.statusCode ?? 0, field: field, address: address,
-                           body: String(data: data, encoding: .utf8) ?? "")
+        let reply = try await BoundedHTTP.data(for: URLRequest(url: url), session: session, limit: Self.smallReplyBytes)
+        guard reply.isSuccess else {
+            throw RPCError(status: reply.status, field: field, address: address, body: String(data: reply.data, encoding: .utf8) ?? "")
         }
-        guard let text = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? String else {
+        guard let text = try JSONSerialization.jsonObject(with: reply.data, options: [.fragmentsAllowed]) as? String else {
             throw URLError(.cannotParseResponse)
         }
         return text
@@ -82,13 +81,15 @@ struct TaquitoChainService: ChainService {
     private func rpcString(_ path: String, at node: URL) async throws -> String {
         var request = URLRequest(url: node.appendingPathComponent(path))
         request.timeoutInterval = 20
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-              let text = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? String else {
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.smallReplyBytes)
+        guard reply.isSuccess, let text = try JSONSerialization.jsonObject(with: reply.data, options: [.fragmentsAllowed]) as? String else {
             throw URLError(.badServerResponse)
         }
         return text
     }
+
+    /// A balance, a chain id: a short JSON string, or a short error body (S19).
+    static let smallReplyBytes = 16 << 10
 
     /// The account's tez on Etherlink, through the rollup's Tezos-style RPC (`Network.l2RPCURL`):
     /// the same `…/contracts/<pkh>/balance` call as a layer 1 node answers. An account the
@@ -151,7 +152,7 @@ struct TaquitoChainService: ChainService {
 
     func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
         try await verifyChain()
-        let result = try await signing { try await bridge.call("sendTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, destination.value, Mutez.fromTez(amount), limits.json]) }
+        let result = try await signing { try await bridge.sign("sendTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, destination.value, Mutez.fromTez(amount), limits.json]) }
         guard let sent = SentOperation(result) else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected send payload: \(String(describing: result))")
         }
@@ -171,7 +172,7 @@ struct TaquitoChainService: ChainService {
     func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
         guard network.canDepositToL2, let helper = network.l2BridgeHelper, let rollup = network.l2Rollup else { throw ChainError.noEtherlinkBridge }
         try await verifyChain()
-        let result = try await signing { try await bridge.call("sendEtherlinkDeposit", [network.rpcURL.absoluteString, signer.bridgeSpec, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount), limits.json]) }
+        let result = try await signing { try await bridge.sign("sendEtherlinkDeposit", [network.rpcURL.absoluteString, signer.bridgeSpec, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount), limits.json]) }
         guard let sent = SentOperation(result) else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected deposit payload: \(String(describing: result))")
         }
@@ -186,7 +187,7 @@ struct TaquitoChainService: ChainService {
 
     func rebroadcast(_ sent: SentOperation) async throws -> SentOperation {
         guard let bytes = sent.signedBytes else { throw TaquitoBridge.BridgeError.javaScript("There are no signed bytes to send again for \(sent.hash).") }
-        let result = try await bridge.call("injectSignedBytes", [network.rpcURL.absoluteString, bytes], timeout: 120)
+        let result = try await bridge.sign("injectSignedBytes", [network.rpcURL.absoluteString, bytes])
         guard let again = SentOperation(result) else { throw TaquitoBridge.BridgeError.javaScript("unexpected injection payload: \(String(describing: result))") }
         return again
     }
@@ -280,10 +281,10 @@ struct TaquitoChainService: ChainService {
         let r = try await signing {
             if let contents = rawContents(for: operation) {
                 let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
-                return try await bridge.call("sendRawOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, json, limits.json])
+                return try await bridge.sign("sendRawOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, json, limits.json])
             } else {
                 let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-                return try await bridge.call("sendStakingOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg, limits.json])
+                return try await bridge.sign("sendStakingOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg, limits.json])
             }
         }
         guard let sent = SentOperation(r) else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
@@ -291,14 +292,14 @@ struct TaquitoChainService: ChainService {
     }
 
     func proofOfPossession(signer: SigningKey) async throws -> String {
-        let r = try await signing { try await bridge.call("provePossession", [signer.bridgeSpec]) }
+        let r = try await signing { try await bridge.sign("provePossession", [signer.bridgeSpec]) }
         guard let proof = r["proof"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no proof returned") }
         return proof
     }
 
     /// Fungible tokens from TzKT. Indexer trouble is logged and shown as an empty list.
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload {
-        let r = try await signing { try await bridge.call("signPayload", [signer.bridgeSpec, payloadHex]) }
+        let r = try await signing { try await bridge.sign("signPayload", [signer.bridgeSpec, payloadHex]) }
         guard let pk = r["publicKey"]?.stringValue, let signature = r["signature"]?.stringValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected signature payload: \(String(describing: r))")
         }
@@ -332,7 +333,7 @@ struct TaquitoChainService: ChainService {
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String {
         try await verifyChain()
         let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-        let r = try await signing { try await bridge.call("sendGovernanceOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg]) }
+        let r = try await signing { try await bridge.sign("sendGovernanceOperation", [network.rpcURL.absoluteString, signer.bridgeSpec, operation.bridgeKind, arg]) }
         guard let hash = r["hash"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected payload: \(String(describing: r))") }
         return hash
     }
