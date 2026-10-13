@@ -1,431 +1,179 @@
-# Signet security and code-quality audit
+# Signet code audit
 
-**Date:** 2026-10-12
+**Date:** 2026-10-13
 
-**Revision:** Repair snapshot included with this report, based on `9a273ccce240556da15cbb9253b50d0c738b6c84` (`main`). The 192-file source manifest, excluding this report, has SHA-256 `4ce9f9c977697a905c2adda3330efcde328b2e0f12dc5d0229e310daaa9a42fb`. Sources were checked against that manifest after validation.
+**Revision:** Final reviewed application snapshot is `a931451ac255e0e67d511a15d1fa4a67adfda4ba` (`main`, 0.9.2). Review began at `0c9dc14` with uncommitted application changes; those changes were committed by another actor during the audit. Six concurrently edited files were compared and the affected native fixtures refreshed before final targeted validation. Layer 2 is now disabled by default. The remaining pre-existing audit rename and roadmap edit were preserved.
 
-**Previous verified repair:** `db6475d` (2026-10-10). This report supersedes the previous assessment and Claude's appended repair claims. Finding IDs are preserved.
+**Source manifest:** 206 existing repository files, excluding this new report, SHA-256 `9be2c9fbecd74b2278f8e4569f36f947c15240dafeb9df754c75a29f51fffb0e`. The manifest covers the final working-tree snapshot, including the unrelated roadmap edit. It is recorded locally in `/private/tmp/signet-audit-current/final-source-digests.json`.
 
-**Scope:** Repairs for the thirteen findings left open by the 2026-10-11 re-audit, with regression validation of existing S01–S29 controls. Changes cover wallet/backup persistence, dApp authority/lifecycle, network identity, multisig approvals and contexts, durable operation recovery, artwork/bridge budgets, Ledger sessions, purchase origins, test isolation and release gating. The JavaScript app resource and Xcode project were regenerated. No push, release, real-wallet inspection or live transaction injection was performed.
+**Previous report:** [CODEX_AUDIT_20261012.md](CODEX_AUDIT_20261012.md), accompanying repair commit `8c2041f`. This report supersedes its assessment without changing the archived file. Existing finding IDs are retained; new findings start at S30.
+
+**Scope:** Reassessment of the previous security boundaries plus changes since `8c2041f`: session-only keys, funded multisig origination, Etherlink balances/deposits/transfers/receive aliases, selected-chain context, recovery, node monitoring, persistence, bridge/native networking, tests, generated bundle and release gating. This is a source and targeted-behavior audit, not a formal verification of every dependency or deployed binary. Only this report was written in the repository by this audit; harnesses and logs are under `/private/tmp`. No real wallet files, production logs, live signing, transaction injection, release publication, commit or push was performed by the audit.
 
 ## Assessment
 
-**All 29 tracked findings are resolved within the scope described below.** This repair closes **S08, S09, S12, S13, S14, S15, S16, S18, S19, S22, S23, S24 and S25**. The sixteen previously verified controls remain covered by passing regressions. Closure is based on source review and offline boundary tests; hardware, live-chain, GUI and deployed release behavior were not independently exercised.
+**Six findings are open: one High and five Medium.** Four earlier closures need qualification or reopening: **S07, S09, S11 and S19**. Two findings concern the new Layer 2 paths: **S30 and S31**. The remaining 25 tracked controls retain their closure within the scope stated below.
 
-Uncertain operations now retain their exact signed bytes across restart and refuse replacement signing for the same account and chain. Recovery deliberately remains blocked if inclusion cannot be established from available chain history. Untrusted HTTPS connections use the system TLS client with validated DNS answers pinned to the actual connection, rather than a separate URL preflight.
+The most immediate destructive bug is session-key deletion after asynchronous password verification (S07). The import transaction boundary also remains incomplete (S09). Etherlink deposits are classified as cancellable reads by the native bridge (S30), and changing sides in an open Send sheet can separate its displayed network from its actual chain service (S31). System logging and native HTTP paths do not inherit all the redaction/resource protections credited to the JavaScript bridge (S11/S19).
 
-No intentional key-stealing backdoor or deliberate upload of wallet secret keys was identified in the reviewed application paths. Software secrets still enter the JavaScriptCore runtime that also hosts networking and third-party signing code; that remains a substantial dependency trust boundary. Ledger private keys remain on the device.
-
-“Confirmed offline” below means a synthetic-key, mocked-service or temporary-file reproduction. Source-supported findings state their trigger and were not presented as live exploits. Passing normal regressions is credited separately from adversarial evidence. No real wallet files, production logs or private release credentials were read.
+No intentional secret-key exfiltration or key-stealing backdoor was identified. Software keys still enter the network-capable JavaScriptCore/dependency runtime for signing; session-key memory protection does not remove those runtime copies. Disabling experimental Layer 2 by default reduces exposure to S30/S31, but does not repair either path after opt-in.
 
 ## Finding checklist
 
-Checked items have verified repairs within the stated scope. Original severity is retained for resolved items.
+Checked means the earlier repair remains supported by the reviewed implementation and stated regression evidence. It does not claim that every variant was independently reproduced again. Unchecked means work remains. Original severities are retained for older findings.
 
-- [x] **S01 (High, resolved)** — RPC byte substitution in raw-operation signing
-- [x] **S02 (High, resolved)** — Transaction signatures through the dApp message API
-- [x] **S03 (High, resolved)** — Incomplete dApp fee and contract-effect approval
-- [x] **S04 (Medium, resolved)** — Request metadata overriding authenticated dApp identity
-- [x] **S05 (High, resolved)** — Backup pruning deleting unrelated directories
-- [x] **S06 (High, resolved)** — Software key selection without expected-address verification
-- [x] **S07 (High, resolved)** — Account removal crossing wallet-directory changes
-- [x] **S08 (Medium, resolved)** — Stale grants and directory/session lifecycle boundaries
-- [x] **S09 (Medium, resolved)** — Inconsistent wallet transactions and backup snapshots
-- [x] **S10 (Medium, resolved)** — Secret files readable during their creation
-- [x] **S11 (Medium, resolved)** — Routine diagnostics retaining credentials and request contents
-- [x] **S12 (Medium, resolved)** — Missing chain checks in multisig and incomplete endpoint enforcement
-- [x] **S13 (Medium, resolved)** — Artwork concurrency and destination enforcement gaps
-- [x] **S14 (Medium, resolved)** — Approved limits not enforced on every signing path
-- [x] **S15 (Medium, resolved)** — Uncertain injection outcomes treated as safe failures
-- [x] **S16 (Medium, resolved)** — Multisig operations accepting stale network contexts
-- [x] **S17 (Medium, resolved)** — Lost dApp replies without safe resend state
-- [x] **S18 (Medium, resolved)** — Start/stop overlap reporting a nonexistent dApp connection
-- [x] **S19 (Medium, resolved)** — Resource limits stopping after parsing or timeout
-- [x] **S20 (Medium, resolved)** — RPC-controlled numbers causing trapping conversions
-- [x] **S21 (Medium, resolved)** — Unbounded or invalid faucet proof of work
-- [x] **S22 (Medium, resolved)** — Ledger signing sessions can interleave APDUs
-- [x] **S23 (Medium, resolved)** — Purchase widget authority omits origin ports
-- [x] **S24 (Medium, resolved)** — Test-host initialization still accesses default wallet storage
-- [x] **S25 (Medium, resolved)** — Published-release reruns and missing update feeds
-- [x] **S26 (Low, resolved)** — Hidden portfolio failures and silent truncation
-- [x] **S27 (High, resolved)** — Persisted multisig bytes disconnected from the displayed action
-- [x] **S28 (Medium, resolved)** — Contracts-only directories excluded from backups
-- [x] **S29 (High, resolved)** — Multisig signer keys not bound to expected addresses
+- [x] **S01 (High, retained)** — RPC forging substitution refused through local byte verification
+- [x] **S02 (High, retained)** — dApp message signatures restricted to complete packed Micheline envelopes
+- [x] **S03 (High, retained)** — dApp approval shows complete effects/costs and freezes operation contents
+- [x] **S04 (Medium, retained)** — Request identity derives from authenticated transport state
+- [x] **S05 (High, retained)** — Backup pruning requires generation ownership and complete manifests
+- [x] **S06 (High, retained)** — Software signer derives and checks the expected address
+- [ ] **S07 (High, reopened)** — Session-only Forget deletes by alias after an asynchronous check
+- [x] **S08 (Medium, retained)** — Current grants fail closed and directory replacement invalidates authority
+- [ ] **S09 (Medium, incomplete closure)** — Import reads the source outside its lock/recovery boundary
+- [x] **S10 (Medium, retained)** — Private files use owner-only atomic creation/replacement
+- [ ] **S11 (Medium, incomplete closure)** — System console/exception logging bypasses redaction
+- [x] **S12 (Medium, retained)** — Existing signing paths verify pinned chain identities and endpoint policy
+- [x] **S13 (Medium, retained)** — Artwork work is bounded and untrusted TLS connections pin validated DNS answers
+- [x] **S14 (Medium, retained)** — Supported execution paths enforce approved operation/reveal limits
+- [x] **S15 (Medium, retained)** — Exact signed intents persist before injection and uncertainty blocks replacement
+- [x] **S16 (Medium, retained)** — Multisig asynchronous results use full network/directory generations
+- [x] **S17 (Medium, retained)** — Undelivered dApp replies retry without repeating signing
+- [x] **S18 (Medium, retained)** — Relay starts wait for complete prior disconnection
+- [ ] **S19 (Medium, incomplete closure)** — Native HTTP readers bypass response/parsing budgets
+- [x] **S20 (Medium, retained)** — Audited RPC numeric conversions use checked accessors
+- [x] **S21 (Medium, retained)** — Faucet work has challenge, deadline and cancellation bounds
+- [x] **S22 (Medium, retained for protected calls)** — Whole-device Ledger leases serialize sessions; see S30
+- [x] **S23 (Medium, retained)** — Purchase navigation/media trust includes the effective HTTPS port
+- [x] **S24 (Medium, retained)** — Default bridge storage/logging is isolated from production state
+- [x] **S25 (Medium, retained)** — Release mutation requires draft status and publication requires an appcast
+- [x] **S26 (Low, retained)** — Portfolio completeness and failure state remain explicit
+- [x] **S27 (High, retained)** — Multisig signing reconstructs approved typed payloads
+- [x] **S28 (Medium, retained)** — Contract/proposal-only directories qualify for backup
+- [x] **S29 (High, retained)** — Revealed multisig public keys bind to requested signer addresses
+- [ ] **S30 (Medium, new)** — Etherlink deposit signing receives read timeouts and context cancellation
+- [ ] **S31 (Medium, new)** — Send side-switching rebuilds a live service behind captured network labels
 
-## Findings and verified repairs
-### S01 — Resolved (originally High): RPC-supplied bytes were signed without local verification
+## Open findings and fixes
 
-**Status:** Resolved in `831394d`; verified against the current working-tree sources and shipped bundle.
+### S07 — High: Session-only Forget can wipe a different account
 
-**Locations:** `TaquitoBridge/src/rawforge.js` (`forgeRawOperation`, `verifyRawForging`); `TaquitoBridge/src/index.js` (`prepareRaw`, `appliedResults`, `sendRawOperation`); `SignetTests/StakingTests.swift` (`RawForgingTests`).
+**Locations:** `Signet/ViewModels/WalletViewModel.swift:708–715`; `Signet/Services/SessionKeys.swift:73–82`.
 
-**Original issue:** A malicious RPC could return forged transfer bytes instead of an approved consensus/companion-key update and obtain a spendable signature. Assertions from that same RPC did not establish signing integrity.
+**Trigger:** Begin forgetting an encrypted session-only account named `Paper`. While its password is being checked, rename that account to `Saved` and import another account named `Paper`. The old password check succeeds; the pending Forget then calls `sessionKeys.remove(oldWallet)`, which deletes the current secret under alias `Paper` without checking its address, identity or secret generation.
 
-**Repair:** A restricted local encoder handles reveal, consensus-key and companion-key updates. The node's forged bytes must equal the complete locally forged operation; only local bytes reach signing. Unsupported operation kinds fail closed. Simulation/preapply require complete result counts and applied statuses.
+**Confirmed offline:** A temporary test used the production view model/store and an injected importer that performed those two mutations during the decryption await. Forget left the original key under `Saved` and removed the replacement encrypted account, whose password had never been checked. The fixture used synthetic material and tested the state mutation; it did not claim to exercise actual password cryptography or the GUI.
 
-**Evidence:** The current shipped bundle refused a substituted transfer before preapplication or injection. Empty simulation and empty preapply replies were rejected, while the honest mocked operation reached the stub injector. Native bridge tests compare local forging with Taquito for supported ordinary source/key schemes, large Zarith values and BLS proofs, and reject mismatched node bytes. The rebuilt bundle is byte-identical to the shipped resource.
+**Impact:** The wrong in-memory secret is wiped. Session keys deliberately have no wallet-directory/backup copy. At minimum this destroys the current session's access to the replacement account; permanent loss depends on whether the user retains an external copy.
 
-**Scope of closure:** This closes RPC byte substitution for the supported raw operations. Approved raw-operation estimates are now bound under S14. No live protocol operation, XMSS hardware/on-chain compatibility test or exhaustive protocol-encoding verification was performed; retain canonical encoding fixtures and adversarial byte-comparison tests as release gates.
+**Fix:** Give each session-key entry an immutable identity and mutation generation. Capture its identity and exact secret before decryption, then perform a compare-and-remove on the main actor. Refuse replacement, rename or re-import during the await. Address equality alone is insufficient when the same address is re-imported with another encrypted representation. Avoid silently replacing entries in `SessionKeyStore.add`; reserve/check alias and address again after asynchronous encryption/import work.
 
-### S02 — Resolved (originally High): “Sign message” could produce a transaction signature
+**Required regression:** Hold decryption, rename the original, reuse its alias, then release it; the replacement must survive and Forget must fail. Also cover same-address replacement and concurrent imports.
 
-**Status:** Resolved in `7544c50`; original exploit and repair regressions checked against the current sources and committed bundle.
+**Previous repair:** The file-backed snapshot/revision path remains intact. The new session-only branch bypasses that contract; the earlier general closure no longer applies to every account type.
 
-**Locations:** `Signet/Models/DAppRequest.swift`; `Signet/Models/Micheline.swift`; `Signet/Services/DAppConnectionManager.swift`; `TaquitoBridge/src/octezconnect.js`; `TaquitoBridge/src/micheline.js`; `SignetTests/DAppTests.swift`.
+### S09 — Medium: Import copies an unrecovered or changing source wallet
 
-**Original issue:** At `a802c3c`, the message API signed caller bytes unchanged without enforcing the signing type or safe data envelope. The payload `03 + forgedTransfer` produced exactly the signature for `signer.sign(forgedTransfer, [3])`, allowing an ordinary transaction to be authorized through the “Sign message” approval.
+**Locations:** `Signet/Services/TezosClientStore.swift:252–281` (`importWallets(from:)`).
 
-**Current behavior:** Only the exact `micheline` type is accepted. Payloads must be even-length hex within the 65,536-character cap, begin with packed-data prefix `05`, and contain exactly one structurally complete Micheline expression. The Swift and JavaScript readers check lengths, child structure, full consumption and depth 128. Swift validates before queueing and before signer lookup; JavaScript validates before `signerFor`. These checks reject the transaction watermark input regardless of its claimed type. Missing signing types are also rejected by the bridge, and the request parser defaults a missing type to the refused `raw` type.
+**Trigger:** Import from an octez-format source containing an interrupted `wallet_journal`, or while another cooperating writer changes its key files. The implementation locks/recoveries the destination, but calls the source's private `readEntries`/`readRaw` and `PrivateFile.read` directly. It neither takes the source wallet lock nor recovers that source before eligibility, enumeration and reads.
 
-**Evidence:** The current committed bundle rejected the original forged-transfer payload for `micheline`, `operation`, `raw`, unknown and missing types. Valid packed messages still matched direct synthetic-key signatures. The current isolated Swift tests and Node harness pass malformed-envelope and depth-boundary checks. The earlier audit also exercised the 16,000-level crash input and a dedicated JavaScriptCore envelope harness. The bridge rejects invalid payloads even with an invalid signer specification, demonstrating that rejection precedes signer access. A fresh bundle rebuild was byte-identical to the committed resource.
+**Confirmed offline:** A temporary source contained an old matching key/public-key pair, a replacement address file, and a journal that would restore the old address. Production import copied the replacement address together with the old key/public key into a clean target. The source journal remained unrecovered. The test used isolated directories and synthetic keys.
 
-**Scope of closure:** This closes the ordinary operation-signature confusion. The readers validate binary structure rather than Michelson types: primitive identifiers and string/annotation semantics are not fully validated. Further syntax correctness hardening may reject unknown primitive identifiers or invalid UTF-8, but those accepted structures still retain the `05` data prefix and did not restore the demonstrated attack. Arbitrary packed-data signatures can have application-specific authorization meaning; closure does not imply every accepted message is merely proof of account control. Peer grants, request identity, account binding and operation approval remain covered by S04, S06, S08 and S03 (with current-grant enforcement now repaired under S08). Keep the rejection regressions as release gates.
+**Impact:** The target can persist an inconsistent account snapshot. Expected-address checks still reject signing with a mismatched key, limiting direct fund theft; import correctness and octez compatibility are nevertheless broken. Concurrent source updates can produce the same kind of mixed snapshot.
 
-### S03 — Resolved (originally High): Approval hid fees and contract effects
+**Fix:** Obtain a recovered immutable snapshot of all source alias files under the source's process-local and octez-compatible locks, then release that lock before taking the destination lock and merging. Avoid opposite-order nested source/destination locks; reject or explicitly handle importing a directory into itself. Determine accepted aliases from all destination namespaces and parse each source file from that one snapshot.
 
-**Status:** Resolved in the 2026-10-10 repair (`db6475d`); verified again in this re-audit.
+**Required regression:** Import must recover a source journal before reading, serialize against a concurrent source writer, and avoid deadlock for simultaneous A→B/B→A imports.
 
-**Locations:** `TaquitoBridge/src/octezconnect.js` (`buildPrepared`, `freezePrepared`, `octezConnectPrepare`, `octezConnectExecute`, `describeOperation`); `Signet/Services/DAppConnectionManager.swift`; `Signet/Views/DAppRequestSheet.swift`; `SignetTests/DAppTests.swift`; `TaquitoBridge/test/dapp-prepared.cjs`.
+**Previous repair:** Normal reads, destination mutations and backup snapshots now serialize/recover. The previous report's broader closure overlooked this source-reading path.
 
-**Original issue:** The dApp's supplied fee and contract parameters reached execution while approval displayed only top-level amount/destination/entrypoint. A 100-tez fee and hidden parameter recipient were reproduced offline.
+### S11 — Medium: System logging bypasses the scrubber
 
-**Repair:** The sheet waits for preparation and displays fees, burn, total debit, standard token effects and full parameters/code/storage. Caller fee/gas/storage values are replaced by prepared limits. Unsupported calls are marked opaque; default KT1 calls without explicit parameters also show the warning and their implicit Unit argument. Preparation freezes the entire RPC operation, including the actual automatic reveal fee/limits, source, branch and counters. Execution locally forges and signs those same contents, without re-estimation or node-controlled forging. Source/reveal-key mismatches and incomplete/failed preapply results are refused.
+**Locations:** `Signet/Services/TaquitoBridge.swift:258–273`, `record` and `redactedLine` around lines 550–620.
 
-**Evidence:** Swift approval tests cover standard token effects, unknown calls, supplied excessive fees, default contract calls and actual reveal totals. The offline shipped-bundle regression compares injected bytes with an independently signed full approved operation, including its reveal; empty/failed preapply never reaches injection.
+**Source-supported:** The JavaScript console callback passes raw `text` to `NSLog` before calling `record`. Only `record` scrubs long hex/base58 material and caps line length. The installed uncaught-exception handler likewise passes `exception.toString()` directly to `NSLog` and bypasses `record` entirely. Both handlers exist regardless of the developer diagnostics opt-in.
 
-**Scope of closure:** This closes hidden dApp terms and rebuilding beyond their approval. Unknown contract effects require explicit advanced approval of raw parameters; descriptions of token standards are structural interpretations, not verified contract behavior. Network identity, authenticated peer grants, resource budgets and ambiguous injection recovery remain S04, S08, S12, S15 and S19. Expired branches or changed counters fail rather than silently rebuilding the operation; a fresh approval is required.
+**Impact:** Disabling verbose relay diagnostics and protecting `bridge.log` does not establish the same policy for the system logging sink. If a dependency or error contains a key, payload, credential or oversized text, that text can reach system logging without the app scrubber. This is a reachable logging-policy gap, not evidence that current ordinary signing prints wallet keys. No real secrets or production logs were inspected.
 
-### S04 — Resolved (originally Medium): Request metadata could impersonate another dApp
+**Fix:** Redact and cap once before sending a line to any sink, including system logging and uncaught exceptions. Prefer public error categories to whole request/error objects. Keep developer diagnostics explicitly gated, and do not treat base58/hex scrubbing as sufficient protection for arbitrary plaintext credentials.
 
-**Locations:** `TaquitoBridge/src/octezconnect.js` (`authenticatedContext`, `sanitizeIncomingRequest`); `Signet/Models/DAppRequest.swift`; `TaquitoBridge/test/dapp-identity.cjs`.
+**Required regression:** Inject synthetic console and exception strings and capture the system sink as well as `consoleLines`/file output. Every sink must remove synthetic key/token material and enforce the cap.
 
-**Repair verified:** The bridge derives sender identity from the authenticated transport peer's public key, finds that paired peer and its stored metadata/grants, and rebuilds the request from an allowlist. A claimed `senderId` or `appMetadata.senderId` inconsistent with the authenticated sender is refused. Swift does not take sender identity from app metadata. Permission-request branding can still be self-described; it does not override peer identity.
+**Previous repair:** Shape-only fetch tracing, private/rotated bridge files and disabled-by-default relay diagnostics remain improvements. The earlier report overstated their coverage of all diagnostics.
 
-**Evidence:** Current-bundle offline identity/grant/budget regressions and native request-parsing tests pass. This closes request-field impersonation. SDK transport authentication remains a dependency assumption; permission freshness and lifecycle repairs are recorded under S08/S18.
+### S19 — Medium: Direct native HTTP paths have no streamed response budget
 
-### S05 — Resolved (originally High): Backup retention deleted directories it did not own
+**Locations:** `Signet/Services/TaquitoChainService.swift:68–91`; `Signet/Services/NodeMonitor.swift` (`urlSessionProbe`); `Signet/Services/TzKTService.swift:56–73` and other native indexer reads; native domain/faucet readers.
 
-**Status:** Resolved in the 2026-10-10 repair (`db6475d`); verified again in this re-audit.
+**Source-supported:** These paths call `URLSession.data` and then parse the full returned `Data`. They do not use the bridge's `ResponseCollector`, `PublicHTTPClient` response cap or `JSONBudget`. The new Etherlink balance and chain-ID readers inherit this behavior. A timeout bounds elapsed request time, not received bytes or parse allocations. Querying an indexer with `limit=200` also trusts the server to honor that value; it is not a client-side response-size limit.
 
-**Locations:** `Signet/Services/WalletBackup.swift` (`run`, `generations`, `isGeneration`, `prune`); `SignetTests/WalletBackupTests.swift`.
+**Impact:** A configured/compromised RPC or service can return a large or deeply structured reply which is accumulated and parsed before rejection. This permits excessive memory/CPU use outside the resource controls credited to S19. No deliberate out-of-memory experiment was run.
 
-**Original issue:** All non-hidden directories under a selected backup root counted toward retention and could be recursively deleted. The first manifest-based repair still counted another wallet's backups; wallet B deleting wallet A's generation was reproduced offline.
+**Fix:** Add a shared bounded native HTTP reader that cancels while streaming beyond a per-purpose byte cap and applies structure/string budgets before parsing. Use small caps for chain IDs/balances/headers and appropriately larger caps for portfolio/history pages. Check decoded row counts too. Tests must cover both declared-length and chunked/undeclared oversize replies, plus excessive nesting.
 
-**Repair:** Deduplication and retention select only supported, complete manifest-bearing generations whose source equals the normalized current wallet directory. Manifests must list supported, unique data files; contents must match exactly and be regular files, excluding symlinks. Unknown versions, malformed manifests, extra documents and generations without an ownership manifest are preserved. Pruning rechecks ownership, direct parent and symlink status immediately before deletion. Overlapping source/backup directories are refused.
+**Previous repair:** Bridge fetches, serialized dApp parsing, file reads, artwork work and read-context teardown have useful budgets. They do not protect these separate URLSession readers. S30 separately describes the newly misclassified signing call rather than duplicating it here.
 
-**Evidence:** Isolated tests preserve unrelated folders, symlink targets, unmarked legacy folders, unknown manifest versions and extra documents. Identical data in two wallets sharing one destination creates separate generations; further B backups prune only B, retaining A.
+### S30 — Medium: Etherlink deposits can be abandoned as reads
 
-**Scope of closure:** This protects against accidental pruning of foreign content and cross-wallet generations. Legacy backups are deliberately not automatically adopted or pruned because their source cannot be proven. The manifest is not authentication against a hostile local process able to rewrite the backup tree; multi-file snapshot/serialization repairs are recorded under S09; secret-file creation is now closed under S10.
+**Locations:** `Signet/Services/TaquitoBridge.swift:111–112,146–150,199–220`; `Signet/Services/TaquitoChainService.swift` (`sendEtherlinkDeposit`); `TaquitoBridge/src/bridge.js:81–87`.
 
-### S06 — Resolved (originally High): A stale wallet object can sign with another account's key
+**Trigger:** `sendEtherlinkDeposit` signs through `signerFor` and `sendApproved`, but its name is absent from the bridge's hard-coded protected signing list. It therefore gets the default 60-second read deadline and the read cancellation handler. On timeout/cancellation, the bridge discards the context, cancels fetches and releases Ledger leases.
 
-**Status:** Resolved in `a9d8f3e`, completing the earlier native alias/address check; reverified on 2026-10-11.
+**Confirmed offline:** A temporary resource replaced only the two exported API functions with delayed synthetic promises. The unchanged production native bridge timed out `sendEtherlinkDeposit` at a 10 ms test deadline, while the identically delayed `sendTransfer` ignored that deadline and completed. This reproduces native classification/teardown; it is not a real deposit or hardware signing reproduction.
 
-**Locations:** `Signet/Services/TezosClientStore.swift`; `Signet/ViewModels/WalletViewModel.swift`; `Signet/ViewModels/SendViewModel.swift`; `TaquitoBridge/src/signers.js`.
+**Impact:** Normal hardware approval can take longer than 60 seconds. A deposit can be cut off during device work or signing/preapply/injection, contrary to the documented protected-call policy. Context teardown can release a device lease before its outstanding HID exchange has completed, undermining session sequencing on this path. If injection already began, the durable journal still protects against replacement operations; that mitigation does not make teardown of an active signature/device session safe.
 
-**Original issue:** Send captured its original wallet and chain, but its signer provider read the view model's current wallet store. Secret lookup used only the alias. Switching directories, replacing files externally or reusing an alias could therefore return a different account's secret while the sheet still identified the original sender. Software signer specifications contained no expected address check.
+**Fix:** Protect `sendEtherlinkDeposit` immediately. Then replace the duplicated string allowlist with a typed call policy or explicit noncancellable signing entry point so every new signing/injection API must declare its semantics. Audit all exports for the same omission; the existing transfer, raw, staking, governance, multisig and dApp signing names are currently present.
 
-**Original evidence:** Native lookup with temporary files retrieved another account's synthetic secret under the same alias. Transfer submission derived the actual source from that signer rather than requiring the displayed sender.
+**Required regression:** Cancel and expire a deposit while a fake Ledger session and delayed injector are active. The operation must retain its session until completion/native HID failure and return a tracked outcome. Keep a corresponding cancellable-read positive control.
 
-**Repair:** Native lookup verifies the alias/address mapping. Swift software signing specifications require the approved address. The shared JavaScript signer factory requires a nonempty string expected address before loading a secret, then unconditionally derives and compares the key's public key hash before returning the signer. Replacing the secret after native lookup cannot bypass that final check. All software signing callers use this factory.
+### S31 — Medium: Send can execute on a network different from its label
 
-**Evidence:** The current Node and native tests reject a key for another address and missing/invalid expected addresses; native regressions cover stale wallets after directory changes and alias/address replacement. The 2026-10-09 checks additionally exercised matching and mismatched clear/encrypted keys across tz1–tz5. See the current validation below.
+**Locations:** `Signet/Views/SendSheet.swift:17–38,55–56`; related dynamic state in `Signet/Views/BridgeSheet.swift` and `WalletViewModel.bridgeToEtherlink`.
 
-**Scope of closure:** This prevents substitution of another account's software signing key. Network identity, dApp grants and other changes to approval context remain covered by S08, S12 and S16.
+**Trigger:** Open Send on network A with Layer 2 enabled. Change the model's selected network or Layer 2 endpoint/enablement in Settings, then change sides in the still-open Send sheet. `network` used for presentation/explorer links comes from captured `layer1`/`layer2`, but `makeSend` reads the live `model.chainService`/`model.layer2Chain`. The captured `layer2Chain` property is used only to decide whether switching is available. If Layer 2 was disabled after opening, `makeSend` can fall back to the live Layer 1 service while retaining Etherlink presentation/restrictions.
 
-### S07 — Resolved (originally High): Forget can remove another wallet after asynchronous password verification
+**Source-supported:** Constructor and side-change paths were traced. This GUI sequence was not exercised. Chain-ID checks do not repair it: the live service verifies the chain it represents, while presentation still uses another captured Network.
 
-**Status:** Resolved in `840e97f`; reverified on 2026-10-11, including the current contracts-file snapshot handling.
+**Impact:** Approval and explorer links can describe the old network while signing/transfers use the current one. Same-address accounts on different chains can have unrelated funds. The mismatch also routes recovery/watch calls through the wrong service relative to the displayed context.
 
-**Locations:** `Signet/ViewModels/WalletViewModel.swift` (`forgetSelectedWallet`, `changeWalletDirectory`); `Signet/Services/WalletStore.swift`; `Signet/Services/TezosClientStore.swift` (`removalSnapshot`, `remove(_:matching:)`).
+**Related deposit path:** `BridgeSheet` reads the selected wallet/network dynamically and keys estimate refresh only by direction/amount. A wallet/node/network change can leave an old estimate attached to a new execution context. The model's deposit API captures its service only at submission; it does not bind the earlier estimate/approval to a complete context generation. Approved limits still constrain costs, but cannot establish which account/network those costs were approved for.
 
-**Original issue:** Forget validated one account's encrypted key, awaited decryption, then removed its alias from the current store. A directory switch could delete a different account. Capturing only the directory URL and checking the address was insufficient: replacing the encrypted key under the same alias/address during the await still deleted the replacement after validating the old key's password.
+**Fix:** Capture each side as one immutable context containing sender, complete Network, chain service and spendable state. Build replacement SendViewModels from those captured contexts, with no cross-layer fallback. Alternatively invalidate/close the sheet on context change and require a fresh approval. Bind deposit estimates and confirmation to the same full context and generation; include account/network/node changes in estimate invalidation.
 
-**Repair:** Capture the original store, a directory-change revision and an account snapshot before decryption; decrypt the snapshot's key. Every directory switch invalidates the revision, including switching away and back. Under the same wallet lock used for deletion, compare all matching rows across the three octez files and the actual directory identity (resolved path, device and inode), then remove only if unchanged. The in-memory store enforces the same snapshot contract. The current file-backed snapshot also covers matching entries in `contracts`. Unrelated account edits remain allowed.
+**Required regression:** Change network, same-name node, Layer 2 node and Layer 2 enablement while the sheet is open, then switch sides. The service/network pair must remain matched or the flow must refuse. Add delayed deposit-estimate tests across the same changes.
 
-**Evidence:** Regression tests reject replacement encrypted keys during password verification, directory switches and switches back, edits to each account file, replacement directories at the same path, added keys on watch-only accounts and snapshots from another in-memory store. Successful password-verified deletion and unrelated-account edits also pass. See the current validation below.
+## Retained controls and new-code observations
 
-**Scope of closure:** This closes deletion of a changed account across password-verification suspension. The existing advisory lock coordinates cooperating wallet writers; broader transaction/serialization repairs are recorded under S09; secret-file permissions are now closed under S10.
+- **S01/S02/S03/S04/S06:** Offline bridge regressions continue to pass local-forging, complete prepared-content, authenticated-request and safe-envelope checks. Native signer construction still requires the expected address. Session-only software keys use that signer boundary too; the deletion flaw does not establish another key can sign for the displayed address.
+- **S05/S10/S28:** Targeted native backup/private-store tests pass. Manifest ownership/pruning, owner-only creation and contract/proposal eligibility remain intact. Normal recovered snapshots work; the separate import exception is S09.
+- **S08/S17/S18:** Current-grant lookup still throws/fails closed, old directory managers are invalidated, and relay starts wait for full disconnect. Production lifecycle functions pass the offline disconnect-gate fixture. Undelivered replies remain a session-level resend mechanism, not a durable guarantee that every relay reply survives process restart.
+- **S12/S14/S15:** The new deposit and Etherlink send use the selected service's pinned chain verification, expected-address signer, checked preparation/local forging and durable injection helper. Funded multisig origination supplies its initial balance through the same approved preparation. Offline approved-limit/injection tests pass, including unknown outcomes and recovery-record checks. Confirmation/rebroadcast and hostile-RPC trust still depend on chain data; archival/history unavailability conservatively leaves pending work blocked. S30/S31 qualify lifecycle/context coverage of the new APIs.
+- **S13/S19/S22/S23:** Pinned public connections, artwork concurrency, bridge parsing limits, native whole-device leases and exact purchase origins remain in source and existing fixtures. Native endpoint/purchase tests pass. S19 and S30 explain where their broader application coverage stops.
+- **S16/S27/S29:** Multisig generations, typed proposal reconstruction and public-key/address verification remain. Existing native/JavaScript packing/signing tests and source comparisons support those controls; no live multisig round trip was performed in this review.
+- **S20/S21/S24/S25/S26:** Checked numeric accessors, bounded faucet work, in-memory/no-log default bridge construction, draft-only release mutation and explicit portfolio state remain. Script syntax passes. The test host composition is still isolated by source review; its current hosted execution could not be verified because LaunchServices failed to launch the runner.
+- **Etherlink encoding:** Routing vectors for tz1/tz2/tz3 and malformed-parameter rejection pass the offline bridge harness. Native Keccak tests pass standard digest vectors and the recorded address-alias fixture. This verifies internal encoding regressions; no independent live node/bridge-helper/kernel compatibility test was repeated. Withdrawals and standalone EVM keys remain outside the implemented flow.
+- **Session-key storage:** The store avoids intentional wallet/backup secret writes and wipes its owned buffer. `mlock` failure is recorded but not surfaced or treated as fatal, and initialization/bridge use create ordinary Swift/JavaScript copies. Treat “session-only” as an application persistence policy, not a guarantee that every secret copy is locked/wiped or can never reach swap. Strengthen that guarantee separately if it is promised to users.
 
-### S08 — Resolved (originally Medium): Grant refresh and session authority fail closed
+## Validation and limitations
 
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
+1. **All JavaScript regressions passed:** `cd TaquitoBridge && npm test`, including prepared dApp batches, identity/grants/budgets, approved limits/uncertain injection, lifecycle/Ledger boundaries and Etherlink routing/parameter fixtures.
+2. **Bundle consistency passed:** esbuild from current sources/installed locked dependencies produced byte-identical output to `Signet/Resources/taquito-bridge.js`. No repository bundle or dependency file was rewritten by this audit.
+3. **69 tests in 18 suites passed** in a temporary Swift package using current production models/services/view models and copied tests, with Swift 6 strict concurrency. Selection covered wallet stores/directories/backups, session keys, Keccak, purchase/endpoint policy and bridge model/network behavior, including the two deliberately vulnerability-confirming S07/S09 tests. The final relevant concurrent application changes were recopied before this run.
+4. **Three targeted boundary tests passed** in a separate run: S07 deletion, S09 import and S30 native timeout classification. For S30 only, temporary exported JavaScript functions were delayed synthetic fixtures; native bridge policy was unchanged. The real bundle was restored in the temporary package before the 69-test run.
+5. **Native harness adaptation:** Only the bridge resource lookup was changed to `Bundle.module`; no signing/persistence/context logic was patched. `UpdaterService`, and app/bundle-dependent updater/test-host/QR/purchase-construction tests were excluded from the package. Live-network and real-wallet conditions were not enabled. Synthetic keys and temporary directories were used.
+6. **The full hosted suite did not run:** `xcodebuild ... test` compiled the app/test target, then failed with `Could not launch SignetTests` from LaunchServices. The broad temporary-package run also did not complete and was interrupted; only the completed targeted counts above are credited. The prior report's 277-test hosted pass is historical, not a current pass. No running user application was closed to force tests to launch.
+7. **Fresh dependency audit:** `npm audit --json` reported zero advisories across 155 dependencies after retrying outside the network-restricted sandbox. Advisory coverage is not cryptographic review of Taquito, the SDK or transitive dependencies.
+8. **Static/snapshot checks:** `sh -n scripts/release.sh`, report whitespace checks and final manifest comparison pass. The audit does not stage, commit or push changes.
 
-**Locations:** Signet/Services/DAppConnectionManager.swift; Signet/ViewModels/WalletViewModel.swift; TaquitoBridge/src/octezconnect.js.
+Evidence: `/private/tmp/signet-audit-current/{npm-test.log,npm-audit.json,xcode-test.log,swift-test.log,boundary-final.log,classification-tests.log,native-targeted.log,final-source-digests.json}`. These temporary artifacts are reproducibility aids, not committed regression tests or durable CI results.
 
-**Original residual:** A failed permission refresh could leave cached authority usable, and directory replacement could race the old relay session.
+No physical Ledger signing, live Tezos/Etherlink injection or inclusion/reorg recovery, hostile DNS experiment, purchase media-permission GUI exercise, release signing/notarization, deployed updater discovery or independent deployed-binary inspection was performed.
 
-**Repair:** Signing and preparation obtain a fresh throwing permission lookup. Lookup failures deny access and clear display grants. Session invalidation drops authority synchronously before directory replacement; generation checks reject results from obsolete sessions. Each manager has its own bridge/client/storage, and native and JavaScript lifecycle tasks serialize startup and shutdown.
+## Repair order
 
-**Evidence:** Native regressions reject cached grants after a lookup failure and deny an invalidated old manager. Existing peer/account/scope/network and revocation tests pass.
-
-**Scope of closure:** Transport authentication remains an SDK trust assumption. Cached permissions are presentation data only; signing authority must continue to use fresh lookups.
-
-### S09 — Resolved (originally Medium): Wallet transactions and backup snapshots serialize and recover
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/TezosClientStore.swift; Signet/Services/WalletBackup.swift; Signet/Services/PrivateFile.swift; proposal storage.
-
-**Original residual:** Process-scoped lockf did not serialize threads in the same process, and backup eligibility/enumeration could precede journal recovery.
-
-**Repair:** A shared lock per canonical directory serializes local threads before acquiring the octez-compatible file lock, using one bounded acquisition deadline. Backup recovery, eligibility, enumeration and reads occur under that lock. Proposal reads fail closed on lock failure. Private-file writes propagate chmod/fsync/directory-sync failures; reads refuse symlinks/nonregular files and enforce byte limits. Pending-operation records are supported valuable backup files.
-
-**Evidence:** Concurrent native lock bodies remain serialized. A backup first read recovers an interrupted transaction before selecting files. Existing transaction, private-file, ownership, pruning and backup-integrity tests pass.
-
-**Scope of closure:** The advisory file lock coordinates cooperating external writers. A hostile local process ignoring that lock remains outside the transaction contract; recovery cannot promise durability beyond the filesystem’s guarantees.
-
-### S10 — Resolved (originally Medium): Secret permissions were applied after writing
-
-**Locations:** `Signet/Services/PrivateFile.swift`; wallet, bridge storage, proposal and backup writers.
-
-**Repair verified:** Secret/state replacements create exclusive, non-following temporary files with mode 0600 before writing any bytes, then replace atomically. Owned directories are hardened to 0700; foreign ownership and symlinked file reads are refused. Temporary cleanup occurs under the wallet lock.
-
-**Evidence:** Native private-file and store-integrity tests pass, including creation permissions and directory hardening. The transient-readable-file issue is closed. Multi-file serialization and crash/durability repairs are recorded under S09; permissions alone do not provide a wallet transaction.
-
-### S11 — Resolved (originally Medium): Routine diagnostics exposed authentication and request contents
-
-**Locations:** `Signet/Services/DeveloperSettings.swift`; `Signet/Services/TaquitoBridge.swift`; `TaquitoBridge/src/polyfills.js`; dApp and Ledger logging.
-
-**Repair verified:** SDK debug/decrypted-relay diagnostics require an explicit one-launch developer setting. Routine fetch logs omit query strings and bodies; dApp events log kind/type; Ledger traces retain APDU headers. Log lines are redacted and capped, files/directories are private, and rotation occurs during writing.
-
-**Evidence:** Native log-redaction regressions pass and the production logging paths were reviewed. This closes routine persistent sensitive diagnostics. Explicitly enabled developer diagnostics are a separate user-selected mode; they should still be used only with disposable identities and requests.
-
-### S12 — Resolved (originally Medium): Chain identity and actual endpoint enforcement cover signing paths
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/MultisigService.swift; Signet/Services/TaquitoChainService.swift; Signet/Models/DAppRequest.swift; PublicHTTPClient.swift; TaquitoBridge/src/index.js.
-
-**Original residual:** Multisig and governance paths lacked uniform pinned-chain checks, and URL identity omitted query components or relied on DNS preflight.
-
-**Repair:** Production multisig services bind to the complete selected Network and verify its RPC endpoint and chain identity before chain-backed reads, estimates, origination or execution. Governance execution verifies chain identity. Endpoint matching includes query components. The dApp bridge requires public HTTPS and uses DNS-pinned connections with automatic redirects disabled; artwork separately revalidates every redirect.
-
-**Evidence:** A wrong-chain multisig mock fails before contract data access. Endpoint-query, mixed public/private DNS and pinned configuration regressions pass alongside existing native chain checks.
-
-**Scope of closure:** An accepted RPC can still lie about data on the expected chain. Local forging, signer checks and approval binding remain necessary. User-selected native local RPCs retain their existing explicit configuration path.
-
-### S13 — Resolved (originally Medium): Artwork connections and underlying work have enforced bounds
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/ImageLoader.swift; Signet/Services/PublicHTTPClient.swift; Signet/Services/EndpointPolicy.swift.
-
-**Original residual:** Concurrency accounting could exceed its cap, and separate DNS validation did not establish the destination of the actual TLS connection.
-
-**Repair:** Artwork acquires one of six download slots inside the actual shared task and hands released slots directly to waiters. In-flight entries, candidates, redirects, response bytes, output dimensions and SVG intrinsic dimensions are bounded. PublicHTTPClient pins validated public DNS answers through system curl --resolve, preserves HTTPS hostname verification, disables proxies/user configuration, and validates each artwork redirect. A global six-worker gate retains slots until underlying DNS/process work returns.
-
-**Evidence:** A native concurrent fixture observes no more than six active artwork downloads. Private/mixed-address destination, curl configuration and response-cap tests pass.
-
-**Scope of closure:** The transport depends on the macOS system TLS client. No hostile DNS server or real HTTPS rebinding experiment was run. Slow resolver calls can consume the bounded worker pool until they return; they cannot spawn unbounded replacement workers.
-
-### S14 — Resolved (originally Medium): Every supported signing path enforces complete approved limits
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** TaquitoBridge/src/operations.js; TaquitoBridge/src/multisig.js; TaquitoBridge/src/index.js; bridge approval regressions.
-
-**Original residual:** Raw operations and direct multisig calls could sign increased gas/storage/reveal costs beyond their displayed estimate.
-
-**Repair:** Multisig origination and submission now use the shared approved preparation, local forging and sign/inject path. Estimates include automatic reveal, total gas/storage and storage burn. Raw execution compares fee, gas and storage against approval and refuses increases before signer access. Existing frozen dApp contents retain exact approved limits.
-
-**Evidence:** The actual multisig origination module is exercised with an estimated reveal of 100 and a later reveal of 101; execution refuses before signing or injection. Raw and ordinary limit-increase regressions and frozen-dApp byte comparisons pass.
-
-**Scope of closure:** Limits bound the approved operation budget; they do not guarantee a successful contract result. Changed counters, branches or estimates require a fresh approval rather than silent rebuilding.
-
-### S15 — Resolved (originally Medium): Uncertain operation outcomes are durable and recoverable
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/OperationJournal.swift; TaquitoBridge/src/operations.js; raw/dApp/multisig/governance execution; SendViewModel.swift; SendSheet.swift.
-
-**Original residual:** HTTP errors after injection, mismatched node hashes, direct multisig injection and restart could discard uncertainty and invite duplicate signing.
-
-**Repair:** Before injection, a private durable journal stores the locally computed hash, exact signed bytes, source, chain, branch, complete contents and derived origination address. Save failures stop before injection. Any failed or mismatched post-injection reply preserves an unknown outcome. Pending intent prevents replacement signing for the same account/chain across endpoint changes. All native manager, multisig, governance and dApp injection paths share this journal. Send resumes watching/rebroadcasting the same bytes after restart. Recovery verifies the hash, source and locally forged contents against saved bytes; inclusion scanning starts from the saved branch/cursor and only verified inclusion removes the record.
-
-**Evidence:** Offline regressions cover HTTP 504, permanent node errors, returned-hash mismatch, journal save failure, identical-byte rebroadcast, altered recovery records and alternate RPC nodes. Native tests verify restart persistence, replacement refusal and owner-only permissions. Existing lost-response/dApp resend tests pass.
-
-**Scope of closure:** Production recovery state is centralized in ~/.signet/pending_operations.json, shared by wallet-directory sessions. A custom-directory backup alone does not carry this central journal. A pruned/unavailable history or an operation whose inclusion cannot be verified remains conservatively pending and may require an archival RPC. No live injection, origination or chain-history recovery was run.
-
-### S16 — Resolved (originally Medium): Multisig asynchronous results bind to the full current context
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/ViewModels/WalletViewModel.swift; Signet/Views/SendSheet.swift; SignetTests/AuditRepairTests.swift.
-
-**Original residual:** Comparing network names did not detect endpoint replacement or switching away and back during asynchronous multisig work.
-
-**Repair:** Account/network changes invalidate an operation-generation token. Create, add, propose, sign and submit capture the complete Network, directory revision and generation; stale results cannot persist a proposal, choose a signer or remove a saved proposal. Send presentation captures its immutable operation network for explorer links and recovery.
-
-**Evidence:** Native fake-service regressions switch to another endpoint with the same network name and switch away/back during preparation; neither persists a proposal. Existing signer/account/directory context tests pass.
-
-**Scope of closure:** External changes to contract state still require the existing counter/script/membership checks. Generation binding protects application context, not a block-pinned chain snapshot.
-
-### S17 — Resolved (originally Medium): Reply failure silently completed a dApp request
-
-**Locations:** `Signet/Services/DAppConnectionManager.swift` (undelivered response handling); `Signet/Views/DAppRequestSheet.swift`; `SignetTests/DAppGrantTests.swift`.
-
-**Repair verified:** A failed response keeps the completed reply and request as undelivered. Approving it again resends that reply without signing or executing again; dismissing drops it explicitly.
-
-**Evidence:** The native regression fails delivery repeatedly, retries it and confirms one signing/execution with multiple response attempts. This closes the original retry/re-execution and silent-completion issue. Recovery is session-local; persistent operation uncertainty remains S15.
-
-### S18 — Resolved (originally Medium): Start and stop serialize the entire relay lifecycle
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** TaquitoBridge/src/octezconnect.js; Signet/Services/DAppConnectionManager.swift; WalletViewModel.swift.
-
-**Original residual:** A start during asynchronous disconnect returned success for the client that stop was about to destroy.
-
-**Repair:** JavaScript starts await the shared stop promise before checking or publishing a client; stop awaits an in-flight start before disconnecting. Native tasks also serialize lifecycle transitions, and directory generations suppress obsolete startup results. Separate manager bridges avoid shared client/storage/event callbacks. Bridge teardown emits stopped and clears native session state.
-
-**Evidence:** An offline fake SDK holds disconnect on a gate: a concurrent start waits, then establishes a new client only after disconnect completes. Grant invalidation and existing startup/pairing regressions pass.
-
-**Scope of closure:** Real relay connectivity was not exercised. Future SDK lifecycle changes must retain the disconnect-gate regression.
-
-### S19 — Resolved (originally Medium): Parsing budgets and timeout cancellation bound underlying work
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/TaquitoBridge.swift; BridgeCallGate.swift; JSONBudget.swift; PublicHTTPClient.swift; PrivateFile.swift; TaquitoBridge/src/octezconnect.js.
-
-**Original residual:** Post-parse checks were too late, and timed-out reads released continuations while underlying JavaScript/fetch work could continue accumulating.
-
-**Repair:** Transport serialization is bounded before decoding/JSON.parse; HTTP JSON is validated for bytes, depth, node count and string size before JavaScript SDK processing. Bridge argument/random allocation, fetch concurrency, queued calls and file reads have limits. Foreground calls serialize; read/preparation cancellation or timeout cancels HTTP and discards the context, with generation fences on late callbacks. Signing/injection and whole Ledger sessions are protected from generic read deadlines. The global public-HTTP worker cap remains occupied until underlying DNS/process work actually returns.
-
-**Evidence:** Offline tests reject excessive serialized messages and depth before parsing. Native budget tests cover depth/string/node excess; a held URLProtocol read times out, cancels its HTTP work and permits a clean context reload. Existing operation/proposal/input budgets pass.
-
-**Scope of closure:** JavaScriptCore cannot preempt arbitrary synchronous third-party code already executing on its queue. These repairs bound the audited attacker-controlled input paths and outstanding work; they are not a general CPU sandbox for dependencies. Protected signing calls rely on durable outcome recovery and Ledger’s native HID timeout.
-
-### S20 — Resolved (originally Medium): Untrusted RPC numbers reached trapping conversions
-
-**Locations:** `Signet/Services/JSONValue.swift` (`intValue`); `Signet/Services/TaquitoChainService.swift`; `Signet/Services/MultisigService.swift`; bridge limit parsing.
-
-**Repair verified:** RPC/bridge integer access checks finite, integral, safely representable values. Native estimates and generic multisig counters/thresholds throw on malformed figures rather than silently using zero; JavaScript operation limits require safe non-negative integers.
-
-**Evidence:** Native checked-number, estimate and multisig tests pass for malformed/extreme values. This closes the reported RPC-controlled trapping conversions. It does not claim every local numeric conversion in the repository was removed; local/device-derived conversions have different input provenance.
-
-### S21 — Resolved (originally Medium): Faucet work was invalid, unbounded and uncancellable
-
-**Locations:** `Signet/Services/FaucetService.swift`; `Signet/Views/FaucetSheet.swift`; `SignetTests/FaucetServiceTests.swift`.
-
-**Repair verified:** Difficulty, count/length, advancing-counter and amount bounds are enforced. Production solving checks cancellation and a deadline, and caps rounds/elapsed work. Selection changes and the sheet can cancel the request.
-
-**Evidence:** Offline invalid-challenge, difficult-work, cancellation and solver regressions pass. No live faucet request or proof-of-work submission was needed. Retain bounded-work tests as the challenge protocol evolves.
-
-### S22 — Resolved (originally Medium): Ledger operations hold a whole-device session lease
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/LedgerSessions.swift; Signet/Services/TaquitoBridge.swift; TaquitoBridge/src/ledger.js; existing LedgerHID.swift failure handling.
-
-**Original residual:** Per-APDU queues permitted concurrent multi-chunk signatures to interleave on one physical device.
-
-**Repair:** A native device-keyed lease spans address verification and the entire signing APDU sequence across distinct bridges. JavaScript also serializes complete signer/address operations, retaining its per-exchange queue. Address identity is rechecked inside the session. Queued leases are bounded/cancellable; context teardown releases leases safely, and generic read cancellation does not abandon a running device session. HID failure/timeout closes the device before another session proceeds.
-
-**Evidence:** A fake transport records contiguous A0/A1 then B0/B1 chunks under concurrent callers. Native tests prove the same device lease excludes a second bridge and retains existing HID framing/timeout regressions.
-
-**Scope of closure:** No physical-device signing was performed. Hardware firmware behavior and user confirmation still need device testing; leases establish application sequencing rather than proving device firmware correctness.
-
-### S23 — Resolved (originally Medium): Purchase trust checks use exact HTTPS origins
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Views/BuyWebView.swift; SignetTests/AuditRepairTests.swift.
-
-**Original residual:** Trusted-host checks ignored ports, granting navigation/media authority to an unexpected service on the provider hostname.
-
-**Repair:** Trusted navigation accepts only the configured HTTPS hosts at the default port (implicit or 443). Media authorization compares both requesting security-origin and frame ports, treating only the default HTTPS port as trusted.
-
-**Evidence:** Native policy tests accept default HTTPS origin forms and reject alternate or mismatched ports alongside existing main-frame/host/scheme rules.
-
-**Scope of closure:** No GUI camera/microphone grant was exercised. The configured provider remains trusted for its accepted origin content.
-
-### S24 — Resolved (originally Medium): Test construction uses memory storage and no default logs
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** Signet/Services/TaquitoBridge.swift; Signet/SignetApp.swift; WalletViewModel.swift; TestHostIsolationTests and AuditRepairTests.
-
-**Original residual:** An in-memory hosted wallet still initialized eager disk-backed bridge storage and default user log paths.
-
-**Repair:** Bridges now default to in-memory storage and no logging, including the shared bridge. Only the production composition root selects disk relay storage, enables its explicit log path and installs the durable operation journal. Hosted test composition disables the default node probe and uses isolated model state. dApp bridges inherit logging only after production explicitly configures it.
-
-**Evidence:** The full hosted Xcode suite launched and passed: 277 tests in 92 suites, with live-network and real-wallet opt-ins unset. Native tests verify default in-memory bridge storage and existing test-host isolation properties. Tests use synthetic keys and temporary files.
-
-**Scope of closure:** Tests that explicitly opt into real wallet/network access retain their opt-in contract; ordinary constructor paths no longer select those resources. No production wallet or log contents were inspected.
-
-### S25 — Resolved (originally Medium): Release publication requires draft state and a signed update feed
-
-**Status:** Repaired on 2026-10-12; included in the repair commit containing this report.
-
-**Locations:** .github/workflows/release.yml; scripts/release.sh.
-
-**Original residual:** Reruns could clobber published release assets separately, and a missing Sparkle key allowed a latest release without its feed.
-
-**Repair:** Tag-scoped workflow concurrency serializes release attempts. The workflow requires a Sparkle signing key before build, runs all bridge regressions and isolated hosted native tests, and verifies the locked rebuilt bundle. Existing published releases are refused. Draft status is checked before uploading the exact version archive and appcast together; publication occurs only after assets are present. Missing signing keys or generated appcasts fail release generation/publication. Explicit local SPARKLE_APPCAST=0 remains available for nonpublication builds.
-
-**Evidence:** Source review confirms checks precede mutation/publication; shell syntax validation passes. All current offline bridge/native gates pass independently. No GitHub release or credentials were used.
-
-**Scope of closure:** CI, signing/notarization, Sparkle generation and deployed update discovery were not executed here. The workflow prevents its normal rerun path from mutating a published release; GitHub asset upload is not a server-side atomic multi-asset transaction.
-
-### S26 — Resolved (originally Low): Portfolio loading concealed errors and truncation
-
-**Locations:** `Signet/Services/TzKTService.swift`; portfolio models/view-model/tab presentation; `SignetTests/PortfolioStateTests.swift`.
-
-**Repair verified:** Tokens/NFTs share a paginated portfolio result, capped at 1,000 rows with explicit complete/partial/unavailable state. Failures retain last-known lists and expose unavailable status; the cap no longer pretends to be complete. Unsupported decimal counts outside 0...36 are not used.
-
-**Evidence:** Native portfolio pagination/state/failure/decimal tests pass; UI consumption of those states was reviewed. Closure covers disclosed completeness/failure handling, not a guarantee that an external indexer's changing data is a block-pinned snapshot.
-
-### S27 — Resolved (originally High): Persisted proposal bytes were not bound to displayed actions
-
-**Locations:** `Signet/ViewModels/WalletViewModel.swift` (proposal signing); `Signet/Services/MultisigService.swift`; `TaquitoBridge/src/multisig.js` and packed-data signer; proposal regression tests.
-
-**Original issue:** A modified saved proposal could display one transfer while supplying another multisig action's bytes, or ordinary operation-watermarked bytes. The earlier audit reproduced both with a synthetic encrypted key through the native saved-proposal signing flow.
-
-**Repair verified:** Signing reconstructs the typed payload from chain, contract, counter and immutable action fields; it does not sign persisted `proposal.bytes`. The model compares reconstructed bytes with the approved proposal, and a dedicated packed-data signing API refuses operation envelopes. Membership/context checks guard the selected signing path.
-
-**Evidence:** Current native proposal/signing regressions pass, including altered stored payload rejection and action-based repacking; canonical packing fixtures remain covered. Resolved in `db6475d`, reverified on 2026-10-11. The separate multisig chain/context/limit repairs are recorded under S12/S14/S16; they do not restore verbatim signing of arbitrary persisted bytes.
-
-### S28 — Resolved (originally Medium): Contracts-only directories were omitted from backups
-
-**Locations:** `Signet/Services/WalletBackup.swift` (`valuableFiles`, `run`); contract/proposal store and backup tests.
-
-**Original issue:** Backup eligibility required `public_key_hashs`, so a directory containing only contracts or multisig proposals was skipped despite those files being in the supported backup list.
-
-**Repair verified:** Any supported valuable wallet, contract or proposal file makes a directory eligible. Contract/proposal-only backups retain that state; `state` alone deliberately does not trigger a generation. Ownership validation and retention rules remain in place.
-
-**Evidence:** Current isolated contract/proposal/backup regressions pass. Resolved in `db6475d`, reverified on 2026-10-11. Concurrent enumeration and journal recovery during snapshots are now repaired under S09.
-
-### S29 — Resolved (originally High): Revealed signer keys were not checked against requested addresses
-
-**Locations:** `Signet/ViewModels/WalletViewModel.swift` (`multisigSignerKey`); `Signet/Services/MultisigService.swift`; `TaquitoBridge/src/multisig.js` (`multisigRevealedKey`).
-
-**Original issue:** A configured RPC could supply a valid public key for a different account while the creation UI retained the requested signer's address. The earlier offline resolver reproduction accepted such a key; replacing enough signers could change control of the new contract.
-
-**Repair verified:** Returned keys are decoded and their public-key hash is derived locally and compared with the requested address. The bridge rejects mismatched RPC-resolved keys; the model also checks locally known/resolved keys before accepting a signer. Invalid or unsupported keys fail before origination.
-
-**Evidence:** Current isolated native multisig signer-resolution tests pass, including well-formed keys for another address and local mapping mismatches. Resolved in `db6475d`, reverified on 2026-10-11. Network identity and payer-operation limit repairs are recorded under S12/S14.
-
-## Validation — 2026-10-12
-
-- **Full hosted macOS suite passed:** `xcodebuild -project Signet.xcodeproj -scheme Signet -destination 'platform=macOS' -derivedDataPath build test`: **277 tests in 92 suites**, with Swift 6 complete strict concurrency. Live-network and real-wallet opt-ins were unset; hosted initialization uses memory state and a disabled default probe.
-- **All offline JavaScript regressions passed with `npm test`:** prepared dApp approvals/bytes, authenticated identity/grants/budgets, complete approved limits, injection uncertainty/rebroadcast/recovery integrity, lifecycle serialization, pre-parser limits and whole Ledger sessions. Fixtures use synthetic keys, fake SDK/network/device dependencies and production operation/lifecycle logic.
-- **Bundle consistency passed:** a fresh esbuild output from final bridge sources and installed locked dependencies is byte-identical to the regenerated `Signet/Resources/taquito-bridge.js`. No dependency version or lockfile change was made.
-- **Project generation passed:** `xcodegen generate` includes the new services and regression suite; the generated project was built/tested rather than hand-edited.
-- **Static checks passed:** `sh -n scripts/release.sh`, `git diff --check`, and the final source-manifest comparison.
-- The prior 2026-10-11 registry `npm audit` reported zero vulnerabilities across 155 installed dependencies. That advisory result is historical; it was not rerun for these unchanged dependencies and is not a safety proof.
-
-Local logs are `/private/tmp/signet-repairs-final-results.log` and `/private/tmp/signet-repairs-node.log`. The source manifest is `/private/tmp/signet-repairs-source-digests.json`. These temporary artifacts supplement the committed regression sources. The repairs and report are committed together.
-
-## Positive controls and remaining trust boundaries
-
-Local forging, packed-message envelope checks, complete frozen dApp approvals, expected-address signing checks, source-bound backup ownership, proposal repacking and multisig address/key verification remain in place. Native regression coverage and bridge consistency checks passed. Existing multisig script-hash, counter, distinct signer-slot and threshold checks remain useful; they remain complemented by the repaired chain, limit, lifecycle and recovery checks.
-
-Encrypted account defaults and warnings improve key storage, but clear octez-compatible keys remain supported and old clear backups are not retroactively encrypted. Explicit secret export uses the general pasteboard; reducing copied-secret lifetime would be additional hardening. Keep software secrets short-lived and consider separating key custody from the networking/dependency runtime.
-
-No live Tezos multisig/dApp round trip, protocol injection, physical Ledger signing, hostile DNS experiment, GUI/media-permission exercise, deployed updater verification or release publication was performed. Claude's live-test claims are historical assertions and were not independently repeated here. This report is a source and targeted-behavior audit, not formal verification or certification of deployed binaries.
-
-## Follow-up validation
-
-The tracked residuals are repaired; retain the new adversarial regressions in routine CI. Before release, exercise the complete Ledger signing flow on hardware, a synthetic-account test-chain origination/recovery flow, accepted and refused public HTTPS destinations, purchase media permissions, and signed draft-release/updater generation. These are validation limits, not claims that the original vulnerable paths remain open.
+1. Restore the session-key deletion snapshot contract (S07) and source-wallet import transaction boundary (S09).
+2. Protect every Etherlink signing call from read cancellation (S30), then bind Send/deposit approval to a single complete context (S31).
+3. Route every logging sink through the same policy (S11) and apply streamed HTTP/parse budgets to native readers (S19).
+4. Turn the temporary reproductions into repository regressions and obtain a fresh full hosted pass before treating the previous all-resolved assessment as current.
