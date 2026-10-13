@@ -11,13 +11,14 @@ struct WalletHomeView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             Divider()
-            NodeStatusBar(monitor: model.nodeMonitor)
+            NodeStatusBar(monitor: model.nodeMonitor, layer2: model.l2Monitor)
         }
         .frame(minWidth: 480, minHeight: 720)
         .appliesStoredAppearance()
         .showsLaunchDisclaimer()
         .task {
             model.nodeMonitor.start()
+            model.l2Monitor.start()
             await model.refresh()
         }
         .sheet(isPresented: $model.isPresentingCreateWallet) {
@@ -75,7 +76,7 @@ struct WalletHomeView: View {
         }
         .sheet(isPresented: $model.isPresentingReceive) {
             if let wallet = model.selectedWallet {
-                ReceiveSheet(wallet: wallet, domains: model.domains)
+                ReceiveSheet(wallet: wallet, domains: model.domains, showsEtherlink: model.network.hasL2 && WalletViewModel.usableOnEtherlink(wallet.address))
             }
         }
         .overlay(alignment: .bottom) {

@@ -185,7 +185,10 @@ export async function assertChain(rpcUrl, expectedChainId) {
 export async function injectSigned(rpc, sbytes, intent = {}) {
   const hash = encodeOpHash(sbytes);
   const existing = records().find(r => r.hash === hash);
-  const record = { ...existing, ...intent, hash, injected: false, signedBytes: sbytes, rpcURL: intent.rpcURL ?? existing?.rpcURL ?? rpc.getRpcUrl(), created: existing?.created ?? Date.now() };
+  // The head level now: where a watcher starts scanning. Looking the branch block up by hash
+  // later is slow on some nodes (Etherlink's Michelson interface takes ~30 s), by level it is not.
+  const headLevel = existing?.headLevel ?? await rpc.getBlockHeader().then((h) => h.level).catch(() => undefined);
+  const record = { ...existing, ...intent, hash, injected: false, signedBytes: sbytes, headLevel, rpcURL: intent.rpcURL ?? existing?.rpcURL ?? rpc.getRpcUrl(), created: existing?.created ?? Date.now() };
   if (record.contents?.some(c => c.kind === "origination")) record.address = originatedAddress(hash);
   // Failure here occurs before the injection boundary and must prevent injection.
   save(record);

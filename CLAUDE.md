@@ -416,7 +416,10 @@ automatic download is off by default. The updater is not started under the test 
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
   classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
-  connection); `NodeStatusBar` pins it to the bottom of the window. `evaluate` is pure for tests.
+  connection); `NodeStatusBar` pins it to the bottom of the window; while the network has Layer 2 on a
+  second line beneath it shows the Layer 2 Michelson node (`WalletViewModel.l2Monitor`, a
+  `NodeMonitor` with `layer: .two`, idle and grey when there is no Layer 2 node), and a header
+  naming another chain than the pinned one is red. `evaluate` is pure for tests.
   **Chain identity (S12).** Long-lived networks pin `Network.expectedChainID` (mainnet
   `NetXdQprcVkpaWU`, Shadownet `NetXsqzbfFenSTS`); before any estimate or signing
   `TaquitoChainService.verifyChain` and the dApp prepare/execute calls ask the node for
@@ -446,7 +449,10 @@ automatic download is off by default. The updater is not started under the test 
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy/Get, Stake; Receive opens `ReceiveSheet` with a Core Image QR
-  code of the address; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
+  code of the address, and with Layer 2 on the logo at its top left is a menu that switches to
+  the account's address on Etherlink's EVM side, `EtherlinkAlias.address(for:)`: the first 20
+  bytes of Keccak-256 over the base58 address string, as the EVM node's
+  `tez_getTezosEthereumAddress` answers, computed by `Keccak.swift` since CryptoKit has none; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
   `WalletViewModel.requestTestTez(amount:)`; on Mainnet Buy opens `BuySheet`. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
   other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
@@ -494,8 +500,8 @@ automatic download is off by default. The updater is not started under the test 
   RPC, where tz1, tz2 and tz3 keys are used directly (tz4 and tz5 are not accepted by the
   rollup yet). `Network.l2DefaultRPCURL` ships the endpoint for Mainnet
   (`michelson.etherlink.mainnet.octez.io`, chain `NetXohUVN5QWR4f`) and Shadownet
-  (`michelson.etherlink.shadownet.octez.io`, chain `NetXtLrzvQDobza`); `l2Enabled` defaults to
-  on there and off elsewhere, and `l2RPCURL` is the node in use. Settings has "Enable Layer 2"
+  (`michelson.etherlink.shadownet.octez.io`, chain `NetXtLrzvQDobza`); `l2Enabled` is off by
+  default everywhere (the user turns it on per network), and `l2RPCURL` is the node in use. Settings has "Enable Layer 2"
   and a "Layer 2 Michelson node" field per network (same URL policy as the layer 1 node; the
   word Etherlink is kept for the dashboard row only),
   saved in `AppState.l2Enabled` / `l2NodeURLs` only where they differ from the defaults.
@@ -518,7 +524,16 @@ automatic download is off by default. The updater is not started under the test 
   rollup credits the account within about a minute). Etherlink → Tezos is shown but disabled:
   Etherlink does not yet offer withdrawals from Michelson-interface accounts (October 2026);
   wire it up when it does (standard withdrawals take 15 days, fast ones about a minute for a
-  fee). `ShadownetBridgeTests` is the live deposit round trip.
+  fee). `ShadownetBridgeTests` is the live deposit round trip. **Send on Etherlink.** `Network.layer2`
+  is the Michelson interface as a network of its own (the Layer 2 node, its pinned chain id,
+  Etherlink's TzKT `api.etherlink.tzkt.io` / `api.shadownet.etherlink.tzkt.io` and explorer,
+  `layerNumber` 2) and `WalletViewModel.layer2Chain` a chain service for it; the Send sheet's
+  `ChainSidePicker` (the same logo-and-pop-up as Receive, `Signet/Views/ChainSidePicker.swift`)
+  rebuilds its `SendViewModel` on that service with `implicitAccountsOnly`, so on Etherlink the
+  recipient must be a tz1, tz2 or tz3 account (contracts and tz4 are refused and never
+  suggested), the spendable figure is the Etherlink balance, and estimate, send, confirmation
+  wait, journal and explorer links all go through the Layer 2 node unchanged.
+  `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

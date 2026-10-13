@@ -562,9 +562,11 @@ export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {
   const rpc = new RpcClient(rpcUrl);
   // Start a couple of blocks back: an operation injected a moment ago may already be in a block.
   const record = operationRecord(hash);
-  let anchor;
-  if (record?.branch) anchor = await rpc.getBlockHeader({ block: record.branch });
-  let last = Math.max(0, (record?.lastCheckedLevel ?? anchor?.level ?? (await rpc.getBlockHeader()).level - 118) - 2);
+  // Resume where a previous watcher stopped, else from the head level recorded at injection;
+  // only records from before that field was kept need the (slow on some nodes) branch lookup.
+  let start = record?.lastCheckedLevel ?? record?.headLevel;
+  if (start == null && record?.branch) start = (await rpc.getBlockHeader({ block: record.branch })).level;
+  let last = Math.max(0, (start ?? (await rpc.getBlockHeader()).level - 118) - 2);
   for (let seen = 0; seen < maxBlocks; ) {
     const header = await rpc.getBlockHeader();
     if (header.level > last) {
