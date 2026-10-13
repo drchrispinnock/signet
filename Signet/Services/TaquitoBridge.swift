@@ -81,6 +81,7 @@ final class TaquitoBridge: @unchecked Sendable {
 
     var operationJournal = OperationJournal()
     private var logURL: URL?
+    private let systemLog: @Sendable (String) -> Void
     var configuredLogURL: URL? { lock.withLock { logURL } }
     func configureLog(at url: URL?) {
         lock.withLock {
@@ -91,11 +92,13 @@ final class TaquitoBridge: @unchecked Sendable {
         }
     }
 
-    init(session: URLSession = .shared, storage: any BridgeStorage = InMemoryBridgeStorage(), logURL: URL? = nil, requirePublicEndpoints: Bool = false) {
+    init(session: URLSession = .shared, storage: any BridgeStorage = InMemoryBridgeStorage(), logURL: URL? = nil, requirePublicEndpoints: Bool = false,
+         systemLog: @escaping @Sendable (String) -> Void = { NSLog("TaquitoBridge %@", $0) }) {
         self.session = session
         self.requirePublicEndpoints = requirePublicEndpoints
         self._storage = storage
         self.logURL = logURL
+        self.systemLog = systemLog
     }
 
     // MARK: - Public API
@@ -635,7 +638,7 @@ final class TaquitoBridge: @unchecked Sendable {
     /// file all get the same redacted, capped text (S11). Nothing calls `NSLog` directly.
     private func record(_ rawLine: String) {
         let line = Self.redactedLine(rawLine)
-        NSLog("TaquitoBridge %@", line)
+        systemLog(line)
         lock.withLock {
             _consoleLines.append(line)
             if _consoleLines.count > 300 { _consoleLines.removeFirst(_consoleLines.count - 300) }

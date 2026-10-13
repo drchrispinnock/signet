@@ -922,17 +922,19 @@ final class WalletViewModel {
         let wallet: Wallet
         let network: Network
         let directoryRevision: UUID
+        let generation: UUID
     }
 
     /// The context a deposit would run in right now; `nil` when nothing is selected.
     var bridgeContext: BridgeContext? {
-        selectedWallet.map { BridgeContext(wallet: $0, network: network, directoryRevision: walletDirectoryRevision) }
+        selectedWallet.map { BridgeContext(wallet: $0, network: network, directoryRevision: walletDirectoryRevision, generation: operationGeneration) }
     }
 
     /// A deposit estimate together with the context it is valid for.
     struct BridgeEstimate: Sendable {
         let estimate: TransferEstimate
         let context: BridgeContext
+        let amount: Decimal
     }
 
     func estimateBridgeDeposit(amount: Decimal) async throws -> BridgeEstimate {
@@ -942,7 +944,7 @@ final class WalletViewModel {
         let estimate = try await chain.estimateEtherlinkDeposit(from: wallet, amount: amount)
         // The account, network, node or directory may have changed while the node was asked.
         guard bridgeContext == context else { throw WalletError.contextChanged }
-        return BridgeEstimate(estimate: estimate, context: context)
+        return BridgeEstimate(estimate: estimate, context: context, amount: amount)
     }
 
     /// Moves `amount` tez from the selected account on layer 1 to the same account on Etherlink,
@@ -955,6 +957,7 @@ final class WalletViewModel {
         guard approved.context == bridgeContext else { throw WalletError.contextChanged }
         guard canBridge else { throw ChainError.noEtherlinkBridge }
         guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
+        guard amount == approved.amount else { throw WalletError.contextChanged }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
         let chain = self.chain
         let sent = try await chain.sendEtherlinkDeposit(from: wallet, signer: signer, amount: amount, limits: limits)

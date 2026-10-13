@@ -14,7 +14,7 @@ struct BridgeSheet: View {
         case fast = "Fast", slow = "Slow"
         var id: String { rawValue }
     }
-    enum Step: Equatable { case compose, working, done(hash: String, level: Int) }
+    enum Step: Hashable { case compose, working, done(hash: String, level: Int) }
 
     @State private var direction: Direction = .toEtherlink
     @State private var speed: Speed = .fast
@@ -25,14 +25,16 @@ struct BridgeSheet: View {
     @State private var passphrase = ""
     @State private var errorMessage: String?
     @State private var step: Step = .compose
+    @State private var submitted: WalletViewModel.BridgeEstimate?
 
-    private var wallet: Wallet? { model.selectedWallet }
-    private var network: Network { model.network }
+    private var wallet: Wallet? { submitted?.context.wallet ?? model.selectedWallet }
+    private var network: Network { submitted?.context.network ?? model.network }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var spendable: Decimal? { model.tezBalance?.spendable }
     private var etherlink: AssetBalance? { model.assets.first { $0.kind == .etherlink } }
     private var amount: Decimal? {
+        if let submitted { return submitted.amount }
         let text = amountText.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
         guard let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), value > 0, value.isFinite else { return nil }
         return value
@@ -42,7 +44,8 @@ struct BridgeSheet: View {
         return amount + (estimate?.estimate.fee ?? 0) > spendable
     }
     private var canConfirm: Bool {
-        direction == .toEtherlink && amount != nil && estimate != nil && !exceedsBalance && model.canBridge
+        direction == .toEtherlink && amount != nil && estimate?.amount == amount
+            && estimate?.context == model.bridgeContext && !exceedsBalance && model.canBridge
             && !(needsPassphrase && passphrase.isEmpty) && step == .compose
     }
 
@@ -68,7 +71,7 @@ struct BridgeSheet: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task(id: EstimateKey(direction: direction, amount: amountText, context: model.bridgeContext)) { await refreshEstimate() }
+        .task(id: EstimateKey(direction: direction, amount: amountText, context: model.bridgeContext, step: step)) { await refreshEstimate() }
     }
 
     // MARK: Pieces
@@ -198,12 +201,13 @@ struct BridgeSheet: View {
         let direction: Direction
         let amount: String
         let context: WalletViewModel.BridgeContext?
+        let step: Step
     }
 
     private func refreshEstimate() async {
         estimate = nil
         estimateError = nil
-        guard direction == .toEtherlink, let amount, model.canBridge else { return }
+        guard step == .compose, direction == .toEtherlink, let amount, model.canBridge else { return }
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
         do {
@@ -215,14 +219,16 @@ struct BridgeSheet: View {
     }
 
     private func bridge() async {
-        guard let amount, direction == .toEtherlink else { return }
+        guard let amount, let approved = estimate, direction == .toEtherlink else { return }
         errorMessage = nil
+        submitted = approved
         step = .working
         do {
-            let (hash, level) = try await model.bridgeToEtherlink(amount: amount, approved: estimate, passphrase: needsPassphrase ? passphrase : nil)
+            let (hash, level) = try await model.bridgeToEtherlink(amount: amount, approved: approved, passphrase: needsPassphrase ? passphrase : nil)
             step = .done(hash: hash, level: level)
         } catch {
             errorMessage = error.localizedDescription
+            submitted = nil
             step = .compose
         }
     }

@@ -50,6 +50,7 @@ struct BridgeModelTests {
         let estimate = approved.estimate
         #expect(estimate.limits != nil && estimate.total == 2 + estimate.fee)
         await #expect(throws: SendViewModel.SendError.self) { _ = try await model.estimateBridgeDeposit(amount: 0) }
+        await #expect(throws: WalletViewModel.WalletError.contextChanged) { _ = try await model.bridgeToEtherlink(amount: 3, approved: approved, passphrase: nil) }
         await #expect(throws: WalletViewModel.WalletError.notEstimated) { _ = try await model.bridgeToEtherlink(amount: 2, approved: nil, passphrase: nil) }
         await #expect(throws: SendViewModel.SendError.self) { _ = try await model.bridgeToEtherlink(amount: -1, approved: approved, passphrase: nil) }
         let (hash, level) = try await model.bridgeToEtherlink(amount: 2, approved: approved, passphrase: nil)
@@ -78,17 +79,14 @@ struct BridgeModelTests {
             ("layer 2 node", { _ = model.setL2Node("https://l2.example.org", for: .mainnet) }),
             ("layer 2 off and on again", { model.setL2Enabled(false, for: .mainnet); model.setL2Enabled(true, for: .mainnet) }),
             ("account", { model.select(WalletViewModel.sampleWallets[1]) }),
+            ("account away and back", { model.select(WalletViewModel.sampleWallets[1]); model.select(WalletViewModel.sampleWallets[0]) }),
+            ("network away and back", { model.switchNetwork(to: .shadownet); model.switchNetwork(to: .mainnet) }),
         ]
         for (what, change) in changes {
             model.switchNetwork(to: .mainnet)
             model.select(WalletViewModel.sampleWallets[0])
             let approved = try await model.estimateBridgeDeposit(amount: 1)
             change()
-            if what == "layer 2 off and on again" {
-                // Same context again: the estimate still fits it.
-                _ = try await model.bridgeToEtherlink(amount: 1, approved: approved, passphrase: nil)
-                continue
-            }
             await #expect(throws: WalletViewModel.WalletError.contextChanged, "\(what)") { _ = try await model.bridgeToEtherlink(amount: 1, approved: approved, passphrase: nil) }
         }
         model.useDefaultNode(); model.useDefaultL2Node(for: .mainnet); model.select(WalletViewModel.sampleWallets[0])

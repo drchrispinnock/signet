@@ -447,7 +447,8 @@ automatic download is off by default. The updater is not started under the test 
   **Native HTTP (S19).** Every `URLSession` read outside the bridge (node RPC in
   `TaquitoChainService`, TzKT, the node monitor's probe, the faucet, Tezos Domains) goes through
   `BoundedHTTP.data(for:session:limit:json:)` (`Signet/Services/BoundedHTTP.swift`): the body is
-  streamed and dropped the moment it passes the caller's byte cap, declared length or not, and a
+  collected by a task-local delegate that rejects oversized headers/chunks and explicitly
+  cancels the underlying request on rejection or caller cancellation. A
   JSON body must also fit `JSONBudget` depth/node/string limits (`.small`, `.record`, `.page`)
   before it is parsed; page readers also cut rows to the requested limit. Caps are per purpose
   (16 KB for a balance or chain id, 256 KB for an account record, 4 MB for a page).
@@ -550,9 +551,12 @@ automatic download is off by default. The updater is not started under the test 
   sheet, and there is no Etherlink side at all (no fallback to layer 1) unless both its network
   and service existed then. Deposits are bound the same way: `estimateBridgeDeposit` returns a
   `BridgeEstimate` carrying the `BridgeContext` (account, whole network with node and Layer 2
-  settings, directory revision) it was made in, refused if that moved during the estimate, and
+  settings, directory revision and context generation) it was made in, plus its approved amount.
+  Switching away and back invalidates the estimate too; it is refused if the context moved during
+  the estimate, and
   `bridgeToEtherlink(amount:approved:passphrase:)` throws `WalletError.contextChanged` unless the
-  context is still the same; `BridgeSheet` re-estimates whenever it changes.
+  context and amount are still the same; `BridgeSheet` re-estimates whenever they change and
+  retains the submitted account/network/amount for the result and explorer link.
   `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet

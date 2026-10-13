@@ -153,6 +153,35 @@ struct ImportSourceBoundaryTests {
         #expect(try TezosClientStore(directory: source).load().first?.address.value == "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
     }
 
+    @Test func importRecoversBeforeCheckingWhetherTheHashFileExists() throws {
+        let source = try tempDir("missing-hashes"), target = try tempDir("target")
+        defer { try? FileManager.default.removeItem(at: source); try? FileManager.default.removeItem(at: target) }
+        let hashes = Data("[{\"name\":\"alice\",\"value\":\"tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb\"}]".utf8)
+        let journal = try JSONSerialization.data(withJSONObject: ["version": 1, "files": [TezosClientStore.publicKeyHashesFile: hashes.base64EncodedString()]])
+        try PrivateFile.write(journal, to: source.appendingPathComponent(TezosClientStore.journalFile))
+        #expect(!TezosClientStore(directory: source).hasWallets)
+        let destination = TezosClientStore(directory: target)
+        #expect(try destination.importWallets(from: source) == 1)
+        #expect(try destination.load().map(\.alias) == ["alice"])
+        #expect(!FileManager.default.fileExists(atPath: source.appendingPathComponent(TezosClientStore.journalFile).path))
+    }
+
+    @Test func importFiltersRejectedAliasesEvenWhenTargetKeyFilesAreMissing() throws {
+        let source = try tempDir("source"), target = try tempDir("contracts-only")
+        defer { try? FileManager.default.removeItem(at: source); try? FileManager.default.removeItem(at: target) }
+        let from = TezosClientStore(directory: source), to = TezosClientStore(directory: target)
+        try from.add(Wallet(alias: "reserved", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkRejected", keyKind: .unencrypted), secretKey: "edskRejected")
+        try from.add(Wallet(alias: "accepted", address: Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq"), publicKey: "sppkAccepted", keyKind: .unencrypted), secretKey: "spskAccepted")
+        try to.addContract(MultisigContract(alias: "reserved", address: Address("KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton")))
+        #expect(try to.importWallets(from: source) == 1)
+        #expect(try to.load().first { $0.alias == "reserved" }?.address.isContract == true)
+        #expect(try to.load().filter { !$0.address.isContract }.map(\.alias) == ["accepted"])
+        for file in TezosClientStore.walletFiles {
+            let data = try #require(try PrivateFile.read(target.appendingPathComponent(file)))
+            #expect(!String(decoding: data, as: UTF8.self).contains("reserved"))
+        }
+    }
+
     @Test func importRefusesTheDirectoryItself() throws {
         let dir = try tempDir("self")
         let store = TezosClientStore(directory: dir)
@@ -234,12 +263,46 @@ struct LoggingPolicyTests {
         let line = bridge.consoleLines.last ?? ""
         #expect(line == "[app] uncaught: edsk<redacted>")
     }
+
+    private final class Sink: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recorded: [String] = []
+        var lines: [String] { lock.withLock { recorded } }
+        func append(_ line: String) { lock.withLock { recorded.append(line) } }
+    }
+
+    @Test func systemConsoleAndFileReceiveTheSameRedactedText() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("signet-logs-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("bridge.log"), sink = Sink()
+        let bridge = TaquitoBridge(logURL: file, systemLog: { sink.append($0) })
+        let input = "edsk" + String(repeating: "R", count: 50) + " " + String(repeating: "ab", count: 64) + " " + String(repeating: "x", count: 1200)
+        _ = try await bridge.call("bridgeEcho", [input])
+        let console = bridge.consoleLines
+        #expect(sink.lines == console)
+        let data = try #require(try PrivateFile.read(file))
+        let text = String(decoding: data, as: UTF8.self)
+        for line in console {
+            #expect(!line.contains(String(repeating: "R", count: 50)))
+            #expect(!line.contains(String(repeating: "ab", count: 64)))
+            #expect(line.count <= TaquitoBridge.maxLineLength + 1)
+            #expect(text.contains(line))
+        }
+    }
 }
 
 // MARK: - S19: native HTTP readers are bounded while streaming
 
 /// Serves canned replies for `bounded.invalid`: the path picks the body shape.
 private final class BoundedHTTPProtocol: URLProtocol, @unchecked Sendable {
+    private final class Stops: @unchecked Sendable {
+        let lock = NSLock()
+        var urls: Set<String> = []
+        func add(_ value: String) { lock.withLock { _ = urls.insert(value) } }
+        func contains(_ value: String) -> Bool { lock.withLock { urls.contains(value) } }
+    }
+    private static let stops = Stops()
+    static func wasStopped(_ request: URLRequest) -> Bool { stops.contains(request.url!.absoluteString) }
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host() == "bounded.invalid" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -257,6 +320,12 @@ private final class BoundedHTTPProtocol: URLProtocol, @unchecked Sendable {
             client.urlProtocolDidFinishLoading(self)
         }
         switch url.pathComponents.dropFirst().first.map({ "/" + $0 }) ?? "/" {
+        case "/pending-large":
+            client.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Length": "1048576"])!, cacheStoragePolicy: .notAllowed)
+            client.urlProtocol(self, didLoad: Data(repeating: 0x20, count: 64 << 10))
+        case "/pending-chunked":
+            client.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [:])!, cacheStoragePolicy: .notAllowed)
+            client.urlProtocol(self, didLoad: Data(repeating: 0x20, count: 64 << 10))
         case "/declared-large": respond(Data(repeating: 0x20, count: 1 << 20), declared: true)
         case "/chunked-large": respond(Data(repeating: 0x20, count: 1 << 20), declared: false)
         case "/deep": respond(Data((String(repeating: "[", count: 500) + String(repeating: "]", count: 500)).utf8), declared: true)
@@ -265,7 +334,7 @@ private final class BoundedHTTPProtocol: URLProtocol, @unchecked Sendable {
         default: respond(Data("{}".utf8), declared: true, status: 404)
         }
     }
-    override func stopLoading() {}
+    override func stopLoading() { Self.stops.add(request.url!.absoluteString) }
 }
 
 struct BoundedHTTPTests {
@@ -292,6 +361,18 @@ struct BoundedHTTPTests {
         #expect(reply.isSuccess && String(decoding: reply.data, as: UTF8.self) == "\"NetXdQprcVkpaWU\"")
         let missing = try await BoundedHTTP.data(for: request("/nothing"), session: session, limit: 4096)
         #expect(missing.status == 404 && !missing.isSuccess)
+    }
+
+    @Test func refusalCancelsTheUnderlyingUnfinishedResponse() async throws {
+        for path in ["/pending-large", "/pending-chunked"] {
+            var request = request(path + "?id=" + UUID().uuidString)
+            request.timeoutInterval = 3
+            await #expect(throws: BoundedHTTP.Failure.tooLarge(limit: 4096)) {
+                _ = try await BoundedHTTP.data(for: request, session: session, limit: 4096)
+            }
+            for _ in 0..<50 where !BoundedHTTPProtocol.wasStopped(request) { try await Task.sleep(for: .milliseconds(10)) }
+            #expect(BoundedHTTPProtocol.wasStopped(request), "An over-budget response must stop even before the server finishes")
+        }
     }
 
     @Test func nativeReadersUseTheBoundedPath() async throws {

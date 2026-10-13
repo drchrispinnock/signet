@@ -42,22 +42,106 @@ enum BoundedHTTP {
         }
     }
 
-    /// Reads `request`, keeping at most `limit` body bytes; with `json` the body must also fit
-    /// those limits. Status codes are returned, not judged: callers decide what a 404 means.
-    static func data(for request: URLRequest, session: URLSession, limit: Int, json: JSONLimits? = .small) async throws -> Reply {
-        let (bytes, response) = try await session.bytes(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Failure.notHTTP }
-        if http.expectedContentLength > Int64(limit) { throw Failure.tooLarge(limit: limit) }
-        var data = Data()
-        data.reserveCapacity(min(limit, Int(max(http.expectedContentLength, 0))))
-        for try await byte in bytes {
-            data.append(byte)
-            // Throwing out of the loop cancels the task, so the rest of the body is never read.
-            if data.count > limit { throw Failure.tooLarge(limit: limit) }
+    private final class Collector: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        private let lock = NSLock()
+        private let limit: Int
+        private var data = Data()
+        private var continuation: CheckedContinuation<Reply, Error>?
+
+        init(limit: Int, continuation: CheckedContinuation<Reply, Error>) {
+            self.limit = limit
+            self.continuation = continuation
         }
-        if let json, !JSONBudget.accepts(data, depthLimit: json.depth, nodeLimit: json.nodes, stringLimit: json.string) {
+
+        func finish(_ result: Result<Reply, Error>) {
+            let pending = lock.withLock {
+                let pending = continuation
+                continuation = nil
+                data = Data()
+                return pending
+            }
+            pending?.resume(with: result)
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                        completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
+            guard let http = response as? HTTPURLResponse else {
+                finish(.failure(Failure.notHTTP))
+                completionHandler(.cancel)
+                return
+            }
+            guard http.expectedContentLength <= Int64(limit) else {
+                finish(.failure(Failure.tooLarge(limit: limit)))
+                completionHandler(.cancel)
+                return
+            }
+            completionHandler(.allow)
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+            let overflow = lock.withLock {
+                guard continuation != nil else { return false }
+                guard chunk.count <= limit - data.count else { return true }
+                data.append(chunk)
+                return false
+            }
+            if overflow {
+                finish(.failure(Failure.tooLarge(limit: limit)))
+                dataTask.cancel()
+            }
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            if let error { finish(.failure(error)); return }
+            guard let http = task.response as? HTTPURLResponse else { finish(.failure(Failure.notHTTP)); return }
+            let body = lock.withLock { data }
+            finish(.success(Reply(data: body, status: http.statusCode)))
+        }
+    }
+
+    private final class Cancellation: @unchecked Sendable {
+        private let lock = NSLock()
+        private var task: URLSessionDataTask?
+        private var collector: Collector?
+        private var cancelled = false
+
+        func start(_ task: URLSessionDataTask, collector: Collector) {
+            lock.withLock {
+                self.task = task
+                self.collector = collector
+                if cancelled {
+                    collector.finish(.failure(CancellationError()))
+                    task.cancel()
+                } else { task.resume() }
+            }
+        }
+
+        func cancel() {
+            lock.withLock {
+                cancelled = true
+                collector?.finish(.failure(CancellationError()))
+                task?.cancel()
+            }
+        }
+    }
+
+    /// Reads a reply with a task-local delegate. Limits are enforced before retaining each
+    /// chunk, and rejection/caller cancellation stops the underlying request explicitly.
+    static func data(for request: URLRequest, session: URLSession, limit: Int, json: JSONLimits? = .small) async throws -> Reply {
+        guard limit >= 0 else { throw Failure.tooLarge(limit: limit) }
+        let cancellation = Cancellation()
+        let reply: Reply = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let collector = Collector(limit: limit, continuation: continuation)
+                let task = session.dataTask(with: request)
+                task.delegate = collector
+                cancellation.start(task, collector: collector)
+            }
+        } onCancel: { cancellation.cancel() }
+        try Task.checkCancellation()
+        if let json, !JSONBudget.accepts(reply.data, depthLimit: json.depth, nodeLimit: json.nodes, stringLimit: json.string) {
             throw Failure.overBudget
         }
-        return Reply(data: data, status: http.statusCode)
+        return reply
     }
 }

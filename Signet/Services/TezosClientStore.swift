@@ -259,9 +259,9 @@ struct TezosClientStore: WalletStore {
     /// same moment. That lock is released before this directory's is taken, so two imports in
     /// opposite directions cannot deadlock; a directory cannot be imported into itself.
     func importWallets(from directory: URL) throws -> Int {
-        let source = TezosClientStore(directory: directory)
-        guard source.hasWallets else { return 0 }
-        guard Self.identity(of: directory) != Self.identity(of: self.directory) else { throw StoreError.sameDirectory }
+        if let sourceID = Self.identity(of: directory), sourceID == Self.identity(of: self.directory) {
+            throw StoreError.sameDirectory
+        }
         let snapshot = try Self.snapshot(in: directory, files: Self.walletFiles)
         let sourceFiles = try snapshot.map { ($0.0, try Self.parseRaw($0.1, file: $0.0)) }
         guard let sourceHashes = sourceFiles.first(where: { $0.0 == Self.publicKeyHashesFile })?.1 else { return 0 }
@@ -272,17 +272,19 @@ struct TezosClientStore: WalletStore {
             let existing = Set(try Self.aliasFiles.flatMap { try readRaw($0).compactMap { $0["name"] as? String } })
             let incoming = sourceHashes.compactMap { $0["name"] as? String }.filter { !existing.contains($0) }
             let accepted = Set(incoming)
+            guard !accepted.isEmpty else { return 0 }
             var copies: [(String, Data)] = []
             var merges: [(String, [[String: Any]])] = []
             for (file, data) in snapshot {
                 let target = self.directory.appendingPathComponent(file)
-                if !FileManager.default.fileExists(atPath: target.path) {
-                    // Cold start: take an exact copy of the file.
+                let rows = sourceFiles.first(where: { $0.0 == file })?.1 ?? []
+                let additions = rows.filter { ($0["name"] as? String).map(accepted.contains) ?? false }
+                if !FileManager.default.fileExists(atPath: target.path), existing.isEmpty, additions.count == rows.count {
+                    // A genuinely empty target may retain the exact octez file representation.
                     copies.append((file, data))
                 } else {
                     // Merge: append only aliases we do not already have.
                     var entries = try readRaw(file)
-                    let additions = sourceFiles.first(where: { $0.0 == file })?.1.filter { ($0["name"] as? String).map(accepted.contains) ?? false } ?? []
                     guard !additions.isEmpty else { continue }
                     entries.append(contentsOf: additions)
                     merges.append((file, entries))
