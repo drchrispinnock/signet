@@ -14,10 +14,15 @@
 
 - [x] Currentnet's transaction display is not working - this is because currentnet is an alias for the current protocol. We need to think about mapping this to the correct tzkt instance. (Resolved by listing the protocol network itself, Ushuaianet, with its TzKT; the currentnet alias is gone.)
 
-# Bugs and Features for 0.8.4 release
+
+# Bugs and Features for 0.9 release
 
 ## AI Slop
 
 - [ ] Run the slop auditor and look at fixes
 
-# Bugs and Features for 0.9 release
+## Key Management
+
+- [ ] Indicate that a key will be forgotten in the UI on exit 
+- [ ] Perhaps "Remember key" option for these session only keys
+
