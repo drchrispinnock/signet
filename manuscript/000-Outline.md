@@ -1,3 +1,5 @@
+# Outline (Draft)
+
 - Preface
   - Why I created Signet?
   - Vibe-coded and not audited
