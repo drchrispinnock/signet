@@ -80,6 +80,7 @@ final class WalletViewModel {
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
     var isPresentingForget = false
+    var isPresentingRememberKey = false
     var isPresentingCreateMultisig = false
     var isPresentingAddMultisig = false
     var isPresentingSignMultisig = false
@@ -836,6 +837,46 @@ final class WalletViewModel {
         try walletStore.add(wallet, secretKey: secretKey)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
+        await backUp()
+    }
+
+    /// Remember key is for the selected account only while its key would be forgotten at quit.
+    var canRememberSelectedKey: Bool { selectedWallet?.isSessionOnly == true }
+
+    /// Moves the selected session-only key into the wallet directory, so it is kept like any
+    /// other account (and backed up). An encrypted key is written as it is held; a clear one
+    /// can be encrypted with `storePassphrase` on the way. The entry is pinned first and
+    /// removed from memory only if it is unchanged after the encryption wait (S07); if the
+    /// directory then refuses it, the key goes back into memory and nothing is lost.
+    func rememberSelectedWallet(storePassphrase: String? = nil) async throws {
+        guard let wallet = selectedWallet, wallet.isSessionOnly else { throw WalletError.emptyAlias }
+        guard let snapshot = try sessionKeys.removalSnapshot(for: wallet) else { throw SendViewModel.SendError.noSecretKey }
+        let revision = walletDirectoryRevision
+        var secretKey = snapshot.secretKey
+        var stored = snapshot.wallet
+        stored.isSessionOnly = false
+        if stored.keyKind == .unencrypted, let storePassphrase, !storePassphrase.isEmpty {
+            guard storePassphrase.count >= Self.minimumPassphraseLength else { throw WalletError.passphraseTooShort }
+            secretKey = try await keyGenerator.encrypt(secretKey: secretKey, passphrase: storePassphrase)
+            stored.keyKind = .encrypted
+        }
+        guard walletDirectoryRevision == revision else { throw WalletError.directoryChanged }
+        // Against the directory as it is now, not the list loaded earlier: another program may
+        // have written to it since.
+        let onDisk = try walletStore.load()
+        if onDisk.contains(where: { $0.alias == stored.alias }) { throw WalletError.aliasExists(stored.alias) }
+        if let taken = onDisk.first(where: { $0.address == stored.address }) { throw WalletError.addressExists(taken.alias) }
+        try sessionKeys.remove(matching: snapshot)
+        do {
+            try walletStore.add(stored, secretKey: secretKey)
+        } catch {
+            try? sessionKeys.add(snapshot.wallet, secretKey: snapshot.secretKey)
+            sessionWallets = sessionKeys.wallets
+            throw error
+        }
+        sessionWallets = sessionKeys.wallets
+        wallets = (try? walletStore.load()) ?? wallets + [stored]
+        select(wallets.first { $0.alias == stored.alias } ?? stored)
         await backUp()
     }
 

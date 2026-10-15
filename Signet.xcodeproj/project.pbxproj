@@ -16,6 +16,7 @@
 		085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */; };
 		0CED335B769FC20C5E1FBF97 /* ChainServiceTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1A33134A80A7023ED60D8 /* ChainServiceTestSupport.swift */; };
 		0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */; };
+		0DC2DAF901DB2FA364724E8F /* RememberKeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */; };
 		10516DDFD3C74F49D141E4A6 /* ActionButtonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB238C502C752F4198363525 /* ActionButtonsView.swift */; };
 		13354E2B7B8C14D263838D0A /* AssetBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82891C504DD66214B765AF83 /* AssetBalance.swift */; };
 		136DCBEB7EE445DAA6CE1869 /* MultisigService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03CB66A944449D61F196B99 /* MultisigService.swift */; };
@@ -281,6 +282,7 @@
 		ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportKeySheet.swift; sourceTree = "<group>"; };
 		B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletViewModel.swift; sourceTree = "<group>"; };
 		B7AEA3E7D456319C0F83A147 /* SessionKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionKeyTests.swift; sourceTree = "<group>"; };
+		B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RememberKeySheet.swift; sourceTree = "<group>"; };
 		B83A465432E9E915B374F22E /* Wallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Wallet.swift; sourceTree = "<group>"; };
 		B8B591F4ED8860E9761BCAEC /* WalletStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletStore.swift; sourceTree = "<group>"; };
 		BBD13470629CB6326F0858BB /* BridgeConsoleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeConsoleTests.swift; sourceTree = "<group>"; };
@@ -369,6 +371,7 @@
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
 				525C79C726F273E9E3375452 /* ReceiveSheet.swift */,
+				B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */,
 				4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */,
 				392C832007D3B6DE8AB37D22 /* SendSheet.swift */,
 				4B5133556944367214FA9041 /* SendSheet+Preview.swift */,
@@ -754,6 +757,7 @@
 				D040B3DBCE102CE52E93484E /* PublicHTTPClient.swift in Sources */,
 				0535E8D871DA72D6F3E22641 /* QRCode.swift in Sources */,
 				F26C76D739108A6AA2B3ACC9 /* ReceiveSheet.swift in Sources */,
+				0DC2DAF901DB2FA364724E8F /* RememberKeySheet.swift in Sources */,
 				F69C430DC456544A2DC19040 /* RenameWalletSheet.swift in Sources */,
 				15B6085B392A57A2CF3BC9F9 /* SendSheet+Preview.swift in Sources */,
 				C09D68D63C60BAC7529DD300 /* SendSheet.swift in Sources */,

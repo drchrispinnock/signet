@@ -90,14 +90,16 @@ struct WalletIdentityView: View {
             .help("Signet has no key for this address; you can watch it and send to it.")
     }
 
+    /// Orange, unlike the other tags: this key is lost at quit unless Remember key is used.
     private var sessionTag: some View {
-        Label("This session", systemImage: "clock")
+        Label("Forgotten at quit", systemImage: "clock.badge.exclamationmark")
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Capsule().fill(.quaternary))
-            .foregroundStyle(.secondary)
-            .help("A paper key held in memory only. It is not in the wallet directory or any backup and is forgotten when Signet quits.")
+            .background(Capsule().fill(.orange.opacity(0.2)))
+            .overlay(Capsule().strokeBorder(.orange.opacity(0.5), lineWidth: 1))
+            .foregroundStyle(.orange)
+            .help("A paper key held in memory only. It is not in the wallet directory or any backup and is forgotten when Signet quits. Use Remember key… in the menu to keep it.")
     }
 
     private var ledgerTag: some View {
@@ -154,6 +156,9 @@ struct AppMenuButton: View {
                 .disabled(model.selectedWallet == nil)
             Button("Export secret key…") { model.isPresentingExportKey = true }
                 .disabled(!model.canExportSelectedKey)
+            if model.canRememberSelectedKey {
+                Button("Remember key…") { model.isPresentingRememberKey = true }
+            }
             Divider()
             Button("Add address…") { model.isPresentingAddAddress = true }
                 .keyboardShortcut("n", modifiers: [.command, .shift])

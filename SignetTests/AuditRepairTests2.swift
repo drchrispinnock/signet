@@ -462,3 +462,59 @@ struct SigningExportsTests {
         #expect(try await TaquitoBridge.shared.call("version").stringValue != nil)
     }
 }
+
+@MainActor
+struct RememberKeyTests {
+    static let paper = KeyMaterial(scheme: .tz1, publicKey: "edpkuPAPER", address: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb", secretKey: "edeskPAPER")
+
+    @Test func rememberMovesASessionKeyIntoTheDirectory() async throws {
+        let store = InMemoryWalletStore()
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
+        #expect(!model.canRememberSelectedKey)
+        try await model.importAccount(alias: "Paper", material: Self.paper, alreadyEncrypted: true, keepForSession: true)
+        #expect(model.canRememberSelectedKey && model.selectedWallet?.isSessionOnly == true)
+        #expect(try store.load().isEmpty)
+
+        try await model.rememberSelectedWallet()
+
+        let kept = try #require(model.selectedWallet)
+        #expect(kept.alias == "Paper" && !kept.isSessionOnly && kept.keyKind == .encrypted)
+        #expect(!model.canRememberSelectedKey && model.sessionWallets.isEmpty)
+        #expect(try store.load().map(\.alias) == ["Paper"])
+        #expect(try store.secretKey(for: kept) == Self.paper.secretKey)
+        // Asked again, there is nothing session-only to remember.
+        await #expect(throws: WalletViewModel.WalletError.self) { try await model.rememberSelectedWallet() }
+    }
+
+    @Test func rememberCanEncryptAClearKeyOnTheWay() async throws {
+        let store = InMemoryWalletStore()
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
+        let material = try await KeyGenerator().generate(scheme: .tz1)
+        try await model.importAccount(alias: "Clear", material: material, keepForSession: true)
+        await #expect(throws: WalletViewModel.WalletError.passphraseTooShort) { try await model.rememberSelectedWallet(storePassphrase: "short") }
+        #expect(model.selectedWallet?.isSessionOnly == true)
+
+        try await model.rememberSelectedWallet(storePassphrase: "correct horse battery")
+        let kept = try #require(model.selectedWallet)
+        #expect(kept.keyKind == .encrypted && !kept.isSessionOnly)
+        let stored = try #require(try store.secretKey(for: kept))
+        #expect(stored.hasPrefix("edesk"))
+        #expect(try await BridgeKeyImporter().decrypt(secretKey: stored, passphrase: "correct horse battery") == material.secretKey)
+    }
+
+    @Test func rememberRefusesAnAliasOrAddressAlreadyStoredAndKeepsTheKey() async throws {
+        let store = InMemoryWalletStore()
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
+        try await model.importAccount(alias: "Paper", material: Self.paper, alreadyEncrypted: true, keepForSession: true)
+        let session = try #require(model.selectedWallet)
+        // The same address lands in the directory under another name behind the model's back.
+        try store.add(Wallet(alias: "Disk", address: session.address, scheme: .tz1, publicKey: "edpkuPAPER", keyKind: .encrypted), secretKey: "edeskPAPER")
+
+        await #expect(throws: WalletViewModel.WalletError.self) { try await model.rememberSelectedWallet() }
+        #expect(model.sessionWallets.map(\.alias) == ["Paper"])
+        guard case .secret(let secret, _, _)? = try model.signingKey(for: session, passphrase: "x") else {
+            Issue.record("the session key was lost"); return
+        }
+        #expect(secret == Self.paper.secretKey)
+    }
+}

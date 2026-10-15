@@ -42,6 +42,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingForget) {
             ForgetAccountSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingRememberKey) {
+            RememberKeySheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingStaking) {
             StakingSheet(model: model)
         }
