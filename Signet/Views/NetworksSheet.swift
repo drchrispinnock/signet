@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Networks: which node Signet talks to on each network, and the Layer 2 (Etherlink) node.
-/// Opened from the burger and Operations menus and from the network badge; the network in use
-/// is switched with the badge, not here.
+/// Networks: which node Signet talks to on each network, the Layer 2 (Etherlink) node, and
+/// the TzKT API, block explorer and faucet links it uses there. Opened from the burger and
+/// Operations menus and from the network badge; the network in use is switched with the badge,
+/// not here.
 struct NetworksSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +21,7 @@ struct NetworksSheet: View {
         VStack(spacing: 0) {
             Form {
                 nodeSection
+                servicesSection
             }
             .formStyle(.grouped)
             Divider()
@@ -101,6 +103,44 @@ struct NetworksSheet: View {
         }
     }
 
+    /// The links beside the node. Each field is applied on Return or with Apply; empty text
+    /// turns the link off (no explorer links, no Get test tez button); Use Default restores ours.
+    private var servicesSection: some View {
+        Section {
+            if let base = editingNetwork {
+                ForEach(Network.Service.allCases.filter { base.offers($0) }, id: \.self) { service in
+                    LinkField(
+                        title: service.title,
+                        current: model.serviceURL(for: service, in: base),
+                        defaultURL: base.defaultURL(for: service),
+                        apply: { model.setServiceURL($0, for: service, in: base) },
+                        useDefault: { model.useDefaultServiceURL(for: service, in: base) }
+                    )
+                    .id("\(base.name)/\(service.rawValue)")
+                }
+            }
+        } header: {
+            Text("Links")
+        } footer: {
+            Text(servicesFooter)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var servicesFooter: String {
+        guard let base = editingNetwork else { return "" }
+        var text = "The TzKT API feeds the history, token and NFT lists; the explorer is where operations are opened; the faucet is behind Get test tez. Leave a link empty to do without it."
+        if base.isMainnet {
+            text += " Mainnet has no faucet."
+        } else {
+            text += base.faucetKind == .pqpark
+                ? " A replacement faucet must speak PQPark's faucet API."
+                : " A replacement faucet must speak the teztnets faucet API."
+        }
+        return text
+    }
+
     private var l2Enabled: Binding<Bool> {
         Binding(
             get: { editingNetwork.map { model.isL2Enabled(for: $0) } ?? false },
@@ -164,6 +204,65 @@ struct NetworksSheet: View {
             syncNodeText()
         } else {
             l2NodeError = Network.nodeURLProblem(l2NodeText)
+        }
+    }
+}
+
+/// One URL field with its error line and Use Default / Apply buttons.
+private struct LinkField: View {
+    let title: String
+    let current: URL?
+    let defaultURL: URL?
+    /// Applies the text; false when it was refused.
+    let apply: (String) -> Bool
+    let useDefault: () -> Void
+
+    @State private var text = ""
+    @State private var error: String?
+
+    var body: some View {
+        LabeledContent(title) {
+            VStack(alignment: .trailing, spacing: 8) {
+                TextField("", text: $text, prompt: Text("https://…"))
+                    .font(.callout.monospaced())
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .onSubmit(submit)
+                    .frame(minWidth: 300)
+                if let error {
+                    Text(error).font(.callout).foregroundStyle(.red)
+                }
+                HStack {
+                    Button("Use Default") { useDefault(); error = nil }
+                        .disabled(defaultURL == nil || current == defaultURL)
+                    Button("Apply", action: submit)
+                        .disabled(!isDirty)
+                }
+            }
+        }
+        .onAppear(perform: sync)
+        .onChange(of: current) { sync() }
+    }
+
+    private var typed: URL? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : Network.nodeURL(from: trimmed)
+    }
+
+    private var isDirty: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? current != nil : typed != current
+    }
+
+    private func sync() {
+        text = current?.nodeDisplayTextStandalone ?? ""
+        error = nil
+    }
+
+    private func submit() {
+        if apply(text) {
+            error = nil
+        } else {
+            error = Network.nodeURLProblem(text)
         }
     }
 }

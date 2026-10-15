@@ -3,7 +3,7 @@ import Foundation
 /// A chain the wallet can talk to and the node it uses for it. RPC URLs come from
 /// https://teztnets.com/teztnets.json; Ghostnet was retired, so Shadownet is the long-running
 /// public testnet. `rpcURL` is the node in use; `defaultRPCURL` is the one we ship, which the
-/// user can override per network in Settings.
+/// user can override per network in the Networks sheet.
 struct Network: Hashable, Identifiable, Sendable {
     var id: String { name }
 
@@ -17,13 +17,18 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Tezos Domains GraphQL endpoint, or `nil` where the service does not run.
     let tezosDomainsURL: URL?
     /// TzKT indexer base URL (tokens, NFTs, history), or `nil` where none is available.
-    let tzktURL: URL?
-    /// Testnet faucet, or `nil` on mainnet (from teztnets.json).
+    /// `tzktURL` is the one in use, `defaultTzKTURL` the one we ship (the Networks sheet lets
+    /// the user replace or clear each of the TzKT, explorer and faucet links per network).
+    var tzktURL: URL?
+    let defaultTzKTURL: URL?
+    /// Testnet faucet, or `nil` on mainnet (from teztnets.json). Mainnet never has one.
     var faucetURL: URL? = nil
+    let defaultFaucetURL: URL?
     /// Which faucet protocol `faucetURL` speaks.
     var faucetKind: FaucetKind = .teztnets
     /// Block explorer for this network, used to link operations; `nil` when there is none.
     var explorerURL: URL? = nil
+    let defaultExplorerURL: URL?
     /// The chain id a node for this network must report (`/chains/main/chain_id`), when the
     /// network is long-lived enough to pin one (S12). The node monitor shows a node serving
     /// another chain in red, and nothing is estimated or signed through it.
@@ -63,13 +68,16 @@ struct Network: Hashable, Identifiable, Sendable {
         self.defaultRPCURL = rpcURL
         self.tezosDomainsURL = tezosDomainsURL
         self.tzktURL = tzktURL
-        self.faucetURL = faucetURL
+        self.defaultTzKTURL = tzktURL
+        self.faucetURL = chain == "mainnet" ? nil : faucetURL
+        self.defaultFaucetURL = self.faucetURL
         self.faucetKind = faucetKind
         self.explorerURL = explorerURL
+        self.defaultExplorerURL = explorerURL
         self.expectedChainID = expectedChainID
         self.l2DefaultRPCURL = l2RPCURL
         self.l2RPCURL = l2RPCURL
-        self.l2Enabled = false   // off until the user turns Layer 2 on in Settings
+        self.l2Enabled = false   // off until the user turns Layer 2 on in the Networks sheet
         self.expectedL2ChainID = expectedL2ChainID
         self.l2BridgeHelper = l2BridgeHelper.map(Address.init)
         self.l2Rollup = l2Rollup
@@ -107,6 +115,53 @@ struct Network: Hashable, Identifiable, Sendable {
         var copy = self
         copy.l2Enabled = enabled
         copy.l2RPCURL = node
+        return copy
+    }
+
+    /// The links a network uses besides its node: the TzKT API, the block explorer and the
+    /// faucet. Each can be replaced or cleared per network in the Networks sheet.
+    enum Service: String, CaseIterable, Sendable {
+        case tzkt, explorer, faucet
+
+        var title: String {
+            switch self {
+            case .tzkt: "TzKT API"
+            case .explorer: "Block explorer"
+            case .faucet: "Faucet"
+            }
+        }
+    }
+
+    /// Whether `service` can be set on this network at all: mainnet has no faucet.
+    func offers(_ service: Service) -> Bool { service != .faucet || !isMainnet }
+
+    func url(for service: Service) -> URL? {
+        switch service {
+        case .tzkt: tzktURL
+        case .explorer: explorerURL
+        case .faucet: faucetURL
+        }
+    }
+
+    func defaultURL(for service: Service) -> URL? {
+        switch service {
+        case .tzkt: defaultTzKTURL
+        case .explorer: defaultExplorerURL
+        case .faucet: defaultFaucetURL
+        }
+    }
+
+    func isUsingDefault(_ service: Service) -> Bool { url(for: service) == defaultURL(for: service) }
+
+    /// The same network with `service` pointed at `url` (`nil` turns it off). A faucet on
+    /// mainnet is ignored.
+    func using(_ url: URL?, for service: Service) -> Network {
+        var copy = self
+        switch service {
+        case .tzkt: copy.tzktURL = url
+        case .explorer: copy.explorerURL = url
+        case .faucet: copy.faucetURL = offers(.faucet) ? url : nil
+        }
         return copy
     }
 
@@ -159,7 +214,7 @@ struct Network: Hashable, Identifiable, Sendable {
         return url
     }
 
-    /// Why `nodeURL(from:)` refused `text`, for the Settings field.
+    /// Why `nodeURL(from:)` refused `text`, for the Networks sheet.
     static func nodeURLProblem(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if trimmed.hasPrefix("http://") { return "Plain http is only allowed for a node on this machine or your local network; use https for anything else." }
@@ -226,7 +281,7 @@ struct Network: Hashable, Identifiable, Sendable {
 
     /// Weeklynet restarts every Wednesday from tezos/tezos master and its hosts carry the launch
     /// date (`rpc.weeklynet-YYYY-MM-DD.teztnets.com`); there is no dated-free alias, so the URL
-    /// is built from the most recent Wednesday (UTC). Set a node in Settings to pin another.
+    /// is built from the most recent Wednesday (UTC). Set a node in Networks to pin another.
     static var weeklynet: Network { weeklynet(on: Date()) }
 
     static func weeklynet(on date: Date) -> Network {
@@ -273,7 +328,7 @@ struct Network: Hashable, Identifiable, Sendable {
         tzktURL: nil
     )
 
-    /// Networks offered in Settings, in display order, each with its default node.
+    /// Networks offered in the Networks sheet and the badge, in display order, each with its default node.
     static var all: [Network] { [.mainnet, .shadownet, .bakingnet, .ushuaianet, .weeklynet, .quantumnet, .custom] }
 
     static func named(_ name: String?) -> Network? {
@@ -283,6 +338,6 @@ struct Network: Hashable, Identifiable, Sendable {
 
 
 extension URL {
-    /// The node as shown in Settings: the full URL, e.g. `https://rpc.tzbeta.net`.
+    /// The node as shown in the Networks sheet: the full URL, e.g. `https://rpc.tzbeta.net`.
     var nodeDisplayTextStandalone: String { absoluteString }
 }

@@ -81,7 +81,7 @@ struct SignetApp: App {
                 Button("Forget account…") { model.isPresentingForget = true }
                     .disabled(model.selectedWallet == nil)
                 Divider()
-                Button("Connect to dApp…") { model.isPresentingConnectDApp = true }
+                Button("dApps…") { model.isPresentingConnectDApp = true }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
                 if model.canBridge {
                     Button("Bridge…") { model.isPresentingBridge = true }

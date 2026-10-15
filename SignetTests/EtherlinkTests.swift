@@ -286,3 +286,51 @@ extension EtherlinkLiveTests {
         #expect(try await layer2.etherlinkAliasStatus(for: wallet.address) == .linked(evmAddress: alias))
     }
 }
+
+@MainActor
+struct NetworkLinkSettingsTests {
+    @Test func linksAreKeptPerNetworkAndSurviveRelaunch() {
+        let state = InMemoryAppStateStore()
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
+        #expect(model.network.name == "Mainnet")
+
+        // Another network, without switching: saved only where it differs from the default.
+        #expect(!model.setServiceURL("not a url", for: .explorer, in: .shadownet))
+        #expect(model.setServiceURL("explorer.example.org", for: .explorer, in: .shadownet))
+        #expect(model.serviceURL(for: .explorer, in: .shadownet)?.host() == "explorer.example.org")
+        #expect(state.load().serviceURLs == ["Shadownet": ["explorer": "https://explorer.example.org"]])
+        #expect(model.network.explorerURL == Network.mainnet.explorerURL)
+
+        // Empty text turns a link off; it is saved as "" so the default does not come back.
+        #expect(model.setServiceURL("", for: .faucet, in: .shadownet))
+        #expect(model.serviceURL(for: .faucet, in: .shadownet) == nil)
+        #expect(state.load().serviceURLs?["Shadownet"]?["faucet"] == "")
+
+        // The network in use: applied at once, and the chain service sees the new TzKT.
+        #expect(model.setServiceURL("https://tzkt.example.org/", for: .tzkt, in: .mainnet))
+        #expect(model.network.tzktURL == URL(string: "https://tzkt.example.org"))
+        #expect(model.resolved(.mainnet).tzktURL == URL(string: "https://tzkt.example.org"))
+
+        // Relaunch over the same state: everything comes back, and Use Default clears it.
+        let second = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
+        #expect(second.network.tzktURL == URL(string: "https://tzkt.example.org"))
+        second.switchNetwork(to: .shadownet)
+        #expect(second.network.explorerURL(operation: "ooX") == URL(string: "https://explorer.example.org/#op/ooX"))
+        #expect(second.network.faucetURL == nil)
+        second.useDefaultServiceURL(for: .explorer, in: .shadownet)
+        second.useDefaultServiceURL(for: .faucet, in: .shadownet)
+        #expect(second.network.explorerURL == Network.shadownet.explorerURL && second.network.faucetURL == Network.shadownet.faucetURL)
+        #expect(state.load().serviceURLs?["Shadownet"] == nil)
+        second.useDefaultServiceURL(for: .tzkt, in: .mainnet)
+        #expect(state.load().serviceURLs == nil)
+    }
+
+    @Test func mainnetNeverGetsAFaucet() {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: InMemoryAppStateStore())
+        #expect(!Network.mainnet.offers(.faucet))
+        #expect(!model.setServiceURL("faucet.example.org", for: .faucet, in: .mainnet))
+        #expect(model.network.faucetURL == nil)
+        #expect(Network.mainnet.using(URL(string: "https://faucet.example.org"), for: .faucet).faucetURL == nil)
+        #expect(Network.shadownet.offers(.faucet) && Network.custom.offers(.faucet))
+    }
+}

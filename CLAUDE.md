@@ -298,7 +298,7 @@ automatic download is off by default. The updater is not started under the test 
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
   Pairing is Umami-style: the user pastes the dApp's "pair wallet on another device" code
-  (`ConnectDAppSheet`, burger menu, Cmd-Shift-D), or a `signet://?type=tzip10&data=<code>` link
+  (`ConnectDAppSheet`, "dApps…" in the burger and Operations menus, Cmd-Shift-D), or a `signet://?type=tzip10&data=<code>` link
   opens the app (the `signet` URL scheme is registered in Info.plist; `DAppPairingLink.code(from:)`
   parses it, `WalletViewModel.handleIncomingURL` stores it in `pendingPairingCode` and the sheet
   pairs with it and dismisses itself when the dApp's first request arrives, since only one sheet
@@ -363,7 +363,7 @@ automatic download is off by default. The updater is not started under the test 
   (`EndpointPolicy`), or exactly one of our networks' default endpoints (scheme, host, port and
   path and query; `DAppRequest.sameEndpoint`); the sheet shows the endpoint for custom networks.
 - **Multisig (0.8).** Octez-client's generic multisig, driven through Taquito. Menu section
-  (burger and Operations, after Connect to dApp): Create multisig, Add multisig, Sign multisig
+  (burger and Operations, after dApps): Create multisig, Add multisig, Sign multisig
   transaction, Submit multisig transaction. Contract aliases are octez-client's `contracts` file in
   the wallet directory (`TezosClientStore.loadContracts`/`addContract`), so `octez-client` can use
   the same names, and `load()` joins them into the wallet list as watch-only KT1 entries: a
@@ -413,7 +413,7 @@ automatic download is off by default. The updater is not started under the test 
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   carry the same items (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Forget account |
-  Connect to dApp | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
+  dApps | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
@@ -582,7 +582,11 @@ automatic download is off by default. The updater is not started under the test 
   Each `Network` has a `defaultRPCURL` and the `rpcURL`
   in use: the Networks sheet (`NetworksSheet`, "Networks…" in the burger and Operations menus
   and at the foot of the network badge, `isPresentingNetworks`) shows the network as a dropdown
-  with a free-text node field beneath it, and
+  with a free-text node field beneath it, plus a Links section where the TzKT API, block
+  explorer and faucet of each network can be replaced or turned off (`Network.Service`,
+  `tzktURL`/`explorerURL`/`faucetURL` beside their `default…` twins, saved in
+  `AppState.serviceURLs` only where they differ, "" for off; mainnet never offers a faucet,
+  `Network.offers(_:)`), and
   `WalletViewModel.setNode` / `useDefaultNode` replace the node for the current network only.
   Custom nodes are kept per network name in `AppState.nodeURLs`; `switchNetwork(to:)` applies
   the saved one (assigning `network` directly uses whatever node the value carries). The chosen

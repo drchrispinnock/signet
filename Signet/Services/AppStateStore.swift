@@ -12,6 +12,9 @@ struct AppState: Codable, Equatable, Sendable {
     var l2Enabled: [String: Bool]?
     /// Etherlink RPC nodes by network name, where the user replaced (or supplied) one.
     var l2NodeURLs: [String: String]?
+    /// TzKT API, explorer and faucet links by network name, then by `Network.Service` raw
+    /// value, only where the user replaced the default; an empty string means the link is off.
+    var serviceURLs: [String: [String: String]]?
 }
 
 protocol AppStateStore: Sendable {

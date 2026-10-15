@@ -169,6 +169,7 @@ final class WalletViewModel {
             nodeURLs[network.name] = network.isUsingDefaultNode ? nil : network.rpcURL.absoluteString
             state.nodeURLs = nodeURLs.isEmpty ? nil : nodeURLs
             rememberL2(of: network)
+            rememberServices(of: network)
             persistState()
             clearChainData()
             Task { await refresh() }
@@ -216,7 +217,54 @@ final class WalletViewModel {
         if let saved = state.nodeURLs?[base.name], let url = Network.nodeURL(from: saved) { network = network.usingNode(url) }
         let l2Node = state.l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
         let l2Enabled = state.l2Enabled?[base.name] ?? false
-        return network.usingL2(enabled: l2Enabled, node: l2Node)
+        network = network.usingL2(enabled: l2Enabled, node: l2Node)
+        for service in Network.Service.allCases {
+            guard let saved = state.serviceURLs?[base.name]?[service.rawValue] else { continue }
+            // "" is a link the user turned off; anything that is not a URL is ignored.
+            if saved.isEmpty {
+                network = network.using(nil, for: service)
+            } else if let url = Network.nodeURL(from: saved) {
+                network = network.using(url, for: service)
+            }
+        }
+        return network
+    }
+
+    /// Records `net`'s TzKT, explorer and faucet links in the saved state, only where they
+    /// differ from the defaults ("" for a link turned off).
+    private func rememberServices(of net: Network) {
+        var all = state.serviceURLs ?? [:]
+        var links = all[net.name] ?? [:]
+        for service in Network.Service.allCases {
+            links[service.rawValue] = net.isUsingDefault(service) ? nil : (net.url(for: service)?.absoluteString ?? "")
+        }
+        all[net.name] = links.isEmpty ? nil : links
+        state.serviceURLs = all.isEmpty ? nil : all
+    }
+
+    /// The link in use (saved or default) for `service` on `base`, without switching to it.
+    func serviceURL(for service: Network.Service, in base: Network) -> URL? {
+        resolved(Network.named(base.name) ?? base).url(for: service)
+    }
+
+    /// Points `service` on `base` at what the user typed, or turns it off for empty text.
+    /// False (and no change) when the text is not a URL, or for a faucet on mainnet.
+    @discardableResult
+    func setServiceURL(_ text: String, for service: Network.Service, in base: Network) -> Bool {
+        guard base.offers(service) else { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var url: URL?
+        if !trimmed.isEmpty {
+            guard let parsed = Network.nodeURL(from: trimmed) else { return false }
+            url = parsed
+        }
+        change(base) { $0.using(url, for: service) }
+        return true
+    }
+
+    /// Goes back to the link we ship for `service` on `base`.
+    func useDefaultServiceURL(for service: Network.Service, in base: Network) {
+        change(base) { $0.using($0.defaultURL(for: service), for: service) }
     }
 
     /// Records `net`'s Etherlink choices in the saved state, only where they differ from the
@@ -240,7 +288,7 @@ final class WalletViewModel {
         changeL2(of: base) { $0.usingL2(enabled: enabled, node: $0.l2RPCURL) }
     }
 
-    /// Points `base`'s Etherlink at the node typed in Settings; false when it is not a URL.
+    /// Points `base`'s Etherlink at the node typed in Networks; false when it is not a URL.
     @discardableResult
     func setL2Node(_ text: String, for base: Network) -> Bool {
         guard let url = Network.nodeURL(from: text) else { return false }
@@ -252,13 +300,17 @@ final class WalletViewModel {
         changeL2(of: base) { $0.usingL2(enabled: $0.l2Enabled, node: $0.l2DefaultRPCURL) }
     }
 
-    /// Applies an Etherlink change: through `network` (which persists and reloads) when `base`
-    /// is in use, else straight into the saved state.
-    private func changeL2(of base: Network, _ change: (Network) -> Network) {
+    private func changeL2(of base: Network, _ change: (Network) -> Network) { self.change(base, change) }
+
+    /// Applies a per-network change: through `network` (which persists and reloads) when
+    /// `base` is in use, else straight into the saved state.
+    private func change(_ base: Network, _ change: (Network) -> Network) {
         if base.name == network.name {
             network = change(network)
         } else {
-            rememberL2(of: change(resolved(Network.named(base.name) ?? base)))
+            let changed = change(resolved(Network.named(base.name) ?? base))
+            rememberL2(of: changed)
+            rememberServices(of: changed)
             persistState()
         }
     }
@@ -268,7 +320,7 @@ final class WalletViewModel {
         network = resolved(base)
     }
 
-    /// Points the current network at the node typed in Settings. False (and no change) when
+    /// Points the current network at the node typed in Networks. False (and no change) when
     /// the text is not a host or http(s) URL.
     @discardableResult
     func setNode(_ text: String) -> Bool {
