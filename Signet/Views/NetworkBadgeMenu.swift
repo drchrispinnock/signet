@@ -21,6 +21,8 @@ struct NetworkBadgeMenu: View {
                     }
                 }
             }
+            Divider()
+            Button("Networks…") { model.isPresentingNetworks = true }
         } label: {
             // The lozenge, with a small chevron and a hover highlight so it reads as clickable.
             HStack(spacing: 3) {

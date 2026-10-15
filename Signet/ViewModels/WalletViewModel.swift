@@ -104,6 +104,7 @@ final class WalletViewModel {
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     var isPresentingGovernance = false
     var isPresentingBridge = false
+    var isPresentingNetworks = false
     var isPresentingBuy = false
 
     /// Governance is for bakers whose key we can sign with.

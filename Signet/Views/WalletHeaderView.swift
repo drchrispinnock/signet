@@ -177,6 +177,7 @@ struct AppMenuButton: View {
                 Button("Governance…") { model.isPresentingGovernance = true }
             }
             Divider()
+            Button("Networks…") { model.isPresentingNetworks = true }
             SettingsLink { Text("Settings…") }
                 .keyboardShortcut(",", modifiers: .command)
             Button("Refresh") { Task { await model.refresh() } }

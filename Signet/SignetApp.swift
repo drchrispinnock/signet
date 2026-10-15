@@ -98,6 +98,7 @@ struct SignetApp: App {
                     Button("Governance…") { model.isPresentingGovernance = true }
                 }
                 Divider()
+                Button("Networks…") { model.isPresentingNetworks = true }
                 SettingsLink { Text("Settings…") }
                 Button("Refresh") { Task { await model.refresh() } }
                     .keyboardShortcut("r", modifiers: .command)

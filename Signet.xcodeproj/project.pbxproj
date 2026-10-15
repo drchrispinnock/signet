@@ -69,6 +69,7 @@
 		6D72B36ED768416E56BD2AE0 /* Staking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC270D9AC39835A78941A29 /* Staking.swift */; };
 		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
 		7492F277D933572F5A57BCA5 /* BoundedHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */; };
+		750F1BE9E0DD41B59A94DC05 /* NetworksSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */; };
 		78A3D78FBA369C156627C515 /* LedgerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FC4E726C1EF1DAB6C547D9 /* LedgerService.swift */; };
 		78CE24F5EAB7F18B76FA8B5C /* TezosDomainsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */; };
 		797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7E3944EC2E0534678CCBD8 /* Micheline.swift */; };
@@ -321,6 +322,7 @@
 		FC918EF9B0EDD54D21EB48C3 /* FaucetSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaucetSheet.swift; sourceTree = "<group>"; };
 		FD76C823B36485828A3E50A5 /* NodeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeMonitor.swift; sourceTree = "<group>"; };
 		FDEC38EDE514E7EC1A935DF1 /* AddressScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressScheme.swift; sourceTree = "<group>"; };
+		FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworksSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -363,6 +365,7 @@
 				3ED923E5AE3EE96BE5D624FB /* GovernanceSheet.swift */,
 				9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */,
 				F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */,
+				FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */,
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
 				525C79C726F273E9E3375452 /* ReceiveSheet.swift */,
@@ -741,6 +744,7 @@
 				352781EAEFD67868E1C159A5 /* NFTGridView.swift in Sources */,
 				899D3FBBD2AB375399DCFD4E /* Network.swift in Sources */,
 				9C76914707853D3D3BF484BF /* NetworkBadgeMenu.swift in Sources */,
+				750F1BE9E0DD41B59A94DC05 /* NetworksSheet.swift in Sources */,
 				DD999C456935284E5FC4DDFF /* NodeMonitor.swift in Sources */,
 				1A4899B4CD4C9D3184DE6D45 /* NodeStatusBar.swift in Sources */,
 				24BFD9B2163DAC152D8E54F2 /* OctezConnectStorage.swift in Sources */,

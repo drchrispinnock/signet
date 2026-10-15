@@ -414,7 +414,7 @@ automatic download is off by default. The updater is not started under the test 
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   carry the same items (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Forget account |
   Connect to dApp | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
-  transaction | Baking, Governance when applicable | Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
+  transaction | Baking, Governance when applicable | Networks, Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
@@ -428,7 +428,7 @@ automatic download is off by default. The updater is not started under the test 
   `NetXdQprcVkpaWU`, Shadownet `NetXsqzbfFenSTS`); before any estimate or signing
   `TaquitoChainService.verifyChain` and the dApp prepare/execute calls ask the node for
   `/chains/main/chain_id` through the bridge's `assertChain` and refuse a node serving another
-  chain. The Settings node field (`Network.nodeURL(from:)`) takes `https` anywhere, plain `http`
+  chain. The Networks node field (`Network.nodeURL(from:)`) takes `https` anywhere, plain `http`
   only for this machine or the local network, and refuses credentials and other schemes
   (`nodeURLProblem` words the refusal). `EndpointPolicy` (`Signet/Services`) is the one place
   that decides what counts as local or private (loopback, link-local, RFC 1918, CGNAT, ULA,
@@ -500,9 +500,9 @@ automatic download is off by default. The updater is not started under the test 
   RPC `quantumnet.pqpark.dal.nomadic-labs.com/rpc`, its own TzKT and explorer, and a PQPark faucet
   (`Network.FaucetKind.pqpark`: `GET /info`, `POST /send {to, amount}`, no proof of work) which
   `FaucetService` speaks alongside the teztnets protocol. `Network.explorerURL(operation:)` links
-  operations per network (tzkt.io on mainnet, the self-hosted TzKT on Quantumnet). Settings has a
-  network dropdown that picks whose node is being edited (not the network in use) and a Custom
-  network defaulting to `http://localhost:8732`; nodes are shown as full URLs.
+  operations per network (tzkt.io on mainnet, the self-hosted TzKT on Quantumnet). The Networks sheet
+  has a network dropdown that picks whose node is being edited (not the network in use) and a
+  Custom network defaulting to `http://localhost:8732`; nodes are shown as full URLs.
 - The spec asks for Taquito "where possible". Taquito is TypeScript, so chain access goes
   through a JavaScript bundle run inside JavaScriptCore (see `TaquitoBridge/`). Key generation for
   tz1/tz3 is in Swift; secrets enter the bridge only for the one operation they sign (Taquito's
@@ -513,7 +513,7 @@ automatic download is off by default. The updater is not started under the test 
   rollup yet). `Network.l2DefaultRPCURL` ships the endpoint for Mainnet
   (`michelson.etherlink.mainnet.octez.io`, chain `NetXohUVN5QWR4f`) and Shadownet
   (`michelson.etherlink.shadownet.octez.io`, chain `NetXtLrzvQDobza`); `l2Enabled` is off by
-  default everywhere (the user turns it on per network), and `l2RPCURL` is the node in use. Settings has "Enable Layer 2"
+  default everywhere (the user turns it on per network), and `l2RPCURL` is the node in use. The Networks sheet has "Enable Layer 2"
   and a "Layer 2 Michelson node" field per network (same URL policy as the layer 1 node; the
   word Etherlink is kept for the dashboard row only),
   saved in `AppState.l2Enabled` / `l2NodeURLs` only where they differ from the defaults.
@@ -580,13 +580,16 @@ automatic download is off by default. The updater is not started under the test 
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the
   URL from the most recent Wednesday (UTC). The protocol-proposal testnet is listed under its own name (`Network.ushuaianet`, chain id pinned) rather than teztnets.com's "currentnet" alias, because TzKT names its instance after the protocol (api.ushuaianet.tzkt.io) and the alias has no indexer; replace the entry when the next proposal's network appears. Shadownet, Bakingnet and Ushuaianet link to their tzkt.io explorers.
   Each `Network` has a `defaultRPCURL` and the `rpcURL`
-  in use: Settings shows the network as a dropdown with a free-text node field beneath it, and
+  in use: the Networks sheet (`NetworksSheet`, "Networks…" in the burger and Operations menus
+  and at the foot of the network badge, `isPresentingNetworks`) shows the network as a dropdown
+  with a free-text node field beneath it, and
   `WalletViewModel.setNode` / `useDefaultNode` replace the node for the current network only.
   Custom nodes are kept per network name in `AppState.nodeURLs`; `switchNetwork(to:)` applies
   the saved one (assigning `network` directly uses whatever node the value carries). The chosen
   network, node and selected wallet are remembered in `~/.signet/state` (`FileAppStateStore`); `WalletViewModel.network` rebuilds the chain service via
   `chainFactory` when it changes. `SettingsView` is the standard macOS Settings scene (Cmd-comma),
-  also reachable from the burger menu. Current RPC URLs are listed at
+  also reachable from the burger menu; it holds appearance, Buy, wallet directory, backups,
+  updates and developer settings, nothing about nodes. Current RPC URLs are listed at
   https://teztnets.com/teztnets.json.
 
 ## Taquito bridge
