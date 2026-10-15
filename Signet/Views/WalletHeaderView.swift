@@ -16,7 +16,14 @@ struct WalletIdentityView: View {
 
     private var identity: some View {
         VStack(alignment: .leading, spacing: 4) {
-            walletPicker
+            // The tags sit beside the menu, not in its label: AppKit draws that label and drops
+            // backgrounds and overlays.
+            HStack(spacing: 8) {
+                walletPicker
+                if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
+                if wallet.keyKind == .ledger { ledgerTag }
+                if wallet.isSessionOnly { sessionTag }
+            }
             HStack(spacing: 6) {
                 Text(wallet.address.shortened())
                     .font(.body.monospaced())
@@ -59,9 +66,6 @@ struct WalletIdentityView: View {
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
-                if wallet.keyKind == .ledger { ledgerTag }
-                if wallet.isSessionOnly { sessionTag }
             }
         }
         .menuStyle(.borderlessButton)
