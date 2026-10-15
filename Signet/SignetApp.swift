@@ -75,12 +75,12 @@ struct SignetApp: App {
                     .disabled(model.selectedWallet == nil)
                 Button("Export secret key…") { model.isPresentingExportKey = true }
                     .disabled(!model.canExportSelectedKey)
-                if model.canRememberSelectedKey {
-                    Button("Remember key…") { model.isPresentingRememberKey = true }
-                }
                 Divider()
                 Button("Add address…") { model.isPresentingAddAddress = true }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
+                if model.canRememberSelectedKey {
+                    Button("Remember key…") { model.isPresentingRememberKey = true }
+                }
                 Button("Forget account…") { model.isPresentingForget = true }
                     .disabled(model.selectedWallet == nil)
                 Divider()
