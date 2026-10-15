@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Thin strip at the bottom of the window: a coloured light and a line about the layer 1 node
 /// and, while the network has Layer 2 on, a second line beneath it for the Layer 2 Michelson
-/// node. The lines are a grid so hosts, levels and summaries line up in columns.
+/// node. The lines are a grid so hosts and summaries line up in columns. A healthy node shows
+/// just the green light and its host; the level, head age and latency are in the tooltip.
 struct NodeStatusBar: View {
     let monitor: NodeMonitor
     var layer2: NodeMonitor? = nil
@@ -20,17 +21,14 @@ struct NodeStatusBar: View {
         .background(.bar)
     }
 
-    /// One node's cells: light, label, host, head level and the summary, which takes the rest
-    /// of the width. Clicking the host or summary checks that node again.
+    /// One node's cells: light, label, host and, unless the node is healthy, the summary, which
+    /// takes the rest of the width. Clicking the host or summary checks that node again.
     @ViewBuilder
     private func cells(_ monitor: NodeMonitor, label: String) -> some View {
         NodeLight(monitor: monitor)
         Text(label).foregroundStyle(.secondary)
         NodeHostText(monitor: monitor, label: label)
-        Text(monitor.status.level.map { "level \($0.formatted())" } ?? "")
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-        Text(monitor.status.summary)
+        Text(monitor.status.isHealthy ? "" : monitor.status.summary)
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .truncationMode(.tail)
@@ -82,6 +80,7 @@ private struct NodeHostText: View {
 
     static func helpText(for monitor: NodeMonitor) -> String {
         var lines = [monitor.endpoint?.absoluteString ?? "No node", monitor.status.detail]
+        if let level = monitor.status.level { lines.append("Head level \(level.formatted())") }
         if case .healthy(_, _, let latency) = monitor.status {
             lines.append("Reply in \(String(format: "%.2f", latency)) s")
         }

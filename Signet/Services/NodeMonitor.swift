@@ -30,6 +30,11 @@ enum NodeStatus: Equatable, Sendable {
         }
     }
 
+    var isHealthy: Bool {
+        if case .healthy = self { return true }
+        return false
+    }
+
     var summary: String {
         switch self {
         case .unknown: "Checking…"

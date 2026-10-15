@@ -420,7 +420,8 @@ automatic download is off by default. The updater is not started under the test 
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
 - **Node status.** `NodeMonitor` polls `/chains/main/blocks/head/header` every 30 s and
   classifies the reply (green fresh head, yellow stale/slow/HTTP error/odd payload, red no
-  connection); `NodeStatusBar` pins it to the bottom of the window; while the network has Layer 2 on a
+  connection); `NodeStatusBar` pins it to the bottom of the window (light and host only while healthy; the
+  level, head age and latency are in the tooltip, and problems are written out); while the network has Layer 2 on a
   second line beneath it shows the Layer 2 Michelson node (`WalletViewModel.l2Monitor`, a
   `NodeMonitor` with `layer: .two`, idle and grey when there is no Layer 2 node), and a header
   naming another chain than the pinned one is red. `evaluate` is pure for tests.
