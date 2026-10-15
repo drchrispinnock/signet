@@ -96,7 +96,7 @@ struct WalletIdentityView: View {
 
     /// Orange, unlike the other tags: this key is lost at quit unless Remember key is used.
     private var sessionTag: some View {
-        Label("Forgotten at quit", systemImage: "clock.badge.exclamationmark")
+        Label("Session only", systemImage: "clock.badge.exclamationmark")
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
