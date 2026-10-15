@@ -301,7 +301,7 @@ export {
 // ---- Ledger ------------------------------------------------------------------------------------
 import { signerFor } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
-export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit } from "./bridge.js";
+export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
 
 /** Diagnostic: proves console output reaches the host. */
 export function bridgeEcho(message) {

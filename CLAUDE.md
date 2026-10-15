@@ -558,6 +558,23 @@ automatic download is off by default. The updater is not started under the test 
   context and amount are still the same; `BridgeSheet` re-estimates whenever they change and
   retains the submitted account/network/amount for the result and explorer link.
   `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
+  **EVM alias (0.9.3).** The account's EVM-side address is a pure function of the tz address, but
+  the rollup only creates the account behind it (EIP-7702 delegation to the shared
+  AliasForwarder, which passes tez on to the tz account) when the account makes its first
+  cross-interface call; before that, tez sent to the alias sit at an address nobody controls,
+  a later link does not sweep them, and a layer 1 deposit into a linked alias fails OutOfGas
+  on the current kernel (only an EVM-side transfer with enough gas forwards). So Receive shows
+  the 0x address only when the gateway's `resolveAddress` view (Tezos runtime 0 → Ethereum 1)
+  on the Layer 2 node says it is recorded (`EtherlinkAliasStatus.linked`; derived is
+  `.unlinked`), and otherwise offers "Link to Etherlink": a zero-tez `%call_evm` no-op from the
+  account to the Michelson gateway `Network.etherlinkGateway`
+  (`KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw`, the same on every Etherlink network), paid on
+  Etherlink, through the approved-limits path (`src/bridge.js` `linkParams` /
+  `estimateEtherlinkLink` / `sendEtherlinkLink`; `sendEtherlinkLink` is a signing call).
+  `ChainService.etherlinkAliasStatus` / `estimateEtherlinkLink` / `sendEtherlinkLink` exist on
+  a Layer 2 service only (`ChainError.notALayer2Service` otherwise) and
+  `WalletViewModel.etherlinkAliasStatus` / `estimateEtherlinkLink` / `linkToEtherlink` use
+  `layer2Chain`. `EtherlinkLiveTests.linksAFreshAccountToItsEtherlinkAlias` is the live check.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

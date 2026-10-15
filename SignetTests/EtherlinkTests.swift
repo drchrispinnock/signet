@@ -190,3 +190,99 @@ struct EtherlinkLiveTests {
         }
     }
 }
+
+// MARK: - Alias linking (0.9.3)
+
+/// The EVM-side address is shown only once it exists on chain; before that the account links
+/// itself with a gateway no-op on the Layer 2 node.
+@MainActor
+struct EtherlinkAliasTests {
+    @Test func statusAndLinkGoThroughTheLayer2Service() async throws {
+        let store = InMemoryWalletStore()
+        try store.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        try store.add(WalletViewModel.sampleWallets[1], secretKey: "edeskSAMPLE")
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), walletStore: store)
+        MockChainService.linkedAliases = []
+        let me = WalletViewModel.sampleWallets[0]
+        let alias = EtherlinkAlias.address(for: me.address)
+
+        #expect(try await model.etherlinkAliasStatus() == nil)                                   // Layer 2 off
+        model.setL2Enabled(true, for: .mainnet)
+        #expect(try await model.etherlinkAliasStatus() == .unlinked(evmAddress: alias))
+        await #expect(throws: WalletViewModel.WalletError.notEstimated) { _ = try await model.linkToEtherlink(limits: nil, passphrase: nil) }
+        let estimate = try await model.estimateEtherlinkLink()
+        #expect(estimate.fee > 0 && estimate.limits != nil)
+        let (hash, level) = try await model.linkToEtherlink(limits: estimate.limits, passphrase: nil)
+        #expect(hash == "ooMockLink" && level > 0)
+        #expect(try await model.etherlinkAliasStatus() == .linked(evmAddress: alias))
+
+        // An encrypted key needs its password; a watch-only or tz4 account cannot link at all.
+        model.select(WalletViewModel.sampleWallets[1])
+        let again = try await model.estimateEtherlinkLink()
+        await #expect(throws: ChainError.wrongPassphrase) { _ = try await model.linkToEtherlink(limits: again.limits, passphrase: "wrong") }
+        let watch = Wallet(alias: "watch", address: Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"))
+        let tz4 = Wallet(alias: "bls", address: Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm"), publicKey: "BLpk", keyKind: .unencrypted)
+        let others = WalletViewModel(wallets: [watch, tz4], chain: MockChainService())
+        others.setL2Enabled(true, for: .mainnet)
+        await #expect(throws: SendViewModel.SendError.self) { _ = try await others.estimateEtherlinkLink() }
+        others.select(tz4)
+        #expect(try await others.etherlinkAliasStatus() == nil)
+    }
+
+    @Test func viewRepliesAreParsedAndCheckedAgainstTheDerivedAddress() throws {
+        let me = Address("tz1VSVEv2mCtMYczcTDyeVg4DRUvy57ENN8E")
+        let alias = "0x68767b38768e554a31735268b2d356d5cc75d96c"
+        func reply(_ kind: String, _ named: String) -> Data {
+            Data(#"{"data":{"prim":"Some","args":[{"prim":"Pair","args":[{"int":"\#(kind)"},{"string":"\#(named)"}]}]}}"#.utf8)
+        }
+        // As the Shadownet gateway answered, checksum-cased.
+        #expect(try TaquitoChainService.aliasStatus(from: reply("0", "0x68767b38768E554A31735268b2d356d5Cc75D96c"), for: me) == .linked(evmAddress: alias))
+        #expect(try TaquitoChainService.aliasStatus(from: reply("1", alias), for: me) == .unlinked(evmAddress: alias))
+        #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: reply("0", "0x16142132dd616dd8f61b8972ae4b9fcf8a22a450"), for: me) }
+        #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: reply("2", alias), for: me) }
+        #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: Data(#"{"data":{"prim":"None"}}"#.utf8), for: me) }
+    }
+
+    @Test func layer1ServicesRefuseAliasCalls() async throws {
+        let layer1 = TaquitoChainService(network: Network.shadownet.l2On)
+        await #expect(throws: ChainError.notALayer2Service) { _ = try await layer1.etherlinkAliasStatus(for: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")) }
+        await #expect(throws: ChainError.notALayer2Service) { _ = try await layer1.estimateEtherlinkLink(from: WalletViewModel.sampleWallets[0]) }
+        #expect(TaquitoBridge.kind(of: "sendEtherlinkLink") == .signing)
+    }
+}
+
+extension EtherlinkLiveTests {
+    /// A fresh account is only derived on Etherlink until it links itself; after the gateway
+    /// no-op the view records it. The account needs tez on Etherlink first (bridge deposit).
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
+    func linksAFreshAccountToItsEtherlinkAlias() async throws {
+        let layer1 = TaquitoChainService(network: Network.shadownet.l2On)
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownet.l2On.layer2))
+        let material = try await KeyGenerator().generate(scheme: .tz1)
+        let wallet = Wallet(alias: "link-test", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
+        let signer = SigningKey.secret(material.secretKey, passphrase: nil, address: wallet.address)
+        let alias = EtherlinkAlias.address(for: wallet.address)
+        #expect(try await layer2.etherlinkAliasStatus(for: wallet.address) == .unlinked(evmAddress: alias))
+
+        let faucet = try #require(FaucetService(network: .shadownet))
+        _ = try await faucet.requestTez(to: wallet.address, amount: 10)
+        var funded = false
+        for _ in 0..<40 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.tezBalance(for: wallet.address), b.spendable >= 10 { funded = true; break } }
+        #expect(funded)
+        let deposit = try await layer1.estimateEtherlinkDeposit(from: wallet, amount: 2)
+        let sent = try await layer1.sendEtherlinkDeposit(from: wallet, signer: signer, amount: 2, limits: try #require(deposit.limits))
+        _ = try await layer1.waitForConfirmation(of: sent.hash)
+        var credited = false
+        for _ in 0..<45 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.etherlinkBalance(for: wallet.address), b >= 2 { credited = true; break } }
+        #expect(credited)
+        // Money on the Michelson side does not link the EVM side.
+        #expect(try await layer2.etherlinkAliasStatus(for: wallet.address) == .unlinked(evmAddress: alias))
+
+        let estimate = try await layer2.estimateEtherlinkLink(from: wallet)
+        #expect(estimate.fee > 0 && estimate.limits != nil)
+        let link = try await layer2.sendEtherlinkLink(from: wallet, signer: signer, limits: try #require(estimate.limits))
+        print("etherlink link \(link.hash)")
+        #expect(try await layer2.waitForConfirmation(of: link.hash) > 0)
+        #expect(try await layer2.etherlinkAliasStatus(for: wallet.address) == .linked(evmAddress: alias))
+    }
+}

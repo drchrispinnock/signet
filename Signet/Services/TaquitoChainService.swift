@@ -179,6 +179,64 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    // MARK: Etherlink alias (0.9.3), on the Layer 2 service
+
+    /// Asks the gateway's `resolveAddress` view (Tezos runtime 0 → Ethereum runtime 1) on the
+    /// Layer 2 node: `Some (Pair 0 addr)` is recorded, `Some (Pair 1 addr)` only derived.
+    func etherlinkAliasStatus(for address: Address) async throws -> EtherlinkAliasStatus {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        try await verifyChain()
+        var request = URLRequest(url: network.rpcURL.appendingPathComponent("chains/main/blocks/head/helpers/scripts/run_script_view"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "contract": Network.etherlinkGateway.value, "view": "resolveAddress",
+            "input": ["prim": "Pair", "args": [["string": address.value], ["int": "0"], ["int": "1"]]],
+            "chain_id": network.expectedChainID ?? "", "unparsing_mode": "Readable",
+        ])
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.smallReplyBytes)
+        guard reply.isSuccess else { throw URLError(.badServerResponse) }
+        return try Self.aliasStatus(from: reply.data, for: address)
+    }
+
+    /// Pure parser for the view's reply; the address it names must be the one we derive.
+    static func aliasStatus(from data: Data, for address: Address) throws -> EtherlinkAliasStatus {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let some = object["data"] as? [String: Any], some["prim"] as? String == "Some",
+              let pair = (some["args"] as? [[String: Any]])?.first, pair["prim"] as? String == "Pair",
+              let args = pair["args"] as? [[String: Any]], args.count == 2,
+              let kind = args[0]["int"] as? String, let named = args[1]["string"] as? String
+        else { throw URLError(.cannotParseResponse) }
+        let expected = EtherlinkAlias.address(for: address)
+        guard named.lowercased() == expected else { throw URLError(.cannotParseResponse) }
+        switch kind {
+        case "0": return .linked(evmAddress: expected)
+        case "1": return .unlinked(evmAddress: expected)
+        default: throw URLError(.cannotParseResponse)
+        }
+    }
+
+    func estimateEtherlinkLink(from wallet: Wallet) async throws -> TransferEstimate {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        try await verifyChain()
+        let result = try await bridge.call("estimateEtherlinkLink", [network.rpcURL.absoluteString, wallet.address.value, publicKey, Network.etherlinkGateway.value], timeout: 120)
+        return try Self.estimate(from: result)
+    }
+
+    func sendEtherlinkLink(from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendEtherlinkLink", [network.rpcURL.absoluteString, signer.bridgeSpec, Network.etherlinkGateway.value, limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected link payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     func pendingOperation(for address: Address) async throws -> SentOperation? {
         try await verifyChain()
         let value = try await bridge.call("pendingOperation", [network.rpcURL.absoluteString, address.value], timeout: 30)

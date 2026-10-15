@@ -112,7 +112,7 @@ final class TaquitoBridge: @unchecked Sendable {
     /// a device still signing. `SigningExportsTests` checks the JavaScript sources against this
     /// list, so a new export that signs cannot be left out unnoticed.
     static let signingCalls: Set<String> = [
-        "sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "sendEtherlinkDeposit",
+        "sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "sendEtherlinkDeposit", "sendEtherlinkLink",
         "injectSignedBytes", "multisigOriginate", "multisigSubmit", "multisigSign", "signPayload", "provePossession",
         "octezConnectExecute", "octezConnectSign", "ledgerGetAddress", "ledgerAppVersion",
     ]

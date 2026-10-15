@@ -95,6 +95,25 @@ struct MockChainService: ChainService {
         return SentOperation(hash: "ooMockDeposit")
     }
 
+    /// Accounts linked so far in this process; a link call adds the sender.
+    nonisolated(unsafe) static var linkedAliases: Set<Address> = []
+
+    func etherlinkAliasStatus(for address: Address) async throws -> EtherlinkAliasStatus {
+        let alias = EtherlinkAlias.address(for: address)
+        return Self.linkedAliases.contains(address) ? .linked(evmAddress: alias) : .unlinked(evmAddress: alias)
+    }
+
+    func estimateEtherlinkLink(from wallet: Wallet) async throws -> TransferEstimate {
+        TransferEstimate(fee: Decimal(string: "0.001291")!, burn: 0, total: Decimal(string: "0.001291")!, gasLimit: 2000, storageLimit: 0,
+                         limits: OperationLimits(feeMutez: "1291", gasLimit: 2000, storageLimit: 0))
+    }
+
+    func sendEtherlinkLink(from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        Self.linkedAliases.insert(wallet.address)
+        return SentOperation(hash: "ooMockLink")
+    }
+
     func performStaking(_ operation: StakingOperation, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
         if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return SentOperation(hash: "ooMockStaking\(operation.bridgeKind)")

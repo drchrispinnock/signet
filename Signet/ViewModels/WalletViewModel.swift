@@ -971,6 +971,43 @@ final class WalletViewModel {
         return (sent.hash, level)
     }
 
+    // MARK: Etherlink alias (0.9.3)
+
+    /// Whether the selected account's EVM-side address exists on Etherlink yet, asked of the
+    /// Layer 2 node; `nil` when Layer 2 is off or the key is not usable on the rollup.
+    func etherlinkAliasStatus() async throws -> EtherlinkAliasStatus? {
+        guard let wallet = selectedWallet, Self.usableOnEtherlink(wallet.address), let chain = layer2Chain else { return nil }
+        return try await chain.etherlinkAliasStatus(for: wallet.address)
+    }
+
+    /// The fee for linking the selected account to its EVM alias (a no-op gateway call on the
+    /// Michelson interface, S14: the estimate's limits are what the link is sent with).
+    func estimateEtherlinkLink() async throws -> TransferEstimate {
+        guard let wallet = selectedWallet, let chain = layer2Chain else { throw ChainError.noEtherlinkNode }
+        guard Self.usableOnEtherlink(wallet.address), wallet.keyKind.canSign else { throw SendViewModel.SendError.noSecretKey }
+        return try await chain.estimateEtherlinkLink(from: wallet)
+    }
+
+    /// Links the selected account to its EVM alias: sends the gateway no-op from the account on
+    /// the Layer 2 node with the approved `limits` and waits for the rollup block, after which
+    /// `etherlinkAliasStatus` reports it linked. The account pays the fee on Etherlink, so it
+    /// needs a little tez there first (the Bridge sheet moves some).
+    func linkToEtherlink(limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet, let chain = layer2Chain else { throw ChainError.noEtherlinkNode }
+        guard let limits else { throw WalletError.notEstimated }
+        guard Self.usableOnEtherlink(wallet.address) else { throw SendViewModel.SendError.noSecretKey }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let sent = try await chain.sendEtherlinkLink(from: wallet, signer: signer, limits: limits)
+        let level: Int
+        do {
+            level = try await chain.waitForConfirmation(of: sent.hash)
+        } catch where !sent.injected {
+            throw WalletError.outcomeUnknown(sent.hash)
+        }
+        await refreshAfterOperation()
+        return (sent.hash, level)
+    }
+
     func estimateStaking(_ operation: StakingOperation) async throws -> TransferEstimate {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         return try await chain.estimateStaking(operation, from: wallet)

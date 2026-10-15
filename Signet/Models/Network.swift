@@ -95,6 +95,11 @@ struct Network: Hashable, Identifiable, Sendable {
     var hasL2: Bool { l2Enabled && l2RPCURL != nil }
     /// Tez can be moved from layer 1 to Etherlink here: Layer 2 is on and the bridge is known.
     var canDepositToL2: Bool { hasL2 && l2BridgeHelper != nil && l2Rollup != nil }
+
+    /// Etherlink's Michelson gateway (the same address on every Etherlink network): the
+    /// contract a tz account calls to reach the EVM runtime, and whose `resolveAddress` view
+    /// says whether the account's EVM alias exists yet.
+    static let etherlinkGateway = Address("KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw")
     var isUsingDefaultL2Node: Bool { l2RPCURL == l2DefaultRPCURL }
 
     /// The same network with Etherlink switched on or off and pointed at `node`.

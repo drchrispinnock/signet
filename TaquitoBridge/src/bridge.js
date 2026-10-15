@@ -85,3 +85,44 @@ export async function sendEtherlinkDeposit(rpcUrl, signerSpec, helper, rollup, r
   tk.setSignerProvider(await signerFor(signerSpec));
   return sendApproved(tk, rpcUrl, "transaction", params, parseLimits(limitsJson));
 }
+
+// ---- Linking an account to its EVM alias ---------------------------------------------------------
+//
+// A tz account's address on Etherlink's EVM side (the first 20 bytes of the Keccak-256 of the
+// base58 address) exists on chain only once the account has made a cross-interface call: the
+// kernel then puts EIP-7702 delegation to the shared AliasForwarder at that address and records
+// the native address. Until then tez sent to the alias sit at an address nobody controls. The
+// cheapest such call is the Michelson gateway's `%call_evm` with a no-op: an empty call to an
+// address with no code. It is sent on the Michelson interface (the Layer 2 node) from the
+// account itself, so it is an ordinary approved, locally signed transaction.
+
+/** The Michelson gateway, the same address on every Etherlink network. */
+export const ETHERLINK_GATEWAY = "KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw";
+const NOOP_TARGET = "0x000000000000000000000000000000000000dEaD";
+
+/** `%call_evm (pair string string bytes (option (contract bytes)))`: destination, method, ABI params, no callback. */
+export function linkParams(gateway) {
+  if (!/^KT1[1-9A-HJ-NP-Za-km-z]{33}$/.test(gateway)) throw new Error(`Not a gateway contract: ${gateway}`);
+  return {
+    to: gateway,
+    amount: 0,
+    mutez: true,
+    parameter: { entrypoint: "call_evm", value: { prim: "Pair", args: [{ string: NOOP_TARGET }, { string: "ping()" }, { bytes: "" }, { prim: "None" }] } },
+  };
+}
+
+/** Fee and limits for linking `source` to its EVM alias through `gateway` on the Michelson interface node `rpcUrl`. */
+export async function estimateEtherlinkLink(rpcUrl, source, publicKey, gateway) {
+  const params = linkParams(gateway);
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(readOnlySigner(publicKey, source));
+  return approvedEstimate(tk, "transaction", params, await tk.estimate.transfer(params));
+}
+
+/** Signs and injects the link call with exactly the approved limits (S14); `{ hash, injected, signedBytes }` (S15). */
+export async function sendEtherlinkLink(rpcUrl, signerSpec, gateway, limitsJson) {
+  const params = linkParams(gateway);
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(await signerFor(signerSpec));
+  return sendApproved(tk, rpcUrl, "transaction", params, parseLimits(limitsJson));
+}

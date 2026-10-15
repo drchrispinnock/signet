@@ -43,6 +43,13 @@ protocol ChainService: Sendable {
     /// Signs and injects the deposit with exactly the approved `limits` (S14).
     func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
 
+    // Etherlink alias (0.9.3), on a Layer 2 (Michelson interface) service only: whether the
+    // account's EVM-side address exists on chain yet, and the gateway call that creates it.
+    func etherlinkAliasStatus(for address: Address) async throws -> EtherlinkAliasStatus
+    func estimateEtherlinkLink(from wallet: Wallet) async throws -> TransferEstimate
+    /// Signs and injects the link call with exactly the approved `limits` (S14).
+    func sendEtherlinkLink(from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation
+
     /// Signs raw bytes (hex) with no watermark, e.g. a packed "Tezos Signed Message". Returns the
     /// signer's public key and the prefixed signature (edsig/spsig/p2sig…).
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload
@@ -105,6 +112,8 @@ enum ChainError: LocalizedError, Equatable {
     case noEtherlinkNode
     /// The network has no known bridge contract for depositing to Etherlink.
     case noEtherlinkBridge
+    /// Asked of a layer 1 service: alias status and linking live on the Layer 2 node.
+    case notALayer2Service
     /// A node answered with another chain's id than the one pinned for it (S12).
     case wrongChain(expected: String, found: String)
 
@@ -113,6 +122,7 @@ enum ChainError: LocalizedError, Equatable {
         case .accountNotOnChain: "Key not found on chain"
         case .noEtherlinkNode: "Etherlink is not enabled for this network."
         case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
+        case .notALayer2Service: "This needs the Layer 2 node."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."
@@ -136,5 +146,25 @@ enum ChainError: LocalizedError, Equatable {
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
         if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
         return nil
+    }
+}
+
+/// Whether a tz account's address on Etherlink's EVM side exists on chain. The address itself
+/// is a pure function of the tz address (`EtherlinkAlias`), but the rollup only creates the
+/// account behind it, with the forwarder that passes tez on to the tz account, when the
+/// account makes its first cross-interface call. Before that, the gateway's `resolveAddress`
+/// view reports the address as derived (1) rather than recorded (0), and tez sent to it sit at
+/// an address nobody controls.
+enum EtherlinkAliasStatus: Equatable, Sendable {
+    /// Recorded on chain: tez sent to the alias reach the account.
+    case linked(evmAddress: String)
+    /// Only derived so far: the account must link itself first.
+    case unlinked(evmAddress: String)
+
+    var isLinked: Bool { if case .linked = self { true } else { false } }
+    var evmAddress: String {
+        switch self {
+        case .linked(let address), .unlinked(let address): address
+        }
     }
 }
