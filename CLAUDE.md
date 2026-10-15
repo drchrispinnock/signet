@@ -269,9 +269,19 @@ automatic download is off by default. The updater is not started under the test 
   Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
   and the wording says so; Ledger wallets operate normally with approval on the device.
 - **Buy (0.5, proof of concept).** The on-ramp is a Settings choice (`BuyProvider`, UserDefaults
-  `buyProvider`, "Buy tez with"); Mt Pelerin is the only case so far and a US-serving provider
-  (Transak) is the intended second: add a case and its URL builder, trusted hosts and ownership
-  payload. `BuySheet` shows the provider's hosted widget inside the app in a
+  `buyProvider`, "Buy tez with"): Mt Pelerin (default) or Transak (0.9.4, `Signet/Services/
+  Transak.swift`, the US-serving one). Each case has its URL builder, trusted hosts and
+  ownership payload (Transak takes none: the widget locks the address with
+  `disableWalletAddressForm`, so `signsOwnership` is false and the sheet asks for no password or
+  Ledger). Transak's URL is `global.transak.com` with `cryptoCurrencyCode=XTZ`, `network=mainnet`
+  (its name for Tezos; `XTZmainnet` in its currency list, not served in Canada),
+  `walletAddress`, `defaultFiatCurrency`, `productsAvailed=BUY`, `colorMode` and
+  `referrerDomain` (the bundle id). The widget does not open without a partner `apiKey`
+  (`Transak.apiKey`, nil until issued): `BuyProvider.configurationProblem` says so in Settings and
+  the Buy sheet and disables Continue. Transak now calls parameters in the URL deprecated in
+  favour of one-time session URLs minted by the partner's server (`POST /api/v2/auth/session`
+  with a partner access token); Signet has no server, so if the direct URL stops working the
+  next step is a small backend that mints them. `BuySheet` shows the provider's hosted widget inside the app in a
   `WKWebView` (`BuyWebView`: grants camera/microphone to mtpelerin.com only for its identity
   checks, opens `window.open` targets and foreign hosts in the browser; Info.plist carries the
   camera/microphone usage strings), with an "Open in browser" fallback (`MtPelerin.buyURL`:

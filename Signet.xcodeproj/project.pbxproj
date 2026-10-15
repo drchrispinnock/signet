@@ -93,6 +93,7 @@
 		9384F5734C7FA30F1AAAF719 /* Wallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83A465432E9E915B374F22E /* Wallet.swift */; };
 		93CA5BDA4B5439D81270BCAB /* OperationJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E23BA77E2EE9A2D4326E404 /* OperationJournal.swift */; };
 		945A8B6A3D1933615DBBD5C5 /* PrivateFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC50BA0743BD7F6C02007F2 /* PrivateFile.swift */; };
+		94BCABEB414CA7F71A16A3A5 /* Transak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E25BFA3626EF619001E410 /* Transak.swift */; };
 		9515CEF511EC5DEA4872F494 /* FaucetSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC918EF9B0EDD54D21EB48C3 /* FaucetSheet.swift */; };
 		9803D0FE2D7A0F808A4F2DED /* LedgerSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2F8374A48C3D15B41A0E14 /* LedgerSessions.swift */; };
 		9891BF967B4AE747AC6DEBCF /* TezosDomainsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */; };
@@ -143,6 +144,7 @@
 		E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7070B3A5754283DA58F7D /* SettingsView.swift */; };
 		E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A977FC2E863E73A21EF39F /* SendViewModel.swift */; };
 		E428724605E404E9B227878E /* DAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F940745F8842D7E206AB1B3D /* DAppRequest.swift */; };
+		E69B01B8C0A38265107F9A0F /* TransakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A30F42E4BC1EF62AF5EC8 /* TransakTests.swift */; };
 		E7EA15D2639194B6837F7822 /* SessionKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0678EA4CF0B0ADB9DEBC3FB9 /* SessionKeys.swift */; };
 		E9B824ED46A889B73CC8485C /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */; };
 		EAEF01D7B57BA984CCB2B996 /* TokenListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC9EC06EA2E130C77234325 /* TokenListView.swift */; };
@@ -175,6 +177,7 @@
 		05930E7B824730A8A1C63579 /* FaucetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaucetTests.swift; sourceTree = "<group>"; };
 		059BEFFF9819257E3E6DE356 /* Transfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transfer.swift; sourceTree = "<group>"; };
 		0678EA4CF0B0ADB9DEBC3FB9 /* SessionKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionKeys.swift; sourceTree = "<group>"; };
+		06E25BFA3626EF619001E410 /* Transak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transak.swift; sourceTree = "<group>"; };
 		075C70E256C22BF792C133B6 /* WalletHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHomeView.swift; sourceTree = "<group>"; };
 		088C8CA0ACEDD480A9684481 /* SendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendTests.swift; sourceTree = "<group>"; };
 		08FB43B12028F0D54446D75E /* DeveloperSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettings.swift; sourceTree = "<group>"; };
@@ -273,6 +276,7 @@
 		A00D9FA8FA790B44780BF4BA /* BuySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuySheet.swift; sourceTree = "<group>"; };
 		A08240C17DFA7DF7CFF28B46 /* AccountNotOnChainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountNotOnChainView.swift; sourceTree = "<group>"; };
 		A10DBE16F18BCE91ECEC7739 /* QRCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCode.swift; sourceTree = "<group>"; };
+		A11A30F42E4BC1EF62AF5EC8 /* TransakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransakTests.swift; sourceTree = "<group>"; };
 		A212889342C7C573BC835EB1 /* BakingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BakingSheet.swift; sourceTree = "<group>"; };
 		A7347B803D9BD4E4E863D671 /* ArtworkPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkPolicyTests.swift; sourceTree = "<group>"; };
 		A798BC85F924D7A47B00E61A /* JSONBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONBudget.swift; sourceTree = "<group>"; };
@@ -467,6 +471,7 @@
 				BCD68E3A641F1820CC655574 /* TezosDomainsTests.swift */,
 				1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */,
 				79F498AB6E54AD10BF1747A6 /* TransactionTests.swift */,
+				A11A30F42E4BC1EF62AF5EC8 /* TransakTests.swift */,
 				F26282403DA6CD7776E43372 /* UpdaterTests.swift */,
 				507B55356D52C39CF790496A /* WalletBackupTests.swift */,
 			);
@@ -536,6 +541,7 @@
 				1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */,
 				741349B359248E0F53BDF375 /* TezosClientStore.swift */,
 				5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */,
+				06E25BFA3626EF619001E410 /* Transak.swift */,
 				26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */,
 				9DE59C3B2980EB51F7EBA4CD /* UpdaterService.swift */,
 				D55C4D86A1145ACAF063447D /* WalletBackup.swift */,
@@ -777,6 +783,7 @@
 				A4C2D6AE665CA6309C22E732 /* TezosTransaction.swift in Sources */,
 				B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */,
 				EAEF01D7B57BA984CCB2B996 /* TokenListView.swift in Sources */,
+				94BCABEB414CA7F71A16A3A5 /* Transak.swift in Sources */,
 				C4D72615EE6CDE9929FCAEA6 /* Transfer.swift in Sources */,
 				07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */,
 				887DB0322DE85C7FDA7634F3 /* UpdaterService.swift in Sources */,
@@ -837,6 +844,7 @@
 				78CE24F5EAB7F18B76FA8B5C /* TezosDomainsTests.swift in Sources */,
 				E9B824ED46A889B73CC8485C /* TokenTests.swift in Sources */,
 				19F92B5854FE30FF0AC11B4D /* TransactionTests.swift in Sources */,
+				E69B01B8C0A38265107F9A0F /* TransakTests.swift in Sources */,
 				399E2A6E42D313311E3C3B0B /* UpdaterTests.swift in Sources */,
 				5988FB98D3C29FB3B442328B /* WalletBackupTests.swift in Sources */,
 			);

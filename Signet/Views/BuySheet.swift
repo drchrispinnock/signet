@@ -26,7 +26,7 @@ struct BuySheet: View {
 
     private var wallet: Wallet? { model.selectedWallet }
     private var canSign: Bool { wallet?.keyKind.canSign == true }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted && provider.signsOwnership }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
 
     var body: some View {
@@ -75,13 +75,16 @@ struct BuySheet: View {
             if needsPassphrase, let wallet {
                 SecureField("Password for “\(wallet.alias)”", text: $passphrase)
                 Text("Signet signs a short message with this key so \(provider.title) knows the address is yours.").font(.callout).foregroundStyle(.secondary)
-            } else if signsOnLedger {
+            } else if signsOnLedger, provider.signsOwnership {
                 Text("Your Ledger will ask you to sign a short message proving the address is yours.").font(.callout).foregroundStyle(.secondary)
-            } else if !canSign {
+            } else if !canSign, provider.signsOwnership {
                 Text("Signet holds no key for this address, so \(provider.title) will ask you to confirm it in the widget.").font(.callout).foregroundStyle(.secondary)
             }
             Text("\(provider.summary) Everything in the next step runs on \(provider.title)'s site, shown inside Signet.")
                 .font(.callout).foregroundStyle(.secondary)
+            if let problem = provider.configurationProblem {
+                Label(problem, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
+            }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
@@ -126,7 +129,7 @@ struct BuySheet: View {
                 Button("Continue", action: start)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .disabled(isWorking || (needsPassphrase && passphrase.isEmpty))
+                    .disabled(isWorking || (needsPassphrase && passphrase.isEmpty) || provider.configurationProblem != nil)
             case .widget:
                 Button("Open in browser instead") { openInBrowser() }
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)

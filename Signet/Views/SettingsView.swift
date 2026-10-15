@@ -72,8 +72,12 @@ struct SettingsView: View {
             Picker("Buy tez with", selection: $buyProviderID) {
                 ForEach(BuyProvider.allCases) { Text($0.title).tag($0.rawValue) }
             }
-            Text((BuyProvider(rawValue: buyProviderID) ?? .default).summary)
+            let provider = BuyProvider(rawValue: buyProviderID) ?? .default
+            Text(provider.summary)
                 .font(.callout).foregroundStyle(.secondary)
+            if let problem = provider.configurationProblem {
+                Text(problem).font(.callout).foregroundStyle(.orange)
+            }
         }
     }
 
