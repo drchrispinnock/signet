@@ -29,7 +29,6 @@ export async function signerFor(spec) {
   }
 }
 
-/** True for signers that need the user to act on a device. */
 /** A signer that can identify the source but never sign: enough for estimation. */
 export function readOnlySigner(publicKey, address) {
   return {
@@ -40,6 +39,7 @@ export function readOnlySigner(publicKey, address) {
   };
 }
 
+/** True for signers that need the user to act on a device. */
 export function isLedgerSpec(spec) {
   const s = typeof spec === "string" ? JSON.parse(spec) : spec;
   return s?.kind === "ledger";

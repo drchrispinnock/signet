@@ -328,6 +328,25 @@ struct AppStateNetworkTests {
 
 @MainActor
 struct NetworkLinkSettingsTests {
+    @Test func inactiveNodeEditsPreserveUnrelatedSavedOverrides() {
+        var original = AppState()
+        original.l2Enabled = ["Shadownet": false]
+        original.l2NodeURLs = ["Shadownet": "invalid saved L2 text"]
+        original.serviceURLs = ["Shadownet": ["tzkt": "invalid saved service text", "explorer": "", "future-service": "preserve me"]]
+        let store = InMemoryAppStateStore(original)
+        let model = WalletViewModel(wallets: [], chain: MockChainService(), stateStore: store)
+        #expect(model.setNode("https://node.example.org", for: .shadownet))
+        #expect(store.load().nodeURLs == ["Shadownet": "https://node.example.org"])
+        let custom = store.load()
+        model.useDefaultNode(for: .shadownet)
+        for saved in [custom, store.load()] {
+            #expect(saved.l2Enabled == original.l2Enabled)
+            #expect(saved.l2NodeURLs == original.l2NodeURLs)
+            #expect(saved.serviceURLs == original.serviceURLs)
+        }
+        #expect(store.load().nodeURLs == nil && model.network == .mainnet)
+    }
+
     @Test func linksAreKeptPerNetworkAndSurviveRelaunch() {
         let state = InMemoryAppStateStore()
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)

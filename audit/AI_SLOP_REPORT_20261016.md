@@ -1,5 +1,7 @@
 # Signet: code cleanup and verification review
 
+**Follow-up status (2026-10-16):** the code fixes and F23 measurement are complete; F07 remains open for interactive menu acceptance. The original review and Claude’s first resolution below are historical; the verified follow-up at the end supersedes their completion claims.
+
 The most useful cleanup would make safety tests harder to fool, remove unused wiring, and give repeated rules one definition. The code has also improved since the previous report: test-host construction uses memory storage, live/real-wallet tests require opt-in, and tokens/NFTs share a portfolio load. The recommendations below preserve wallet behavior, security checks, stored formats, errors, appearance and accessibility. No application speedup has been demonstrated.
 
 Reviewed **2026-10-15** with the **anti-slop** skill: all eleven independent lenses completed, followed by a separate synthesis. Scope is handwritten Swift application/tests, JavaScript bridge/tests, and build/release configuration. The pinned application revision is **`be5ba28914abc8ed014d87808d8ccbb7214db504`**. A later concurrent commit, `1b7b60d`, changed README content; application/test/bridge files still matched the pinned snapshot at final verification. Existing roadmap and proposed shield documentation were not implementation work in this review.
@@ -82,3 +84,50 @@ Implemented on `main` after 0.9.4 in four commits (one read-only signer / error 
 | F21 | `Address.isUsableOnEtherlink`, with a malformed-address case showing it is a scheme check only. |
 | F07 | `OperationsMenuItems` (in `WalletHeaderView.swift`) is rendered by both the burger menu and the Operations menu; the Cmd-comma on Settings is a flag. Needs the human comparison of both menus the row asks for. |
 | F23 | Not done: a measurement task, no code change proposed. |
+
+
+## Verified follow-up (2026-10-16)
+
+Reviewed and repaired against `28ed5a9` plus the working changes described here. **This audit is not fully closed: F07's interactive acceptance check remains open.** Code changes and the measurement requested by F23 are complete. No real wallet, production log, relay, chain endpoint or Ledger was used.
+
+- [x] **F18:** Replaced the handwritten Swift JavaScript scanner with Acorn syntax parsing in `TaquitoBridge/test/signing-scan.cjs`, run by `npm test`. The check inventories declarations/imports/re-exports, conservatively propagates references through helpers, aliases and assigned objects, compares the exact signing set with the native policy, and independently compares the complete public export inventory with esbuild. The five previously missed cases (indentation, same-line declarations, multiline arrow expressions, indented helpers and constructor whitespace) now pass. Fixtures cover reads, strings/comments/regex/templates, aliases, re-exports, `ForTest`, and explicit refusal of unsupported linkage/dynamic code/hoisted `var` bindings/public classes. Adding an unprotected export to the actual production-source input is detected. This is bounded source reachability, not proof about arbitrary external SDK behavior.
+- [x] **F19:** Exact retry hash/bytes and one signer-provider request are asserted. In a disposable copy, replacing retry bytes with `deadbeef` made `lostReplyKeepsTheHashAndResendsTheSameBytes` fail at the payload assertion. Production sources were never mutated.
+- [x] **F25:** Request-start/release latches establish refresh ordering. Removing the publication guard in a disposable copy made both account and network tests fail. The fault was then restored before the final suite.
+- [x] **F17:** Native confirmation enters the existing raw watcher directly. Offline JavaScript fixtures characterize all four validation passes, recorded/resumed/legacy cursors, exhaustion, cursor persistence, journal removal and malformed/RPC failures. Native fixtures exercise the shipped bundle, selected RPC URL/hash, the 15-block budget, cancellation/deadline HTTP cleanup, journal retention and replacement of a cancelled context. Restored the legacy JavaScript `waitForConfirmation` export's reachable behavior: it rejects with `unknown operation <hash>`, as it did when its private session map was never populated. The unused map remains removed.
+- [x] **F15:** One shared read-only signer remains internal to the modules. Committed tests pin public identity, absence of a secret and the exact signing-refusal message, then complete successful transfer, multisig, dApp and bridge estimates using the actual factory and SDK fixtures. The shipped bundle was rebuilt.
+- [x] **F02:** Shared typed error conversion and its category/precedence/passthrough tests retained.
+- [x] **F16/F22:** Confirmed-unused code remains deleted; generated project and offline suite compile the remaining consumers.
+- [x] **F20:** Pure AppState transformations remain extracted. Restored field-specific inactive-node updates so editing/resetting a node cannot normalize unrelated saved Layer 2/service overrides. Inactive Layer 2/link changes again leave saved node text untouched. A regression test preserves invalid override text, explicit false/off values and unknown service entries while editing/resetting an inactive node.
+- [x] **F21:** Scheme-only eligibility remains on Address; checksum, network and signing validation remain separate.
+- [ ] **F07:** Shared menu implementation is present and compiled. **Interactive acceptance is still required:** compare Operations and hamburger menus with no account, watch-only, signing, session, bridge and baker states. Verify labels/order/dividers, disabled actions, accessibility, sheet destinations and one execution per shortcut; preserve the Settings shortcut distinction. Compilation/source review does not establish this UI evidence, and no human comparison is claimed.
+- [x] **F23:** Completed the specified synthetic wallet-lock measurement. Results and scope are below. This closes the measurement request, not the measured responsiveness problem; an asynchronous storage redesign remains separate work.
+
+### F23 measurement result
+
+`WalletLockMeasurementTests` ran **80 samples** through the real synchronous `WalletViewModel` initialization / `TezosClientStore.load` path: 1 and 1,000 synthetic aliases, uncontended/250 ms/one-second/timeout contention, ten repeats each. A separate Python process held the actual POSIX wallet lock; an acknowledged main-actor heartbeat sampled every 5 ms. Wallet contents and timeout outcomes were checked. This measured initialization; directory-change and creation paths were not independently benchmarked. Files and preferences were isolated; no secrets were generated or read.
+
+Environment: arm64 macOS 26.6.2 (25G83), debug native test host, Swift 6 complete strict concurrency. Results describe this machine/run, not a release-build performance guarantee. Raw samples: [AI_SLOP_LOCK_MEASUREMENTS_20261016.json](AI_SLOP_LOCK_MEASUREMENTS_20261016.json). Times are milliseconds; heartbeat gap includes its normal scheduling interval.
+
+| Aliases | External contention | Median load | Maximum load | Median heartbeat gap | Maximum heartbeat gap |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 1 | None | 0.76 | 1.18 | 6.09 | 6.13 |
+| 1 | 250 ms | 307.43 | 308.84 | 307.60 | 309.12 |
+| 1 | One second | 1,020.29 | 1,022.14 | 1,020.61 | 1,022.33 |
+| 1 | Lock timeout | 5,041.24 | 5,043.84 | 5,041.45 | 5,044.41 |
+| 1,000 | None | 10.92 | 13.10 | 11.13 | 13.41 |
+| 1,000 | 250 ms | 320.68 | 323.96 | 321.04 | 324.25 |
+| 1,000 | One second | 1,029.42 | 1,034.42 | 1,029.71 | 1,034.80 |
+| 1,000 | Lock timeout | 5,041.93 | 5,043.74 | 5,042.08 | 5,043.94 |
+
+**Confirmed:** wallet-lock contention blocks main-actor responsiveness for approximately the lock wait, reaching roughly five seconds at timeout. A follow-up design should move complete locked transactions to a worker while retaining atomic writes, recovery, permissions, identity/directory revisions and stale-result rejection. Measure it against these same fixtures; the original proposed heartbeat target is below 100 ms during one-second contention. No production storage concurrency change was made in this follow-up.
+
+To reproduce, run the native suite `WalletLockMeasurementTests` with `TEST_RUNNER_SIGNET_LOCK_BENCHMARK=1` and `TEST_RUNNER_SIGNET_LOCK_BENCHMARK_OUTPUT=/private/tmp/signet-lock-measurement.json`. It is disabled in the normal suite because it deliberately exercises repeated five-second timeouts.
+
+### Follow-up validation
+
+- All eight offline JavaScript harnesses passed via `npm test`; the committed resource was rebuilt from source with the locked dependencies. Acorn is an exact-version development dependency only.
+- Isolated XcodeGen/native build and 13 initial focused tests passed. A separate opt-in benchmark passed all 80 samples in 134 seconds.
+- Controlled faults in the disposable native copy produced the expected failures in the retry test and both stale-context tests; the faults were removed before final validation.
+- Final complete offline native suite: **345 tests in 115 suites passed**, including the five native watcher tests and restored fault-injection paths; live-network/real-wallet opt-ins were disabled and the long benchmark was disabled for this run.
+- Native host isolation changed only the disposable copy's application identifier and multiple-instance setting, allowing tests alongside an existing Signet instance. Shipping app identity/settings were preserved. Temporary evidence: `/private/tmp/signet-slop-close-20261016/{tests,mutations,measurement,full-tests}.log`.
+- Remaining acceptance evidence: F07's interactive comparison. Live chain/relay operations, physical Ledger behavior and release-build performance were not exercised.

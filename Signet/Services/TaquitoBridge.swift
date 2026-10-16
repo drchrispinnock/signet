@@ -109,7 +109,7 @@ final class TaquitoBridge: @unchecked Sendable {
 
     /// Every export that signs, injects or holds a Ledger session. A call to one of these has no
     /// deadline and is never cancelled: abandoning it could lose an operation outcome or release
-    /// a device still signing. `SigningExportsTests` checks the JavaScript sources against this
+    /// a device still signing. `npm test` (signing-exports.cjs) checks the JavaScript sources against this
     /// list, so a new export that signs cannot be left out unnoticed.
     static let signingCalls: Set<String> = [
         "sendTransfer", "sendStakingOperation", "sendRawOperation", "sendGovernanceOperation", "sendEtherlinkDeposit", "sendEtherlinkLink",

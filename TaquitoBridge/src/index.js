@@ -537,6 +537,11 @@ export async function forgeRawForTest(branch, contentsJson) { return forgeRawOpe
 export async function taquitoForgeForTest(branch, contentsJson) { return localForger.forge({ branch, contents: JSON.parse(contentsJson) }); }
 export async function verifyRawForgingForTest(branch, contentsJson, nodeHex) { return verifyRawForging(branch, JSON.parse(contentsJson), nodeHex); }
 
+/** Legacy session API: session operations were never registered by this bridge. */
+export async function waitForConfirmation(hash, confirmations = 1) {
+  throw new Error(`unknown operation ${hash}`);
+}
+
 /** Waits for a raw operation to appear in a block (manager operations live in validation pass 3). */
 export async function waitForRawOperation(rpcUrl, hash, maxBlocks = 12) {
   const rpc = new RpcClient(rpcUrl);

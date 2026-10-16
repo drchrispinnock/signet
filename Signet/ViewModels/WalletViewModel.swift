@@ -259,7 +259,9 @@ final class WalletViewModel {
         if base.name == network.name {
             network = change(network)
         } else {
-            state.remember(change(resolved(Network.named(base.name) ?? base)))
+            let changed = change(resolved(Network.named(base.name) ?? base))
+            state.rememberL2(of: changed)
+            state.rememberServices(of: changed)
             persistState()
         }
     }
@@ -290,13 +292,25 @@ final class WalletViewModel {
     @discardableResult
     func setNode(_ text: String, for base: Network) -> Bool {
         guard let url = Network.nodeURL(from: text) else { return false }
-        change(base) { $0.usingNode(url) }
+        if base.name == network.name {
+            network = network.usingNode(url)
+        } else {
+            let template = Network.named(base.name) ?? base
+            state.rememberNode(of: template.usingNode(url))
+            persistState()
+        }
         return true
     }
 
     /// Goes back to the shipped node for `base`.
     func useDefaultNode(for base: Network) {
-        change(base) { $0.usingNode($0.defaultRPCURL) }
+        let template = Network.named(base.name) ?? base
+        if base.name == network.name {
+            network = network.usingNode(template.defaultRPCURL)
+        } else {
+            state.rememberNode(of: template)
+            persistState()
+        }
     }
 
     private var chain: any ChainService

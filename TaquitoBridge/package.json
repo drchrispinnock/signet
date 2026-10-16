@@ -8,14 +8,18 @@
     "build:dev": "esbuild src/index.js --bundle --format=iife --global-name=TaquitoBridge --platform=browser --target=safari17 --sourcemap=inline --outfile=../Signet/Resources/taquito-bridge.js",
     "test:dapp-prepared": "node test/dapp-prepared.cjs",
     "test:dapp-identity": "node test/dapp-identity.cjs",
-    "test": "npm run test:dapp-prepared && npm run test:dapp-identity && npm run test:approved-limits && npm run test:audit-boundaries && npm run test:bridge",
+    "test": "npm run test:dapp-prepared && npm run test:dapp-identity && npm run test:approved-limits && npm run test:audit-boundaries && npm run test:bridge && npm run test:signing-exports && npm run test:confirmation && npm run test:read-only-signer",
     "test:bridge": "node test/bridge.cjs",
     "test:approved-limits": "node test/approved-limits.cjs",
-    "test:audit-boundaries": "node test/audit-boundaries.cjs"
+    "test:audit-boundaries": "node test/audit-boundaries.cjs",
+    "test:signing-exports": "node test/signing-exports.cjs",
+    "test:confirmation": "node test/confirmation.cjs",
+    "test:read-only-signer": "node test/read-only-signer.cjs"
   },
   "devDependencies": {
     "@taquito/taquito": "^25.1.0-beta0",
     "@taquito/utils": "^25.1.0-beta0",
+    "acorn": "8.19.0",
     "esbuild": "^0.28.2"
   },
   "dependencies": {
