@@ -32,7 +32,7 @@ struct ActionButtonsView: View {
     }
 
     private func helpText(for action: Action) -> String {
-        if action.enabled { return action.title == "Buy" ? "Buy tez through \(BuyProvider.current.title)" : action.title }
+        if action.enabled { return action.title == "Buy" ? "Buy tez through \(BuyProvider.choices)" : action.title }
         if action.title == "Buy", !model.network.isMainnet { return "Buying is only possible on Mainnet" }
         if action.title == "Get", isContract { return "The faucet cannot fund a contract; send it tez from an account" }
         if isWatchOnly { return "Not available for a watch-only address" }

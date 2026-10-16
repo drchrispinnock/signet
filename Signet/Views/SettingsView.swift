@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// App settings: appearance, the on-ramp, where the wallet files live, how they are backed up,
-/// updates and developer switches. Nodes are edited in `NetworksSheet`.
+/// App settings: appearance, where the wallet files live, how they are backed up, updates and
+/// developer switches. Nodes are edited in `NetworksSheet`; the on-ramp is picked in `BuySheet`.
 struct SettingsView: View {
     @Bindable var model: WalletViewModel
     @Bindable var updater: UpdaterService
@@ -10,7 +10,6 @@ struct SettingsView: View {
     var body: some View {
         Form {
             appearanceSection
-            buySection
             if let directory = model.walletDirectory {
                 walletDirectorySection(directory)
             }
@@ -62,18 +61,6 @@ struct SettingsView: View {
             Text("New releases are fetched from GitHub and verified against the key built into the app before they are installed. Only Signet itself is replaced; your accounts stay in the wallet folder.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    @AppStorage(BuyProvider.key) private var buyProviderID = BuyProvider.default.rawValue
-
-    private var buySection: some View {
-        Section {
-            Picker("Buy tez with", selection: $buyProviderID) {
-                ForEach(BuyProvider.allCases) { Text($0.title).tag($0.rawValue) }
-            }
-            Text((BuyProvider(rawValue: buyProviderID) ?? .default).summary)
-                .font(.callout).foregroundStyle(.secondary)
         }
     }
 

@@ -268,12 +268,14 @@ automatic download is off by default. The updater is not started under the test 
   `TaquitoChainService.rawContents` picks that path. Quantumnet hides the companion-key section (none there; consensus keys may be tz6).
   Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
   and the wording says so; Ledger wallets operate normally with approval on the device.
-- **Buy (0.5, proof of concept).** The on-ramp is a Settings choice (`BuyProvider`, UserDefaults
-  `buyProvider`, "Buy tez with"): Mt Pelerin (default, a widget) or Coinbase (0.9.4, no widget:
-  `usesWidget` false, `browserPage` the Coinbase tez page). For Coinbase the sheet shows the
-  account address with a copy button and a QR code, the three steps (buy, Send/Withdraw with the
-  address pasted on the Tezos network, wait a block) and an "Open Coinbase" button; nothing is
-  embedded and no partner agreement or key is needed, which is why it is the US option. Every
+- **Buy (0.5, proof of concept).** The on-ramp is a "Provider" dropdown at the top of the Buy
+  sheet (`BuyProvider`, remembered in UserDefaults `buyProvider`; Settings has nothing about it):
+  Mt Pelerin (default, a widget), Coinbase or Kraken (0.9.4, no widget: `usesWidget` false,
+  `browserPage` the exchange's tez page). Changing the provider resets the sheet to its first
+  step. For an exchange the sheet shows the account address with a copy button and a QR code,
+  the three steps (buy, Withdraw/Send with the address pasted on the Tezos network, wait a
+  block) and an "Open Coinbase"/"Open Kraken" button; nothing is embedded and no partner
+  agreement or key is needed, which is why they are the US options. Every
   widget on-ramp (Transak, Mercuryo, Wert, Meld) needs a partner account under a legal entity
   with the credential on a server, which Signet has neither of; a Transak case sits on the
   `transak` branch for the day one exists. `BuySheet` shows a widget provider's hosted page inside the app in a

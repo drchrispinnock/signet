@@ -1,11 +1,13 @@
 import Foundation
 
-/// Where the Buy button sends people: Mt Pelerin's widget inside the app, or Coinbase in the
-/// browser with the address to paste (no partner agreement needed, and it serves the US).
+/// Where the Buy button sends people: Mt Pelerin's widget inside the app, or an exchange
+/// (Coinbase, Kraken) in the browser with the address to paste (no partner agreement needed,
+/// and they serve the US). The choice is a dropdown in the Buy sheet and is remembered.
 /// Further widget providers slot in as cases with their own URL builder and trusted hosts.
 enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
     case mtPelerin
     case coinbase
+    case kraken
 
     static let key = "buyProvider"
     static let `default` = BuyProvider.mtPelerin
@@ -16,6 +18,7 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .mtPelerin: "Mt Pelerin"
         case .coinbase: "Coinbase"
+        case .kraken: "Kraken"
         }
     }
 
@@ -24,7 +27,7 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
     var usesWidget: Bool {
         switch self {
         case .mtPelerin: true
-        case .coinbase: false
+        case .coinbase, .kraken: false
         }
     }
 
@@ -33,28 +36,30 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .mtPelerin: nil
         case .coinbase: URL(string: "https://www.coinbase.com/price/tezos")!
+        case .kraken: URL(string: "https://www.kraken.com/prices/tezos")!
         }
     }
 
-    /// Who it is and who it cannot serve, for Settings and the Buy sheet.
+    /// Who it is and who it cannot serve, for the Buy sheet.
     var summary: String {
         switch self {
         case .mtPelerin: "Swiss on-ramp: bank transfer or card, tez delivered straight to your account. Not available to US persons."
         case .coinbase: "Buy tez on Coinbase in your browser, then send it to this account; Signet shows the address to paste. Available wherever Coinbase is, the US included."
+        case .kraken: "Buy tez on Kraken in your browser, then withdraw it to this account; Signet shows the address to paste. Available wherever Kraken is, the US included."
         }
     }
 
     var fiatCurrencies: [String] {
         switch self {
         case .mtPelerin: MtPelerin.fiatCurrencies
-        case .coinbase: []
+        case .coinbase, .kraken: []
         }
     }
 
     func defaultFiat(for locale: Locale = .current) -> String {
         switch self {
         case .mtPelerin: MtPelerin.defaultFiat(for: locale)
-        case .coinbase: ""
+        case .coinbase, .kraken: ""
         }
     }
 
@@ -62,14 +67,14 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
     var trustedHosts: Set<String> {
         switch self {
         case .mtPelerin: ["widget.mtpelerin.com", "mtpelerin.com", "www.mtpelerin.com", "api.mtpelerin.com"]
-        case .coinbase: []   // never embedded
+        case .coinbase, .kraken: []   // never embedded
         }
     }
 
     var trustedDomainSuffix: String {
         switch self {
         case .mtPelerin: ".mtpelerin.com"
-        case .coinbase: ".invalid"
+        case .coinbase, .kraken: ".invalid"
         }
     }
 
@@ -77,7 +82,7 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
     func ownershipPayload(code: String) -> String? {
         switch self {
         case .mtPelerin: MtPelerin.packedMessage(code: code)
-        case .coinbase: nil
+        case .coinbase, .kraken: nil
         }
     }
 
@@ -86,7 +91,7 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
         case .mtPelerin:
             let validation = proof.map { MtPelerin.Validation(code: code, publicKey: $0.publicKey, signature: $0.signature) }
             return MtPelerin.buyURL(address: address, fiat: fiat, validation: validation, presentation: embedded ? .embedded : .browser, locale: locale, dark: dark)
-        case .coinbase:
+        case .coinbase, .kraken:
             return browserPage!
         }
     }
@@ -99,12 +104,18 @@ enum BuyProvider: String, CaseIterable, Identifiable, Sendable {
             let query = components.percentEncodedQuery?.replacingOccurrences(of: "type=webview", with: "type=direct-link")
             components.percentEncodedQuery = query
             return components.url ?? embedded
-        case .coinbase:
+        case .coinbase, .kraken:
             return embedded
         }
     }
 
-    /// The provider chosen in Settings.
+    /// "Mt Pelerin, Coinbase or Kraken", for tooltips on the way to the sheet.
+    static var choices: String {
+        let titles = allCases.map(\.title)
+        return titles.dropLast().joined(separator: ", ") + " or " + titles.last!
+    }
+
+    /// The provider last chosen in the Buy sheet.
     static var current: BuyProvider {
         UserDefaults.standard.string(forKey: key).flatMap(BuyProvider.init(rawValue:)) ?? .default
     }

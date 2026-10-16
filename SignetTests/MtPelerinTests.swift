@@ -35,7 +35,10 @@ struct MtPelerinTests {
         #expect(query.contains("type=webview"))
         #expect(BuyWebView.isTrusted(URL(string: "https://widget.mtpelerin.com/x"), provider: .mtPelerin) && BuyWebView.isTrusted(URL(string: "https://kyc.mtpelerin.com/"), provider: .mtPelerin) && !BuyWebView.isTrusted(URL(string: "https://evil.example/mtpelerin.com"), provider: .mtPelerin))
         #expect(BuyProvider.mtPelerin.browserURL(from: url).absoluteString.contains("type=direct-link"))
-        #expect(BuyProvider.current == .mtPelerin)
+        // The remembered choice is whatever the user last picked in the Buy sheet (the test host
+        // shares the app's defaults), so only the fallback is pinned: unknown or unset means Mt Pelerin.
+        #expect(BuyProvider.allCases.contains(BuyProvider.current))
+        #expect(BuyProvider(rawValue: "nowhere") == nil && BuyProvider.default == .mtPelerin)
     }
 
     @Test func picksFiatAndLanguageFromTheLocale() {
@@ -77,8 +80,22 @@ struct CoinbaseProviderTests {
         #expect(provider.ownershipPayload(code: "1234") == nil && provider.fiatCurrencies.isEmpty)
         // Nothing of Coinbase's is ever trusted inside the embedded web view.
         #expect(!BuyWebView.isTrusted(URL(string: "https://www.coinbase.com/"), provider: .coinbase))
-        #expect(BuyProvider.allCases == [.mtPelerin, .coinbase] && BuyProvider.default == .mtPelerin)
+        #expect(BuyProvider.allCases == [.mtPelerin, .coinbase, .kraken] && BuyProvider.default == .mtPelerin)
         let url = provider.buyURL(address: Address("tz1abc"), fiat: "", code: "0000", proof: nil, embedded: true, dark: false)
         #expect(url == provider.browserPage && provider.browserURL(from: url) == url)
+    }
+
+    @Test func krakenIsABrowserHandOffLikeCoinbase() async throws {
+        let provider = BuyProvider.kraken
+        #expect(!provider.usesWidget && provider.browserPage?.host() == "www.kraken.com")
+        #expect(provider.ownershipPayload(code: "1234") == nil && provider.fiatCurrencies.isEmpty && provider.defaultFiat() == "")
+        #expect(provider.trustedHosts.isEmpty && !BuyWebView.isTrusted(URL(string: "https://www.kraken.com/"), provider: .kraken))
+        let url = provider.buyURL(address: Address("tz1abc"), fiat: "", code: "0000", proof: nil, embedded: false, dark: true)
+        #expect(url == provider.browserPage && provider.browserURL(from: url) == url)
+        #expect(BuyProvider.choices == "Mt Pelerin, Coinbase or Kraken")
+        // Every exchange hand-off opens over HTTPS and nothing else.
+        for exchange in BuyProvider.allCases where !exchange.usesWidget {
+            #expect(exchange.browserPage?.scheme == "https")
+        }
     }
 }

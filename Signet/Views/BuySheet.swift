@@ -1,11 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Buy tez through the on-ramp chosen in Settings. With a widget provider Signet pre-fills (and,
-/// when it can sign, pre-validates) the account's address, then shows the provider's widget right
-/// here; the purchase, identity checks and payment are all the provider's, and the tez land in the
-/// account. With an exchange (Coinbase) it shows the address to paste and opens the exchange in
-/// the browser.
+/// Buy tez through an on-ramp picked from the dropdown at the top of the sheet (the choice is
+/// remembered). With a widget provider Signet pre-fills (and, when it can sign, pre-validates)
+/// the account's address, then shows the provider's widget right here; the purchase, identity
+/// checks and payment are all the provider's, and the tez land in the account. With an exchange
+/// (Coinbase, Kraken) it shows the address to paste and opens the exchange in the browser.
 struct BuySheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -60,6 +60,21 @@ struct BuySheet: View {
         }
         .padding(20)
         .frame(width: 560)
+        .onChange(of: providerID) { _, _ in
+            // A new provider starts over: its own currencies, no widget, no stale error.
+            step = .prepare
+            fiat = provider.defaultFiat()
+            errorMessage = nil
+            loadError = nil
+            currentURL = nil
+        }
+    }
+
+    /// The dropdown that switches providers; the choice is kept for next time.
+    private var providerPicker: some View {
+        Picker("Provider", selection: $providerID) {
+            ForEach(BuyProvider.allCases) { Text($0.title).tag($0.rawValue) }
+        }
     }
 
     // MARK: Exchange (no widget)
@@ -69,12 +84,7 @@ struct BuySheet: View {
     /// The address to paste as the withdrawal destination, and the exchange's page in the browser.
     private var exchange: some View {
         Form {
-            LabeledContent("Provider") {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(provider.title)
-                    Text("Change in Settings").font(.caption).foregroundStyle(.secondary)
-                }
-            }
+            providerPicker
             if let wallet {
                 LabeledContent("Send to") {
                     HStack(spacing: 8) {
@@ -97,7 +107,7 @@ struct BuySheet: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("1. Open \(provider.title) and buy tez (XTZ).")
-                Text("2. Choose Send (or Withdraw), paste this address and pick the Tezos network.")
+                Text("2. Choose Withdraw (or Send), paste this address and pick the Tezos network.")
                 Text("3. The balance here refreshes once the transfer is in a block.")
             }
             .font(.callout).foregroundStyle(.secondary)
@@ -119,12 +129,7 @@ struct BuySheet: View {
 
     private var prepare: some View {
         Form {
-            LabeledContent("Provider") {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(provider.title)
-                    Text("Change in Settings").font(.caption).foregroundStyle(.secondary)
-                }
-            }
+            providerPicker
             Picker("Pay in", selection: $fiat) {
                 ForEach(provider.fiatCurrencies, id: \.self) { Text($0).tag($0) }
             }
