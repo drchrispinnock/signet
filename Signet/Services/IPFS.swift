@@ -68,10 +68,6 @@ enum IPFS {
 
     /// The `<cid>[/path]` behind an HTTP(S) gateway URL, in either the path form
     /// (`https://host/ipfs/<cid>/x`) or the subdomain form (`https://<cid>.ipfs.host/x`), or `nil`.
-    static func gatewayPath(of url: URL) -> String? {
-        gatewayContentPath(of: url)?.encoded
-    }
-
     static func gatewayContentPath(of url: URL) -> ContentPath? {
         let components = url.pathComponents.filter { $0 != "/" }
         let query = url.query.map { "?" + $0 } ?? ""

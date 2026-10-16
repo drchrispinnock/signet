@@ -33,15 +33,10 @@ final class WalletViewModel {
         }
     }
 
-    /// The keys the Etherlink rollup accepts through its Tezos-style RPC (tz1 to tz3 for now).
-    nonisolated static func usableOnEtherlink(_ address: Address) -> Bool {
-        address.scheme.map { [.tz1, .tz2, .tz3].contains($0) } ?? false
-    }
-
     /// The Etherlink row of the dashboard: only on networks with Etherlink on and for keys the
     /// rollup accepts. An unreachable Etherlink node blanks this row alone, never the dashboard.
     private nonisolated static func etherlinkRow(for address: Address, on network: Network, chain: any ChainService) async -> AssetBalance? {
-        guard network.hasL2, usableOnEtherlink(address) else { return nil }
+        guard network.hasL2, address.isUsableOnEtherlink else { return nil }
         do {
             return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
         } catch {
@@ -601,17 +596,6 @@ final class WalletViewModel {
 
     var defaultWalletDirectory: URL? { directorySettings?.defaultDirectory }
 
-    /// Re-reads the store, e.g. after octez-client added a key.
-    func reloadWallets() {
-        do {
-            wallets = try walletStore.load()
-            if selectedWallet == nil { selectedWalletID = wallets.first?.id }
-            Task { await refresh() }
-        } catch {
-            errorMessage = "Could not load accounts: \(error.localizedDescription)"
-        }
-    }
-
     /// Loads the dashboard for the selected account. Everything is fetched into a local snapshot
     /// through the chain service captured at the start, and published in one step only if the
     /// account, network, directory and refresh generation are still the ones it was started for;
@@ -1006,7 +990,7 @@ final class WalletViewModel {
     /// The Bridge item: Layer 2 on with a known bridge, and a tz1 to tz3 account we can sign for.
     var canBridge: Bool {
         guard network.canDepositToL2, let wallet = selectedWallet else { return false }
-        return Self.usableOnEtherlink(wallet.address) && wallet.keyKind.canSign
+        return wallet.address.isUsableOnEtherlink && wallet.keyKind.canSign
     }
 
     /// What a deposit estimate was made for (S31): the account, the whole network (node and
@@ -1070,7 +1054,7 @@ final class WalletViewModel {
     /// Whether the selected account's EVM-side address exists on Etherlink yet, asked of the
     /// Layer 2 node; `nil` when Layer 2 is off or the key is not usable on the rollup.
     func etherlinkAliasStatus() async throws -> EtherlinkAliasStatus? {
-        guard let wallet = selectedWallet, Self.usableOnEtherlink(wallet.address), let chain = layer2Chain else { return nil }
+        guard let wallet = selectedWallet, wallet.address.isUsableOnEtherlink, let chain = layer2Chain else { return nil }
         return try await chain.etherlinkAliasStatus(for: wallet.address)
     }
 
@@ -1078,7 +1062,7 @@ final class WalletViewModel {
     /// Michelson interface, S14: the estimate's limits are what the link is sent with).
     func estimateEtherlinkLink() async throws -> TransferEstimate {
         guard let wallet = selectedWallet, let chain = layer2Chain else { throw ChainError.noEtherlinkNode }
-        guard Self.usableOnEtherlink(wallet.address), wallet.keyKind.canSign else { throw SendViewModel.SendError.noSecretKey }
+        guard wallet.address.isUsableOnEtherlink, wallet.keyKind.canSign else { throw SendViewModel.SendError.noSecretKey }
         return try await chain.estimateEtherlinkLink(from: wallet)
     }
 
@@ -1089,7 +1073,7 @@ final class WalletViewModel {
     func linkToEtherlink(limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet, let chain = layer2Chain else { throw ChainError.noEtherlinkNode }
         guard let limits else { throw WalletError.notEstimated }
-        guard Self.usableOnEtherlink(wallet.address) else { throw SendViewModel.SendError.noSecretKey }
+        guard wallet.address.isUsableOnEtherlink else { throw SendViewModel.SendError.noSecretKey }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
         let sent = try await chain.sendEtherlinkLink(from: wallet, signer: signer, limits: limits)
         let level: Int

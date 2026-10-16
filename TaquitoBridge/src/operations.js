@@ -14,9 +14,6 @@ import { forgeRawOperation } from "./rawforge.js";
 import { localForger } from "@taquito/local-forging";
 import { encodeOpHash, b58DecodeAndCheckPrefix, b58Encode, PrefixV2 } from "@taquito/utils";
 
-/** Operations whose hash Taquito tracks for `waitForConfirmation` (sent in this session). */
-export const pendingOperations = new Map();
-
 const memoryJournal = new Map();
 function records() {
   const saved = globalThis.__signet?.operationRead?.();

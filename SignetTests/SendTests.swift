@@ -162,7 +162,7 @@ struct SendOutcomeTests {
     /// A chain whose node loses the injection reply once and only sees the operation after a rebroadcast.
     final class LossyChain: TestChainService, @unchecked Sendable {
         var sends: [OperationLimits] = []
-        var rebroadcasts = 0
+        var rebroadcasts: [SentOperation] = []
         var seen = false
         func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 100, staked: 0) }
         func sendTransfer(from wallet: Wallet, signer: SigningKey, to destination: Address, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
@@ -170,7 +170,7 @@ struct SendOutcomeTests {
             return SentOperation(hash: "ooLost", injected: false, signedBytes: "abcd")
         }
         func rebroadcast(_ sent: SentOperation) async throws -> SentOperation {
-            rebroadcasts += 1
+            rebroadcasts.append(sent)
             seen = true
             return SentOperation(hash: sent.hash, injected: true, signedBytes: sent.signedBytes)
         }
@@ -182,8 +182,9 @@ struct SendOutcomeTests {
 
     @Test func lostReplyKeepsTheHashAndResendsTheSameBytes() async throws {
         let chain = LossyChain()
+        let signerRequests = Counter()
         let send = SendViewModel(sender: SendViewModelTests.me, wallets: [SendViewModelTests.alice], chain: chain, spendable: 100,
-                                 signerProvider: { w, _ in .secret("edskSECRET", passphrase: nil, address: w.address) })
+                                 signerProvider: { w, _ in signerRequests.bump(); return .secret("edskSECRET", passphrase: nil, address: w.address) })
         send.choose(SendViewModelTests.alice)
         try await Task.sleep(for: .milliseconds(300))
         send.amountText = "1"
@@ -195,9 +196,18 @@ struct SendOutcomeTests {
         // The outcome is unknown: the hash is known, nothing goes back to the confirm step.
         #expect(send.step == .unknown(hash: "ooLost"))
         #expect(send.errorMessage?.contains("ooLost") == true)
+        #expect(signerRequests.count == 1)
         await send.rebroadcast()
-        #expect(chain.rebroadcasts == 1 && chain.sends.count == 1)
+        // The retry carries the bytes already signed, under the same hash, and signs nothing again.
+        #expect(chain.rebroadcasts.map(\.hash) == ["ooLost"] && chain.rebroadcasts.map(\.signedBytes) == ["abcd"])
+        #expect(chain.sends.count == 1 && signerRequests.count == 1)
         #expect(send.step == .confirmed(hash: "ooLost", level: 42))
+    }
+
+    /// A call counter the `@Sendable` signer provider can bump.
+    final class Counter: @unchecked Sendable {
+        private(set) var count = 0
+        func bump() { count += 1 }
     }
 
     @Test func refusesToSendWithoutAnEstimate() async throws {

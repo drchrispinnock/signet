@@ -35,11 +35,13 @@ struct EtherlinkNetworkTests {
     }
 
     @Test func onlyTz1ToTz3KeysAreUsableOnTheRollup() {
-        #expect(WalletViewModel.usableOnEtherlink(Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")))
-        #expect(WalletViewModel.usableOnEtherlink(Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq")))
-        #expect(WalletViewModel.usableOnEtherlink(Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5")))
-        #expect(!WalletViewModel.usableOnEtherlink(Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm")))
-        #expect(!WalletViewModel.usableOnEtherlink(Address("KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM")))
+        #expect(Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb").isUsableOnEtherlink)
+        #expect(Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq").isUsableOnEtherlink)
+        #expect(Address("tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5").isUsableOnEtherlink)
+        #expect(!Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm").isUsableOnEtherlink)
+        #expect(!Address("KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM").isUsableOnEtherlink)
+        // A scheme check only: a malformed tz1 passes it and is caught by validity elsewhere.
+        #expect(Address("tz1nonsense").isUsableOnEtherlink && !Address("tz1nonsense").isValidAccount && !Address("").isUsableOnEtherlink)
     }
 }
 

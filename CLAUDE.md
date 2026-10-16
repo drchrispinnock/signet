@@ -179,8 +179,7 @@ automatic download is off by default. The updater is not started under the test 
   contract address are persisted privately in `~/.signet/pending_operations.json` before the node
   is contacted. Any injection error, including gateway/HTTP errors and mismatched node hashes, returns
   `SentOperation(hash:, injected: false, signedBytes:)`; `SendViewModel` goes to `.unknown`,
-  watches the chain (`waitForConfirmation`, which falls back to the block watcher for locally
-  forged operations) and offers "Send the same operation again" (`rebroadcast`, the same
+  watches the chain (`waitForConfirmation`) and offers "Send the same operation again" (`rebroadcast`, the same
   bytes, so it cannot pay twice). Opening Send restores outstanding work, verifies its locally
   forged intent/hash/source and can resume block scanning or replay identical bytes. Outstanding
   work prevents replacement signing for that account/chain even after an RPC-node change.
@@ -194,7 +193,7 @@ automatic download is off by default. The updater is not started under the test 
   kinds carry the expected address; software `signerFor` requires a nonempty string address
   before loading the key and refuses a key that derives another one
   (`ChainError.keyAddressMismatch` for secrets, `ledgerWrongDevice` for Ledgers).
-  `waitForConfirmation` waits one block. `ChainError.fromBridgeMessage` maps the bridge's error
+  `waitForConfirmation` waits for the operation's block (the bridge's `waitForRawOperation` block watcher, up to 15 blocks; every operation is forged locally, so there is nothing for Taquito to track). `ChainError.fromBridgeMessage` maps the bridge's error
   text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
   so every sheet words them the same way.
 - **Import (0.6).** "Import account…" (burger and Operations menus above Connect Ledger, welcome
@@ -632,7 +631,7 @@ that reaches `signerFor`, `sendApproved`, `signAndInject`, `injectSigned` or a `
 and fails if it is not declared, so a new signing export cannot be left cancellable. Promise
 callbacks must be attached with `invokeMethod("then", ...)`, never a bare `then.call`, or the
 continuation leaks and the caller hangs forever. `TaquitoChainService` uses the bridge for live
-data and delegates anything not yet implemented to a fallback `ChainService`. Numbers from the
+data. Numbers from the
 bridge or the node go through `JSONValue.intValue` (finite, whole, within 2^53; S20) and
 estimates through `TaquitoChainService.estimate(from:)`, so a bad reply is an error, never a
 trap. **Logging (S11).** The bridge log (`~/Library/Logs/Signet/bridge.log`, 0600 in a 0700

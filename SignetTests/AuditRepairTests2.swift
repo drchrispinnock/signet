@@ -463,6 +463,36 @@ struct SigningExportsTests {
     }
 }
 
+/// F02: every bridge failure goes through one conversion to `ChainError`.
+struct BridgeErrorConversionTests {
+    @Test func knownMessagesBecomeChainErrorsAndEverythingElsePassesThrough() async throws {
+        let cases: [(String, ChainError)] = [
+            ("Failed to decrypt the key", .wrongPassphrase), ("Invalid passphrase", .wrongPassphrase),
+            ("Ledger device: Condition of use not satisfied (denied by the user?) (0x6985)", .ledgerDeclined),
+            ("Ledger Device is busy (0x5515 LOCKED_DEVICE)", .ledgerLocked),
+            ("CLA_NOT_SUPPORTED (0x6e00)", .ledgerAppNotOpen), ("INS_NOT_SUPPORTED", .ledgerAppNotOpen),
+            ("No Ledger is connected", .ledgerNotConnected), ("the device was unplugged", .ledgerNotConnected),
+            ("Ledger does not hold this key", .ledgerWrongDevice("Ledger does not hold this key")),
+            ("the key does not derive the account's address tz1x", .keyAddressMismatch("the key does not derive the account's address tz1x")),
+        ]
+        for (message, expected) in cases {
+            let typed = TaquitoBridge.BridgeError.javaScript(message).asChainError
+            #expect(typed as? ChainError == expected, Comment(rawValue: message))
+            await #expect(throws: expected) { try await TaquitoBridge.BridgeError.typed { throw TaquitoBridge.BridgeError.javaScript(message) } }
+        }
+        // Precedence is the message scan's: a decrypt failure wins over a Ledger code in the same text.
+        #expect(TaquitoBridge.BridgeError.javaScript("could not decrypt (0x6985)").asChainError as? ChainError == .wrongPassphrase)
+        // Unknown JavaScript text and every other bridge failure come back exactly as they were.
+        for error in [TaquitoBridge.BridgeError.javaScript("something else"), .timedOut("getHead", 60), .notAFunction("x"), .responseTooLarge(1), .bundleMissing, .loadFailed("y"), .notASigningCall("z")] {
+            let back = try #require(error.asChainError as? TaquitoBridge.BridgeError)
+            #expect(String(describing: back) == String(describing: error))
+        }
+        // Other errors never enter the conversion, and a success comes back untouched.
+        await #expect(throws: ChainError.accountNotOnChain(Address("tz1"))) { try await TaquitoBridge.BridgeError.typed { throw ChainError.accountNotOnChain(Address("tz1")) } }
+        #expect(try await TaquitoBridge.BridgeError.typed { 7 } == 7)
+    }
+}
+
 @MainActor
 struct RememberKeyTests {
     static let paper = KeyMaterial(scheme: .tz1, publicKey: "edpkuPAPER", address: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb", secretKey: "edeskPAPER")

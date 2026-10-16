@@ -95,7 +95,7 @@ final class SendViewModel {
 
     /// Whether `address` can receive here: anything on Tezos, tz1 to tz3 on Etherlink.
     func accepts(_ address: Address) -> Bool {
-        address.isValidAccount && (!implicitAccountsOnly || WalletViewModel.usableOnEtherlink(address))
+        address.isValidAccount && (!implicitAccountsOnly || address.isUsableOnEtherlink)
     }
 
     /// Recovery is checked before composing a replacement, including after restarting the app.

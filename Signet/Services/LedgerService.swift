@@ -55,12 +55,7 @@ struct BridgeLedgerService: LedgerService {
     }
 
     private func mapped(_ body: () async throws -> JSONValue) async throws -> JSONValue {
-        do {
-            return try await body()
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, let known = ChainError.fromBridgeMessage(message) { throw known }
-            throw error
-        }
+        try await TaquitoBridge.BridgeError.typed(body)
     }
 }
 

@@ -25,6 +25,12 @@ struct Address: Hashable, Codable, Sendable {
 
     var isContract: Bool { value.hasPrefix("KT1") }
 
+    /// Whether the Etherlink rollup accepts this key through its Tezos-style RPC: a scheme check
+    /// only (tz1 to tz3 for now), not validity or anything about the account on chain.
+    var isUsableOnEtherlink: Bool {
+        scheme.map { [.tz1, .tz2, .tz3].contains($0) } ?? false
+    }
+
     /// Shortened form for headers, e.g. `tz1VSUr8wwN...Th8Cjcjb`. Keeps the full prefix so the
     /// scheme stays visible and enough of each end to tell similar addresses apart.
     func shortened(prefix: Int = 11, suffix: Int = 8) -> String {

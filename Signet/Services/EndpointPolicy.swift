@@ -37,11 +37,9 @@ enum EndpointPolicy {
     /// A public HTTPS destination fit for untrusted input.
     static func isPublicHTTPS(_ url: URL) -> Bool { check(url) == .allowed }
 
-    /// Resolves the host and refuses any address in a private range: a public-looking name that
-    /// points at this machine or the LAN (DNS rebinding, split-horizon) is caught here. Blocking;
-    /// call it off the main actor. Hosts that do not resolve are refused too.
-    static func resolvesPublicly(_ host: String) -> Bool { !publicAddresses(host).isEmpty }
-
+    /// Resolves the host and keeps only addresses outside the private ranges: a public-looking
+    /// name that points at this machine or the LAN (DNS rebinding, split-horizon) resolves to
+    /// nothing here. Blocking; call it off the main actor. Hosts that do not resolve give nothing too.
     static func publicAddresses(_ host: String) -> [String] {
         if isLocalOrPrivateHost(host) { return [] }
         var hints = addrinfo()

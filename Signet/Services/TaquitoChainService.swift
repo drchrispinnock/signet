@@ -1,17 +1,14 @@
 import Foundation
 
-/// Live chain access through the Taquito bridge. Anything the bridge does not provide yet is
-/// delegated to `fallback` so the UI stays complete while features land one at a time.
+/// Live chain access through the Taquito bridge.
 struct TaquitoChainService: ChainService {
     let network: Network
     let bridge: TaquitoBridge
-    let fallback: any ChainService
     let session: URLSession
 
-    init(network: Network = .mainnet, bridge: TaquitoBridge = .shared, fallback: any ChainService = MockChainService(), session: URLSession = .shared) {
+    init(network: Network = .mainnet, bridge: TaquitoBridge = .shared, session: URLSession = .shared) {
         self.network = network
         self.bridge = bridge
-        self.fallback = fallback
         self.session = session
     }
 
@@ -253,26 +250,15 @@ struct TaquitoChainService: ChainService {
     /// Runs a bridge call that signs, turning the bridge's error text for wrong passwords and
     /// Ledger trouble into `ChainError`s the UI can word properly.
     private func signing(_ body: () async throws -> JSONValue) async throws -> JSONValue {
-        do {
-            return try await body()
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, let known = ChainError.fromBridgeMessage(message) { throw known }
-            throw error
-        }
+        try await TaquitoBridge.BridgeError.typed(body)
     }
 
+    /// Every operation is forged and injected locally, so the block watcher is the one way to
+    /// see it land: it scans up to 15 blocks from the recorded level and returns the block's.
     func waitForConfirmation(of operationHash: String) async throws -> Int {
-        do {
-            let result = try await bridge.call("waitForConfirmation", [operationHash, 1])
-            guard let level = result.intValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected confirmation payload: \(String(describing: result))") }
-            return level
-        } catch let error as TaquitoBridge.BridgeError {
-            // Locally forged operations are not tracked by Taquito; watch the chain for them instead.
-            guard case .javaScript(let message) = error, message.contains("unknown operation") else { throw error }
-            let result = try await bridge.call("waitForRawOperation", [network.rpcURL.absoluteString, operationHash, 15])
-            guard let level = result.intValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected confirmation payload: \(String(describing: result))") }
-            return level
-        }
+        let result = try await bridge.call("waitForRawOperation", [network.rpcURL.absoluteString, operationHash, 15])
+        guard let level = result.intValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected confirmation payload: \(String(describing: result))") }
+        return level
     }
 
     func delegateInfo(for address: Address) async throws -> DelegateInfo {

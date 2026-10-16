@@ -215,15 +215,6 @@ export async function getTezBalances(rpcUrl, address) {
 
 // ---- Transfers -------------------------------------------------------------------------------
 
-/** A signer that can identify the source but never sign: enough for estimation. */
-function readOnlySigner(publicKey, address) {
-  return {
-    publicKey: async () => publicKey,
-    publicKeyHash: async () => address,
-    secretKey: async () => undefined,
-    sign: async () => { throw new Error("read-only signer cannot sign"); },
-  };
-}
 
 /**
  * Fee, burn and total for sending `amountMutez` from `source` to `destination`, plus the limits
@@ -245,17 +236,6 @@ export async function sendTransfer(rpcUrl, signerSpec, destination, amountMutez,
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
   return sendApproved(tk, rpcUrl, "transaction", { to: destination, amount: Number(amountMutez), mutez: true }, parseLimits(limitsJson));
-}
-
-/** Waits for `confirmations` blocks on an operation sent in this session. Returns the block level. */
-export async function waitForConfirmation(hash, confirmations = 1) {
-  const op = pendingOperations.get(hash);
-  if (!op) throw new Error(`unknown operation ${hash}`);
-  try {
-    return await op.confirmation(confirmations);
-  } finally {
-    pendingOperations.delete(hash);
-  }
 }
 
 // ---- Encrypted secret keys (octez-client format) ---------------------------------------------
@@ -299,7 +279,7 @@ export {
 } from "./multisig.js";
 
 // ---- Ledger ------------------------------------------------------------------------------------
-import { signerFor } from "./signers.js";
+import { signerFor, readOnlySigner } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
 export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
 
@@ -476,7 +456,7 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 
 import { RpcClient } from "@taquito/rpc";
 import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
-import { approvedEstimate, sendApproved, parseLimits, pendingOperations, injectSigned, checkedLimit, assertNoPending, forgetOperation, signAndInject, operationRecord, recordCheckedLevel } from "./operations.js";
+import { approvedEstimate, sendApproved, parseLimits, injectSigned, checkedLimit, assertNoPending, forgetOperation, signAndInject, operationRecord, recordCheckedLevel } from "./operations.js";
 export { assertChain, injectSignedBytes, checkApproved, parseLimits, pendingOperation, forgetOperation, originatedAddress } from "./operations.js";
 
 const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;

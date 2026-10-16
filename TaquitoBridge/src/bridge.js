@@ -9,18 +9,9 @@
 // Withdrawals from Michelson-interface accounts are not offered by Etherlink yet (October 2026).
 
 import { TezosToolkit } from "@taquito/taquito";
-import { signerFor } from "./signers.js";
+import { signerFor, readOnlySigner } from "./signers.js";
 import { encodedPublicKeyHash } from "./rawforge.js";
 import { approvedEstimate, sendApproved, parseLimits } from "./operations.js";
-
-function readOnlySigner(publicKey, address) {
-  return {
-    publicKey: async () => publicKey,
-    publicKeyHash: async () => address,
-    secretKey: async () => undefined,
-    sign: async () => { throw new Error("read-only signer cannot sign"); },
-  };
-}
 
 /** RLP of a byte string (RLP spec: single bytes below 0x80 stand for themselves). */
 function rlpBytes(bytes) {

@@ -16,7 +16,7 @@ import { RpcClient } from "@taquito/rpc";
 import { Parser, packDataBytes } from "@taquito/michel-codec";
 import { b58Encode, getPkhfromPk, PrefixV2, verifySignature } from "@taquito/utils";
 import { blake2b } from "@noble/hashes/blake2.js";
-import { signerFor } from "./signers.js";
+import { signerFor, readOnlySigner } from "./signers.js";
 import { parseLimits, approvedEstimate, prepareApproved, signAndInject } from "./operations.js";
 import { encodedPublicKeyHash, encodedContractAddress } from "./rawforge.js";
 import multisigScript from "./multisig-script.json";
@@ -28,15 +28,6 @@ const parser = new Parser();
 const PAYLOAD_TYPE = parser.parseMichelineExpression(
   "(pair (pair chain_id address) (pair nat (or (lambda unit (list operation)) (pair nat (list key)))))"
 );
-
-function readOnlySigner(publicKey, address) {
-  return {
-    publicKey: async () => publicKey,
-    publicKeyHash: async () => address,
-    secretKey: async () => undefined,
-    sign: async () => { throw new Error("read-only signer cannot sign"); },
-  };
-}
 
 /** Script_expr_hash of a Micheline expression, as octez computes it: blake2b of its binary form. */
 export function scriptExprHash(expr) {

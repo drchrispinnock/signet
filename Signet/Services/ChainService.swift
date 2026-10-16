@@ -134,7 +134,8 @@ enum ChainError: LocalizedError, Equatable {
         }
     }
 
-    /// Recognises the bridge's error text for the cases above, so every signing path maps them the same way.
+    /// Recognises the bridge's error text for the cases above, so every signing path maps them
+    /// the same way (`TaquitoBridge.BridgeError.typed` is the one place that applies it).
     static func fromBridgeMessage(_ message: String) -> ChainError? {
         let lower = message.lowercased()
         if lower.contains("decrypt") || lower.contains("passphrase") { return .wrongPassphrase }
@@ -146,6 +147,26 @@ enum ChainError: LocalizedError, Equatable {
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
         if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
         return nil
+    }
+}
+
+extension TaquitoBridge.BridgeError {
+    /// The `ChainError` this failure stands for when the bridge's text is one every signing path
+    /// words the same way (wrong password, Ledger trouble, a key for another address); otherwise
+    /// the bridge error itself, untouched.
+    var asChainError: any Error {
+        if case .javaScript(let message) = self, let known = ChainError.fromBridgeMessage(message) { return known }
+        return self
+    }
+
+    /// Runs a bridge call and rethrows a bridge failure through `asChainError`. Any other error
+    /// passes through unchanged, so a typed catch keeps exactly its scope.
+    static func typed<T>(_ body: () async throws -> T) async throws -> T {
+        do {
+            return try await body()
+        } catch let error as TaquitoBridge.BridgeError {
+            throw error.asChainError
+        }
     }
 }
 

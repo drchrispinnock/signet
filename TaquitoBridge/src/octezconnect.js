@@ -9,7 +9,7 @@ import { WalletClient } from "@tezos-x/octez.connect-wallet";
 import { Serializer, setDebugEnabled, getSenderId } from "@tezos-x/octez.connect-core";
 import { Storage, defaultValues as storageDefaults } from "@tezos-x/octez.connect-types";
 import { TezosToolkit } from "@taquito/taquito";
-import { signerFor } from "./signers.js";
+import { signerFor, readOnlySigner } from "./signers.js";
 import { RpcClient } from "@taquito/rpc";
 import { localForger } from "@taquito/local-forging";
 import { assertChain, injectSigned, checkedLimit, assertNoPending } from "./operations.js";
@@ -360,15 +360,6 @@ function toTaquitoParams(op) {
     default:
       throw new Error(`Operation kind "${op.kind}" is not supported by Signet yet`);
   }
-}
-
-function readOnlySigner(publicKey, address) {
-  return {
-    publicKey: async () => publicKey,
-    publicKeyHash: async () => address,
-    secretKey: async () => undefined,
-    sign: async () => { throw new Error("read-only signer cannot sign"); },
-  };
 }
 
 const mutezString = (v) => String(BigInt(Math.round(Number(v) || 0)));

@@ -57,13 +57,7 @@ struct BridgeKeyImporter: KeyImporter {
     static let defaultDerivationPath = "44'/1729'/0'/0'"
 
     func inspect(secretKey: String, passphrase: String?) async throws -> InspectedSecretKey {
-        let r: JSONValue
-        do {
-            r = try await bridge.call("inspectSecretKey", [secretKey, passphrase ?? ""])
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, let known = ChainError.fromBridgeMessage(message) { throw known }
-            throw error
-        }
+        let r = try await TaquitoBridge.BridgeError.typed { try await bridge.call("inspectSecretKey", [secretKey, passphrase ?? ""]) }
         return InspectedSecretKey(
             needsPassphrase: r["needsPassphrase"]?.boolValue ?? false,
             isEncrypted: r["encrypted"]?.boolValue ?? false,
@@ -88,13 +82,10 @@ struct BridgeKeyImporter: KeyImporter {
     }
 
     func decrypt(secretKey: String, passphrase: String) async throws -> String {
-        do {
+        try await TaquitoBridge.BridgeError.typed {
             let r = try await bridge.call("decryptSecretKey", [secretKey, passphrase])
             guard let key = r["secretKey"]?.stringValue else { throw TaquitoBridge.BridgeError.javaScript("no key returned") }
             return key
-        } catch let error as TaquitoBridge.BridgeError {
-            if case .javaScript(let message) = error, let known = ChainError.fromBridgeMessage(message) { throw known }
-            throw error
         }
     }
 

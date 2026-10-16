@@ -24,7 +24,7 @@ struct SendSheet: View {
 
     private var context: SideContext { side == .etherlink ? (layer2 ?? layer1) : layer1 }
     private var network: Network { context.network }
-    private var canSwitch: Bool { layer2 != nil && WalletViewModel.usableOnEtherlink(sender.address) }
+    private var canSwitch: Bool { layer2 != nil && sender.address.isUsableOnEtherlink }
 
     init(model: WalletViewModel, sender: Wallet) {
         self.model = model

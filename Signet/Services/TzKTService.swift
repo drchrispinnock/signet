@@ -165,10 +165,6 @@ struct TzKTService: Sendable {
         }
         return []
     }
-
-    static func bestImageURL(in metadata: TokenBalance.Token.Metadata) -> URL? {
-        bestImageURLs(in: metadata).first
-    }
 }
 
 private extension String {
