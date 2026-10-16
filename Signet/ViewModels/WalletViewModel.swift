@@ -283,6 +283,23 @@ final class WalletViewModel {
         useDefaultNode(for: network)
     }
 
+    /// How the node monitors and `checkNode` reach a node; injectable for tests.
+    private let nodeProbe: NodeMonitor.Probe
+
+    /// Asks the node typed in Networks which chain it serves before it is adopted, so a node for
+    /// the wrong network is warned about as it is entered, not only by the red status bar
+    /// afterwards. Networks that pin no chain id (Weeklynet, Quantumnet, Custom) are `.unpinned`;
+    /// `layer: .two` compares with the Etherlink chain. Nothing is changed by asking.
+    func checkNode(_ text: String, for base: Network, layer: NodeMonitor.Layer = .one) async -> NodeIdentity {
+        guard let url = Network.nodeURL(from: text) else { return .unchecked(reason: Network.nodeURLProblem(text)) }
+        let template = Network.named(base.name) ?? base
+        let expected = switch layer {
+        case .one: template.expectedChainID
+        case .two: template.expectedL2ChainID
+        }
+        return await NodeMonitor.identity(of: url, expectedChainID: expected, probe: nodeProbe)
+    }
+
     /// The node in use (saved or default) for any network, without switching to it.
     func nodeURL(for base: Network) -> URL {
         resolved(Network.named(base.name) ?? base).rpcURL
@@ -402,6 +419,7 @@ final class WalletViewModel {
         self.network = network
         self.nodeMonitor = NodeMonitor(network: network, probe: nodeProbe)
         self.l2Monitor = NodeMonitor(network: network, layer: .two, probe: nodeProbe)
+        self.nodeProbe = nodeProbe ?? NodeMonitor.urlSessionProbe
         self.chainFactory = factory
         self.chain = factory(network)
         self.keyGenerator = keyGenerator

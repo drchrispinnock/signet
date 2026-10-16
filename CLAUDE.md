@@ -449,10 +449,15 @@ automatic download is off by default. The updater is not started under the test 
   `NodeMonitor` with `layer: .two`, idle and grey when there is no Layer 2 node), and a header
   naming another chain than the pinned one is red. `evaluate` is pure for tests.
   **Chain identity (S12).** Long-lived networks pin `Network.expectedChainID` (mainnet
-  `NetXdQprcVkpaWU`, Shadownet `NetXsqzbfFenSTS`); before any estimate or signing
+  `NetXdQprcVkpaWU`, Shadownet `NetXsqzbfFenSTS`, Bakingnet `NetXvNVUNbWHxGt`, Ushuaianet
+  `NetXpX8WSZkAZZA`; Weeklynet, Quantumnet and Custom pin nothing); before any estimate or signing
   `TaquitoChainService.verifyChain` and the dApp prepare/execute calls ask the node for
   `/chains/main/chain_id` through the bridge's `assertChain` and refuse a node serving another
-  chain. The Networks node field (`Network.nodeURL(from:)`) takes `https` anywhere, plain `http`
+  chain. The Networks sheet asks a newly typed node (layer 1 or Layer 2) the same question
+  before Apply adopts it (`WalletViewModel.checkNode` → `NodeMonitor.identity`, a `NodeIdentity`:
+  `unpinned`, `matches`, `mismatch`, `unchecked`): a node on another chain, or one that cannot be
+  asked, is warned about in orange under the field with a Use Anyway button instead of being
+  applied; unpinned networks are not asked. The Networks node field (`Network.nodeURL(from:)`) takes `https` anywhere, plain `http`
   only for this machine or the local network, and refuses credentials and other schemes
   (`nodeURLProblem` words the refusal). `EndpointPolicy` (`Signet/Services`) is the one place
   that decides what counts as local or private (loopback, link-local, RFC 1918, CGNAT, ULA,

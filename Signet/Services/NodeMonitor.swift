@@ -195,6 +195,32 @@ final class NodeMonitor {
         return "\(s / 86400) d"
     }
 
+    /// Asks `node` which chain it serves (`/chains/main/chain_id`) and compares it with the
+    /// pinned id, so a node typed into Networks for the wrong network is warned about before it
+    /// is adopted, not only by the red status bar afterwards. No pinned id means nothing to compare.
+    nonisolated static func identity(of node: URL, expectedChainID: String?, probe: Probe) async -> NodeIdentity {
+        guard let expectedChainID else { return .unpinned }
+        let url = node.appendingPathComponent("chains/main/chain_id")
+        let result: Result<(data: Data, status: Int, latency: TimeInterval), Error>
+        do { result = .success(try await probe(url)) } catch { result = .failure(error) }
+        return identity(result, expectedChainID: expectedChainID)
+    }
+
+    /// Pure for tests: the reply to `/chains/main/chain_id` against the pinned id.
+    nonisolated static func identity(_ result: Result<(data: Data, status: Int, latency: TimeInterval), Error>, expectedChainID: String) -> NodeIdentity {
+        switch result {
+        case .failure(let error):
+            return .unchecked(reason: "Cannot reach node: \((error as? URLError)?.localizedDescription ?? error.localizedDescription)")
+        case .success(let reply):
+            guard (200..<300).contains(reply.status) else { return .unchecked(reason: "Node returned HTTP \(reply.status)") }
+            // A chain id is base58 with the "Net" prefix, 15 characters; anything else is not a node answering.
+            guard let found = try? JSONSerialization.jsonObject(with: reply.data, options: .fragmentsAllowed) as? String,
+                  found.hasPrefix("Net"), found.count == 15
+            else { return .unchecked(reason: "Unexpected reply from node") }
+            return found == expectedChainID ? .matches(chainID: found) : .mismatch(found: found, expected: expectedChainID)
+        }
+    }
+
     nonisolated static let urlSessionProbe: Probe = { url in
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
@@ -204,4 +230,14 @@ final class NodeMonitor {
         let reply = try await BoundedHTTP.data(for: request, session: .shared, limit: 16 << 10, json: nil)
         return (reply.data, reply.status, Date().timeIntervalSince(started))
     }
+}
+
+/// What a node said about the chain it serves when asked before it is adopted (Networks sheet).
+enum NodeIdentity: Sendable, Equatable {
+    /// The network pins no chain id (Weeklynet restarts weekly, Quantumnet may, Custom is anything).
+    case unpinned
+    case matches(chainID: String)
+    case mismatch(found: String, expected: String)
+    /// The node could not be asked, or answered with something that is not a chain id.
+    case unchecked(reason: String)
 }
