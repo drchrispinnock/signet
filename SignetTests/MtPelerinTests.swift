@@ -68,3 +68,17 @@ struct MtPelerinTests {
         #expect(verified == .bool(true))
     }
 }
+
+struct CoinbaseProviderTests {
+    @Test func coinbaseIsABrowserHandOffNotAWidget() async throws {
+        let provider = BuyProvider.coinbase
+        #expect(!provider.usesWidget && BuyProvider.mtPelerin.usesWidget)
+        #expect(provider.browserPage?.host() == "www.coinbase.com" && BuyProvider.mtPelerin.browserPage == nil)
+        #expect(provider.ownershipPayload(code: "1234") == nil && provider.fiatCurrencies.isEmpty)
+        // Nothing of Coinbase's is ever trusted inside the embedded web view.
+        #expect(!BuyWebView.isTrusted(URL(string: "https://www.coinbase.com/"), provider: .coinbase))
+        #expect(BuyProvider.allCases == [.mtPelerin, .coinbase] && BuyProvider.default == .mtPelerin)
+        let url = provider.buyURL(address: Address("tz1abc"), fiat: "", code: "0000", proof: nil, embedded: true, dark: false)
+        #expect(url == provider.browserPage && provider.browserURL(from: url) == url)
+    }
+}

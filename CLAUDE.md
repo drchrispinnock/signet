@@ -269,9 +269,14 @@ automatic download is off by default. The updater is not started under the test 
   Baking and Staking sheets are read-only for wallets Signet cannot sign for (watch-only, remote)
   and the wording says so; Ledger wallets operate normally with approval on the device.
 - **Buy (0.5, proof of concept).** The on-ramp is a Settings choice (`BuyProvider`, UserDefaults
-  `buyProvider`, "Buy tez with"); Mt Pelerin is the only case so far and a US-serving provider
-  (Transak) is the intended second: add a case and its URL builder, trusted hosts and ownership
-  payload. `BuySheet` shows the provider's hosted widget inside the app in a
+  `buyProvider`, "Buy tez with"): Mt Pelerin (default, a widget) or Coinbase (0.9.4, no widget:
+  `usesWidget` false, `browserPage` the Coinbase tez page). For Coinbase the sheet shows the
+  account address with a copy button and a QR code, the three steps (buy, Send/Withdraw with the
+  address pasted on the Tezos network, wait a block) and an "Open Coinbase" button; nothing is
+  embedded and no partner agreement or key is needed, which is why it is the US option. Every
+  widget on-ramp (Transak, Mercuryo, Wert, Meld) needs a partner account under a legal entity
+  with the credential on a server, which Signet has neither of; a Transak case sits on the
+  `transak` branch for the day one exists. `BuySheet` shows a widget provider's hosted page inside the app in a
   `WKWebView` (`BuyWebView`: grants camera/microphone to mtpelerin.com only for its identity
   checks, opens `window.open` targets and foreign hosts in the browser; Info.plist carries the
   camera/microphone usage strings), with an "Open in browser" fallback (`MtPelerin.buyURL`:

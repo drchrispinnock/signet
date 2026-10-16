@@ -1,9 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Buy tez through the on-ramp chosen in Settings. Signet pre-fills (and, when it can sign,
-/// pre-validates) the account's address, then shows the provider's widget right here; the purchase,
-/// identity checks and payment are all the provider's, and the tez land in the account.
+/// Buy tez through the on-ramp chosen in Settings. With a widget provider Signet pre-fills (and,
+/// when it can sign, pre-validates) the account's address, then shows the provider's widget right
+/// here; the purchase, identity checks and payment are all the provider's, and the tez land in the
+/// account. With an exchange (Coinbase) it shows the address to paste and opens the exchange in
+/// the browser.
 struct BuySheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -44,9 +46,13 @@ struct BuySheet: View {
                 }
             }
 
-            switch step {
-            case .prepare: prepare
-            case .widget(let url): widget(url)
+            if provider.usesWidget {
+                switch step {
+                case .prepare: prepare
+                case .widget(let url): widget(url)
+                }
+            } else {
+                exchange
             }
 
             if let errorMessage { Text(errorMessage).font(.callout).foregroundStyle(.red) }
@@ -54,6 +60,59 @@ struct BuySheet: View {
         }
         .padding(20)
         .frame(width: 560)
+    }
+
+    // MARK: Exchange (no widget)
+
+    @State private var copied = false
+
+    /// The address to paste as the withdrawal destination, and the exchange's page in the browser.
+    private var exchange: some View {
+        Form {
+            LabeledContent("Provider") {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(provider.title)
+                    Text("Change in Settings").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let wallet {
+                LabeledContent("Send to") {
+                    HStack(spacing: 8) {
+                        Text(wallet.address.value).font(.callout.monospaced()).textSelection(.enabled)
+                        Button(action: { copy(wallet.address.value) }) {
+                            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Copy address")
+                    }
+                }
+                HStack {
+                    Spacer()
+                    if let image = QRCode.image(for: wallet.address.value, size: 160) {
+                        Image(nsImage: image).interpolation(.none).frame(width: 160, height: 160)
+                            .padding(8).background(.white).clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    Spacer()
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("1. Open \(provider.title) and buy tez (XTZ).")
+                Text("2. Choose Send (or Withdraw), paste this address and pick the Tezos network.")
+                Text("3. The balance here refreshes once the transfer is in a block.")
+            }
+            .font(.callout).foregroundStyle(.secondary)
+            Text("\(provider.summary) Send tez only; tokens on other networks cannot reach a Tezos address.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        copied = true
+        Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
     }
 
     // MARK: Step 1
@@ -120,6 +179,12 @@ struct BuySheet: View {
                 else { ProgressView().controlSize(.small); Text("Preparing…").font(.callout).foregroundStyle(.secondary) }
             }
             Spacer()
+            if !provider.usesWidget {
+                Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Open \(provider.title)") { if let page = provider.browserPage { NSWorkspace.shared.open(page) } }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+            } else {
             switch step {
             case .prepare:
                 Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
@@ -130,6 +195,7 @@ struct BuySheet: View {
             case .widget:
                 Button("Open in browser instead") { openInBrowser() }
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
             }
         }
     }
