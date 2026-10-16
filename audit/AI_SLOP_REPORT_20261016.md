@@ -64,3 +64,21 @@ The earlier report's eager disk-backed test construction and private peer map ar
 - Completed run: **`20261015T183540Z-2d14e2e0e9de`**. Compact decision log: `/private/tmp/signet-slop-20261015/runs/20261015T183540Z-2d14e2e0e9de/review.json`. All eleven lenses and the separate synthesis completed; duplicates were consolidated. The temporary log records final decisions, not raw reviewer replies or durable project state.
 
 **No application code changed.** This requested report is the repository output. The skill's implementation stage requires a later explicit **`$anti-slop GO`** invocation and builds an isolated replacement candidate, preserving the original codebase.
+
+## Resolution (2026-10-16)
+
+Implemented on `main` after 0.9.4 in four commits (one read-only signer / error conversion / dead code; AppState; menus; tests), with the full offline suite (341 tests, 113 suites) and all five bridge harnesses passing afterwards.
+
+| Finding | What changed |
+| --- | --- |
+| F18 | `SigningExportsTests` now uses `BridgeSignatureScan`: every bridge source is read with strings and comments stripped, top-level functions, arrow constants and aliases are collected by brace matching, imports and `export { a as b } from` / `export *` are resolved, and an export is signing when it reaches `signerFor`, `injectSigned`, `signAndInject`, `sendApproved`, `ledgerSignerFor` or a `new LedgerSigner(` through any chain of calls. The discovered set is asserted exactly (`signingCalls` minus `ledgerAppVersion`, declared for its device lease). Fixtures cover direct, single-line, helper-mediated, aliased, re-exported, starred and `ForTest` exports plus reads that must stay reads; default exports, classes on the surface, unbalanced braces, unknown export lists and missing files are refused explicitly. |
+| F19 | `LossyChain.rebroadcast` records its argument; the test asserts the retry carries the original hash and `signedBytes == "abcd"` and that the signer provider was asked exactly once overall. |
+| F25 | `RefreshContextTests` uses per-(account, network) latches: the chain reports when a request starts and answers only when released. Both tests run in ~25 ms and were confirmed to fail with the publication guard in `WalletViewModel.refresh` removed. |
+| F17 | `TaquitoChainService.waitForConfirmation` calls `waitForRawOperation` directly. The bridge's `waitForConfirmation` export and the never-filled `pendingOperations` map were removed outright: nothing could ever reach them. |
+| F15 | `readOnlySigner` lives in `signers.js` and is imported by index, multisig, octezconnect and bridge; the resource bundle was rebuilt. |
+| F02 | `TaquitoBridge.BridgeError.asChainError` / `typed(_:)` are the one conversion; `KeyImporter`, `LedgerService` and `TaquitoChainService` use it. `BridgeErrorConversionTests` pins every recognised message, precedence and pass-through of unknown text, other `BridgeError`s and non-bridge errors. |
+| F16/F22 | Removed: the unread `fallback` of `TaquitoChainService`, `TzKTService.bestImageURL`, `IPFS.gatewayPath`, `EndpointPolicy.resolvesPublicly`, `WalletViewModel.reloadWallets`; CLAUDE.md no longer advertises delegation. |
+| F20 | `AppState.resolved(_:)` and `remember(_:)` (node, Layer 2, links) in `AppStateStore.swift`; the model keeps setters, persistence timing, monitors and refresh. `setNode`/`useDefaultNode` for another network go through the same `change` path as the Layer 2 and link setters. `AppStateNetworkTests` pins sparse maps, "" for off, ignored non-URL text and Layer 2 off by default. |
+| F21 | `Address.isUsableOnEtherlink`, with a malformed-address case showing it is a scheme check only. |
+| F07 | `OperationsMenuItems` (in `WalletHeaderView.swift`) is rendered by both the burger menu and the Operations menu; the Cmd-comma on Settings is a flag. Needs the human comparison of both menus the row asks for. |
+| F23 | Not done: a measurement task, no code change proposed. |

@@ -627,9 +627,13 @@ exposes `call(name, args, timeout:)` which unwraps promises into a `Sendable` `J
 holds a Ledger session (`kind(of:)` is `.signing` for them); those calls get no deadline and are
 never cancelled, whichever entry point they come through, while reads time out (60 s by default)
 and discard the context. Swift calls them through `bridge.sign(name, args)`, which refuses a name
-not on the list, and `SigningExportsTests` scans the bridge sources' public surface for anything
-that reaches `signerFor`, `sendApproved`, `signAndInject`, `injectSigned` or a `LedgerSigner`
-and fails if it is not declared, so a new signing export cannot be left cancellable. Promise
+not on the list, and `SigningExportsTests` (`BridgeSignatureScan`) reads every bridge source,
+follows calls, aliases, imports and re-exports from index.js's public surface, and fails if an
+export that reaches `signerFor`, `sendApproved`, `signAndInject`, `injectSigned`,
+`ledgerSignerFor` or a `new LedgerSigner` is not declared (and if the declared set drifts from
+what it finds; `ledgerAppVersion` is declared for its device lease alone). Single-line,
+helper-mediated and aliased exports count; forms the scan does not understand fail the test
+rather than slip past it. Promise
 callbacks must be attached with `invokeMethod("then", ...)`, never a bare `then.call`, or the
 continuation leaks and the caller hangs forever. `TaquitoChainService` uses the bridge for live
 data. Numbers from the
@@ -667,6 +671,9 @@ traces show the APDU header and length only.
 - Purchase navigation/media authority includes the effective HTTPS port (443). Alternate ports
   do not inherit provider trust. Default bridge construction uses in-memory storage and no log
   directory; only the production composition root selects disk stores/logging.
+- The 2026-10-16 slop report's cleanups (F02, F07, F15–F22, F25) are done; see the Resolution
+  section appended to `audit/AI_SLOP_REPORT_20261016.md`. F23 (measuring wallet-lock stalls on
+  the main actor) remains open as a measurement task.
 - `AuditRepairTests` and `BridgeBoundaryRepairTests` cover locking/recovery, current grants,
   persistence, connection pinning, response limits, exact origins, test isolation and native device
   leases. `MultisigContextRepairTests` exercises same-name endpoint and away/back switches.
