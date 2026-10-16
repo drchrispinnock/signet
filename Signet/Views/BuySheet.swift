@@ -5,7 +5,8 @@ import SwiftUI
 /// remembered). With a widget provider Signet pre-fills (and, when it can sign, pre-validates)
 /// the account's address, then shows the provider's widget right here; the purchase, identity
 /// checks and payment are all the provider's, and the tez land in the account. With an exchange
-/// (Coinbase, Kraken) it shows the address to paste and opens the exchange in the browser.
+/// (Coinbase, Kraken) or Transak's site it shows the address to paste and opens the page in the
+/// browser.
 struct BuySheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -107,7 +108,7 @@ struct BuySheet: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("1. Open \(provider.title) and buy tez (XTZ).")
-                Text("2. Choose Withdraw (or Send), paste this address and pick the Tezos network.")
+                Text("2. \(provider.deliveryStep)")
                 Text("3. The balance here refreshes once the transfer is in a block.")
             }
             .font(.callout).foregroundStyle(.secondary)

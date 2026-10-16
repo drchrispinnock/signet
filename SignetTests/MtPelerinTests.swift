@@ -80,7 +80,7 @@ struct CoinbaseProviderTests {
         #expect(provider.ownershipPayload(code: "1234") == nil && provider.fiatCurrencies.isEmpty)
         // Nothing of Coinbase's is ever trusted inside the embedded web view.
         #expect(!BuyWebView.isTrusted(URL(string: "https://www.coinbase.com/"), provider: .coinbase))
-        #expect(BuyProvider.allCases == [.mtPelerin, .coinbase, .kraken] && BuyProvider.default == .mtPelerin)
+        #expect(BuyProvider.allCases == [.mtPelerin, .coinbase, .kraken, .transak] && BuyProvider.default == .mtPelerin)
         let url = provider.buyURL(address: Address("tz1abc"), fiat: "", code: "0000", proof: nil, embedded: true, dark: false)
         #expect(url == provider.browserPage && provider.browserURL(from: url) == url)
     }
@@ -92,10 +92,19 @@ struct CoinbaseProviderTests {
         #expect(provider.trustedHosts.isEmpty && !BuyWebView.isTrusted(URL(string: "https://www.kraken.com/"), provider: .kraken))
         let url = provider.buyURL(address: Address("tz1abc"), fiat: "", code: "0000", proof: nil, embedded: false, dark: true)
         #expect(url == provider.browserPage && provider.browserURL(from: url) == url)
-        #expect(BuyProvider.choices == "Mt Pelerin, Coinbase or Kraken")
-        // Every exchange hand-off opens over HTTPS and nothing else.
-        for exchange in BuyProvider.allCases where !exchange.usesWidget {
-            #expect(exchange.browserPage?.scheme == "https")
+        #expect(BuyProvider.choices == "Mt Pelerin, Coinbase, Kraken or Transak")
+        // Every hand-off opens over HTTPS, says where the address goes and trusts nothing embedded.
+        for handOff in BuyProvider.allCases where !handOff.usesWidget {
+            #expect(handOff.browserPage?.scheme == "https" && !handOff.deliveryStep.isEmpty && handOff.trustedHosts.isEmpty)
         }
+    }
+
+    @Test func transakIsItsOwnSiteInTheBrowser() async throws {
+        let provider = BuyProvider.transak
+        #expect(!provider.usesWidget && provider.browserPage == URL(string: "https://transak.com/buy/xtz"))
+        #expect(provider.ownershipPayload(code: "1234") == nil && provider.fiatCurrencies.isEmpty)
+        #expect(!BuyWebView.isTrusted(URL(string: "https://global.transak.com/"), provider: .transak))
+        // The address is asked for during the purchase, not at a Withdraw screen afterwards.
+        #expect(provider.deliveryStep.contains("when it asks") && BuyProvider.kraken.deliveryStep.contains("Withdraw"))
     }
 }
