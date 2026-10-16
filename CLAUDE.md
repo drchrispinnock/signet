@@ -47,12 +47,25 @@ storage or client is touched (`TestHostIsolationTests`). The bridge has its own 
 regressions: `cd TaquitoBridge && npm test` (dApp preparation, dApp identity and grants,
 approved limits and injection outcomes).
 
+## Branches
+
+Branching follows `BRANCHES.md`. `main` is the raw development line and `release` is the
+current release line (still alpha). Nothing is developed directly on either. Work happens on a
+feature branch named `<user>@<feature>`, cut from `main`, where user is `chrispinnock`, `claude`
+or `codex` and feature is one word or a short phrase (`claude@offline-signing`). When the
+feature is thought done it is merged up into `main`; when `main` is thought ready to ship it is
+merged up into `release`, and the version tag goes on `release`. So Claude begins a piece of
+work by creating or checking out its `claude@…` branch and commits there; merging into `main`
+or `release`, pushing and tagging happen only when asked. `book_preview` and `book_release`
+carry the Leanpub book; `transak` holds the widget-based Transak integration that is waiting
+for a partner key.
+
 ## Releases
 
 The app version comes from git: `scripts/stamp-version.sh` runs as a post-build phase and writes
 `git describe --tags` (minus the `v`) into `CFBundleShortVersionString` and the commit count into
 `CFBundleVersion`, so the About panel shows `0.2` on the tag and `0.2-3-g<sha>` afterwards. Tag a
-release before building it. Copyright and the About credits live in `Signet/Info.plist` and
+release on `release` before building it (merge `main` up into `release` first; see Branches). Copyright and the About credits live in `Signet/Info.plist` and
 `Signet/Resources/Credits.rtf`.
 
 `scripts/release.sh [version]` archives a Release build, signs it with `$DEVELOPER_ID` if set
