@@ -2,7 +2,7 @@
 
 ## Payment providers
 
-- [ ] Add Transak as second provider
+- [x] Add Transak as second provider (browser hand-off, 0.9.5)
 
 ## Etherlink
 
@@ -23,7 +23,8 @@
 # Later
 
 - [ ] Offline signing (e.g. go to the vault, no internet, sign a transaction and submit later)
-
+- [ ] Double check each network against a known chain ID held in our code. If it mismatches, display a red error at the bottom next to the node status.
+- [ ] Have a tunable for this check to turn it off in Networks. Turn it off by default on Custom and Weeklynet.
 
 # Done
 
