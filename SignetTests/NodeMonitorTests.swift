@@ -177,3 +177,60 @@ struct NewHeadRefreshTests {
         #expect(seen == [101, 103])
     }
 }
+
+/// A node typed into Networks is asked which chain it serves before it is adopted.
+struct NodeIdentityTests {
+    private func reply(_ body: String, status: Int = 200) -> Result<(data: Data, status: Int, latency: TimeInterval), Error> {
+        .success((Data(body.utf8), status, 0.1))
+    }
+
+    @Test func comparesTheChainIdWithThePinnedOne() {
+        #expect(NodeMonitor.identity(reply("\"NetXdQprcVkpaWU\""), expectedChainID: "NetXdQprcVkpaWU") == .matches(chainID: "NetXdQprcVkpaWU"))
+        #expect(NodeMonitor.identity(reply("\"NetXsqzbfFenSTS\""), expectedChainID: "NetXdQprcVkpaWU") == .mismatch(found: "NetXsqzbfFenSTS", expected: "NetXdQprcVkpaWU"))
+        #expect(NodeMonitor.identity(reply("<html>"), expectedChainID: "NetXdQprcVkpaWU") == .unchecked(reason: "Unexpected reply from node"))
+        #expect(NodeMonitor.identity(reply("\"not a chain id\""), expectedChainID: "NetXdQprcVkpaWU") == .unchecked(reason: "Unexpected reply from node"))
+        #expect(NodeMonitor.identity(reply("", status: 503), expectedChainID: "NetXdQprcVkpaWU") == .unchecked(reason: "Node returned HTTP 503"))
+        guard case .unchecked(let reason) = NodeMonitor.identity(.failure(URLError(.cannotConnectToHost)), expectedChainID: "NetXdQprcVkpaWU") else {
+            Issue.record("a failed probe should be unchecked"); return
+        }
+        #expect(reason.hasPrefix("Cannot reach node"))
+    }
+
+    @Test func longLivedNetworksArePinnedAndTheOthersAreNot() {
+        #expect(Network.mainnet.expectedChainID == "NetXdQprcVkpaWU")
+        #expect(Network.shadownet.expectedChainID == "NetXsqzbfFenSTS")
+        #expect(Network.bakingnet.expectedChainID == "NetXvNVUNbWHxGt")
+        #expect(Network.ushuaianet.expectedChainID == "NetXpX8WSZkAZZA")
+        #expect(Network.weeklynet.expectedChainID == nil && Network.quantumnet.expectedChainID == nil && Network.custom.expectedChainID == nil)
+    }
+
+    @Test @MainActor func theModelAsksTheNodeBeforeItIsAdopted() async {
+        let probe: NodeMonitor.Probe = { url in
+            guard url.path.hasSuffix("/chains/main/chain_id") else { throw URLError(.badURL) }
+            switch url.host() {
+            case "right.example": return (Data("\"NetXsqzbfFenSTS\"".utf8), 200, 0.1)
+            case "wrong.example": return (Data("\"NetXdQprcVkpaWU\"".utf8), 200, 0.1)
+            default: throw URLError(.cannotConnectToHost)
+            }
+        }
+        let model = WalletViewModel(wallets: [], chain: MockChainService(), nodeProbe: probe)
+        let right = await model.checkNode("https://right.example", for: .shadownet)
+        #expect(right == .matches(chainID: "NetXsqzbfFenSTS"))
+        let wrong = await model.checkNode("https://wrong.example", for: .shadownet)
+        #expect(wrong == .mismatch(found: "NetXdQprcVkpaWU", expected: "NetXsqzbfFenSTS"))
+        // Custom and Weeklynet pin nothing, so the node is not even asked.
+        let custom = await model.checkNode("https://down.example", for: .custom)
+        let weekly = await model.checkNode("https://down.example", for: .weeklynet)
+        #expect(custom == .unpinned && weekly == .unpinned)
+        let down = await model.checkNode("https://down.example", for: .mainnet)
+        guard case .unchecked = down else { Issue.record("an unreachable node is unchecked, got \(down)"); return }
+        let junk = await model.checkNode("ftp://x", for: .mainnet)
+        guard case .unchecked = junk else { Issue.record("a non-URL is unchecked, got \(junk)"); return }
+        // Layer 2 compares with the Etherlink chain.
+        let l2 = await model.checkNode("https://wrong.example", for: .shadownet, layer: .two)
+        #expect(l2 == .mismatch(found: "NetXdQprcVkpaWU", expected: "NetXtLrzvQDobza"))
+        // Asking changes nothing.
+        #expect(model.nodeURL(for: .shadownet) == Network.shadownet.defaultRPCURL)
+        #expect(model.network == .mainnet)
+    }
+}

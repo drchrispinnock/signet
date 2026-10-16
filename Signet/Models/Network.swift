@@ -263,7 +263,8 @@ struct Network: Hashable, Identifiable, Sendable {
         tezosDomainsURL: nil,
         tzktURL: URL(string: "https://api.bakingnet.tzkt.io")!,
         faucetURL: URL(string: "https://faucet.bakingnet.teztnets.com")!,
-        explorerURL: URL(string: "https://bakingnet.tzkt.io")!
+        explorerURL: URL(string: "https://bakingnet.tzkt.io")!,
+        expectedChainID: "NetXvNVUNbWHxGt"
     )
     /// The protocol-proposal testnet of the day (Ushuaia, October 2026). teztnets.com also
     /// aliases it as "currentnet", but TzKT names its instance after the protocol, so the entry
