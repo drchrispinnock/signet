@@ -289,6 +289,43 @@ extension EtherlinkLiveTests {
     }
 }
 
+/// F20: the saved-state encoding of a network's node, Layer 2 and links is a pure value round trip.
+struct AppStateNetworkTests {
+    @Test func rememberingDefaultsSavesNothingAndResolvingGivesThemBack() throws {
+        var state = AppState()
+        state.remember(.shadownet)
+        #expect(state == AppState(), "a network on its defaults leaves every map nil")
+        #expect(state.resolved(.shadownet) == .shadownet && !state.resolved(.mainnet).l2Enabled)
+    }
+
+    @Test func customChoicesRoundTripSparsely() throws {
+        let node = try #require(URL(string: "https://node.example.org"))
+        let l2 = try #require(URL(string: "https://l2.example.org"))
+        let explorer = try #require(URL(string: "https://explorer.example.org"))
+        let custom = Network.shadownet.usingNode(node).usingL2(enabled: true, node: l2).using(explorer, for: .explorer).using(nil, for: .faucet)
+        var state = AppState()
+        state.remember(custom)
+        #expect(state.nodeURLs == ["Shadownet": node.absoluteString] && state.l2NodeURLs == ["Shadownet": l2.absoluteString] && state.l2Enabled == ["Shadownet": true])
+        #expect(state.serviceURLs == ["Shadownet": ["explorer": explorer.absoluteString, "faucet": ""]], "only what differs, and \"\" for off")
+        let back = state.resolved(.shadownet)
+        #expect(back == custom && back.rpcURL == node && back.hasL2 && back.l2RPCURL == l2 && back.explorerURL == explorer && back.faucetURL == nil)
+        #expect(state.resolved(.mainnet) == .mainnet, "another network is untouched")
+        // Back to the defaults: the maps empty out to nil again.
+        state.remember(.shadownet)
+        #expect(state == AppState())
+    }
+
+    @Test func savedTextThatIsNotAURLIsIgnoredAndLayer2StaysOff() throws {
+        var state = AppState()
+        state.nodeURLs = ["Shadownet": "not a url"]
+        state.l2NodeURLs = ["Shadownet": "::nope::"]
+        state.serviceURLs = ["Shadownet": ["tzkt": "nor this", "explorer": ""]]
+        let back = state.resolved(.shadownet)
+        #expect(back.rpcURL == Network.shadownet.defaultRPCURL && !back.l2Enabled && back.l2RPCURL == Network.shadownet.l2DefaultRPCURL)
+        #expect(back.tzktURL == Network.shadownet.defaultTzKTURL && back.explorerURL == nil)
+    }
+}
+
 @MainActor
 struct NetworkLinkSettingsTests {
     @Test func linksAreKeptPerNetworkAndSurviveRelaunch() {
