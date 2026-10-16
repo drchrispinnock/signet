@@ -421,9 +421,10 @@ automatic download is off by default. The updater is not started under the test 
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
-  carry the same items (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Remember key when session-only, Forget account |
+  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Remember key when session-only, Forget account |
   dApps | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
-  transaction | Baking, Governance when applicable | Networks, Settings, Refresh); keep them in step. File has Create Backup (`backUp(force: true)`).
+  transaction | Baking, Governance when applicable | Networks, Settings, Refresh); only the Settings shortcut differs, since the app menu already
+  has Cmd-comma. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.

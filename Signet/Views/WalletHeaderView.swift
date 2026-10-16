@@ -150,6 +150,27 @@ struct AppMenuButton: View {
 
     var body: some View {
         Menu {
+            OperationsMenuItems(model: model, settingsShortcut: true)
+        } label: {
+            Image(systemName: "line.3.horizontal")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Menu")
+    }
+}
+
+/// The one list of account actions, shared by the burger menu and the menu bar's Operations
+/// menu so the two can never drift: order, dividers, visibility, enabling and shortcuts.
+/// Only the Settings item differs: the burger menu carries Cmd-comma, the menu bar leaves it
+/// to the app menu's own Settings item.
+struct OperationsMenuItems: View {
+    @Bindable var model: WalletViewModel
+    var settingsShortcut = false
+
+    var body: some View {
+        Group {
             Button("Create account…") { model.isPresentingCreateWallet = true }
                 .keyboardShortcut("n", modifiers: .command)
             Button("Import account…") { model.isPresentingImportAccount = true }
@@ -187,17 +208,15 @@ struct AppMenuButton: View {
             }
             Divider()
             Button("Networks…") { model.isPresentingNetworks = true }
-            SettingsLink { Text("Settings…") }
-                .keyboardShortcut(",", modifiers: .command)
+            if settingsShortcut {
+                SettingsLink { Text("Settings…") }
+                    .keyboardShortcut(",", modifiers: .command)
+            } else {
+                SettingsLink { Text("Settings…") }
+            }
             Button("Refresh") { Task { await model.refresh() } }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(model.selectedWallet == nil)
-        } label: {
-            Image(systemName: "line.3.horizontal")
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .accessibilityLabel("Menu")
     }
 }
