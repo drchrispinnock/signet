@@ -1,9 +1,3 @@
-# Bibliography
-
-*Perhaps this should be further reading rather than a bibliography.*
+# Further reading
 
 {begin-hanging-paragraphs}
-
-[1] Tezos - a self-amending crypto-ledger White paper, L. M. Goodman, 2014, https://tezos.com/whitepaper.pdf
-
-[2] Tezos - Getting Started, https://tezos.com/learn/getting-started/
