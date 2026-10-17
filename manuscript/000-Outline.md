@@ -50,11 +50,6 @@ You can either have a copy of the key on here.
 - Etherlink and layer 2
   - meaningful on mainnet and shadownet
 
-- What's coming in Signet
-  - Ability to support tz6 keys
-  - Windows version
-  - iOS version without buy
-
 - Appendix - running your own node
 
 {align: left}
