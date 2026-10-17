@@ -12,6 +12,8 @@ struct AppState: Codable, Equatable, Sendable {
     var l2Enabled: [String: Bool]?
     /// Etherlink RPC nodes by network name, where the user replaced (or supplied) one.
     var l2NodeURLs: [String: String]?
+    /// Shielded transactions on by network name, only where the user turned them on.
+    var shieldedEnabled: [String: Bool]?
     /// TzKT API, explorer and faucet links by network name, then by `Network.Service` raw
     /// value, only where the user replaced the default; an empty string means the link is off.
     var serviceURLs: [String: [String: String]]?
@@ -25,6 +27,7 @@ extension AppState {
         if let saved = nodeURLs?[base.name], let url = Network.nodeURL(from: saved) { network = network.usingNode(url) }
         let l2Node = l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
         network = network.usingL2(enabled: l2Enabled?[base.name] ?? false, node: l2Node)
+        network = network.usingShielded(enabled: shieldedEnabled?[base.name] ?? false)
         for service in Network.Service.allCases {
             guard let saved = serviceURLs?[base.name]?[service.rawValue] else { continue }
             // "" is a link the user turned off; anything that is not a URL is ignored.
@@ -42,6 +45,7 @@ extension AppState {
     mutating func remember(_ net: Network) {
         rememberNode(of: net)
         rememberL2(of: net)
+        rememberShielded(of: net)
         rememberServices(of: net)
     }
 
@@ -59,6 +63,13 @@ extension AppState {
         var flags = l2Enabled ?? [:]
         flags[net.name] = net.l2Enabled ? true : nil
         l2Enabled = flags.isEmpty ? nil : flags
+    }
+
+    /// Shielded transactions are off by default everywhere; only "on" is saved.
+    mutating func rememberShielded(of net: Network) {
+        var flags = shieldedEnabled ?? [:]
+        flags[net.name] = net.shieldedEnabled ? true : nil
+        shieldedEnabled = flags.isEmpty ? nil : flags
     }
 
     /// TzKT, explorer and faucet links ("" for a link turned off).

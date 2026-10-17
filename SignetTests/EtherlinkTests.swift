@@ -302,13 +302,15 @@ struct AppStateNetworkTests {
         let node = try #require(URL(string: "https://node.example.org"))
         let l2 = try #require(URL(string: "https://l2.example.org"))
         let explorer = try #require(URL(string: "https://explorer.example.org"))
-        let custom = Network.shadownet.usingNode(node).usingL2(enabled: true, node: l2).using(explorer, for: .explorer).using(nil, for: .faucet)
+        let custom = Network.shadownet.usingNode(node).usingL2(enabled: true, node: l2).usingShielded(enabled: true).using(explorer, for: .explorer).using(nil, for: .faucet)
         var state = AppState()
         state.remember(custom)
         #expect(state.nodeURLs == ["Shadownet": node.absoluteString] && state.l2NodeURLs == ["Shadownet": l2.absoluteString] && state.l2Enabled == ["Shadownet": true])
+        #expect(state.shieldedEnabled == ["Shadownet": true])
         #expect(state.serviceURLs == ["Shadownet": ["explorer": explorer.absoluteString, "faucet": ""]], "only what differs, and \"\" for off")
         let back = state.resolved(.shadownet)
         #expect(back == custom && back.rpcURL == node && back.hasL2 && back.l2RPCURL == l2 && back.explorerURL == explorer && back.faucetURL == nil)
+        #expect(back.shieldedEnabled && !state.resolved(.mainnet).shieldedEnabled)
         #expect(state.resolved(.mainnet) == .mainnet, "another network is untouched")
         // Back to the defaults: the maps empty out to nil again.
         state.remember(.shadownet)
@@ -331,6 +333,7 @@ struct NetworkLinkSettingsTests {
     @Test func inactiveNodeEditsPreserveUnrelatedSavedOverrides() {
         var original = AppState()
         original.l2Enabled = ["Shadownet": false]
+        original.shieldedEnabled = ["Shadownet": true]
         original.l2NodeURLs = ["Shadownet": "invalid saved L2 text"]
         original.serviceURLs = ["Shadownet": ["tzkt": "invalid saved service text", "explorer": "", "future-service": "preserve me"]]
         let store = InMemoryAppStateStore(original)
@@ -341,6 +344,7 @@ struct NetworkLinkSettingsTests {
         model.useDefaultNode(for: .shadownet)
         for saved in [custom, store.load()] {
             #expect(saved.l2Enabled == original.l2Enabled)
+            #expect(saved.shieldedEnabled == original.shieldedEnabled)
             #expect(saved.l2NodeURLs == original.l2NodeURLs)
             #expect(saved.serviceURLs == original.serviceURLs)
         }
@@ -390,5 +394,48 @@ struct NetworkLinkSettingsTests {
         #expect(model.network.faucetURL == nil)
         #expect(Network.mainnet.using(URL(string: "https://faucet.example.org"), for: .faucet).faucetURL == nil)
         #expect(Network.shadownet.offers(.faucet) && Network.custom.offers(.faucet))
+    }
+}
+
+/// The "Enable Shielded Transactions" switch in Networks: per network, off by default, only
+/// "on" is saved, and nothing else changes yet.
+@MainActor
+struct ShieldedSwitchTests {
+    @Test func theSwitchIsPerNetworkAndSavedSparsely() {
+        let state = InMemoryAppStateStore()
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
+        #expect(model.network == .mainnet && !model.isShieldedEnabled(for: .mainnet) && !model.isShieldedEnabled(for: .shadownet))
+        #expect(state.load().shieldedEnabled == nil)
+
+        // Another network, without switching to it.
+        model.setShieldedEnabled(true, for: .shadownet)
+        #expect(model.isShieldedEnabled(for: .shadownet) && !model.network.shieldedEnabled)
+        #expect(state.load().shieldedEnabled == ["Shadownet": true] && model.network == .mainnet)
+
+        // The network in use: applied at once, and the saved node, Layer 2 and links are untouched.
+        model.setShieldedEnabled(true, for: .mainnet)
+        #expect(model.network.shieldedEnabled && model.network.rpcURL == Network.mainnet.defaultRPCURL && !model.network.l2Enabled)
+        #expect(state.load().shieldedEnabled == ["Shadownet": true, "Mainnet": true] && state.load().nodeURLs == nil && state.load().l2Enabled == nil)
+
+        // Relaunch over the same state: the choice comes back; off clears it.
+        let again = WalletViewModel(wallets: [], chain: MockChainService(), stateStore: state)
+        #expect(again.network.shieldedEnabled && again.isShieldedEnabled(for: .shadownet))
+        again.setShieldedEnabled(false, for: .shadownet)
+        again.setShieldedEnabled(false, for: .mainnet)
+        #expect(state.load().shieldedEnabled == nil && !again.network.shieldedEnabled)
+    }
+
+    @Test func onlyShadownetAndQuantumnetHaveShieldedTransactionsToday() {
+        #expect(Network.all.filter(\.shieldedAvailable).map(\.name) == ["Shadownet", "Quantumnet"])
+        #expect(!Network.mainnet.shieldedAvailable && !Network.custom.shieldedAvailable && !Network.weeklynet.shieldedAvailable)
+    }
+
+    @Test func switchingNetworksKeepsEachChoice() {
+        let model = WalletViewModel(wallets: [], chain: MockChainService())
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        #expect(model.network.shieldedEnabled)
+        model.switchNetwork(to: .mainnet)
+        #expect(!model.network.shieldedEnabled && model.isShieldedEnabled(for: .shadownet))
     }
 }

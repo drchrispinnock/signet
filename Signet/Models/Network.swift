@@ -42,6 +42,13 @@ struct Network: Hashable, Identifiable, Sendable {
     var l2Enabled = false
     /// The chain id the Etherlink RPC must report (`/chains/main/chain_id`), when pinned (S12).
     var expectedL2ChainID: String? = nil
+    /// Shielded transactions (tzel) on or off for this network; off by default, switched in the
+    /// Networks sheet. For now only the choice is kept: the shielded balance and the Shield,
+    /// Unshield and Send shielded operations will appear here when they are built.
+    var shieldedEnabled = false
+    /// Whether the network has shielded transactions at all (Shadownet and Quantumnet, October
+    /// 2026). The switch is offered everywhere so the choice is ready when a network gains them.
+    let shieldedAvailable: Bool
     /// Etherlink's bridge helper contract on layer 1 (`deposit %evm_address %l2_address`) and the
     /// Smart Rollup it feeds, for depositing tez to a Michelson-interface account. Shipped for
     /// mainnet and Shadownet; a user-supplied Layer 2 node does not come with a bridge.
@@ -61,8 +68,9 @@ struct Network: Hashable, Identifiable, Sendable {
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
          l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
-         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil) {
+         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, shieldedAvailable: Bool = false) {
         self.name = name
+        self.shieldedAvailable = shieldedAvailable
         self.chain = chain
         self.rpcURL = rpcURL
         self.defaultRPCURL = rpcURL
@@ -78,6 +86,7 @@ struct Network: Hashable, Identifiable, Sendable {
         self.l2DefaultRPCURL = l2RPCURL
         self.l2RPCURL = l2RPCURL
         self.l2Enabled = false   // off until the user turns Layer 2 on in the Networks sheet
+        self.shieldedEnabled = false
         self.expectedL2ChainID = expectedL2ChainID
         self.l2BridgeHelper = l2BridgeHelper.map(Address.init)
         self.l2Rollup = l2Rollup
@@ -115,6 +124,13 @@ struct Network: Hashable, Identifiable, Sendable {
         var copy = self
         copy.l2Enabled = enabled
         copy.l2RPCURL = node
+        return copy
+    }
+
+    /// The same network with shielded transactions switched on or off.
+    func usingShielded(enabled: Bool) -> Network {
+        var copy = self
+        copy.shieldedEnabled = enabled
         return copy
     }
 
@@ -254,7 +270,8 @@ struct Network: Hashable, Identifiable, Sendable {
         l2BridgeHelper: "KT19aBsSWvWtvEkbiqReJnD8UzQMWcD8SHUD",
         l2Rollup: "sr19fMYrr5C4qqvQqQrDSjtP31GcrWjodzvg",
         l2TzKTURL: URL(string: "https://api.shadownet.etherlink.tzkt.io")!,
-        l2ExplorerURL: URL(string: "https://shadownet.etherlink.tzkt.io")!
+        l2ExplorerURL: URL(string: "https://shadownet.etherlink.tzkt.io")!,
+        shieldedAvailable: true
     )
     static let bakingnet = Network(
         name: "Bakingnet",
@@ -317,7 +334,8 @@ struct Network: Hashable, Identifiable, Sendable {
         tzktURL: URL(string: "https://quantumnet-tzkt.pqpark.dal.nomadic-labs.com")!,
         faucetURL: URL(string: "https://quantumnet-faucet.pqpark.dal.nomadic-labs.com/api")!,
         faucetKind: .pqpark,
-        explorerURL: URL(string: "https://quantumnet-tzkt.pqpark.dal.nomadic-labs.com")!
+        explorerURL: URL(string: "https://quantumnet-tzkt.pqpark.dal.nomadic-labs.com")!,
+        shieldedAvailable: true
     )
 
     /// A network of the user's own: any node they point it at. Defaults to a local node.

@@ -122,6 +122,7 @@ struct NetworksSheet: View {
                     }
                 }
             }
+            Toggle("Enable Shielded Transactions", isOn: shieldedEnabled)
         } header: {
             Text("Networks")
         } footer: {
@@ -176,6 +177,13 @@ struct NetworksSheet: View {
         )
     }
 
+    private var shieldedEnabled: Binding<Bool> {
+        Binding(
+            get: { editingNetwork.map { model.isShieldedEnabled(for: $0) } ?? false },
+            set: { on in if let base = editingNetwork { model.setShieldedEnabled(on, for: base) } }
+        )
+    }
+
     private var editingNetwork: Network? { Network.named(editingNetworkName) }
 
     private var nodeIsDirty: Bool {
@@ -205,6 +213,11 @@ struct NetworksSheet: View {
         if model.isL2Enabled(for: base) {
             text += " With Layer 2 on, the dashboard shows each tz1, tz2 or tz3 account's balance on Etherlink, read from the Layer 2 Michelson node"
             text += base.l2DefaultRPCURL.map { " (default \($0.absoluteString))." } ?? " you enter here."
+        }
+        if model.isShieldedEnabled(for: base) {
+            text += base.shieldedAvailable
+                ? " Shielded transactions are being built: the switch is remembered, and the shielded balance and operations will appear here once they exist."
+                : " \(base.name) has no shielded transactions yet (Shadownet and Quantumnet have them); the switch is remembered for when it does."
         }
         return text
     }

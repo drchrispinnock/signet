@@ -253,6 +253,14 @@ final class WalletViewModel {
 
     private func changeL2(of base: Network, _ change: (Network) -> Network) { self.change(base, change) }
 
+    /// Whether shielded transactions are on for `base` (saved or default), without switching.
+    func isShieldedEnabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).shieldedEnabled }
+
+    /// Turns shielded transactions on or off for `base`. Only the choice is kept for now.
+    func setShieldedEnabled(_ enabled: Bool, for base: Network) {
+        change(base) { $0.usingShielded(enabled: enabled) }
+    }
+
     /// Applies a per-network change: through `network` (which persists and reloads) when
     /// `base` is in use, else straight into the saved state.
     private func change(_ base: Network, _ change: (Network) -> Network) {
@@ -261,6 +269,7 @@ final class WalletViewModel {
         } else {
             let changed = change(resolved(Network.named(base.name) ?? base))
             state.rememberL2(of: changed)
+            state.rememberShielded(of: changed)
             state.rememberServices(of: changed)
             persistState()
         }
