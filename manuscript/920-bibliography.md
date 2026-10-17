@@ -1,7 +1,8 @@
 # Bibliography
 
-{begin-hanging-paragraphs}
+*Perhaps this should be further reading rather than a bibliography.*
 
+{begin-hanging-paragraphs}
 
 **Tezos**
 
