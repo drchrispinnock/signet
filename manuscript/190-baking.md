@@ -22,7 +22,22 @@ The good news is that you can do all of these operations with the Signet wallet.
 
 ## Registering as a baker
 
+Only follow this section if you intend to use your key for baking. Once you register as a baker, you cannot unregister. One consequence of this is that you cannot delegate or stake to another baker ever again. We will assume that you have the key that you want to be the master baking key in Signet. You've either imported it or generated it there, or it is on a ledger you've connected.
+
+Select the key and go to `Baking...` on the burger menu.
+
+![](/190/delegate.png)
+
+Click Register as Baker.
+
+![](/190/delegate2.png)
+
+There is a small fee to pay, which you can confirm and then your key is registered as a baker. You now need to setup your baker if you haven't already, as soon as possible so that it will bake when you get rights. This is beyond the scope of this book. XXX Guides?
+
 ## Consensus and Companion keys
+
+![](/190/parameters.png)
+
 
 ## Staking parameters
 
