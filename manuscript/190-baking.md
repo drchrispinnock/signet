@@ -26,11 +26,11 @@ Only follow this section if you intend to use your key for baking. Once you regi
 
 Select the key and go to `Baking...` on the burger menu.
 
-![](/190/delegate.png)
+![](190/delegate.png)
 
 Click Register as Baker.
 
-![](/190/delegate2.png)
+![](190/delegate2.png)
 
 There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You'll need to stake at least 6000tz or 10% of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter.
 
@@ -41,7 +41,7 @@ You now need to setup your baker if you haven't already, as soon as possible so 
 
 ## Consensus and Companion keys
 
-![](/190/parameters.png)
+![](190/parameters.png)
 
 
 ## Staking parameters
