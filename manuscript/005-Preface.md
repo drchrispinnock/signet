@@ -2,6 +2,12 @@
 
 *Voice memo recorded 14 October 2026 (13 min 04 s). Tidied transcript: fillers and false starts removed, obvious speech-recognition errors corrected. Uncertain words are marked [?]; passages that couldn't be recovered are marked [unclear].*
 
+  - Why I created Signet?
+  - Vibe-coded and not audited
+  - Mac computer. Writting in Swift.
+  - Claude.Ai
+  - ChatGPT
+
 ---
 
 So, thoughts on Signet. I wanted to develop an application using AI. Obviously I have an interest in Tezos, and I tried to start a wallet project a couple of months ago, and it didn't work because I didn't seed it properly. I didn't give it any sort of anchor point, how I wanted it to look. And so I restarted this again in October. I'm not sure what caused me to do it on that day, but I just felt like doing it.

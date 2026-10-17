@@ -1,1 +1,4 @@
 # Getting Tez
+
+- Buying
+- Faucets
