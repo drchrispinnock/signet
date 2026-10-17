@@ -17,4 +17,4 @@
 900-backmatter.md
 910-apx-ownnode.md
 915-colophon.md
-920-bibliography.md
+#920-bibliography.md
