@@ -1,6 +1,6 @@
 # Multisig accounts
 
-A *multisig account* is one where more than one account needs to sign the transaction. The set of accounts that sign the transaction is called a *committee*. The whole *committee* doesn't need to sign the transactions necessarily. When one sets up the multisig account, one can choose how many of the committee are needed to sign.
+A *multisig account* is one where more than one person or entity needs to sign the transaction. The set of signatories is called a *committee*. The whole *committee* doesn't need to sign the transactions necessarily. When one sets up the multisig account, one can choose how many of the committee sign.
 
 On Tezos, there is a native multisig account feature. It's available in the command-line wallet `octez-client`. It works by deploying a smart contract holding the balance of the account, with the code implementing the signing committee. Signet implements the feature in exactly the same way, but provides a graphical user interface.
 
@@ -51,13 +51,13 @@ Click `Sign` and Alice receives a signature. She should keep a copy of this. But
 
 Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills out the same detail. Then he clicks sign. He saves the signature string
 
-```edsigtuHs3L9mkyomyT1kXgbPj8dPnfpwJ8ZHF3AZ8G9xeEpuRYEYU8pd5e9XhPky7WxHcQHy1ZASSLRk7vCBzvsUJ7G2hSucjZ```
+```edsigtu...CBzvsUJ7G2hSucjZ```
 
 and sends it to Alice.
 
 ![](180/bobmultisig.png)
 
-Christopher, Diana and Edward can provide the final signature. Edward does it. He could do it with Signet but he does it with `octez-client`. This is the command-line wallet provided with the Tezos blockchain software, [Octez](XXX).
+Christopher, Diana and Edward can provide the final signature. Edward does it. He could do it with Signet but he does it with `octez-client`. This is the command-line wallet provided with the Tezos blockchain software, [Octez](https://octez.tezos.com).
 
 ```
 $ octez-client -E https://rpc.shadownet.teztnets.com \
@@ -66,7 +66,7 @@ $ octez-client -E https://rpc.shadownet.teztnets.com \
   transferring 5 to \
   tz1etTUnFd6cYsmrZuS9awPSppFPwH1G3e9Q \
   using secret key Edward
-edsigtyYSNqe2msWMwFdU5tVFGq1HKcRuXHDAQ8DD3tgoVojkYwn8jxXdwNxrbx3AQcD5JeVa9fyzkNMk8nHcuPjoHdBb6qPiFi
+edsigty...PjoHdBb6qPiFi
 ```
 
 Edward sends the signature string to Alice.
@@ -75,7 +75,7 @@ Edward sends the signature string to Alice.
 
 Once all the necessary parties have signed the transaction, it can be submitted to the blockchain. Alice is going to do this. She takes the signature strings from Bob and Edward. Then in Signet she chooses `Submit multisig transaction...`.
 
-!(180/submit.png)
+![](180/submit.png)
 
 Alice choose the transaction that Signet has remember for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Sign`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
 
@@ -89,7 +89,7 @@ We can see the transaction, in this case in Bob's Signet view:
 
 You can delegate smart contracts to bakers on Tezos. The `Sign multisig transaction` feature can be used to sign the transactions to set the delegate (i.e. the baker) or remove it. As with delegating from normal accounts, you need to have an agreement directly with the baker to receive any rewards for your delegation. To set the delegate, choose the tab in the dialogue `Set delegate`, paste in a baker address and click `Sign`. You will get a signature string as with a transfer transaction.
 
-![](180/delegate.png)
+![](180/setdelegate.png)
 
 The `Remove delegate` function works in a similar way.
 
