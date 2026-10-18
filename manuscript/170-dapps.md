@@ -1,7 +1,6 @@
 # Distributed Apps
 
-Distributed Apps (dApps) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a distributed exchange (DEX) to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art. We
-will also swap some tez for another coin at the DEX [3route](https://3route.io/).
+Distributed Apps (dApps) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a distributed exchange (DEX) to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 ## Connecting to a dApp
 
@@ -86,4 +85,27 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
-## 3route
+## 3Route
+
+3Route is a distributed exchange where you can swap your crypto tokens for others. In this section, we are going to swap 2tz for some Tezos Domains Governance Tokens. XXX There are many other tokens that you can swap with at 3route XXX
+
+
+Go to 3route.io.
+Click Swap, Connect Wallet.
+
+As with Objkt.com, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+
+
+On the day, the exchange was rought
+
+
+
+## Quipiswap
+
+Connect Wallet
+Other wallets
+Show more
+Show QR code
+Beacon
+
+Choose the burger, swap.
