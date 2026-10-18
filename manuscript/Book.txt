@@ -1,6 +1,6 @@
 004-Beta.md
 005-Preface.md
-006-Disxlaimer.md
+006-Disclaimer.md
 008-acknowledgements.md
 009-mainmatter.md
 100-introduction.md
