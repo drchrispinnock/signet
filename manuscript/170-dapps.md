@@ -85,22 +85,19 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
-## 3Route
-
-3Route is a distributed exchange where you can swap your crypto tokens for others. In this section, we are going to swap 2tz for some Tezos Domains Governance Tokens. XXX There are many other tokens that you can swap with at 3route XXX
-
-
-Go to 3route.io.
-Click Swap, Connect Wallet.
-
-As with Objkt.com, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
-
-
-On the day, the exchange was rought
-
-
-
 ## Quipiswap
+
+Another place to swap tokens is Quipiswap
+
+![](170/quipuswap.png)
+
+![](170/quipuswap-tokens.png)
+
+![](170/quipuswap-usdtzsend.png)
+
+![](170/quipuswap-sign.png)
+
+![](170/quipuswap-assets.png)
 
 Connect Wallet
 Other wallets
@@ -108,4 +105,33 @@ Show more
 Show QR code
 Beacon
 
+When we purchased an NFT on Objkt, we signed an operation in Signet. In a similar way, we will now sign an operation to swap the assets in Signet.
+
 Choose the burger, swap.
+
+## 3Route
+
+3Route is a distributed exchange where you can swap your crypto tokens for other ones. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
+
+![](170/3route.png)
+
+To use 3Route, go to [3route.io](https://3route.io) into your web browser. Click `Swap` and then `Connect Wallet`. As with Objkt.com, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+
+<!-- ![](170/3route-selectted.png) -->
+![](170/3route-clickswap.png)
+
+Now enter the amount of tez you want to swap and the token that you want to swap it with (TED in this case). I have chosen to swap just 1tz. At the time of exchange, I could get approximately 132 TED tokens for my 1tz. Click `Swap`. As you would expect, Signet will ask you to sign the operation.
+
+![](170/3route-signet-sign.png)
+
+Click `Approve and Send`, and the assets will be swapped. We can see them in the assets view:
+
+![](170/3route-signet-assets.png)
+
+And the calls to the various smart contracts are visible in the transaction view:
+
+![](170/3route-signet-tx.png)
+
+## Swapping Tez for other cryptocurrencies
+
+XXX
