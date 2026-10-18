@@ -18,6 +18,10 @@ At the moment, we support tz addresses on the layer 2. These can be mapped to an
 
 Tzel is a smart-rollup for private post-quantum transactions. You'll be able to move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You'll be able to withdraw them (that is "unshield" them) from the rollup. Tzel is available on *shadownet* and it will soon be available on *quantumnet*. Signet needs to handle shielding, transfers and unshielding on this rollup. I expect this will be implemented as a third balanced on the main Signet screen.
 
+**Swapping and obtaining other tokens**
+
+Other wallets support swapping tokens at DEXs. We might investigate this in a later release, but you can go to a DEX and connect it as a dApp, as we saw earlier. Also, there is the possibility of acquiring other on-chain tokens directly from Signet.
+
 **Windows and Linux support**
 
 I am getting Claude to port the application to Windows 11 as a native application. This will take me some time. If there is enough demand, I may port to Linux as well. The problem will be one of maintenance - I will add a feature to the Mac version and then have to port it (or do it independently on the other platforms).
