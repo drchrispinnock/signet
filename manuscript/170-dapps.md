@@ -111,7 +111,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ## 3Route
 
-3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED) XXX explain what these are XXX  . There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
+3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote with in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
 
 ![](170/3route.png)
 
@@ -132,6 +132,7 @@ And the calls to the various smart contracts are visible in the transaction view
 
 ![](170/3route-signet-tx.png)
 
+<!--
 ## Swapping Tez for other cryptocurrencies
-
 XXX
+-->
