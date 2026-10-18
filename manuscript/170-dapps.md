@@ -85,7 +85,7 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
-## Quipswap
+## Quipuswap
 
 [Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a full-reserve backed stablecoin pegged to the US dollar. This means for every 1 USDtz in existence there is a real US dollar in reserve.
 
@@ -93,29 +93,25 @@ People tend to refer to digital art whose purchases have been recorded on blockc
 
 To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the copy into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
 
+<!--
 ![](170/quipuswap-tokens.png)
+-->
 
-
+Click the burger icon on the right hand site and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about $0.30 USDtz in return.)
 
 ![](170/quipuswap-usdtzsend.png)
 
+In Signet, I get a notification to sign the operation.
+
 ![](170/quipuswap-sign.png)
+
+And once I've signed, the tez has been swapped for USDtz and I can see it in my assets. I also got some Quipuswap governance tokens whilst I was there.
 
 ![](170/quipuswap-assets.png)
 
-Connect Wallet
-Other wallets
-Show more
-Show QR code
-Beacon
-
-When we purchased an NFT on Objkt, we signed an operation in Signet. In a similar way, we will now sign an operation to swap the assets in Signet.
-
-Choose the burger, swap.
-
 ## 3Route
 
-3Route is a distributed exchange where you can swap your crypto tokens for other ones. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
+3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED) XXX explain what these are XXX  . There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
 
 ![](170/3route.png)
 
