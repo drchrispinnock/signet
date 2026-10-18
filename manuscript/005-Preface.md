@@ -1,5 +1,7 @@
 # Preface — transcript
 
+On October 5th 2026, I got the urge to have a go at creating an application using AI.
+
 *Voice memo recorded 14 October 2026 (13 min 04 s). Tidied transcript: fillers and false starts removed, obvious speech-recognition errors corrected. Uncertain words are marked [?]; passages that couldn't be recovered are marked [unclear].*
 
   - Why I created Signet?

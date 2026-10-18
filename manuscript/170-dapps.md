@@ -85,13 +85,17 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
-## Quipiswap
+## Quipswap
 
-Another place to swap tokens is Quipiswap
+[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a full-reserve backed stablecoin pegged to the US dollar. This means for every 1 USDtz in existence there is a real US dollar in reserve.
 
 ![](170/quipuswap.png)
 
+To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the copy into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
+
 ![](170/quipuswap-tokens.png)
+
+
 
 ![](170/quipuswap-usdtzsend.png)
 
@@ -115,7 +119,7 @@ Choose the burger, swap.
 
 ![](170/3route.png)
 
-To use 3Route, go to [3route.io](https://3route.io) into your web browser. Click `Swap` and then `Connect Wallet`. As with Objkt.com, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, go to [3route.io](https://3route.io) into your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)
