@@ -614,8 +614,17 @@ automatic download is off by default. The updater is not started under the test 
   logo `ShieldLogo`, under Etherlink when that row is shown, else under tez; hidden with every
   row when the account is not on chain) whose figure is the `shieldedPlaceholder` 0 tz until the
   TzEL note scan exists. Three operations (Shield tez, Unshield tez, Send shielded transaction)
-  are to follow. The research, verified Shadownet parameters and integration options are in
-  `docs/tzel/RESEARCH.md`; the spec note is `docs/spec/shield.md` and the protocol is
+  are to follow. **The protocol is implemented here, not bundled** (Chris's decision): the
+  primitives live in the bridge, `TaquitoBridge/src/tzel.js` (felts and tags, BLAKE2s-251 with
+  the spec's personalizations, key hierarchy, ML-KEM-768 seeds/keygen/encaps/decaps via noble,
+  note AEAD, detection tags, memo hash, WOTS+ w=4 and the 65536-leaf XMSS auth tree, Merkle
+  roots and paths, commitments, nullifiers, note acceptance, sighash fold, canonical wire
+  forms, deposit pool ids), checked by `test/tzel-vectors.cjs` against the tzel repository's
+  cross-implementation vectors read from a checkout (`TZEL_VECTORS` or `../tzel`; skipped
+  without one; `TZEL_FULL=1` also builds the three full auth roots, minutes each). The tzel
+  licence forbids copying its code or vectors into this repository. The research, verified
+  Shadownet parameters, the decision and the step plan are in `docs/tzel/RESEARCH.md`
+  (section 8); the spec note is `docs/spec/shield.md` and the protocol is
   https://github.com/trilitech/tzel/.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
