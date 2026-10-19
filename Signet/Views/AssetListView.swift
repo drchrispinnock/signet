@@ -84,6 +84,10 @@ struct AssetRowView: View {
             Image("EtherlinkLogo")
                 .resizable()
                 .scaledToFit()
+        case .shielded:
+            Image("ShieldLogo")
+                .resizable()
+                .scaledToFit()
         case .token:
             badge(String(asset.symbol.prefix(4)))
         }
@@ -103,6 +107,7 @@ struct AssetRowView: View {
         AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: 22702.455018,
                      details: TezBalance(spendable: 1386.761464, staked: 21315.693554).breakdown),
         AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: 5432.1),
+        AssetBalance.shieldedPlaceholder,
     ])
     .padding()
 }

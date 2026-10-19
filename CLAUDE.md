@@ -610,9 +610,13 @@ automatic download is off by default. The updater is not started under the test 
   `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`). Only the choice is kept so
   far. `Network.shieldedAvailable` marks the networks that have them (Shadownet and Quantumnet,
   October 2026); the switch is offered everywhere, and the footer says when a network has none
-  yet. With the switch on, a shielded balance and three operations (Shield tez, Unshield tez,
-  Send shielded transaction) are to follow; the spec is `docs/spec/shield.md` and the protocol
-  is https://github.com/trilitech/tzel/.
+  yet. With the switch on, the dashboard shows a **Shielded** row (`AssetBalance.Kind.shielded`,
+  logo `ShieldLogo`, under Etherlink when that row is shown, else under tez; hidden with every
+  row when the account is not on chain) whose figure is the `shieldedPlaceholder` 0 tz until the
+  TzEL note scan exists. Three operations (Shield tez, Unshield tez, Send shielded transaction)
+  are to follow. The research, verified Shadownet parameters and integration options are in
+  `docs/tzel/RESEARCH.md`; the spec note is `docs/spec/shield.md` and the protocol is
+  https://github.com/trilitech/tzel/.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

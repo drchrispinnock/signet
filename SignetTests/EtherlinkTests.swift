@@ -439,3 +439,41 @@ struct ShieldedSwitchTests {
         #expect(!model.network.shieldedEnabled && model.isShieldedEnabled(for: .shadownet))
     }
 }
+
+/// The Shielded row: under Etherlink when that is shown, else under tez, only while the
+/// network's shielded transactions are on, and 0 tz until the TzEL scan exists.
+@MainActor
+struct ShieldedRowTests {
+    @Test func rowFollowsTheSwitchAndSitsUnderEtherlink() async {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService())
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez"])
+
+        model.setShieldedEnabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez", "shielded"])
+        let row = model.assets.first { $0.kind == .shielded }
+        #expect(row?.amount == 0 && row?.symbol == "tz" && row?.name == "Shielded" && row?.unavailable == nil)
+        #expect(row?.formattedAmount == "0 tz")
+
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez", "etherlink", "shielded"])
+
+        model.setShieldedEnabled(false, for: .mainnet)
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez", "etherlink"])
+
+        // Another network's switch does not show it here.
+        model.setShieldedEnabled(true, for: .shadownet)
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez", "etherlink"])
+    }
+
+    @Test func noRowsAtAllWhenTheAccountIsNotOnChain() async {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: EtherlinkRowTests.FailingEtherlink(notOnChain: true))
+        model.setShieldedEnabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.accountNotOnChain && model.assets.isEmpty)
+    }
+}

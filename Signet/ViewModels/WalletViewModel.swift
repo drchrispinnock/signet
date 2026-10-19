@@ -44,6 +44,14 @@ final class WalletViewModel {
         }
     }
 
+    /// The Shielded row of the dashboard, under Etherlink (or tez), while the network has
+    /// shielded transactions on. The figure is 0 until the TzEL note scan lands
+    /// (`docs/tzel/RESEARCH.md`): a shielded balance is local scan state, not a node reply.
+    private nonisolated static func shieldedRow(on network: Network) -> AssetBalance? {
+        guard network.shieldedEnabled else { return nil }
+        return .shieldedPlaceholder
+    }
+
     /// Every account: those from the wallet directory (accounts, address book, contracts), then
     /// the keys held for this session only. Assigning replaces the stored part.
     private(set) var wallets: [Wallet] {
@@ -612,6 +620,7 @@ final class WalletViewModel {
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
             if let row = await etherlink { list.append(row) }
+            if let row = Self.shieldedRow(on: network) { list.append(row) }
             snapshot.tezBalance = tezBalance
             snapshot.assets = list
             snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
