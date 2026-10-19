@@ -37,7 +37,11 @@ struct SignetApp: App {
             backupSettings: BackupSettings(),
             dappStorageFactory: { directory in OctezConnectStorage(directory: directory) },
             dappDiagnostics: DeveloperSettings.dappDiagnostics,
-            startDApps: true
+            startDApps: true,
+            shieldedStoreFactory: { directory, chain -> any ShieldedWalletStore in
+                guard let directory else { return InMemoryShieldedWalletStore() }
+                return FileShieldedWalletStore(directory: directory, chain: chain)
+            }
         )
     }
 

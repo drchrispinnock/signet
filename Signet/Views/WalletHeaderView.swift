@@ -195,6 +195,9 @@ struct OperationsMenuItems: View {
             if model.canBridge {
                 Button("Bridge…") { model.isPresentingBridge = true }
             }
+            if model.canShield {
+                Button("Shield tez…") { model.isPresentingShield = true }
+            }
             Divider()
             Button("Create multisig…") { model.isPresentingCreateMultisig = true }
             Button("Add multisig…") { model.isPresentingAddMultisig = true }

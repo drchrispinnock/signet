@@ -53,5 +53,22 @@
 	<string>public.app-category.finance</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© Chris Pinnock 2026</string>
+	<!-- Shadownet's TzEL rollup node and operator serve plain HTTP (test services); nothing else is exempt. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>rollup.tzel.tezos.com</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+			<key>operator.tzel.tezos.com</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

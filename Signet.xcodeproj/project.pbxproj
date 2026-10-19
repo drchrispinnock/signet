@@ -14,6 +14,7 @@
 		07D7E4480040CCD4175347AC /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B82438F96A071EF2BC434 /* Appearance.swift */; };
 		07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */; };
 		085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */; };
+		08A411B770ABF211793F1F75 /* Blake2s.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47811A27E6DCA933C13141F /* Blake2s.swift */; };
 		0CED335B769FC20C5E1FBF97 /* ChainServiceTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1A33134A80A7023ED60D8 /* ChainServiceTestSupport.swift */; };
 		0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */; };
 		0DC2DAF901DB2FA364724E8F /* RememberKeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */; };
@@ -48,7 +49,11 @@
 		3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */; };
 		3B98C6A3453632B148FF3379 /* AvatarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809437E1132C36D982D2418B /* AvatarTests.swift */; };
 		3FA928776966346A3F440200 /* DAppRequestSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B7333B6F53BDA303AE19D83 /* DAppRequestSheet.swift */; };
+		4143A93F3B3D1453AA18D64D /* XMSSAuthTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2BD19AEA6D61E61FF350B8 /* XMSSAuthTree.swift */; };
+		4211803B900DA67DB7886BE4 /* tzel_blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = 5481C59429754E514430580E /* tzel_blake2s.c */; settings = {COMPILER_FLAGS = "-O3"; }; };
+		437BEDF2C4A2FA96A2D6E07A /* ShieldedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC9386B2C2BD2D795CADA7B /* ShieldedService.swift */; };
 		43974418BF2EE224E97E1C91 /* SubmitMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */; };
+		48BF0FDADB88E86B0E19C32E /* ShieldedWallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 544161FC930E414B7F3E0D0B /* ShieldedWallet.swift */; };
 		49007ED6467AA6F2D6205E8C /* QRCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 822144910E1FB03FD7D270CA /* QRCodeTests.swift */; };
 		4AED8C1726FA50A22393D834 /* NFT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D36824F9FB49AF03A6D12F1 /* NFT.swift */; };
 		4EC9E16CA50BB4796AE325A2 /* AddMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */; };
@@ -96,10 +101,12 @@
 		93CA5BDA4B5439D81270BCAB /* OperationJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E23BA77E2EE9A2D4326E404 /* OperationJournal.swift */; };
 		945A8B6A3D1933615DBBD5C5 /* PrivateFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC50BA0743BD7F6C02007F2 /* PrivateFile.swift */; };
 		9515CEF511EC5DEA4872F494 /* FaucetSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC918EF9B0EDD54D21EB48C3 /* FaucetSheet.swift */; };
+		95F1191724EFC0F40EBE89C7 /* ShieldSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */; };
 		9803D0FE2D7A0F808A4F2DED /* LedgerSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2F8374A48C3D15B41A0E14 /* LedgerSessions.swift */; };
 		9891BF967B4AE747AC6DEBCF /* TezosDomainsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */; };
 		98CA8BD06801D00E1E259F42 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C368DB40E25AA303DD76D49 /* ImageLoader.swift */; };
 		9C76914707853D3D3BF484BF /* NetworkBadgeMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */; };
+		9D02BBA44BF0655F9D191FC8 /* tzel-shadownet-producer.json in Resources */ = {isa = PBXBuildFile; fileRef = 1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */; };
 		9D832937DA172705C3CCB872 /* ConnectDAppSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53331E96FFD222A1898C7F83 /* ConnectDAppSheet.swift */; };
 		A4C2D6AE665CA6309C22E732 /* TezosTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB43BB3B884C40E4BF7D28D /* TezosTransaction.swift */; };
 		A4EAD7B70EFB608697E679E5 /* NodeMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49EBC889E951D255F516827F /* NodeMonitorTests.swift */; };
@@ -117,6 +124,7 @@
 		BB762E536DA58062274B723C /* TaquitoChainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */; };
 		BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */; };
 		BEBA52C6B05825C81E3B0223 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */; };
+		BEF905CB4609C3B3263383A1 /* WalletViewModel+Shielded.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3E1D404543B7D44AF9F490 /* WalletViewModel+Shielded.swift */; };
 		C09D68D63C60BAC7529DD300 /* SendSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 392C832007D3B6DE8AB37D22 /* SendSheet.swift */; };
 		C0B1728E1DC77C41A2360C37 /* SignetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */; };
 		C12C8C59B8BDCF5A428BD14F /* MultisigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94605277BB0DFFCEF9946DCE /* MultisigTests.swift */; };
@@ -145,6 +153,7 @@
 		E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7070B3A5754283DA58F7D /* SettingsView.swift */; };
 		E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A977FC2E863E73A21EF39F /* SendViewModel.swift */; };
 		E428724605E404E9B227878E /* DAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F940745F8842D7E206AB1B3D /* DAppRequest.swift */; };
+		E58D4BECB119DAFCC02AB600 /* ShieldedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B608852FCC414F389A5B28DD /* ShieldedTests.swift */; };
 		E7EA15D2639194B6837F7822 /* SessionKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0678EA4CF0B0ADB9DEBC3FB9 /* SessionKeys.swift */; };
 		E9B824ED46A889B73CC8485C /* TokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */; };
 		EAEF01D7B57BA984CCB2B996 /* TokenListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC9EC06EA2E130C77234325 /* TokenListView.swift */; };
@@ -183,6 +192,7 @@
 		0B8A25CB62696FFB8F173814 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		0FC5AEA37DB0C4CC4A507E78 /* Address.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Address.swift; sourceTree = "<group>"; };
 		12061334BC624B52CD710148 /* TezClientStoreDirectoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezClientStoreDirectoryTests.swift; sourceTree = "<group>"; };
+		1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "tzel-shadownet-producer.json"; sourceTree = "<group>"; };
 		12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMultisigSheet.swift; sourceTree = "<group>"; };
 		154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicHTTPClient.swift; sourceTree = "<group>"; };
 		17A5D3A61994CA0F42AB7C64 /* BuyWebViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyWebViewTests.swift; sourceTree = "<group>"; };
@@ -223,11 +233,15 @@
 		52C145BB526DC161273EB9F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		53331E96FFD222A1898C7F83 /* ConnectDAppSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectDAppSheet.swift; sourceTree = "<group>"; };
 		53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisclaimerAlert.swift; sourceTree = "<group>"; };
+		544161FC930E414B7F3E0D0B /* ShieldedWallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldedWallet.swift; sourceTree = "<group>"; };
+		5481C59429754E514430580E /* tzel_blake2s.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tzel_blake2s.c; sourceTree = "<group>"; };
 		553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTests.swift; sourceTree = "<group>"; };
 		558CDF12CE81034B95FF02F4 /* SignetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5669132EA4D561AD15D4B9CE /* ConfirmationWatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationWatcherTests.swift; sourceTree = "<group>"; };
 		57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRepairTests2.swift; sourceTree = "<group>"; };
 		59BE6FB05DF0E663E5CC8E0E /* LiveTestTraits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTestTraits.swift; sourceTree = "<group>"; };
+		5A3E1D404543B7D44AF9F490 /* WalletViewModel+Shielded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WalletViewModel+Shielded.swift"; sourceTree = "<group>"; };
+		5AC9386B2C2BD2D795CADA7B /* ShieldedService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldedService.swift; sourceTree = "<group>"; };
 		5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAddressSheet.swift; sourceTree = "<group>"; };
 		5C368DB40E25AA303DD76D49 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		5DC50BA0743BD7F6C02007F2 /* PrivateFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateFile.swift; sourceTree = "<group>"; };
@@ -244,6 +258,7 @@
 		72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerinTests.swift; sourceTree = "<group>"; };
 		73AC1D8BDD38FBB6CE11BEF5 /* KeccakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeccakTests.swift; sourceTree = "<group>"; };
 		741349B359248E0F53BDF375 /* TezosClientStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezosClientStore.swift; sourceTree = "<group>"; };
+		7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldSheet.swift; sourceTree = "<group>"; };
 		766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedKeyTests.swift; sourceTree = "<group>"; };
 		76F6224B138E3946294DCF2F /* StakingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StakingTests.swift; sourceTree = "<group>"; };
 		79F498AB6E54AD10BF1747A6 /* TransactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionTests.swift; sourceTree = "<group>"; };
@@ -256,8 +271,10 @@
 		822144910E1FB03FD7D270CA /* QRCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeTests.swift; sourceTree = "<group>"; };
 		82891C504DD66214B765AF83 /* AssetBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetBalance.swift; sourceTree = "<group>"; };
 		83072D0DF452B9C3626CC42E /* AddressBookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressBookTests.swift; sourceTree = "<group>"; };
+		8C2BD19AEA6D61E61FF350B8 /* XMSSAuthTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMSSAuthTree.swift; sourceTree = "<group>"; };
 		8C97CB8F610E2FEBAE942B50 /* BuyProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyProvider.swift; sourceTree = "<group>"; };
 		8D36824F9FB49AF03A6D12F1 /* NFT.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFT.swift; sourceTree = "<group>"; };
+		8D4B5438B2EFD57764827C1D /* tzel_blake2s.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tzel_blake2s.h; sourceTree = "<group>"; };
 		8E23BA77E2EE9A2D4326E404 /* OperationJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationJournal.swift; sourceTree = "<group>"; };
 		8EED1010B47F417371C6C455 /* FaucetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaucetService.swift; sourceTree = "<group>"; };
 		926EF7412E238A0CC14FA791 /* MockChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChainService.swift; sourceTree = "<group>"; };
@@ -283,8 +300,10 @@
 		A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostQuantumSendTests.swift; sourceTree = "<group>"; };
 		A8C3E5BA111A78690461B8D9 /* NFTTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTTests.swift; sourceTree = "<group>"; };
 		A8F7142388FBD9770414F6F0 /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
+		AB50A0A29E240FA235C9FE67 /* Signet-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Signet-Bridging-Header.h"; sourceTree = "<group>"; };
 		ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportKeySheet.swift; sourceTree = "<group>"; };
 		B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletViewModel.swift; sourceTree = "<group>"; };
+		B608852FCC414F389A5B28DD /* ShieldedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldedTests.swift; sourceTree = "<group>"; };
 		B7AEA3E7D456319C0F83A147 /* SessionKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionKeyTests.swift; sourceTree = "<group>"; };
 		B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RememberKeySheet.swift; sourceTree = "<group>"; };
 		B83A465432E9E915B374F22E /* Wallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Wallet.swift; sourceTree = "<group>"; };
@@ -301,6 +320,7 @@
 		CC4C9564242D0121528FCBA7 /* BridgeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeSheet.swift; sourceTree = "<group>"; };
 		CD834C06F49658A295BADA09 /* AppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateStore.swift; sourceTree = "<group>"; };
 		D03CB66A944449D61F196B99 /* MultisigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultisigService.swift; sourceTree = "<group>"; };
+		D47811A27E6DCA933C13141F /* Blake2s.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blake2s.swift; sourceTree = "<group>"; };
 		D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectPairingDiagnostic.swift; sourceTree = "<group>"; };
 		D55C4D86A1145ACAF063447D /* WalletBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletBackup.swift; sourceTree = "<group>"; };
 		D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeStatusBar.swift; sourceTree = "<group>"; };
@@ -380,6 +400,7 @@
 				392C832007D3B6DE8AB37D22 /* SendSheet.swift */,
 				4B5133556944367214FA9041 /* SendSheet+Preview.swift */,
 				BFC7070B3A5754283DA58F7D /* SettingsView.swift */,
+				7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */,
 				479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */,
 				7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */,
 				997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */,
@@ -463,6 +484,7 @@
 				6B5AB0D4CA449EBD13FE53D7 /* RefreshContextTests.swift */,
 				088C8CA0ACEDD480A9684481 /* SendTests.swift */,
 				B7AEA3E7D456319C0F83A147 /* SessionKeyTests.swift */,
+				B608852FCC414F389A5B28DD /* ShieldedTests.swift */,
 				76F6224B138E3946294DCF2F /* StakingTests.swift */,
 				728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */,
 				4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */,
@@ -485,6 +507,7 @@
 				DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */,
 				C3A48078F3336DCF0514ED8D /* Credits.rtf */,
 				FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */,
+				1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -493,6 +516,7 @@
 			isa = PBXGroup;
 			children = (
 				52C145BB526DC161273EB9F7 /* Info.plist */,
+				AB50A0A29E240FA235C9FE67 /* Signet-Bridging-Header.h */,
 				389A75014E3B2DEFD52F2274 /* Signet.entitlements */,
 				9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */,
 				1CFDE713252FD3D3FD5C800A /* Models */,
@@ -509,6 +533,7 @@
 			children = (
 				046B82438F96A071EF2BC434 /* Appearance.swift */,
 				CD834C06F49658A295BADA09 /* AppStateStore.swift */,
+				D47811A27E6DCA933C13141F /* Blake2s.swift */,
 				7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */,
 				6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */,
 				8C97CB8F610E2FEBAE942B50 /* BuyProvider.swift */,
@@ -538,15 +563,20 @@
 				154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */,
 				A10DBE16F18BCE91ECEC7739 /* QRCode.swift */,
 				0678EA4CF0B0ADB9DEBC3FB9 /* SessionKeys.swift */,
+				5AC9386B2C2BD2D795CADA7B /* ShieldedService.swift */,
+				544161FC930E414B7F3E0D0B /* ShieldedWallet.swift */,
 				F14BE215CE24A40FB22C3584 /* TaquitoBridge.swift */,
 				1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */,
 				741349B359248E0F53BDF375 /* TezosClientStore.swift */,
 				5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */,
+				5481C59429754E514430580E /* tzel_blake2s.c */,
+				8D4B5438B2EFD57764827C1D /* tzel_blake2s.h */,
 				26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */,
 				9DE59C3B2980EB51F7EBA4CD /* UpdaterService.swift */,
 				D55C4D86A1145ACAF063447D /* WalletBackup.swift */,
 				4E10999773090115B0585AAE /* WalletDirectorySettings.swift */,
 				B8B591F4ED8860E9761BCAEC /* WalletStore.swift */,
+				8C2BD19AEA6D61E61FF350B8 /* XMSSAuthTree.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -556,6 +586,7 @@
 			children = (
 				68A977FC2E863E73A21EF39F /* SendViewModel.swift */,
 				B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */,
+				5A3E1D404543B7D44AF9F490 /* WalletViewModel+Shielded.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -659,6 +690,7 @@
 				BEBA52C6B05825C81E3B0223 /* Assets.xcassets in Resources */,
 				FCD773F3D301A0DD69BD99EC /* Credits.rtf in Resources */,
 				F0231794744CC54F6F39B989 /* taquito-bridge.js in Resources */,
+				9D02BBA44BF0655F9D191FC8 /* tzel-shadownet-producer.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -705,6 +737,7 @@
 				3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */,
 				28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */,
 				C3AEE7B758748C0997C2FFDD /* Base58.swift in Sources */,
+				08A411B770ABF211793F1F75 /* Blake2s.swift in Sources */,
 				7492F277D933572F5A57BCA5 /* BoundedHTTP.swift in Sources */,
 				51D8E8DE8DC6F580C62DBABA /* BridgeCallGate.swift in Sources */,
 				B6F6D9203A13C13BCEF86EEA /* BridgeSheet.swift in Sources */,
@@ -770,6 +803,9 @@
 				E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */,
 				E7EA15D2639194B6837F7822 /* SessionKeys.swift in Sources */,
 				E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */,
+				95F1191724EFC0F40EBE89C7 /* ShieldSheet.swift in Sources */,
+				437BEDF2C4A2FA96A2D6E07A /* ShieldedService.swift in Sources */,
+				48BF0FDADB88E86B0E19C32E /* ShieldedWallet.swift in Sources */,
 				ACEEFBEA79DEAC5A35BA2E00 /* SignMultisigSheet.swift in Sources */,
 				C0B1728E1DC77C41A2360C37 /* SignetApp.swift in Sources */,
 				6D72B36ED768416E56BD2AE0 /* Staking.swift in Sources */,
@@ -792,7 +828,10 @@
 				FDCC5A239632D223F09CE02A /* WalletHeaderView.swift in Sources */,
 				187F8A19861109D189ACEEA7 /* WalletHomeView.swift in Sources */,
 				D1119DFB6539DFF9B599B0CA /* WalletStore.swift in Sources */,
+				BEF905CB4609C3B3263383A1 /* WalletViewModel+Shielded.swift in Sources */,
 				085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */,
+				4143A93F3B3D1453AA18D64D /* XMSSAuthTree.swift in Sources */,
+				4211803B900DA67DB7886BE4 /* tzel_blake2s.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -835,6 +874,7 @@
 				6147C62CC2E4DC757507FDA2 /* RefreshContextTests.swift in Sources */,
 				A739ED053C1344CED9AEB04E /* SendTests.swift in Sources */,
 				378BC315BC1066DF3E199286 /* SessionKeyTests.swift in Sources */,
+				E58D4BECB119DAFCC02AB600 /* ShieldedTests.swift in Sources */,
 				CEA73B444F784FD76B29360A /* StakingTests.swift in Sources */,
 				BDFA98421807A07BCED1DAA8 /* TaquitoBridgeTests.swift in Sources */,
 				7E50AA94FD93517E66818B1B /* TestHostIsolationTests.swift in Sources */,
@@ -878,6 +918,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
 				PRODUCT_NAME = Signet;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Signet/Signet-Bridging-Header.h";
 			};
 			name = Debug;
 		};
@@ -1059,6 +1100,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.tezos.signet;
 				PRODUCT_NAME = Signet;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Signet/Signet-Bridging-Header.h";
 			};
 			name = Release;
 		};

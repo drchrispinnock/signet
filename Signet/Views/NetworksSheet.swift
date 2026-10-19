@@ -123,6 +123,24 @@ struct NetworksSheet: View {
                 }
             }
             Toggle("Enable Shielded Transactions", isOn: shieldedEnabled)
+            if let base = editingNetwork, model.isShieldedEnabled(for: base), base.shielded != nil {
+                LabeledContent("TzEL operator token") {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        SecureField("", text: $operatorTokenText, prompt: Text(model.shieldedOperatorTokenIsSet(for: base) ? "On file; paste a new one to replace it" : "Paste the operator's access token"))
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit(applyOperatorToken)
+                            .frame(minWidth: 300)
+                        if let operatorTokenError { Text(operatorTokenError).font(.callout).foregroundStyle(.red) }
+                        HStack {
+                            if model.shieldedOperatorTokenIsSet(for: base) {
+                                Button("Remove") { operatorTokenText = ""; applyOperatorToken() }
+                            }
+                            Button("Apply", action: applyOperatorToken)
+                                .disabled(operatorTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                }
+            }
         } header: {
             Text("Networks")
         } footer: {
@@ -177,6 +195,22 @@ struct NetworksSheet: View {
         )
     }
 
+    @State private var operatorTokenText = ""
+    @State private var operatorTokenError: String?
+
+    /// Keeps the token in the network's shielded wallet file (never in the app state or the
+    /// repository); the field empties once it is on file.
+    private func applyOperatorToken() {
+        guard let base = editingNetwork else { return }
+        operatorTokenError = nil
+        do {
+            try model.setShieldedOperatorToken(operatorTokenText, for: base)
+            operatorTokenText = ""
+        } catch {
+            operatorTokenError = error.localizedDescription
+        }
+    }
+
     private var shieldedEnabled: Binding<Bool> {
         Binding(
             get: { editingNetwork.map { model.isShieldedEnabled(for: $0) } ?? false },
@@ -215,9 +249,13 @@ struct NetworksSheet: View {
             text += base.l2DefaultRPCURL.map { " (default \($0.absoluteString))." } ?? " you enter here."
         }
         if model.isShieldedEnabled(for: base) {
-            text += base.shieldedAvailable
-                ? " Shielded transactions are being built: the switch is remembered, and the shielded balance and operations will appear here once they exist."
-                : " \(base.name) has no shielded transactions yet (Shadownet and Quantumnet have them); the switch is remembered for when it does."
+            if let config = base.shielded {
+                text += " With Shielded Transactions on, the dashboard shows the account's shielded tez on the TzEL rollup (node \(config.rollupNode.absoluteString)) and the menu offers Shield tez. Shielding hands proved requests to the operator at \(config.operatorURL.host() ?? config.operatorURL.absoluteString), which needs its access token; it is kept with the shielded wallet in the wallet directory."
+            } else {
+                text += base.shieldedAvailable
+                    ? " \(base.name) has shielded transactions, but Signet does not know its TzEL services yet; the switch is remembered."
+                    : " \(base.name) has no shielded transactions yet (Shadownet and Quantumnet have them); the switch is remembered for when it does."
+            }
         }
         return text
     }

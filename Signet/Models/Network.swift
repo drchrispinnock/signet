@@ -49,6 +49,9 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Whether the network has shielded transactions at all (Shadownet and Quantumnet, October
     /// 2026). The switch is offered everywhere so the choice is ready when a network gains them.
     let shieldedAvailable: Bool
+    /// Where they live: the TzEL rollup node, rollup, bridge ticketer, operator and proving
+    /// service (`ShieldedConfig`). Shipped for Shadownet; `nil` where Signet cannot shield yet.
+    let shielded: ShieldedConfig?
     /// Etherlink's bridge helper contract on layer 1 (`deposit %evm_address %l2_address`) and the
     /// Smart Rollup it feeds, for depositing tez to a Michelson-interface account. Shipped for
     /// mainnet and Shadownet; a user-supplied Layer 2 node does not come with a bridge.
@@ -68,9 +71,10 @@ struct Network: Hashable, Identifiable, Sendable {
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
          l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
-         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, shieldedAvailable: Bool = false) {
+         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
         self.shieldedAvailable = shieldedAvailable
+        self.shielded = shielded
         self.chain = chain
         self.rpcURL = rpcURL
         self.defaultRPCURL = rpcURL
@@ -110,6 +114,8 @@ struct Network: Hashable, Identifiable, Sendable {
 
     /// Etherlink is on and has a node to ask.
     var hasL2: Bool { l2Enabled && l2RPCURL != nil }
+    /// Shielded transactions are on and Signet knows the network's TzEL services.
+    var canShield: Bool { shieldedEnabled && shielded != nil }
     /// Tez can be moved from layer 1 to Etherlink here: Layer 2 is on and the bridge is known.
     var canDepositToL2: Bool { hasL2 && l2BridgeHelper != nil && l2Rollup != nil }
 
@@ -271,7 +277,8 @@ struct Network: Hashable, Identifiable, Sendable {
         l2Rollup: "sr19fMYrr5C4qqvQqQrDSjtP31GcrWjodzvg",
         l2TzKTURL: URL(string: "https://api.shadownet.etherlink.tzkt.io")!,
         l2ExplorerURL: URL(string: "https://shadownet.etherlink.tzkt.io")!,
-        shieldedAvailable: true
+        shieldedAvailable: true,
+        shielded: .shadownet
     )
     static let bakingnet = Network(
         name: "Bakingnet",

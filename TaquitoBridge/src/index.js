@@ -283,6 +283,12 @@ import { signerFor, readOnlySigner } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
 export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
 
+// ---- Shielded tez (TzEL) ---------------------------------------------------------------------
+export {
+  shieldDepositParams, estimateShieldDeposit, sendShieldDeposit, tzelAccount, tzelAddressKeys, tzelAuthLeaf, tzelDepositPool,
+  tzelScan, tzelBuildShield, tzelEncodeShieldMessage,
+} from "./shield.js";
+
 /** Diagnostic: proves console output reaches the host. */
 export function bridgeEcho(message) {
   console.log("echo:", message);

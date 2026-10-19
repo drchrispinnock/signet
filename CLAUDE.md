@@ -604,28 +604,74 @@ automatic download is off by default. The updater is not started under the test 
   a Layer 2 service only (`ChainError.notALayer2Service` otherwise) and
   `WalletViewModel.etherlinkAliasStatus` / `estimateEtherlinkLink` / `linkToEtherlink` use
   `layer2Chain`. `EtherlinkLiveTests.linksAFreshAccountToItsEtherlinkAlias` is the live check.
-- **Shielded transactions (tzel, in progress).** The Networks sheet has an "Enable Shielded
+- **Shielded transactions (TzEL).** The Networks sheet has an "Enable Shielded
   Transactions" switch per network (`Network.shieldedEnabled`, off by default, saved in
   `AppState.shieldedEnabled` only where on; `WalletViewModel.isShieldedEnabled(for:)` /
-  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`). Only the choice is kept so
-  far. `Network.shieldedAvailable` marks the networks that have them (Shadownet and Quantumnet,
-  October 2026); the switch is offered everywhere, and the footer says when a network has none
-  yet. With the switch on, the dashboard shows a **Shielded** row (`AssetBalance.Kind.shielded`,
-  logo `ShieldLogo`, under Etherlink when that row is shown, else under tez; hidden with every
-  row when the account is not on chain) whose figure is the `shieldedPlaceholder` 0 tz until the
-  TzEL note scan exists. Three operations (Shield tez, Unshield tez, Send shielded transaction)
-  are to follow. **The protocol is implemented here, not bundled** (Chris's decision): the
-  primitives live in the bridge, `TaquitoBridge/src/tzel.js` (felts and tags, BLAKE2s-251 with
-  the spec's personalizations, key hierarchy, ML-KEM-768 seeds/keygen/encaps/decaps via noble,
-  note AEAD, detection tags, memo hash, WOTS+ w=4 and the 65536-leaf XMSS auth tree, Merkle
-  roots and paths, commitments, nullifiers, note acceptance, sighash fold, canonical wire
-  forms, deposit pool ids), checked by `test/tzel-vectors.cjs` against the tzel repository's
-  cross-implementation vectors read from a checkout (`TZEL_VECTORS` or `../tzel`; skipped
-  without one; `TZEL_FULL=1` also builds the three full auth roots, minutes each). The tzel
-  licence forbids copying its code or vectors into this repository. The research, verified
-  Shadownet parameters, the decision and the step plan are in `docs/tzel/RESEARCH.md`
-  (section 8); the spec note is `docs/spec/shield.md` and the protocol is
-  https://github.com/trilitech/tzel/.
+  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`). `Network.shielded` is the
+  deployment Signet knows how to reach (`ShieldedConfig`: rollup node, rollup, bridge
+  ticketer, operator, proving service, producer fee and the producer's payment address, a
+  bundled resource `tzel-shadownet-producer.json`); shipped for Shadownet, `nil` elsewhere
+  (`shieldedAvailable` only says a network has them). With the switch on and a config, the
+  dashboard's **Shielded** row (`AssetBalance.Kind.shielded`, logo `ShieldLogo`, under
+  Etherlink or tez, hidden when the account is not on chain) is the wallet's unspent notes,
+  found by scanning the rollup (`WalletViewModel.scanShielded`: new tree positions since the
+  saved cursor decrypted in the bridge with the viewing keys, nullifiers that spend ours, the
+  deposit pools' balances as a detail line; an unreachable rollup blanks the row); without a
+  config it is the 0 placeholder. **The protocol is implemented here, not bundled** (Chris's
+  decision): the primitives are in the bridge, `TaquitoBridge/src/tzel.js` (felts and tags,
+  BLAKE2s-251 with the spec's personalizations, key hierarchy, ML-KEM-768 via noble, note
+  AEAD, detection tags, memo hash, WOTS+ w=4 and the 65536-leaf XMSS auth tree, Merkle roots
+  and paths, commitments, nullifiers, note acceptance, sighash fold, canonical wire forms,
+  deposit pools, the shield sighash and witness, kernel inbox wire version 17), checked by
+  `test/tzel-vectors.cjs` against the tzel repository's cross-implementation vectors read from
+  a checkout (`TZEL_VECTORS` or `../tzel`; skipped without one; `TZEL_FULL=1` also builds the
+  three full auth roots in JavaScript, minutes each) and by `test/tzel-shield.cjs` (the
+  ticketer call, pool ids, notes, signature, witness and the wire bytes of a sample shield
+  message against the reference crate's encoding). The tzel licence forbids copying its code
+  or vectors into this repository. **Native hashing.** An address's auth tree is 44 million
+  BLAKE2s hashes, so `Signet/Services/tzel_blake2s.c` (BLAKE2s-256, the WOTS+ leaf, the tree
+  node; compiled `-O3` in every configuration via `project.yml`, reached through
+  `Signet/Signet-Bridging-Header.h`) builds the leaves across every core in about 2 s
+  (`XMSSAuthTree.buildLeaves`; `Blake2s` wraps the hash); `ShieldedTests` checks it against
+  the RFC vector, the bridge's leaves and the vectors' roots. **Wallet state.**
+  `ShieldedWallet` (`Signet/Services/ShieldedWallet.swift`) is one file per chain in the
+  wallet directory, `tzel-<chain>.json` (a `PrivateFile`, in the backup file list): the random
+  master key (clear, like an unencrypted tz key), addresses with their payment-address fields
+  and next WOTS+ key index, deposit pools, notes, scan cursors and the operator's bearer token
+  (entered in the Networks sheet, never in the app state or the repository). The 2 MB leaves
+  are `tzel-<chain>-auth<j>.bin` beside it, not backed up, rebuilt from the master key when
+  missing. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore` behind
+  `ShieldedWalletStore`; the model takes a `shieldedStoreFactory` and a
+  `shieldedRollupFactory` (`ShieldedRollup`: `RollupNodeService` over `BoundedHTTP`, or the
+  tests' `MockShieldedRollup`). **Shield tez** ("Shield tez…" in both menus when
+  `WalletViewModel.canShield`; `ShieldSheet`) is two steps run back to back
+  (`WalletViewModel+Shielded.swift`): `prepareShield` checks the rollup node serves the
+  configured rollup, has its verifier installed and names our ticketer, makes the wallet and
+  its first address if needed, and reserves a deposit pool (`pubkey_hash =
+  fold(0x04, auth_domain, auth_root, pub_seed, blind)`, the blind derived as the reference
+  wallet does) that is on file before any tez move; `estimateShield` prices the layer 1 call
+  (`estimateShieldDeposit` / `sendShieldDeposit` in `src/shield.js`: the ticketer's
+  `mint (pair (bytes %receiver) (address %rollup))` with the ASCII of `deposit:<hex>`, through
+  the approved-limits path, S14/S15) and reads the rollup's fee of the moment; `shieldTez` is
+  refused without the operator token (so no tez are parked unshieldable), records the deposit
+  hash before waiting for the block, then `shieldPool` waits for the rollup to credit the pool,
+  takes the rollup fee (`RollupState.requiredTxFee`, 0.1 tez doubling per private transaction
+  beyond the second in a level) and the producer fee off the balance, spends the address's next
+  key index on disk *before* signing, has the bridge build the two output notes (to ourselves
+  with an outgoing-recovery record, and the producer-fee note), the sighash, the WOTS+
+  signature and the 171-word Cairo witness (`tzelBuildShield`, which also checks the pool id,
+  signing seed and native auth path against the address), sends the witness to the proving
+  service (`POST /v1/jobs`, long-polled), encodes the kernel message
+  (`tzelEncodeShieldMessage`, refusing a proof whose public outputs are not the nine signed)
+  and hands it to the operator with the bearer token, polling to `submitted_to_l1`. A deposit
+  whose shield did not finish stays listed in the sheet ("Deposits waiting to be shielded")
+  for `shieldPool` to retry; a drained pool whose note the scan has seen is retired.
+  `ShadownetShieldTests` is the live round trip (with `SIGNET_TZEL_OPERATOR_TOKEN` the note is
+  seen in the scan; without it the operator's refusal is the expected end and the pool stays
+  funded). The rollup node and operator speak plain HTTP, exempted from App Transport
+  Security for those two hosts alone in `Info.plist`. Unshield and Send shielded are to follow. The research, verified Shadownet
+  parameters and the step plan are in `docs/tzel/RESEARCH.md` (section 8); the spec note is
+  `docs/spec/shield.md` and the protocol is https://github.com/trilitech/tzel/.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

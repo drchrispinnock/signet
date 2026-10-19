@@ -43,6 +43,12 @@ protocol ChainService: Sendable {
     /// Signs and injects the deposit with exactly the approved `limits` (S14).
     func sendEtherlinkDeposit(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
 
+    // Shielded tez (TzEL): the layer 1 deposit into a deposit pool through the bridge ticketer's
+    // `mint`; the rollup credits `deposit:<pubkeyHash>` and the wallet shields it from there.
+    func estimateShieldDeposit(from wallet: Wallet, deposit: ShieldDeposit) async throws -> TransferEstimate
+    /// Signs and injects the deposit with exactly the approved `limits` (S14).
+    func sendShieldDeposit(from wallet: Wallet, signer: SigningKey, deposit: ShieldDeposit, limits: OperationLimits) async throws -> SentOperation
+
     // Etherlink alias (0.9.3), on a Layer 2 (Michelson interface) service only: whether the
     // account's EVM-side address exists on chain yet, and the gateway call that creates it.
     func etherlinkAliasStatus(for address: Address) async throws -> EtherlinkAliasStatus
@@ -188,4 +194,13 @@ enum EtherlinkAliasStatus: Equatable, Sendable {
         case .linked(let address), .unlinked(let address): address
         }
     }
+}
+
+/// A layer 1 deposit into a TzEL deposit pool: the ticketer to call, the rollup it feeds, the
+/// pool (`pubkey_hash`, hex) and the tez to attach.
+struct ShieldDeposit: Hashable, Sendable {
+    let ticketer: Address
+    let rollup: String
+    let pubkeyHash: String
+    let amount: Decimal
 }

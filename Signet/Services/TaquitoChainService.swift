@@ -176,6 +176,26 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    // MARK: Shielded tez (TzEL)
+
+    func estimateShieldDeposit(from wallet: Wallet, deposit: ShieldDeposit) async throws -> TransferEstimate {
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        try await verifyChain()
+        let result = try await bridge.call("estimateShieldDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, deposit.ticketer.value, deposit.rollup, deposit.pubkeyHash, Mutez.fromTez(deposit.amount)], timeout: 120)
+        return try Self.estimate(from: result, amount: deposit.amount)
+    }
+
+    func sendShieldDeposit(from wallet: Wallet, signer: SigningKey, deposit: ShieldDeposit, limits: OperationLimits) async throws -> SentOperation {
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendShieldDeposit", [network.rpcURL.absoluteString, signer.bridgeSpec, deposit.ticketer.value, deposit.rollup, deposit.pubkeyHash, Mutez.fromTez(deposit.amount), limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected deposit payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     // MARK: Etherlink alias (0.9.3), on the Layer 2 service
 
     /// Asks the gateway's `resolveAddress` view (Tezos runtime 0 → Ethereum runtime 1) on the

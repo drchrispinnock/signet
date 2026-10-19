@@ -45,11 +45,13 @@ final class WalletViewModel {
     }
 
     /// The Shielded row of the dashboard, under Etherlink (or tez), while the network has
-    /// shielded transactions on. The figure is 0 until the TzEL note scan lands
-    /// (`docs/tzel/RESEARCH.md`): a shielded balance is local scan state, not a node reply.
-    private nonisolated static func shieldedRow(on network: Network) -> AssetBalance? {
+    /// shielded transactions on: the wallet's unspent notes, found by scanning the rollup's
+    /// commitment tree with its viewing keys (`WalletViewModel+Shielded.swift`). A network
+    /// whose TzEL services Signet does not know shows the 0 placeholder.
+    private nonisolated static func shieldedSnapshot(on network: Network, store: (any ShieldedWalletStore)?, rollup: (any ShieldedRollup)?, bridge: TaquitoBridge) async -> ShieldedSnapshot? {
         guard network.shieldedEnabled else { return nil }
-        return .shieldedPlaceholder
+        guard let store, let rollup, network.shielded != nil else { return ShieldedSnapshot(wallet: nil, pools: [], row: .shieldedPlaceholder) }
+        return await scanShielded(store: store, rollup: rollup, bridge: bridge)
     }
 
     /// Every account: those from the wallet directory (accounts, address book, contracts), then
@@ -108,6 +110,25 @@ final class WalletViewModel {
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     var isPresentingGovernance = false
     var isPresentingBridge = false
+    var isPresentingShield = false
+
+    // Shielded tez (TzEL): `WalletViewModel+Shielded.swift` owns the flow; the state is here
+    // because `@Observable` storage cannot live in an extension.
+    /// The shielded wallet of the selected network, from its store, as of the last refresh.
+    var shieldedWallet: ShieldedWallet?
+    /// Its deposit pools with what the rollup holds for each.
+    var shieldedPools: [ShieldedPoolStatus] = []
+    /// What a shield in progress is doing, for the Shield sheet.
+    var shieldProgress: ShieldProgress?
+    /// Stores by directory and chain, so one wallet file is read and written through one store.
+    var shieldedStores: [String: any ShieldedWalletStore] = [:]
+    let shieldedStoreFactory: @Sendable (URL?, String) -> any ShieldedWalletStore
+    let shieldedRollupFactory: @Sendable (ShieldedConfig) -> any ShieldedRollup
+    /// The bridge the protocol primitives run in (`src/tzel.js`, `src/shield.js`).
+    let shieldedBridge: TaquitoBridge
+    /// How long a shield waits for the rollup to credit a deposit: this many polls, this far apart.
+    var shieldedCreditPolls = 36
+    var shieldedPollInterval: Duration = .seconds(5)
     var isPresentingNetworks = false
     var isPresentingBuy = false
 
@@ -191,6 +212,8 @@ final class WalletViewModel {
         accountNotOnChain = false
         portfolioState = .complete
         faucetStatus = .idle
+        shieldedWallet = nil
+        shieldedPools = []
     }
 
     /// Which load is current. Every refresh captures the generation, the account, the network and
@@ -348,6 +371,8 @@ final class WalletViewModel {
     }
 
     private var chain: any ChainService
+    /// The chain service in use, for the flows kept in their own files (`WalletViewModel+Shielded.swift`).
+    var currentChain: any ChainService { chain }
     private let chainFactory: @Sendable (Network) -> any ChainService
 
     /// The directory the wallet files live in, when the stores are file-backed.
@@ -412,9 +437,15 @@ final class WalletViewModel {
         dappStorage: (any BridgeStorage)? = nil,
         dappStorageFactory: (@Sendable (URL) -> any BridgeStorage)? = nil,
         dappDiagnostics: Bool = false,
-        startDApps: Bool = false
+        startDApps: Bool = false,
+        shieldedStoreFactory: (@Sendable (URL?, String) -> any ShieldedWalletStore)? = nil,
+        shieldedRollupFactory: (@Sendable (ShieldedConfig) -> any ShieldedRollup)? = nil,
+        shieldedBridge: TaquitoBridge = .shared
     ) {
         self.backupSettings = backupSettings
+        self.shieldedStoreFactory = shieldedStoreFactory ?? { _, _ in InMemoryShieldedWalletStore() }
+        self.shieldedRollupFactory = shieldedRollupFactory ?? { config in RollupNodeService(config: config) }
+        self.shieldedBridge = shieldedBridge
         let factory: @Sendable (Network) -> any ChainService = chainFactory ?? { _ in chain ?? MockChainService() }
         // File-backed mode: build both stores for the configured directory.
         var walletStore = walletStore
@@ -595,11 +626,15 @@ final class WalletViewModel {
         let chain = self.chain
         let address = mine.address
         let network = self.network
+        let shieldedStore = network.canShield ? shieldedStore(for: network.chain) : nil
+        let shieldedRollup = network.shielded.map(shieldedRollupFactory)
+        let shieldedBridge = self.shieldedBridge
         isLoading = true
         errorMessage = nil
 
         struct Snapshot {
             var tezBalance: TezBalance?
+            var shielded: ShieldedSnapshot?
             var assets: [AssetBalance] = []
             var portfolio = Portfolio.empty
             var domains: [String] = []
@@ -616,11 +651,12 @@ final class WalletViewModel {
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
+            async let shielded = Self.shieldedSnapshot(on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]
             if let row = await etherlink { list.append(row) }
-            if let row = Self.shieldedRow(on: network) { list.append(row) }
+            if let shielded = await shielded { list.append(shielded.row); snapshot.shielded = shielded }
             snapshot.tezBalance = tezBalance
             snapshot.assets = list
             snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
@@ -645,6 +681,10 @@ final class WalletViewModel {
         }
         tezBalance = snapshot.tezBalance
         assets = snapshot.assets
+        if let shielded = snapshot.shielded {
+            shieldedWallet = shielded.wallet
+            shieldedPools = shielded.pools
+        }
         portfolioState = snapshot.portfolio.state
         // An unavailable indexer keeps the last known lists (they are from this same context).
         if case .unavailable = snapshot.portfolio.state {} else {

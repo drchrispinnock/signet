@@ -305,26 +305,64 @@ the leaves kept in the wallet file so signing paths never need a rebuild. One ad
 many deposits: a fresh per-deposit `blind` already makes each pool id unlinkable, so Signet
 does not need the reference wallet's fresh-address-per-deposit habit.
 
+**Done (2026-10-19, evening): balance and Shield tez.**
+
+- *Native signing tree.* `Signet/Services/tzel_blake2s.c` (BLAKE2s-256 and the WOTS+ leaf and
+  tree node, compiled with `-O3` in every configuration through `project.yml`) behind
+  `Blake2s.swift` and `XMSSAuthTree.swift`: the 65536 leaves are built across every core in
+  about 2 s on an M-series Mac (235 s in unoptimised Swift, 4 minutes in the bridge), and the
+  root equals the vectors' `addresses[0].auth_root`. Leaves live in
+  `<wallet dir>/tzel-<chain>-auth<j>.bin` and are rebuilt from the master key when missing.
+- *Wallet.* `ShieldedWallet` (`Signet/Services/ShieldedWallet.swift`) in
+  `<wallet dir>/tzel-<chain>.json`, a private file backed up with the key files: master key
+  (clear, like an unencrypted tz key; a password is still to do), addresses with their next
+  WOTS+ index, deposit pools (`pubkey_hash`, blind, address, `auth_domain`, L1 operation,
+  the shield's commitment), notes (position, cm, rseed, nullifier, value, spent), the scan
+  cursors and the operator token. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore`.
+- *Services.* `ShieldedService.swift`: `ShieldedConfig` per network (`Network.shielded`, set
+  for Shadownet), the `ShieldedRollup` protocol and `RollupNodeService` over `BoundedHTTP`:
+  durable reads pinned to one block (absent keys come back as JSON `null`, not 404; notes are
+  chunked at 1024 bytes under `notes/<idx>/len` and `/chunk/<k>`), the fee rule
+  (`required_tx_fee_for_private_tx_count`: 0.1 tez doubling per private tx beyond the second
+  in a level, cap 6.4 tez), the proving service (`/v1/programs`, `POST /v1/jobs`,
+  `GET /v1/jobs/<id>?wait=30&if_state_changed_from=`), and the operator
+  (`POST /v1/rollup/submissions` with the bearer token, polled to `submitted_to_l1`).
+- *Bridge.* `src/shield.js`: `estimateShieldDeposit` / `sendShieldDeposit` (the ticketer's
+  `mint (pair (bytes %receiver) (address %rollup))` through the approved-limits path, the
+  receiver being the ASCII of `deposit:<hex>`), `tzelAccount`, `tzelAddressKeys`,
+  `tzelDepositPool` (the reference wallet's blind `H("tzel-deposit-blind" ‖ master_sk ‖
+  u32 address ‖ u64 nonce)`), `tzelScan`, `tzelBuildShield` (both output notes with their
+  outgoing-recovery records, the sighash, the signature, the 171-word witness; refuses a pool
+  id, signing seed or auth path that does not belong to the address) and
+  `tzelEncodeShieldMessage` (kernel inbox wire version 17, checked byte for byte against the
+  reference crate's encoding of a sample message in `test/tzel-shield.cjs`, and refusing a
+  proof whose public outputs are not the nine the witness was built for). Found and fixed on
+  the way: the outgoing-recovery role byte is numbered from 1 in the reference (shield_output
+  1, producer_fee 2, transfer_recipient 3, transfer_change 4, unshield_change 5); the earlier
+  module had its own order and no vector covers it.
+- *Flow.* `WalletViewModel+Shielded.swift`: `prepareShield` (rollup address, verifier,
+  ticketer and `auth_domain` checked, the wallet and address made, a pool reserved and saved
+  before any tez move), `estimateShield`, `shieldTez` (refused without the operator token so
+  no tez are parked unshieldable; the deposit's hash is saved before the block is waited for;
+  then `shieldPool`), `shieldPool` (waits for the credit, takes the fee of the moment, spends
+  the key index on disk *before* signing, builds, proves, encodes, delivers, records the cm),
+  and the scan behind the Shielded row (notes, nullifiers, pool balances; a drained pool whose
+  note is seen is retired). `ShieldSheet` and "Shield tez…" in both menus; the operator token
+  field in the Networks sheet. Tests: `SignetTests/ShieldedTests.swift` (BLAKE2s against the
+  RFC, noble and the vectors; leaves against the bridge; the full root against the vectors;
+  the store; the whole flow against an in-memory rollup that pins the public outputs and
+  applies the shield; and the live Shadownet round trip `ShadownetShieldTests`).
+
+- *Transport.* Shadownet's rollup node (`:8932`) and operator (`:8787`) serve plain HTTP.
+  macOS App Transport Security blocks that from an app (curl is not subject to it), so
+  `Signet/Info.plist` carries an `NSExceptionDomains` entry for exactly those two hosts.
+  Note that the operator's bearer token therefore travels in the clear, as it does from the
+  reference CLI; worth asking the tzel team for HTTPS on the operator before real funds.
+
 **Next, in order:**
 
-1. *Balance.* Swift `ShieldedWalletStore` (`~/.signet/tzel/<network>.json`, private file,
-   backed up: `master_sk`, addresses with their leaves, notes, scanned cursor, pools, used
-   WOTS+ indices, pending work) and a `ShieldedService` that reads the rollup node's durable
-   state through `BoundedHTTP` pinned to one block (`tree/size`, notes `len`/`chunk`,
-   `nullifiers/count` and `index/<n>`, `deposits/balance/<hash>`), hands the bytes to the
-   bridge's scan (`decodePublishedNote`, `detect`, `decryptMemo`, `acceptsNote`, `nullifier`)
-   and sums unspent notes into the Shielded row; pools awaiting shield shown beneath. Network
-   settings: rollup node, rollup address, ticketer, `auth_domain` per network.
-2. *Shield tez.* Deposit: `depositPubkeyHash` with a fresh blind, the ticketer's `mint`
-   through the approved-limits path, pool credit watched on the rollup. Shield: build the
-   output notes (`encryptNote` to ourselves plus the producer-fee note to the operator's
-   PaymentAddress), `memoCtHash`, the shield sighash `fold(0x03, …)`, `wotsSign` with the next
-   key index (persist the index *before* signing), the Cairo witness in the proving service's
-   `arguments` layout (mirrors `apps/wallet` `make_proof` callers; convenience format, not
-   normative), `POST /v1/jobs` + poll, then the proof bundle to the operator with the bearer
-   token (settings field, never in the repo) and the submission status poll.
-3. *Unshield tez.* Transfer-style witness with commitment-tree paths (`merklePath` over the
+1. *Unshield tez.* Transfer-style witness with commitment-tree paths (`merklePath` over the
    full note list), `recipient_id`, the outbox message tracked locally, and the Layer 1
    `smart_rollup_execute_outbox_message` once cemented (about 14 days).
-4. *Send shielded.* Same as unshield with a recipient PaymentAddress (JSON blob) and an address
+2. *Send shielded.* Same as unshield with a recipient PaymentAddress (JSON blob) and an address
    book with fingerprints.

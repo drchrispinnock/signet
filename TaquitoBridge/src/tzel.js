@@ -48,6 +48,16 @@ export function feltToBigInt(felt) {
   return v;
 }
 
+function u32le(n) {
+  if (!Number.isInteger(n) || n < 0 || n > 0xffffffff) throw new Error("tzel: value is not a u32");
+  return new Uint8Array([n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff]);
+}
+
+function u32be(n) {
+  if (!Number.isInteger(n) || n < 0 || n > 0xffffffff) throw new Error("tzel: value is not a u32");
+  return new Uint8Array([(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff]);
+}
+
 function u64le(n) {
   let v = BigInt(n);
   if (v < 0n || v > 0xffffffffffffffffn) throw new Error("tzel: value is not a u64");
@@ -485,11 +495,13 @@ export function decryptMemo(enc, dkV) {
   return { v: readU64le(plaintext, 0), rseed: plaintext.slice(8, 40), memo: plaintext.slice(40) };
 }
 
-export const OUTGOING_ROLES = Object.freeze(["recipient", "change", "shield", "unshield_change", "producer_fee"]);
+/// Outgoing note roles and their byte on the wire (the reference numbers them from 1).
+export const OUTGOING_ROLES = Object.freeze({ shield_output: 1, producer_fee: 2, transfer_recipient: 3, transfer_change: 4, unshield_change: 5 });
+const roleNames = Object.fromEntries(Object.entries(OUTGOING_ROLES).map(([name, byte]) => [byte, name]));
 
 export function outgoingRecoveryPlaintext(p) {
-  const role = OUTGOING_ROLES.indexOf(p.role);
-  if (role < 0) throw new Error("tzel: unknown outgoing note role");
+  const role = OUTGOING_ROLES[p.role];
+  if (!role) throw new Error("tzel: unknown outgoing note role");
   return concatBytes(new Uint8Array([role]), u64le(p.v), felt(p.rseed), felt(p.dJ), felt(p.authRoot), felt(p.pubSeed), felt(p.nkTag));
 }
 
@@ -507,8 +519,8 @@ export function decryptOutgoingRecovery(outgoingSeed, cm, outgoingCt) {
   const key = outgoingKey(outgoingSeed, cm);
   let p;
   try { p = chacha20poly1305(key, outgoingNonce(key, cm)).decrypt(outgoingCt); } catch { return null; }
-  if (p.length !== 1 + 8 + 5 * 32 || p[0] >= OUTGOING_ROLES.length) return null;
-  return { role: OUTGOING_ROLES[p[0]], v: readU64le(p, 1), rseed: p.slice(9, 41), dJ: p.slice(41, 73), authRoot: p.slice(73, 105), pubSeed: p.slice(105, 137), nkTag: p.slice(137, 169) };
+  if (p.length !== 1 + 8 + 5 * 32 || !roleNames[p[0]]) return null;
+  return { role: roleNames[p[0]], v: readU64le(p, 1), rseed: p.slice(9, 41), dJ: p.slice(41, 73), authRoot: p.slice(73, 105), pubSeed: p.slice(105, 137), nkTag: p.slice(137, 169) };
 }
 
 /// Note acceptance (spec § Wallet Note Acceptance): a decrypted note is ours only when the
@@ -526,3 +538,108 @@ export const depositRecipient = (pubkeyHash) => `deposit:${bytesToHex(felt(pubke
 
 /// The durable-state key holding a pool's balance.
 export const depositBalanceKey = (pubkeyHash) => `/tzel/v1/state/deposits/balance/${bytesToHex(felt(pubkeyHash))}`;
+
+// ── Shield (public → private) ────────────────────────────────────────────────────────────
+//
+// A shield drains a deposit pool into a note the pool's own auth tree owns. The wallet picks the
+// value and fees at shield time, builds the recipient note (to itself) and the producer-fee note
+// (to the DAL slot producer), signs the shield sighash with the next WOTS+ key of the address and
+// proves it; the kernel checks the proof's public outputs against the request fields.
+
+/// A fresh 251-bit value from the platform's randomness.
+export function randomFelt() {
+  const out = new Uint8Array(FELT_BYTES);
+  crypto.getRandomValues(out);
+  return truncate(out);
+}
+
+/// The per-pool blind, derived as the reference wallet does so that the same seed and counters
+/// name the same pools: `H("tzel-deposit-blind" ‖ master_sk ‖ u32le(address) ‖ u64le(nonce))`.
+export const depositBlind = (masterSk, addressIndex, nonce) =>
+  hash(concatBytes(utf8ToBytes("tzel-deposit-blind"), felt(masterSk), u32le(addressIndex), u64le(nonce)));
+
+/// `fold(0x03, auth_domain, pubkey_hash, v, fee, producer_fee, cm_new, cm_producer, mh_new, mh_producer)`.
+export function shieldSighash(p) {
+  return fold([feltOfInt(3), felt(p.authDomain), felt(p.pubkeyHash), feltOfInt(p.v), feltOfInt(p.fee), feltOfInt(p.producerFee),
+               felt(p.cmRecipient), felt(p.cmProducer), felt(p.mhRecipient), felt(p.mhProducer)]);
+}
+
+/// An output note to `address` for `v` mutez: commitment, encrypted note (with the sender's
+/// outgoing-recovery record when `outgoing` is `{ seed, role }`), memo hash and the rseed used.
+/// `rseed` and `coins` are random unless given (tests).
+export function buildOutputNote(address, v, memo, outgoing, rseed, coins) {
+  const seed = rseed ?? randomFelt();
+  const otag = ownerTag(address.authRoot, address.pubSeed, address.nkTag);
+  const cm = commit(address.dJ, v, deriveRcm(seed), otag);
+  const enc = encryptNote(v, seed, memo, address.ekV, address.ekD, coins);
+  if (outgoing) {
+    enc.outgoingCt = encryptOutgoingRecovery(outgoing.seed, cm, { role: outgoing.role, v, rseed: seed, dJ: address.dJ, authRoot: address.authRoot, pubSeed: address.pubSeed, nkTag: address.nkTag });
+  }
+  return { cm, enc, mh: memoCtHash(enc), rseed: seed };
+}
+
+/// A felt as the Cairo runner's hex argument: big-endian, no leading zeros, `0x0` for zero.
+export function feltHex(f) {
+  const h = feltToBigInt(felt(f)).toString(16);
+  return "0x" + (h === "0" ? "0" : h);
+}
+
+export const intHex = (n) => "0x" + BigInt(n).toString(16);
+
+/// The `run_shield` witness in the proving service's `arguments` layout (the reference wallet's
+/// convention; a length word, then 16 fixed felts, the 133 signature chains, the 16 auth-path
+/// siblings and the 5 producer-address fields).
+export function shieldWitness(p) {
+  const sig = p.signature, path = p.authPath;
+  if (sig.length !== WOTS_CHAINS) throw new Error("tzel: shield witness needs the 133 signature chains");
+  if (path.length !== AUTH_DEPTH) throw new Error("tzel: shield witness needs the 16 auth-path siblings");
+  const fields = [
+    p.authDomain, p.pubkeyHash, feltOfInt(p.v), feltOfInt(p.fee), feltOfInt(p.producerFee),
+    p.recipientNote.cm, p.producerNote.cm, p.recipientNote.mh, p.producerNote.mh,
+    p.recipient.authRoot, p.recipient.pubSeed, p.recipient.nkTag, p.recipient.dJ, p.recipientNote.rseed, p.blind, feltOfInt(p.keyIdx),
+    ...sig, ...path,
+    p.producer.authRoot, p.producer.pubSeed, p.producer.nkTag, p.producer.dJ, p.producerNote.rseed,
+  ];
+  if (fields.length !== 16 + WOTS_CHAINS + AUTH_DEPTH + 5) throw new Error("tzel: shield witness has the wrong length");
+  return [intHex(fields.length), ...fields.map(feltHex)];
+}
+
+/// The auth root a leaf and its sibling path lead to.
+export function authRootFromPath(pubSeed, leaf, index, path) {
+  if (path.length !== AUTH_DEPTH) throw new Error("tzel: an auth path has 16 siblings");
+  let node = felt(leaf);
+  for (let level = 0; level < AUTH_DEPTH; level++) {
+    const idx = index >> level;
+    node = (idx & 1) === 0 ? xmssTreeNode(pubSeed, level, idx >> 1, node, path[level]) : xmssTreeNode(pubSeed, level, idx >> 1, path[level], node);
+  }
+  return node;
+}
+
+// ── Kernel inbox wire (`kernel_wire.rs`, version 17) ─────────────────────────────────────
+//
+// What the operator relays to the rollup: `version u16le ‖ tag u8 ‖ body`. A shield body is
+// `pubkey_hash ‖ fee ‖ v ‖ producer_fee ‖ proof ‖ client_cm ‖ client_enc ‖ producer_cm ‖
+// producer_enc`, where the u64s are little-endian, notes are the canonical 3455-byte record, and
+// the proof is a length-prefixed (u32 big-endian) wrapper around
+// `u32be(len) ‖ proof_bytes ‖ u32be(count) ‖ output felts`.
+
+export const KERNEL_WIRE_VERSION = 17;
+export const KERNEL_SHIELD_TAG = 2;
+export const MAX_PROOF_BYTES = 8 * 1024 * 1024;
+export const MAX_OUTPUT_PREIMAGE_ITEMS = 1024;
+
+export function encodeStarkProof(proofBytes, outputPreimage) {
+  if (proofBytes.length > MAX_PROOF_BYTES) throw new Error("tzel: proof too large for the kernel wire");
+  if (outputPreimage.length > MAX_OUTPUT_PREIMAGE_ITEMS) throw new Error("tzel: too many public outputs for the kernel wire");
+  return concatBytes(u32be(proofBytes.length), proofBytes, u32be(outputPreimage.length), ...outputPreimage.map(felt));
+}
+
+export function encodeShieldMessage(m) {
+  const proof = encodeStarkProof(m.proofBytes, m.outputPreimage);
+  return concatBytes(
+    new Uint8Array([KERNEL_WIRE_VERSION & 0xff, KERNEL_WIRE_VERSION >>> 8, KERNEL_SHIELD_TAG]),
+    felt(m.pubkeyHash), u64le(m.fee), u64le(m.v), u64le(m.producerFee),
+    u32be(proof.length), proof,
+    felt(m.clientCm), encodeEncryptedNote(m.clientEnc), felt(m.producerCm), encodeEncryptedNote(m.producerEnc),
+  );
+}
