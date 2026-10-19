@@ -146,9 +146,9 @@ events on stderr; see tzel-infra ADR-002) and does the Layer 1 parts in the brow
   inside the app and runs it exactly as the daemon does, doing the two Layer 1 steps itself
   (`deposit --prepare-only` gives the `mint` parameters; outbox execution from the rollup node's
   proof). No cryptography is reimplemented and we track upstream by rebuilding. Costs: nobody
-  publishes macOS binaries (Linux images only), the nightly toolchain and git-pinned Stwo
-  dependencies make the build heavy, the embedded binary must be signed and notarised with the
-  app, and the JSON envelope is a contract the tzel team may change. The proving service's
+  publishes macOS binaries (Linux images only), so we build it ourselves (verified: section 7),
+  the embedded binary must be signed and notarised with the app, and the JSON envelope is a
+  contract the tzel team may change. The proving service's
   `/v1/programs` means the `reprove` binary and Cairo executables are not needed at runtime.
 - **B. Talk to the user's tzel Docker wallet.** It serves `/api/*` on `127.0.0.1:8080`
   (`balance`, `shield`, `send`, `unshield`, `withdraw`, `deposits`, `deposit/prepare`,
@@ -190,12 +190,26 @@ the web UI has).
 ## 6. Questions for the tzel team
 
 1. TLS for `rollup.tzel.tezos.com:8932`, or is plain HTTP intended?
+
+Chris says: 8932 is the smart rollup port. It serves HTTP.
+TF01007: {1003} curl http://rollup.tzel.tezos.com:8932/version
+{"version":"Octez 0.0+dev (build: 0)","store_version":"v5_sqlite","context_version":"0"}
+
 2. How should a third-party wallet obtain and rotate the operator bearer token?
+
+CHRIS: I have the token. Put it as a configuration item please.
+
 3. Will `tzel-wallet` be published for macOS (arm64 and x86_64), or as a library crate with a
    stability promise? Is the `--json` envelope (schema_version 1) considered stable?
-4. Where will the signed profile live (the documented URL serves HTML today), and how are
-   re-originations announced?
+
+CHRIS: I have the source code for all of the tzel stuff in ../tzel
+
+4. Where will the signed profile live (the documented URL serves HTML today), and how are re-originations announced?
+CHRIS: don't know but do you need this to start?
+
 5. Any plan for Quantumnet or Ushuaianet again?
+
+CHRIS: Yes - Quantumnet soon. Don't know about U, but focus on Shadownet please.
 
 ## Sources
 
@@ -205,3 +219,50 @@ the web UI has).
   `docs/tzel-wallet-design.md`, `docker/wallet-bundle/*`, `services/wallet/src/*`
 - https://tzel.tezos.com/wallet.html
 - Live: rollup node, operator, proving service, Shadownet RPC and TzKT, all on 2026-10-19
+
+## 7. Verified on this Mac (2026-10-19): the CLI builds and reads a balance
+
+The wallet binary does **not** need the nightly toolchain; only `reprove` (local proving) does,
+and the proving service replaces it. From the clone in `../tzel` (a2302e2):
+
+```sh
+cargo +1.94.0 build --release -p tzel-wallet-app --bin tzel-wallet
+# 4 min 18 s, 471 crates, target/release/tzel-wallet: 30 MB Mach-O arm64
+```
+
+The balance flow, with every file in a scratch directory and no token:
+
+```sh
+tzel-wallet --json -w $D/wallet.json init
+tzel-wallet --json -w $D/wallet.json profile init-shadownet \
+  --rollup-node-url http://rollup.tzel.tezos.com:8932 \
+  --rollup-address sr1Psv7PdY533c4njAW4qg2acbMhi8goqxcK \
+  --bridge-ticketer KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4 \
+  --dal-fee 100000 --dal-fee-address docs/shadownet/operator-fee-address.json \
+  --source-alias signet --public-account tz1… --octez-client-dir $D/octez-client
+tzel-wallet --json -w $D/wallet.json check-network   # OK: profile matches the live rollup
+tzel-wallet --json -w $D/wallet.json sync            # 1.1 s for the 26 notes, 4 fetchers
+tzel-wallet --json -w $D/wallet.json balance
+# {"command":"balance","result":{"private_available":0,"private_tracked_total":0,
+#   "private_pending_outgoing":0,"tracked_notes":0,"pending_operations":0,
+#   "deposit_pools_funded":0,"deposit_pools_total_mutez":0,
+#   "deposit_pools_awaiting_credit":0,"deposit_pools_drained_pending_prune":0},"schema_version":1}
+```
+
+Things learned on the way:
+
+- The wallet path must be absolute: `init` with a bare `wallet.json` fails on "open parent dir".
+- `profile init-shadownet` resolves `--source-alias` by running `octez-client` against
+  `~/.tezos-client` unless `--public-account` is a tz address; Signet must always pass the
+  address (and an `--octez-client-dir` of its own) so the CLI never reads the user's octez
+  directory. The alias and account are only used by the CLI's own L1 deposit path, which Signet
+  replaces. (On this Mac that lookup failed anyway: the installed `octez-client` cannot parse
+  `~/.tezos-client/public_key_hashs`, "Unexpected data (Signature.Public_key_hash)".)
+- Files written next to the wallet: `wallet.json` (0600), `wallet.json.network.json` (the
+  profile, 5.6 KB because it embeds the fee PaymentAddress), `wallet.json.xmss-floor` (the
+  one-time-signature floor; part of the state that must be backed up with the wallet).
+- `sync` and `balance` need only the rollup node; the operator bearer token is used by
+  shield, send, unshield and status. `init --at-tree-size N` skips the historical scan for a
+  fresh key; never pass it for an imported key.
+- The master key is `random_felt()`: there is no derivation from a tz key, so the shielded
+  account is a second secret Signet must create, store and back up.
