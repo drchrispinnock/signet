@@ -503,8 +503,7 @@ automatic download is off by default. The updater is not started under the test 
   `TzKTService.fungibleTokens`: anything with decimal places or FA1.2, amount divided by the
   decimals, logo from thumbnailUri/icon, kept in `WalletViewModel.tokens`, not in the top balance
   list) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
-  decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast), displayUri preferred
-  over thumbnailUri because marketplaces often use a generic thumbnail). `CreateWalletSheet` (key type is a dropdown of the supported
+  decimals and an image, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast); `TzKTService.bestImageURLs` lists displayUri first, because marketplaces often use a generic thumbnail, then thumbnailUri, then an image artifactUri, each on every gateway, and the loader answers a gateway's "too large" (curl exit 63 past `maxBytes`, 8 MB, mapped to `ImageLoader.Fetch.tooLarge`) by skipping that content on the other gateways and moving to the next image, since collections such as Collect United ship 11 to 15 MB display renders with 200 KB thumbnails). `CreateWalletSheet` (key type is a dropdown of the supported
   schemes, tz1 first and recommended; tz6 is not offered) is reached from the hamburger menu, the
   Operations menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to

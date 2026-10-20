@@ -150,20 +150,22 @@ struct TzKTService: Sendable {
         }
     }
 
-    /// displayUri is a sized-down render meant for galleries, so prefer it; thumbnailUri is often a
-    /// marketplace's generic placeholder; artifactUri is the full asset, used only if it is an image.
+    /// Every URL worth trying for the tile, best first: displayUri is a sized-down render meant
+    /// for galleries, so it comes first (one URL per gateway); then thumbnailUri, often a
+    /// marketplace's generic placeholder but small, so it is the fallback when the display
+    /// render is too large to download (`ImageLoader.maxBytes`) or missing from every gateway;
+    /// then artifactUri, the full asset, only if it is an image.
     static func bestImageURLs(in metadata: TokenBalance.Token.Metadata) -> [URL] {
-        for candidate in [metadata.displayUri, metadata.thumbnailUri] {
-            if let candidate {
-                let urls = IPFS.candidateURLs(for: candidate)
-                if !urls.isEmpty { return urls }
-            }
-        }
+        var uris = [metadata.displayUri, metadata.thumbnailUri].compactMap { $0 }
         if let artifact = metadata.artifactUri {
             let mime = metadata.formats?.first { $0.uri == artifact }?.mimeType ?? ""
-            if mime.hasPrefix("image/") { return IPFS.candidateURLs(for: artifact) }
+            if mime.hasPrefix("image/") { uris.append(artifact) }
         }
-        return []
+        var urls: [URL] = []
+        for uri in uris {
+            for url in IPFS.candidateURLs(for: uri) where !urls.contains(url) { urls.append(url) }
+        }
+        return urls
     }
 }
 
