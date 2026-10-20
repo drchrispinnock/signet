@@ -11,6 +11,7 @@
 		03F5124A485A957F26D00BD8 /* GovernanceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED923E5AE3EE96BE5D624FB /* GovernanceSheet.swift */; };
 		0520F4FB65E229931D03ED9B /* BridgeConsoleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD13470629CB6326F0858BB /* BridgeConsoleTests.swift */; };
 		0535E8D871DA72D6F3E22641 /* QRCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10DBE16F18BCE91ECEC7739 /* QRCode.swift */; };
+		058A33E71078D7F8073766E9 /* NetworkSettingsControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 444085BD9DAB3B58F5D40A9E /* NetworkSettingsControls.swift */; };
 		07D7E4480040CCD4175347AC /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B82438F96A071EF2BC434 /* Appearance.swift */; };
 		07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */; };
 		085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */; };
@@ -106,6 +107,7 @@
 		9803D0FE2D7A0F808A4F2DED /* LedgerSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2F8374A48C3D15B41A0E14 /* LedgerSessions.swift */; };
 		9891BF967B4AE747AC6DEBCF /* TezosDomainsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */; };
 		98CA8BD06801D00E1E259F42 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C368DB40E25AA303DD76D49 /* ImageLoader.swift */; };
+		9A50DF0C91F302D787DAC298 /* ShieldSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1386A6C986042437122AE94 /* ShieldSettingsSheet.swift */; };
 		9C76914707853D3D3BF484BF /* NetworkBadgeMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */; };
 		9D02BBA44BF0655F9D191FC8 /* tzel-shadownet-producer.json in Resources */ = {isa = PBXBuildFile; fileRef = 1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */; };
 		9D832937DA172705C3CCB872 /* ConnectDAppSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53331E96FFD222A1898C7F83 /* ConnectDAppSheet.swift */; };
@@ -220,6 +222,7 @@
 		42FFEDDCB3BE24F2E5C54DE0 /* Governance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Governance.swift; sourceTree = "<group>"; };
 		431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectStorage.swift; sourceTree = "<group>"; };
 		4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHostIsolationTests.swift; sourceTree = "<group>"; };
+		444085BD9DAB3B58F5D40A9E /* NetworkSettingsControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettingsControls.swift; sourceTree = "<group>"; };
 		445064DD790420A57A0362DD /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
 		479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignMultisigSheet.swift; sourceTree = "<group>"; };
 		47DEB85641DED691823EF5B1 /* ChainSidePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChainSidePicker.swift; sourceTree = "<group>"; };
@@ -325,6 +328,7 @@
 		CC4C9564242D0121528FCBA7 /* BridgeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeSheet.swift; sourceTree = "<group>"; };
 		CD834C06F49658A295BADA09 /* AppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateStore.swift; sourceTree = "<group>"; };
 		D03CB66A944449D61F196B99 /* MultisigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultisigService.swift; sourceTree = "<group>"; };
+		D1386A6C986042437122AE94 /* ShieldSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldSettingsSheet.swift; sourceTree = "<group>"; };
 		D47811A27E6DCA933C13141F /* Blake2s.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blake2s.swift; sourceTree = "<group>"; };
 		D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectPairingDiagnostic.swift; sourceTree = "<group>"; };
 		D55C4D86A1145ACAF063447D /* WalletBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletBackup.swift; sourceTree = "<group>"; };
@@ -397,6 +401,7 @@
 				3ED923E5AE3EE96BE5D624FB /* GovernanceSheet.swift */,
 				9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */,
 				F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */,
+				444085BD9DAB3B58F5D40A9E /* NetworkSettingsControls.swift */,
 				FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */,
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
@@ -408,6 +413,7 @@
 				2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */,
 				BFC7070B3A5754283DA58F7D /* SettingsView.swift */,
 				D5C9D3B9E3472F14CFB602CD /* ShieldedAddressSheet.swift */,
+				D1386A6C986042437122AE94 /* ShieldSettingsSheet.swift */,
 				7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */,
 				479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */,
 				7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */,
@@ -795,6 +801,7 @@
 				352781EAEFD67868E1C159A5 /* NFTGridView.swift in Sources */,
 				899D3FBBD2AB375399DCFD4E /* Network.swift in Sources */,
 				9C76914707853D3D3BF484BF /* NetworkBadgeMenu.swift in Sources */,
+				058A33E71078D7F8073766E9 /* NetworkSettingsControls.swift in Sources */,
 				750F1BE9E0DD41B59A94DC05 /* NetworksSheet.swift in Sources */,
 				DD999C456935284E5FC4DDFF /* NodeMonitor.swift in Sources */,
 				1A4899B4CD4C9D3184DE6D45 /* NodeStatusBar.swift in Sources */,
@@ -813,6 +820,7 @@
 				E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */,
 				E7EA15D2639194B6837F7822 /* SessionKeys.swift in Sources */,
 				E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */,
+				9A50DF0C91F302D787DAC298 /* ShieldSettingsSheet.swift in Sources */,
 				95F1191724EFC0F40EBE89C7 /* ShieldSheet.swift in Sources */,
 				D7D4D8587A077B2856D2DA3E /* ShieldedAddressSheet.swift in Sources */,
 				437BEDF2C4A2FA96A2D6E07A /* ShieldedService.swift in Sources */,

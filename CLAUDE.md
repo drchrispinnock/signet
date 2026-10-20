@@ -436,7 +436,7 @@ automatic download is off by default. The updater is not started under the test 
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Remember key when session-only, Forget account |
   dApps | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
-  transaction | Baking, Governance when applicable | Networks, Settings, Refresh); only the Settings shortcut differs, since the app menu already
+  transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
   has Cmd-comma. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
@@ -604,8 +604,9 @@ automatic download is off by default. The updater is not started under the test 
   a Layer 2 service only (`ChainError.notALayer2Service` otherwise) and
   `WalletViewModel.etherlinkAliasStatus` / `estimateEtherlinkLink` / `linkToEtherlink` use
   `layer2Chain`. `EtherlinkLiveTests.linksAFreshAccountToItsEtherlinkAlias` is the live check.
-- **Shielded transactions (TzEL).** The Networks sheet has a "Shielded Transactions"
-  section per network: the switch (`Network.shieldedEnabled`, off by default, saved in
+- **Shielded transactions (TzEL).** "Shielded settings…" (both menus, under Networks;
+  `ShieldSettingsSheet`, `isPresentingShieldSettings`) has a layer 1 network dropdown, then
+  for that network the switch (`Network.shieldedEnabled`, off by default, saved in
   `AppState.shieldedEnabled` only where on; `WalletViewModel.isShieldedEnabled(for:)` /
   `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`), then, where a deployment
   is shipped, a field per service (`ShieldedConfig.Setting`: rollup node, rollup, bridge
@@ -616,8 +617,9 @@ automatic download is off by default. The updater is not started under the test 
   (`ShieldedConfig`: rollup node, rollup, bridge ticketer, operator, proving service, producer
   fee and the producer's payment address, a bundled resource `tzel-shadownet-producer.json`,
   which stays as shipped); shipped for Shadownet, `nil` elsewhere (`shieldedAvailable` only
-  says a network has them). Every section of the Networks sheet explains itself through an ⓘ
-  beside its title (`SectionHeader`, a popover on hover) rather than a footer paragraph. With the switch on and a config, the
+  says a network has them). The Networks and Shielded settings sheets explain their sections
+  through an ⓘ beside each title (`SectionHeader` in `NetworkSettingsControls.swift`, a
+  popover on hover) rather than footer paragraphs; `SettingField` is the shared text setting. With the switch on and a config, the
   dashboard's **Shielded** row (`AssetBalance.Kind.shielded`, logo `ShieldLogo`, under
   Etherlink or tez, hidden when the account is not on chain) is the wallet's unspent notes,
   found by scanning the rollup (`WalletViewModel.scanShielded`: new tree positions since the

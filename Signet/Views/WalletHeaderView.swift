@@ -214,6 +214,7 @@ struct OperationsMenuItems: View {
             }
             Divider()
             Button("Networks…") { model.isPresentingNetworks = true }
+            Button("Shielded settings…") { model.isPresentingShieldSettings = true }
             if settingsShortcut {
                 SettingsLink { Text("Settings…") }
                     .keyboardShortcut(",", modifiers: .command)

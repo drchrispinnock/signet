@@ -69,6 +69,7 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingSendShielded) { SendShieldedSheet(model: model) }
         .sheet(isPresented: $model.isPresentingShieldedAddress) { ShieldedAddressSheet(model: model) }
         .sheet(isPresented: $model.isPresentingNetworks) { NetworksSheet(model: model) }
+        .sheet(isPresented: $model.isPresentingShieldSettings) { ShieldSettingsSheet(model: model) }
         .sheet(isPresented: $model.isPresentingCreateMultisig) { CreateMultisigSheet(model: model) }
         .sheet(isPresented: $model.isPresentingAddMultisig) { AddMultisigSheet(model: model) }
         .sheet(isPresented: $model.isPresentingSignMultisig, onDismiss: { model.signMultisigPreset = nil }) { SignMultisigSheet(model: model) }

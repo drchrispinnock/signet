@@ -137,6 +137,7 @@ final class WalletViewModel {
     var shieldedCreditPolls = 36
     var shieldedPollInterval: Duration = .seconds(5)
     var isPresentingNetworks = false
+    var isPresentingShieldSettings = false
     var isPresentingBuy = false
 
     /// Governance is for bakers whose key we can sign with.
