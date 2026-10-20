@@ -22,26 +22,29 @@ struct ShieldSettingsSheet: View {
                         }
                     }
                     Toggle("Enable Shielded Transactions", isOn: shieldedEnabled)
-                    if let base = editingNetwork, model.isShieldedEnabled(for: base), base.shieldedDefault == nil {
-                        Text(base.shieldedAvailable
-                             ? "\(base.name) has shielded transactions, but Signet does not know its TzEL services yet; the switch is remembered."
-                             : "\(base.name) has no shielded transactions yet; the switch is remembered for when it does.")
-                            .font(.callout).foregroundStyle(.orange)
+                    if let base = editingNetwork, model.isShieldedEnabled(for: base) {
+                        if base.shieldedDefault == nil {
+                            Text("Signet ships no TzEL services for \(base.name). Fill in every item below to shield there.")
+                                .font(.callout).foregroundStyle(.orange)
+                        } else if model.resolved(base).shielded == nil {
+                            Text("Shielding is off until every item below is filled in.")
+                                .font(.callout).foregroundStyle(.orange)
+                        }
                     }
                 } header: {
                     SectionHeader(title: "Shielded Transactions", help: help)
                 }
-                if let base = editingNetwork, model.isShieldedEnabled(for: base), base.shieldedDefault != nil {
+                if let base = editingNetwork, model.isShieldedEnabled(for: base) {
                     Section {
                         ForEach(ShieldedConfig.Setting.allCases, id: \.self) { setting in
                             SettingField(
                                 title: setting.title,
-                                current: model.shieldedSetting(setting, in: base) ?? "",
+                                current: model.shieldedSetting(setting, in: base),
                                 defaultValue: base.shieldedDefault?.text(for: setting) ?? "",
                                 prompt: setting.prompt,
                                 monospaced: true,
                                 apply: { model.setShieldedSetting($0, for: setting, in: base) },
-                                problem: { ShieldedConfig.problem($0, for: setting) },
+                                problem: { _ in setting.problem },
                                 useDefault: { model.useDefaultShieldedSetting(for: setting, in: base) }
                             )
                             .id("\(base.name)/shielded/\(setting.rawValue)")
@@ -91,7 +94,7 @@ struct ShieldSettingsSheet: View {
     }
 
     private var servicesHelp: String {
-        "The rollup node serves the notes and nullifiers; the rollup and bridge ticketer are checked before any tez move; the proving service makes the proofs; the operator relays them to the rollup. The producer fee is the note every shielded operation pays the DAL slot producer, in mutez. Plain http is accepted, but macOS only lets it through for the hosts Signet ships with; use https for anything else. Use Default restores what Signet ships."
+        "The rollup node serves the notes and nullifiers; the rollup and bridge ticketer are checked before any tez move; the proving service makes the proofs; the operator relays them to the rollup. The producer fee is the note every shielded operation pays the DAL slot producer, in mutez, and the producer address is that producer's payment address, the JSON it publishes. Plain http is accepted, but macOS only lets it through for the hosts Signet ships with; use https for anything else. Use Default restores what Signet ships, or clears an item where it ships nothing."
     }
 
     private var tokenHelp: String {

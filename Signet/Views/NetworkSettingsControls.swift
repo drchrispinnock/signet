@@ -48,7 +48,7 @@ struct SettingField: View {
                     .frame(minWidth: 300)
                 if let error { Text(error).font(.callout).foregroundStyle(.red) }
                 HStack {
-                    Button("Use Default") { useDefault(); error = nil }
+                    Button(defaultValue.isEmpty ? "Clear" : "Use Default") { useDefault(); error = nil }
                         .disabled(current == defaultValue)
                     Button("Apply", action: submit)
                         .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines) == current)

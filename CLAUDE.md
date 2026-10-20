@@ -608,16 +608,18 @@ automatic download is off by default. The updater is not started under the test 
   `ShieldSettingsSheet`, `isPresentingShieldSettings`) has a layer 1 network dropdown, then
   for that network the switch (`Network.shieldedEnabled`, off by default, saved in
   `AppState.shieldedEnabled` only where on; `WalletViewModel.isShieldedEnabled(for:)` /
-  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`), then, where a deployment
-  is shipped, a field per service (`ShieldedConfig.Setting`: rollup node, rollup, bridge
-  ticketer, operator, proving service, producer fee; each with Use Default, applied through
-  `setShieldedSetting` / `useDefaultShieldedSetting`, validated by `ShieldedConfig.using(_:for:)`,
-  saved in `AppState.shieldedSettings` only where replaced) and the operator token.
-  `Network.shielded` is the deployment in use and `shieldedDefault` the shipped one
-  (`ShieldedConfig`: rollup node, rollup, bridge ticketer, operator, proving service, producer
-  fee and the producer's payment address, a bundled resource `tzel-shadownet-producer.json`,
-  which stays as shipped); shipped for Shadownet, `nil` elsewhere (`shieldedAvailable` only
-  says a network has them). The Networks and Shielded settings sheets explain their sections
+  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`), a field per item of the
+  deployment (`ShieldedConfig.Setting`: rollup node, rollup, bridge ticketer, operator,
+  proving service, producer fee, producer address as the producer's payment-address JSON;
+  each validated by `Setting.normalised`, applied through `setShieldedSetting` /
+  `useDefaultShieldedSetting`, kept in `AppState.shieldedSettings` only where it differs from
+  what Signet ships, blank where it ships nothing) and the operator token.
+  `Network.shieldedDefault` is the shipped deployment (`ShieldedConfig`, Shadownet only, its
+  producer address the bundled `tzel-shadownet-producer.json`) and `shielded` the one in use:
+  `AppState.resolved` overlays the saved items on the shipped ones (`shieldedFields`) and
+  builds `ShieldedConfig(fields:)`, `nil` until every item is there, so any network can be
+  filled in by hand and shields once complete (`shieldedAvailable` only says a network is
+  known to have shielded transactions). The Networks and Shielded settings sheets explain their sections
   through an ⓘ beside each title (`SectionHeader` in `NetworkSettingsControls.swift`, a
   popover on hover) rather than footer paragraphs; `SettingField` is the shared text setting. With the switch on and a config, the
   dashboard's **Shielded** row (`AssetBalance.Kind.shielded`, logo `ShieldLogo`, under

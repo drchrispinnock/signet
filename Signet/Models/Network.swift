@@ -144,15 +144,11 @@ struct Network: Hashable, Identifiable, Sendable {
         return copy
     }
 
-    /// The same network with its TzEL deployment replaced (only where one is shipped).
-    func usingShielded(config: ShieldedConfig) -> Network {
+    /// The same network with its TzEL deployment replaced (`nil` where the settings are incomplete).
+    func usingShielded(config: ShieldedConfig?) -> Network {
         var copy = self
-        if shieldedDefault != nil { copy.shielded = config }
+        copy.shielded = config
         return copy
-    }
-
-    func isUsingDefault(_ setting: ShieldedConfig.Setting) -> Bool {
-        shielded?.text(for: setting) == shieldedDefault?.text(for: setting)
     }
 
     /// The links a network uses besides its node: the TzKT API, the block explorer and the

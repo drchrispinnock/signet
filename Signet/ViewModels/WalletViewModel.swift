@@ -302,23 +302,30 @@ final class WalletViewModel {
         change(base) { $0.usingShielded(enabled: enabled) }
     }
 
-    /// A TzEL service of `base` as in use (saved or shipped), without switching.
-    func shieldedSetting(_ setting: ShieldedConfig.Setting, in base: Network) -> String? {
-        resolved(Network.named(base.name) ?? base).shielded?.text(for: setting)
+    /// A TzEL item of `base` as in use (saved, else shipped; "" where neither), without switching.
+    func shieldedSetting(_ setting: ShieldedConfig.Setting, in base: Network) -> String {
+        state.shieldedFields(for: Network.named(base.name) ?? base)[setting] ?? ""
     }
 
-    /// Replaces a TzEL service of `base` with what the user typed. False (and no change) when
-    /// the text is refused or the network ships no deployment.
+    /// Keeps what the user typed for a TzEL item of `base`; empty text clears it (back to what
+    /// we ship, or blank). False (and no change) when the text is refused. The network can
+    /// shield once every item is filled in.
     @discardableResult
     func setShieldedSetting(_ text: String, for setting: ShieldedConfig.Setting, in base: Network) -> Bool {
-        guard let config = resolved(Network.named(base.name) ?? base).shielded?.using(text, for: setting) else { return false }
-        change(base) { $0.usingShielded(config: config) }
+        let base = Network.named(base.name) ?? base
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var kept: String?
+        if !trimmed.isEmpty {
+            guard let valid = setting.normalised(trimmed) else { return false }
+            kept = valid
+        }
+        state.setShieldedField(kept, for: setting, of: base)
+        if base.name == network.name { network = resolved(base) } else { persistState() }
         return true
     }
 
     func useDefaultShieldedSetting(for setting: ShieldedConfig.Setting, in base: Network) {
-        guard let shipped = base.shieldedDefault?.text(for: setting) else { return }
-        setShieldedSetting(shipped, for: setting, in: base)
+        setShieldedSetting("", for: setting, in: base)
     }
 
     /// Applies a per-network change: through `network` (which persists and reloads) when

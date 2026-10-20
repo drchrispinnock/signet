@@ -14,8 +14,9 @@ struct AppState: Codable, Equatable, Sendable {
     var l2NodeURLs: [String: String]?
     /// Shielded transactions on by network name, only where the user turned them on.
     var shieldedEnabled: [String: Bool]?
-    /// TzEL services by network name, then by `ShieldedConfig.Setting` raw value, only where
-    /// the user replaced what we ship.
+    /// TzEL services by network name, then by `ShieldedConfig.Setting` raw value: where the
+    /// user replaced what we ship, or filled in a network we ship nothing for. Written by the
+    /// model as fields are applied (`remember` leaves it alone), read back by `resolved`.
     var shieldedSettings: [String: [String: String]]?
     /// TzKT API, explorer and faucet links by network name, then by `Network.Service` raw
     /// value, only where the user replaced the default; an empty string means the link is off.
@@ -31,11 +32,11 @@ extension AppState {
         let l2Node = l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
         network = network.usingL2(enabled: l2Enabled?[base.name] ?? false, node: l2Node)
         network = network.usingShielded(enabled: shieldedEnabled?[base.name] ?? false)
-        for setting in ShieldedConfig.Setting.allCases {
-            // Saved text that is not valid for the item is ignored.
-            guard let saved = shieldedSettings?[base.name]?[setting.rawValue], let config = network.shielded?.using(saved, for: setting) else { continue }
-            network = network.usingShielded(config: config)
-        }
+        let fields = shieldedFields(for: base)
+        var shielded = ShieldedConfig(fields: fields)
+        // The shipped producer address stays the bundled resource unless it was replaced.
+        if let shipped = base.shieldedDefault, fields[.producerAddress] == shipped.text(for: .producerAddress) { shielded?.producer = shipped.producer }
+        network = network.usingShielded(config: shielded)
         for service in Network.Service.allCases {
             guard let saved = serviceURLs?[base.name]?[service.rawValue] else { continue }
             // "" is a link the user turned off; anything that is not a URL is ignored.
@@ -73,18 +74,31 @@ extension AppState {
         l2Enabled = flags.isEmpty ? nil : flags
     }
 
-    /// Shielded transactions are off by default everywhere; only "on" is saved, and of the
-    /// TzEL services only those replaced.
+    /// Shielded transactions are off by default everywhere; only "on" is saved.
     mutating func rememberShielded(of net: Network) {
         var flags = shieldedEnabled ?? [:]
         flags[net.name] = net.shieldedEnabled ? true : nil
         shieldedEnabled = flags.isEmpty ? nil : flags
-        var all = shieldedSettings ?? [:]
-        var settings = all[net.name] ?? [:]
+    }
+
+    /// Every TzEL item of `base` as text: what we ship, overlaid with what the user saved
+    /// (saved text that is not valid for its item is ignored). Blank where neither has it.
+    func shieldedFields(for base: Network) -> [ShieldedConfig.Setting: String] {
+        var fields: [ShieldedConfig.Setting: String] = [:]
         for setting in ShieldedConfig.Setting.allCases {
-            settings[setting.rawValue] = net.isUsingDefault(setting) ? nil : net.shielded?.text(for: setting)
+            if let shipped = base.shieldedDefault?.text(for: setting), !shipped.isEmpty { fields[setting] = shipped }
+            if let saved = shieldedSettings?[base.name]?[setting.rawValue], let valid = setting.normalised(saved) { fields[setting] = valid }
         }
-        all[net.name] = settings.isEmpty ? nil : settings
+        return fields
+    }
+
+    /// Keeps one TzEL item of `base`: `nil` or the shipped text drops the entry, so the map
+    /// holds only what differs from what we ship.
+    mutating func setShieldedField(_ text: String?, for setting: ShieldedConfig.Setting, of base: Network) {
+        var all = shieldedSettings ?? [:]
+        var fields = all[base.name] ?? [:]
+        fields[setting.rawValue] = (text == nil || text == base.shieldedDefault?.text(for: setting)) ? nil : text
+        all[base.name] = fields.isEmpty ? nil : fields
         shieldedSettings = all.isEmpty ? nil : all
     }
 

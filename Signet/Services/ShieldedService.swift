@@ -12,7 +12,7 @@ struct ShieldedConfig: Hashable, Sendable {
     let provingURL: URL
     /// The producer-fee note's value, in mutez (the operator's inclusion policy).
     let producerFeeMutez: UInt64
-    let producer: ProducerAddress
+    var producer: ProducerAddress
 
     /// The producer's payment address in the reference JSON form (`d_j`, `auth_root`,
     /// `auth_pub_seed`, `nk_tag`, `ek_v`, `ek_d`, all hex): a bundled resource, or given.
@@ -33,10 +33,11 @@ struct ShieldedConfig: Hashable, Sendable {
         producer: .resource("tzel-shadownet-producer")
     )
 
-    /// The items the Networks sheet lets the user replace per network (the producer's payment
-    /// address is a 2.5 KB record and stays as shipped).
+    /// The items the Shielded settings sheet shows per network. Where Signet ships a deployment
+    /// each has a default; elsewhere the fields start blank and the network can shield once
+    /// every one is filled in.
     enum Setting: String, CaseIterable, Sendable {
-        case rollupNode, rollupAddress, ticketer, operatorURL, provingURL, producerFee
+        case rollupNode, rollupAddress, ticketer, operatorURL, provingURL, producerFee, producerAddress
 
         var title: String {
             switch self {
@@ -46,10 +47,9 @@ struct ShieldedConfig: Hashable, Sendable {
             case .operatorURL: "Operator"
             case .provingURL: "Proving service"
             case .producerFee: "Producer fee"
+            case .producerAddress: "Producer address"
             }
         }
-
-        var isURL: Bool { self == .rollupNode || self == .operatorURL || self == .provingURL }
 
         var prompt: String {
             switch self {
@@ -57,6 +57,29 @@ struct ShieldedConfig: Hashable, Sendable {
             case .rollupAddress: "sr1…"
             case .ticketer: "KT1…"
             case .producerFee: "mutez"
+            case .producerAddress: "The producer's payment address (JSON)"
+            }
+        }
+
+        /// The text as kept, or `nil` when it is not valid for this item.
+        func normalised(_ text: String) -> String? {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch self {
+            case .rollupNode, .operatorURL, .provingURL: return ShieldedConfig.serviceURL(from: trimmed)?.absoluteString
+            case .rollupAddress: return ShieldedConfig.isRollupAddress(trimmed) ? trimmed : nil
+            case .ticketer: return trimmed.hasPrefix("KT1") && Address(trimmed).isValidAccount ? trimmed : nil
+            case .producerFee: return UInt64(trimmed).flatMap { $0 > 0 ? String($0) : nil }
+            case .producerAddress: return ShieldedConfig.paymentAddressFields(from: trimmed).map(ShieldedConfig.compactJSON)
+            }
+        }
+
+        var problem: String {
+            switch self {
+            case .rollupNode, .operatorURL, .provingURL: "Enter an http or https URL with a host name and no credentials."
+            case .rollupAddress: "Enter a Smart Rollup address (sr1…)."
+            case .ticketer: "Enter the bridge ticketer's contract address (KT1…)."
+            case .producerFee: "Enter a whole number of mutez above zero."
+            case .producerAddress: "Paste a payment address: JSON with d_j, auth_root, auth_pub_seed, nk_tag (32-byte hex) and ek_v, ek_d (1184-byte hex)."
             }
         }
     }
@@ -69,31 +92,27 @@ struct ShieldedConfig: Hashable, Sendable {
         case .operatorURL: operatorURL.absoluteString
         case .provingURL: provingURL.absoluteString
         case .producerFee: String(producerFeeMutez)
+        case .producerAddress: (try? producerAddressJSON()).map(Self.compactJSON) ?? ""
         }
     }
 
-    /// The same deployment with `setting` replaced by what the user typed; `nil` when refused.
-    func using(_ text: String, for setting: Setting) -> ShieldedConfig? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        var copy = self
-        switch setting {
-        case .rollupNode: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: url, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
-        case .operatorURL: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: url, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
-        case .provingURL: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: url, producerFeeMutez: producerFeeMutez, producer: producer)
-        case .rollupAddress: guard Self.isRollupAddress(trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: trimmed, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
-        case .ticketer: guard trimmed.hasPrefix("KT1"), Address(trimmed).isValidAccount else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: Address(trimmed), operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
-        case .producerFee: guard let fee = UInt64(trimmed), fee > 0 else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: fee, producer: producer)
-        }
-        return copy
+    init(rollupNode: URL, rollupAddress: String, ticketer: Address, operatorURL: URL, provingURL: URL, producerFeeMutez: UInt64, producer: ProducerAddress) {
+        self.rollupNode = rollupNode
+        self.rollupAddress = rollupAddress
+        self.ticketer = ticketer
+        self.operatorURL = operatorURL
+        self.provingURL = provingURL
+        self.producerFeeMutez = producerFeeMutez
+        self.producer = producer
     }
 
-    static func problem(_ text: String, for setting: Setting) -> String {
-        switch setting {
-        case .rollupNode, .operatorURL, .provingURL: text.contains("@") ? "Leave credentials out of the URL." : "Enter an http or https URL with a host name."
-        case .rollupAddress: "Enter a Smart Rollup address (sr1…)."
-        case .ticketer: "Enter the bridge ticketer's contract address (KT1…)."
-        case .producerFee: "Enter a whole number of mutez above zero."
-        }
+    /// A deployment from one text per item (each already `normalised`); `nil` until every item is there.
+    init?(fields: [Setting: String]) {
+        guard let node = fields[.rollupNode].flatMap(URL.init(string:)), let rollup = fields[.rollupAddress], let ticketer = fields[.ticketer],
+              let operatorURL = fields[.operatorURL].flatMap(URL.init(string:)), let proving = fields[.provingURL].flatMap(URL.init(string:)),
+              let fee = fields[.producerFee].flatMap(UInt64.init), let producer = fields[.producerAddress].flatMap(Self.paymentAddressFields(from:))
+        else { return nil }
+        self.init(rollupNode: node, rollupAddress: rollup, ticketer: Address(ticketer), operatorURL: operatorURL, provingURL: proving, producerFeeMutez: fee, producer: .json(producer))
     }
 
     static func isRollupAddress(_ text: String) -> Bool {
@@ -113,6 +132,24 @@ struct ShieldedConfig: Hashable, Sendable {
         }
         guard let url = URL(string: trimmed), let host = url.host(percentEncoded: false), !host.isEmpty, url.user == nil, url.password == nil else { return nil }
         return url
+    }
+
+    /// The six hex fields of a payment address in the reference JSON form (also accepting the
+    /// reference CLI's `{index, address}` wrapper), checked for their lengths.
+    static func paymentAddressFields(from text: String) -> [String: String]? {
+        guard let data = text.data(using: .utf8), var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        if let inner = object["address"] as? [String: Any] { object = inner }
+        let lengths = ["d_j": 32, "auth_root": 32, "auth_pub_seed": 32, "nk_tag": 32, "ek_v": 1184, "ek_d": 1184]
+        var fields: [String: String] = [:]
+        for (key, length) in lengths {
+            guard let value = (object[key] as? String)?.lowercased(), Hex.decode(value)?.count == length else { return nil }
+            fields[key] = value
+        }
+        return fields
+    }
+
+    static func compactJSON(_ fields: [String: String]) -> String {
+        (try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? ""
     }
 
     func producerAddressJSON() throws -> [String: String] {

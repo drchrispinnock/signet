@@ -302,20 +302,37 @@ struct AppStateNetworkTests {
         let node = try #require(URL(string: "https://node.example.org"))
         let l2 = try #require(URL(string: "https://l2.example.org"))
         let explorer = try #require(URL(string: "https://explorer.example.org"))
-        let rollupNode = try #require(ShieldedConfig.shadownet.using("http://rollup.example.org:8932/", for: .rollupNode))
-        let custom = Network.shadownet.usingNode(node).usingL2(enabled: true, node: l2).usingShielded(enabled: true).usingShielded(config: rollupNode).using(explorer, for: .explorer).using(nil, for: .faucet)
+        let custom = Network.shadownet.usingNode(node).usingL2(enabled: true, node: l2).usingShielded(enabled: true).using(explorer, for: .explorer).using(nil, for: .faucet)
         var state = AppState()
         state.remember(custom)
         #expect(state.nodeURLs == ["Shadownet": node.absoluteString] && state.l2NodeURLs == ["Shadownet": l2.absoluteString] && state.l2Enabled == ["Shadownet": true])
         #expect(state.shieldedEnabled == ["Shadownet": true])
-        #expect(state.shieldedSettings == ["Shadownet": ["rollupNode": "http://rollup.example.org:8932"]], "only the replaced TzEL service")
-        #expect(state.resolved(.shadownet).shielded?.rollupNode.absoluteString == "http://rollup.example.org:8932" && state.resolved(.shadownet).shielded?.operatorURL == ShieldedConfig.shadownet.operatorURL)
-        #expect(!state.resolved(.shadownet).isUsingDefault(.rollupNode) && state.resolved(.shadownet).isUsingDefault(.operatorURL))
-        #expect(ShieldedConfig.shadownet.using("sr1bad", for: .rollupAddress) == nil && ShieldedConfig.shadownet.using("0", for: .producerFee) == nil && ShieldedConfig.shadownet.using("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb", for: .ticketer) == nil)
-        #expect(ShieldedConfig.shadownet.using("250000", for: .producerFee)?.producerFeeMutez == 250_000 && ShieldedConfig.shadownet.using("http://user:pw@x.org", for: .operatorURL) == nil)
-        var withJunk = state
-        withJunk.shieldedSettings = ["Shadownet": ["producerFee": "lots", "rollupAddress": "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf"]]
-        #expect(withJunk.resolved(.shadownet).shielded?.producerFeeMutez == 100_000 && withJunk.resolved(.shadownet).shielded?.rollupAddress == "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf", "invalid saved text is ignored, valid applied")
+        // TzEL items: the shipped ones overlaid with what was saved; the shipped text or nil drops an entry; junk is ignored.
+        state.setShieldedField("http://rollup.example.org:8932", for: .rollupNode, of: .shadownet)
+        state.setShieldedField(ShieldedConfig.shadownet.operatorURL.absoluteString, for: .operatorURL, of: .shadownet)
+        #expect(state.shieldedSettings == ["Shadownet": ["rollupNode": "http://rollup.example.org:8932"]], "only what differs from what we ship")
+        var resolvedShielded = state.resolved(.shadownet).shielded
+        #expect(resolvedShielded?.rollupNode.absoluteString == "http://rollup.example.org:8932" && resolvedShielded?.operatorURL == ShieldedConfig.shadownet.operatorURL && resolvedShielded?.producer == ShieldedConfig.shadownet.producer)
+        state.shieldedSettings = ["Shadownet": ["producerFee": "lots", "rollupAddress": "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf"]]
+        resolvedShielded = state.resolved(.shadownet).shielded
+        #expect(resolvedShielded?.producerFeeMutez == 100_000 && resolvedShielded?.rollupAddress == "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf", "invalid saved text is ignored, valid applied")
+        #expect(ShieldedConfig.Setting.rollupAddress.normalised("sr1bad") == nil && ShieldedConfig.Setting.producerFee.normalised("0") == nil && ShieldedConfig.Setting.ticketer.normalised("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb") == nil)
+        #expect(ShieldedConfig.Setting.producerFee.normalised(" 250000 ") == "250000" && ShieldedConfig.Setting.operatorURL.normalised("http://user:pw@x.org") == nil && ShieldedConfig.Setting.rollupNode.normalised("rollup.example.org:8932/") == "https://rollup.example.org:8932")
+        // A network we ship nothing for shields once every item is filled in, with the producer address as pasted JSON.
+        let producer = ShieldedConfig.shadownet.text(for: .producerAddress)
+        #expect(ShieldedConfig.paymentAddressFields(from: producer)?.count == 6 && ShieldedConfig.Setting.producerAddress.normalised("{\"index\": 1, \"address\": \(producer)}") == producer && ShieldedConfig.Setting.producerAddress.normalised("{\"d_j\": \"aa\"}") == nil)
+        state.shieldedSettings = nil
+        for (setting, text) in [(ShieldedConfig.Setting.rollupNode, "https://rollup.quantumnet.example"), (.rollupAddress, "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf"), (.ticketer, "KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4"), (.operatorURL, "https://operator.quantumnet.example"), (.provingURL, "https://proving.quantumnet.example"), (.producerFee, "100000")] {
+            state.setShieldedField(text, for: setting, of: .quantumnet)
+            #expect(state.resolved(.quantumnet).shielded == nil, "incomplete: \(setting)")
+        }
+        state.setShieldedField(producer, for: .producerAddress, of: .quantumnet)
+        let quantumnet = state.resolved(.quantumnet.usingShielded(enabled: true)).shielded
+        #expect(quantumnet?.rollupNode.absoluteString == "https://rollup.quantumnet.example" && quantumnet?.ticketer.value == "KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4" && (try? quantumnet?.producerAddressJSON()) == ShieldedConfig.paymentAddressFields(from: producer))
+        #expect(state.shieldedFields(for: .quantumnet).count == 7 && state.shieldedFields(for: .mainnet).isEmpty)
+        state.setShieldedField(nil, for: .producerAddress, of: .quantumnet)
+        #expect(state.resolved(.quantumnet).shielded == nil && state.shieldedSettings?["Quantumnet"]?.count == 6)
+        state.shieldedSettings = nil
         #expect(state.serviceURLs == ["Shadownet": ["explorer": explorer.absoluteString, "faucet": ""]], "only what differs, and \"\" for off")
         let back = state.resolved(.shadownet)
         #expect(back == custom && back.rpcURL == node && back.hasL2 && back.l2RPCURL == l2 && back.explorerURL == explorer && back.faucetURL == nil)

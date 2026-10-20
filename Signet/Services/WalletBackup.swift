@@ -108,9 +108,10 @@ struct WalletBackup: Sendable {
     /// Any of these present means there is something to back up (`state` alone is not worth a generation).
     static let valuableFiles = TezosClientStore.walletFiles + [TezosClientStore.contractsFile, FileMultisigProposalStore.fileName, "pending_operations.json"] + shieldedFiles
 
-    /// The shielded (TzEL) wallet of each network that has one: its master key and notes. The
-    /// 2 MB signing trees beside it are left out; they are rebuilt from the master key.
-    static let shieldedFiles = Network.all.filter(\.shieldedAvailable).map { FileShieldedWalletStore.walletFile(chain: $0.chain) }
+    /// The shielded (TzEL) wallet file of every network (master keys, notes, the operator
+    /// token, the address book). The 2 MB signing trees beside it are left out; they are
+    /// rebuilt from the master key.
+    static let shieldedFiles = Network.all.map { FileShieldedWalletStore.walletFile(chain: $0.chain) }
 
     /// - Parameter force: write a generation even if the latest one already matches (explicit user action).
     func run(now: Date = Date(), force: Bool = false) throws -> Outcome {
