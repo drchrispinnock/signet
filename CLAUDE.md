@@ -634,13 +634,18 @@ automatic download is off by default. The updater is not started under the test 
   `Signet/Signet-Bridging-Header.h`) builds the leaves across every core in about 2 s
   (`XMSSAuthTree.buildLeaves`; `Blake2s` wraps the hash); `ShieldedTests` checks it against
   the RFC vector, the bridge's leaves and the vectors' roots. **Wallet state.**
-  `ShieldedWallet` (`Signet/Services/ShieldedWallet.swift`) is one file per chain in the
-  wallet directory, `tzel-<chain>.json` (a `PrivateFile`, in the backup file list): the random
-  master key (clear, like an unencrypted tz key), addresses with their payment-address fields
-  and next WOTS+ key index, deposit pools, notes, scan cursors and the operator's bearer token
-  (entered in the Networks sheet, never in the app state or the repository). The 2 MB leaves
-  are `tzel-<chain>-auth<j>.bin` beside it, not backed up, rebuilt from the master key when
-  missing. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore` behind
+  Each tz account has its own shielded wallet (`ShieldedWallet`,
+  `Signet/Services/ShieldedWallet.swift`: a random master key, clear like an unencrypted tz
+  key; addresses with their payment-address fields and next WOTS+ key index; deposit pools;
+  notes; scan cursors), so the Shielded row is that account's. They share one file per chain
+  in the wallet directory, `tzel-<chain>.json` (`ShieldedWalletFile`, version 2, a
+  `PrivateFile` in the backup file list), keyed by address, which also holds the network's
+  operator bearer token (entered in the Networks sheet, never in the app state or the
+  repository). A version 1 file (one wallet for the whole network) is read as `legacy` and
+  adopted on the next refresh by the account that funded its first deposit (TzKT's sender of
+  the pool's operation), else the selected account (`adoptLegacyShieldedWallet`). The 2 MB
+  leaves are `tzel-<chain>-<account>-auth<j>.bin` beside it, not backed up, rebuilt from the
+  master key when missing. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore` behind
   `ShieldedWalletStore`; the model takes a `shieldedStoreFactory` and a
   `shieldedRollupFactory` (`ShieldedRollup`: `RollupNodeService` over `BoundedHTTP`, or the
   tests' `MockShieldedRollup`). **Shield tez** ("Shield tez…" in both menus when

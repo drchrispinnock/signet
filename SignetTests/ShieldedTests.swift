@@ -121,7 +121,8 @@ struct ShieldedWalletStoreTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("signet-shielded-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileShieldedWalletStore(directory: directory, chain: "shadownet")
-        #expect(try store.load() == nil && (try store.loadLeaves(addressIndex: 0)) == nil)
+        let me = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), other = Address("tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq")
+        #expect(try store.load(account: me) == nil && (try store.loadLeaves(account: me, addressIndex: 0)) == nil && (try store.operatorToken()) == nil)
         var wallet = ShieldedWallet.make(chain: "shadownet")
         #expect(Hex.decode(wallet.masterSk)?.count == 32 && (Hex.decode(wallet.masterSk)?[31] ?? 0xff) & 0xf8 == 0, "a 251-bit master key")
         #expect(ShieldedWallet.make(chain: "shadownet").masterSk != wallet.masterSk)
@@ -129,18 +130,51 @@ struct ShieldedWalletStoreTests {
         wallet.pools.append(DepositPool(pubkeyHash: "11", blind: "22", addressIndex: 0, authDomain: "33", depositedMutez: "1000000", operationHash: "ooX", shieldedCm: nil, created: Date(timeIntervalSince1970: 1_000_000)))
         wallet.notes.append(ShieldedNote(index: 7, cm: "44", rseed: "55", nullifier: "66", valueMutez: "1800000", addressIndex: 0))
         wallet.notes.append(ShieldedNote(index: 8, cm: "47", rseed: "58", nullifier: "69", valueMutez: "100", addressIndex: 0, spent: true))
-        wallet.operatorToken = "secret"
         wallet.scanned = 9
-        try store.save(wallet)
-        #expect(try store.load() == wallet)
+        try store.save(wallet, account: me)
+        try store.setOperatorToken("secret")
+        #expect(try store.load(account: me) == wallet && (try store.load(account: other)) == nil && (try store.operatorToken()) == "secret")
+        // Another account's wallet in the same file, and the token survives both.
+        let second = ShieldedWallet.make(chain: "shadownet")
+        try store.save(second, account: other)
+        #expect(try store.load(account: me) == wallet && (try store.load(account: other)) == second && (try store.operatorToken()) == "secret")
+        try store.setOperatorToken(nil)
+        #expect(try store.operatorToken() == nil && (try store.load(account: me)) == wallet)
         #expect(wallet.balanceMutez == 1_800_000 && wallet.balance == Decimal(string: "1.8"))
         let attributes = try FileManager.default.attributesOfItem(atPath: directory.appendingPathComponent("tzel-shadownet.json").path)
         #expect((attributes[.posixPermissions] as? Int) == 0o600)
         let leaves = (0..<XMSSAuthTree.leavesBytes).map { UInt8($0 & 0xff) }
-        try store.saveLeaves(leaves, addressIndex: 0)
-        #expect(try store.loadLeaves(addressIndex: 0) == leaves)
+        try store.saveLeaves(leaves, account: me, addressIndex: 0)
+        #expect(try store.loadLeaves(account: me, addressIndex: 0) == leaves && (try store.loadLeaves(account: other, addressIndex: 0)) == nil)
         #expect(WalletBackup.files.contains("tzel-shadownet.json") && WalletBackup.valuableFiles.contains("tzel-shadownet.json"))
         #expect(!WalletBackup.files.contains("tzel-shadownet-auth0.bin"))
+    }
+
+    /// A version 1 file (one wallet for the network, token inside) is read and handed to the
+    /// account that adopts it, leaves file included; nothing shielded is lost.
+    @Test func aVersionOneFileIsAdoptedByAnAccount() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("signet-shielded-v1-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try PrivateFile.hardenDirectory(directory)
+        let me = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        let v1 = """
+        {"version":1,"chain":"shadownet","masterSk":"\(String(repeating: "07", count: 32))","depositNonce":1,"scanned":28,"nullifiersSeen":9,"operatorToken":"tok",
+         "addresses":[{"index":0,"dJ":"aa","authRoot":"bb","pubSeed":"cc","nkTag":"dd","ekV":"ee","ekD":"ff","nextKeyIndex":1}],
+         "pools":[{"pubkeyHash":"11","blind":"22","addressIndex":0,"authDomain":"33","depositedMutez":"10000000","operationHash":"ooDeposit","shieldedCm":"44","created":"2026-10-19T20:00:00Z"}],
+         "notes":[{"index":26,"cm":"44","rseed":"55","nullifier":"66","valueMutez":"9800000","addressIndex":0,"spent":false}]}
+        """
+        try PrivateFile.write(Data(v1.utf8), to: directory.appendingPathComponent("tzel-shadownet.json"))
+        let leaves = [UInt8](repeating: 9, count: XMSSAuthTree.leavesBytes)
+        try PrivateFile.write(Data(leaves), to: directory.appendingPathComponent("tzel-shadownet-auth0.bin"))
+        let store = FileShieldedWalletStore(directory: directory, chain: "shadownet")
+        #expect(try store.load(account: me) == nil && (try store.operatorToken()) == "tok")
+        let legacy = try #require(try store.legacyWallet())
+        #expect(legacy.balanceMutez == 9_800_000 && legacy.addresses[0].nextKeyIndex == 1 && legacy.pools[0].operationHash == "ooDeposit" && legacy.scanned == 28)
+        try store.adoptLegacyWallet(for: me)
+        #expect(try store.legacyWallet() == nil && (try store.load(account: me)) == legacy && (try store.operatorToken()) == "tok")
+        #expect(try store.loadLeaves(account: me, addressIndex: 0) == leaves)
+        try store.adoptLegacyWallet(for: me)   // a second time changes nothing
+        #expect(try store.load(account: me) == legacy)
     }
 
     @Test func theFeeRuleAndStateKeysFollowTheKernel() {
@@ -271,17 +305,18 @@ struct ShieldFlowTests {
         let model = try makeModel(store: store, rollup: rollup)
         #expect(model.canShield && model.network.canShield)
         // Nothing is on file yet and the token is not set: the Shield sheet can prepare, but not shield.
+        let me = WalletViewModel.sampleWallets[0].address
         let pool = try await model.prepareShield()
-        var wallet = try #require(try store.load())
+        var wallet = try #require(try store.load(account: me))
         #expect(wallet.addresses.count == 1 && wallet.addresses[0].nextKeyIndex == 0 && wallet.pools == [pool] && wallet.depositNonce == 1)
-        #expect(try store.loadLeaves(addressIndex: 0)?.count == XMSSAuthTree.leavesBytes)
+        #expect(try store.loadLeaves(account: me, addressIndex: 0)?.count == XMSSAuthTree.leavesBytes)
         #expect(pool.operationHash == nil && pool.authDomain == rollup.authDomain && pool.addressIndex == 0)
         // Preparing again reuses the unfunded pool rather than minting ids.
         #expect(try await model.prepareShield() == pool)
         let estimate = try await model.estimateShield(amount: 2, pool: pool)
         #expect(estimate.rollupFeeMutez == 100_000 && estimate.producerFeeMutez == 100_000 && estimate.shieldedAmount == Decimal(string: "1.8") && estimate.estimate.limits != nil)
         await #expect(throws: ShieldedError.operatorTokenMissing) { _ = try await model.shieldTez(approved: estimate, passphrase: nil) }
-        #expect(try store.load()?.pools.first?.operationHash == nil, "nothing was sent without the token")
+        #expect(try store.load(account: me)?.pools.first?.operationHash == nil, "nothing was sent without the token")
 
         try model.setShieldedOperatorToken("operator-secret", for: .shadownet)
         #expect(model.shieldedOperatorTokenIsSet(for: .shadownet) && !model.shieldedOperatorTokenIsSet(for: .mainnet))
@@ -289,7 +324,7 @@ struct ShieldFlowTests {
         rollup.pools[pool.pubkeyHash] = 2_000_000
         let receipt = try await model.shieldTez(approved: estimate, passphrase: nil)
         #expect(receipt.depositHash == "ooMockShieldDeposit" && receipt.shieldedMutez == 1_800_000 && receipt.rollupFeeMutez == 100_000 && receipt.operationHash == "ooShieldPointer")
-        wallet = try #require(try store.load())
+        wallet = try #require(try store.load(account: me))
         #expect(wallet.pools.first?.operationHash == "ooMockShieldDeposit" && wallet.pools.first?.depositedMutez == "2000000" && wallet.pools.first?.shieldedCm == receipt.cm)
         #expect(wallet.addresses[0].nextKeyIndex == 1)
         // The key index was on file before the witness existed, and the deposit before the block was waited for.
@@ -317,6 +352,14 @@ struct ShieldFlowTests {
         await model.refresh()
         #expect(model.shieldedWallet?.notes[0].spent == true && model.shieldedWallet?.balanceMutez == 0 && model.shieldedWallet?.nullifiersSeen == 1)
         #expect(model.assets.first { $0.kind == .shielded }?.amount == 0)
+        // Another account in the same directory has a shielded wallet of its own: nothing to show yet.
+        rollup.nullifiers = []
+        model.select(WalletViewModel.sampleWallets[1])
+        await model.refresh()
+        #expect(model.shieldedWallet == nil && model.assets.first { $0.kind == .shielded }?.amount == 0 && model.shieldedPools.isEmpty)
+        model.select(WalletViewModel.sampleWallets[0])
+        await model.refresh()
+        #expect(model.shieldedWallet?.notes.count == 1)
     }
 
     @Test func refusesAStaleContextARollupForAnotherDeploymentAndAnUncreditedPool() async throws {
@@ -330,7 +373,7 @@ struct ShieldFlowTests {
         rollup.ticketer = "KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM"
         await #expect(throws: ShieldedError.ticketerMismatch(configured: "KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM", expected: "KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4")) { _ = try await model.prepareShield() }
         rollup.ticketer = "KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4"
-        #expect(try store.load()?.pools.isEmpty == true, "no pool before the rollup passed its checks")
+        #expect(try store.load(account: WalletViewModel.sampleWallets[0].address) == nil, "no wallet before the rollup passed its checks")
         let pool = try await model.prepareShield()
         let estimate = try await model.estimateShield(amount: 1, pool: pool)
         // Another account was selected after the estimate: nothing is sent.
@@ -341,7 +384,7 @@ struct ShieldFlowTests {
         // A pool the rollup never credited: the deposit is on file, the shield gives up and the pool stays to retry.
         rollup.pools = [:]
         await #expect(throws: ShieldedError.poolNotCredited(pool.pubkeyHash)) { _ = try await model.shieldTez(approved: again, passphrase: nil) }
-        let wallet = try #require(try store.load())
+        let wallet = try #require(try store.load(account: WalletViewModel.sampleWallets[0].address))
         #expect(wallet.pools.first?.operationHash == "ooMockShieldDeposit" && wallet.pools.first?.shieldedCm == nil && wallet.addresses[0].nextKeyIndex == 0)
         await model.refresh()
         #expect(model.shieldedPools.first?.balanceMutez == nil && model.shieldedPools.count == 1)
@@ -353,6 +396,28 @@ struct ShieldFlowTests {
         let receipt = try await model.shieldPool(pool.pubkeyHash)
         #expect(receipt.rollupFeeMutez == 400_000 && receipt.shieldedMutez == 500_000 && receipt.depositHash == nil)
         await #expect(throws: ShieldedError.poolUnknown("ff")) { _ = try await model.shieldPool("ff") }
+    }
+
+    @Test func aLegacyWalletGoesToTheAccountThatFundedIt() async throws {
+        struct Funder: TestChainService {
+            func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1) }
+        }
+        var legacy = ShieldedWallet.make(chain: "shadownet")
+        legacy.notes.append(ShieldedNote(index: 26, cm: "11", rseed: "22", nullifier: "33", valueMutez: "9800000", addressIndex: 0))
+        legacy.pools.append(DepositPool(pubkeyHash: "44", blind: "55", addressIndex: 0, authDomain: "66", depositedMutez: "10000000", operationHash: nil, shieldedCm: "11", created: Date()))
+        let store = InMemoryShieldedWalletStore(legacy: legacy)
+        let keys = InMemoryWalletStore()
+        try keys.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: Funder(), walletStore: keys, shieldedStoreFactory: { _, _ in store }, shieldedRollupFactory: { _ in MockShieldedRollup() })
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        await model.refresh()
+        // No operation hash to ask TzKT about: the selected account adopts it.
+        #expect(try store.legacyWallet() == nil && (try store.load(account: WalletViewModel.sampleWallets[0].address))?.notes.count == 1)
+        #expect(model.shieldedWallet?.balanceMutez == 9_800_000 && model.assets.first { $0.kind == .shielded }?.amount == Decimal(string: "9.8"))
+        model.select(WalletViewModel.sampleWallets[1])
+        await model.refresh()
+        #expect(model.shieldedWallet == nil && model.assets.first { $0.kind == .shielded }?.amount == 0)
     }
 
     @Test func theDashboardRowReportsAnUnreachableRollupWithoutLosingTheWallet() async throws {
@@ -370,7 +435,7 @@ struct ShieldFlowTests {
         var wallet = ShieldedWallet.make(chain: "shadownet")
         wallet.notes.append(ShieldedNote(index: 0, cm: "11", rseed: "22", nullifier: "33", valueMutez: "2500000", addressIndex: 0))
         wallet.pools.append(DepositPool(pubkeyHash: "44", blind: "55", addressIndex: 0, authDomain: "66", depositedMutez: "1", operationHash: "ooX", shieldedCm: nil, created: Date()))
-        let store = InMemoryShieldedWalletStore(wallet: wallet)
+        let store = InMemoryShieldedWalletStore(wallets: [WalletViewModel.sampleWallets[0].address.value: wallet])
         let keys = InMemoryWalletStore()
         try keys.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), walletStore: keys, shieldedStoreFactory: { _, _ in store }, shieldedRollupFactory: { _ in Down() })
@@ -434,7 +499,7 @@ struct ShadownetShieldTests {
             #expect(token == nil, "the operator refused the token: \(detail)")
             print("operator refused as expected without a token: \(detail)")
         }
-        let saved = try #require(try store.load())
+        let saved = try #require(try store.load(account: wallet.address))
         #expect(saved.pools.first?.operationHash != nil && saved.addresses[0].nextKeyIndex == 1, "the deposit landed and the shield was signed once")
         let rollup = RollupNodeService(config: .shadownet)
         let liveHead = try await rollup.head()

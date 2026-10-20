@@ -48,10 +48,10 @@ final class WalletViewModel {
     /// shielded transactions on: the wallet's unspent notes, found by scanning the rollup's
     /// commitment tree with its viewing keys (`WalletViewModel+Shielded.swift`). A network
     /// whose TzEL services Signet does not know shows the 0 placeholder.
-    private nonisolated static func shieldedSnapshot(on network: Network, store: (any ShieldedWalletStore)?, rollup: (any ShieldedRollup)?, bridge: TaquitoBridge) async -> ShieldedSnapshot? {
+    private nonisolated static func shieldedSnapshot(for address: Address, on network: Network, store: (any ShieldedWalletStore)?, rollup: (any ShieldedRollup)?, bridge: TaquitoBridge) async -> ShieldedSnapshot? {
         guard network.shieldedEnabled else { return nil }
         guard let store, let rollup, network.shielded != nil else { return ShieldedSnapshot(wallet: nil, pools: [], row: .shieldedPlaceholder) }
-        return await scanShielded(store: store, rollup: rollup, bridge: bridge)
+        return await scanShielded(store: store, account: address, rollup: rollup, bridge: bridge)
     }
 
     /// Every account: those from the wallet directory (accounts, address book, contracts), then
@@ -626,6 +626,8 @@ final class WalletViewModel {
         let chain = self.chain
         let address = mine.address
         let network = self.network
+        if network.canShield { await adoptLegacyShieldedWallet() }
+        guard currentContext == mine else { return }
         let shieldedStore = network.canShield ? shieldedStore(for: network.chain) : nil
         let shieldedRollup = network.shielded.map(shieldedRollupFactory)
         let shieldedBridge = self.shieldedBridge
@@ -651,7 +653,7 @@ final class WalletViewModel {
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
-            async let shielded = Self.shieldedSnapshot(on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
+            async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
 
             let tezBalance = try await tez
             var list = [AssetBalance(id: "tez", kind: .tez, name: "Tezos", symbol: "tz", amount: tezBalance.total, details: tezBalance.breakdown)]

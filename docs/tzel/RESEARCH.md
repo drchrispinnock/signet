@@ -313,12 +313,15 @@ does not need the reference wallet's fresh-address-per-deposit habit.
   about 2 s on an M-series Mac (235 s in unoptimised Swift, 4 minutes in the bridge), and the
   root equals the vectors' `addresses[0].auth_root`. Leaves live in
   `<wallet dir>/tzel-<chain>-auth<j>.bin` and are rebuilt from the master key when missing.
-- *Wallet.* `ShieldedWallet` (`Signet/Services/ShieldedWallet.swift`) in
-  `<wallet dir>/tzel-<chain>.json`, a private file backed up with the key files: master key
+- *Wallet.* One `ShieldedWallet` per tz account (Chris, 2026-10-19 evening: a network-wide
+  wallet showed the same shielded balance under every account), all in
+  `<wallet dir>/tzel-<chain>.json` (version 2: the operator token and a wallet per address; a
+  version 1 file is adopted by the account that funded its deposit, found through TzKT),
+  a private file backed up with the key files. Each wallet: master key
   (clear, like an unencrypted tz key; a password is still to do), addresses with their next
   WOTS+ index, deposit pools (`pubkey_hash`, blind, address, `auth_domain`, L1 operation,
   the shield's commitment), notes (position, cm, rseed, nullifier, value, spent), the scan
-  cursors and the operator token. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore`.
+  cursors. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore`.
 - *Services.* `ShieldedService.swift`: `ShieldedConfig` per network (`Network.shielded`, set
   for Shadownet), the `ShieldedRollup` protocol and `RollupNodeService` over `BoundedHTTP`:
   durable reads pinned to one block (absent keys come back as JSON `null`, not 404; notes are

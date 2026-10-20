@@ -196,6 +196,20 @@ extension TzKTService {
 }
 
 extension TzKTService {
+    /// The sender of an operation's first row, or `nil` when TzKT has no such operation.
+    func sender(ofOperation hash: String) async throws -> Address? {
+        guard hash.count < 64, hash.allSatisfy(\.isLetter) || hash.allSatisfy({ $0.isLetter || $0.isNumber }) else { return nil }
+        var request = URLRequest(url: baseURL.appendingPathComponent("v1/operations/\(hash)"))
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.pageBytes, json: .page)
+        guard reply.isSuccess, let rows = try JSONSerialization.jsonObject(with: reply.data) as? [[String: Any]],
+              let address = (rows.first?["sender"] as? [String: Any])?["address"] as? String, Address(address).isValidAccount
+        else { return nil }
+        return Address(address)
+    }
+
     /// The account's most recent transactions and delegations, newest first.
     func recentOperations(for address: Address, limit: Int = 25) async throws -> [TezosTransaction] {
         var components = URLComponents(url: baseURL.appendingPathComponent("v1/accounts/\(address.value)/operations"), resolvingAgainstBaseURL: false)!

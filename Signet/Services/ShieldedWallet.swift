@@ -57,12 +57,11 @@ struct ShieldedNote: Codable, Hashable, Sendable, Identifiable {
     var value: UInt64 { UInt64(valueMutez) ?? 0 }
 }
 
-/// The shielded wallet for one network: the master key and everything derived or learned from
-/// the rollup. One per chain, in the wallet directory (`tzel-<chain>.json`, a private file).
+/// The shielded wallet of one account on one network: the master key and everything derived
+/// or learned from the rollup. Each tz account has its own, so the dashboard's Shielded row is
+/// that account's; they all live in one file per chain in the wallet directory
+/// (`tzel-<chain>.json`, a private file, `ShieldedWalletFile`).
 struct ShieldedWallet: Codable, Equatable, Sendable {
-    static let currentVersion = 1
-
-    var version = currentVersion
     let chain: String
     /// The random 251-bit master secret, hex. Everything else derives from it. Kept in the clear
     /// like an unencrypted tz key; a password option is to follow.
@@ -76,8 +75,6 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     var scanned = 0
     /// How many rollup nullifiers have been checked against our notes.
     var nullifiersSeen = 0
-    /// The operator's bearer token for submitting shields (never in the repository, never logged).
-    var operatorToken: String?
 
     init(chain: String, masterSk: String) {
         self.chain = chain
@@ -101,71 +98,161 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     func pool(_ pubkeyHash: String) -> DepositPool? { pools.first { $0.pubkeyHash == pubkeyHash } }
 }
 
-/// Where a network's shielded wallet is kept.
-protocol ShieldedWalletStore: Sendable {
-    func load() throws -> ShieldedWallet?
-    func save(_ wallet: ShieldedWallet) throws
-    /// The 65536 × 32 bytes of an address's auth tree leaves, if built.
-    func loadLeaves(addressIndex: Int) throws -> [UInt8]?
-    func saveLeaves(_ leaves: [UInt8], addressIndex: Int) throws
+/// `tzel-<chain>.json`: the network's operator token and one `ShieldedWallet` per tz account.
+struct ShieldedWalletFile: Codable, Equatable, Sendable {
+    static let currentVersion = 2
+    var version = currentVersion
+    let chain: String
+    /// The operator's bearer token for submitting shields (never in the repository, never logged).
+    var operatorToken: String?
+    /// By the account's tz address.
+    var accounts: [String: ShieldedWallet] = [:]
+    /// A version 1 file held one wallet for the whole network; it is kept here until an
+    /// account adopts it (`ShieldedWalletStore.adoptLegacyWallet`).
+    var legacy: ShieldedWallet?
 }
 
-/// `tzel-<chain>.json` and `tzel-<chain>-auth<j>.bin` in the wallet directory, written like the
-/// key files (S10: private from the first byte, atomic replace). The JSON is backed up with the
-/// wallet; the leaves are not (2 MB each, rebuilt from the master key when missing).
+/// Where a network's shielded wallets are kept.
+protocol ShieldedWalletStore: Sendable {
+    func load(account: Address) throws -> ShieldedWallet?
+    func save(_ wallet: ShieldedWallet, account: Address) throws
+    func operatorToken() throws -> String?
+    func setOperatorToken(_ token: String?) throws
+    /// The version 1 file's single wallet, not yet an account's.
+    func legacyWallet() throws -> ShieldedWallet?
+    /// Makes the legacy wallet `account`'s (nothing happens when there is none or the account has one).
+    func adoptLegacyWallet(for account: Address) throws
+    /// The 65536 × 32 bytes of an address's auth tree leaves, if built.
+    func loadLeaves(account: Address, addressIndex: Int) throws -> [UInt8]?
+    func saveLeaves(_ leaves: [UInt8], account: Address, addressIndex: Int) throws
+}
+
+/// `tzel-<chain>.json` and `tzel-<chain>-<account>-auth<j>.bin` in the wallet directory, written
+/// like the key files (S10: private from the first byte, atomic replace). The JSON is backed up
+/// with the wallet; the leaves are not (2 MB each, rebuilt from the master key when missing).
 struct FileShieldedWalletStore: ShieldedWalletStore {
     let directory: URL
     let chain: String
 
     static func walletFile(chain: String) -> String { "tzel-\(chain).json" }
-    static func leavesFile(chain: String, addressIndex: Int) -> String { "tzel-\(chain)-auth\(addressIndex).bin" }
+    static func leavesFile(chain: String, account: Address, addressIndex: Int) -> String { "tzel-\(chain)-\(account.value)-auth\(addressIndex).bin" }
+    /// Where a version 1 file kept its one address's leaves.
+    static func legacyLeavesFile(chain: String, addressIndex: Int) -> String { "tzel-\(chain)-auth\(addressIndex).bin" }
 
     private var walletURL: URL { directory.appendingPathComponent(Self.walletFile(chain: chain)) }
 
-    func load() throws -> ShieldedWallet? {
+    /// A version 1 file: one wallet for the network, with the token inside it.
+    private struct LegacyFile: Decodable {
+        let version: Int
+        let chain: String
+        let masterSk: String
+        var addresses: [ShieldedAddress] = []
+        var depositNonce: UInt64 = 0
+        var pools: [DepositPool] = []
+        var notes: [ShieldedNote] = []
+        var scanned = 0
+        var nullifiersSeen = 0
+        var operatorToken: String?
+
+        var file: ShieldedWalletFile {
+            var wallet = ShieldedWallet(chain: chain, masterSk: masterSk)
+            wallet.addresses = addresses; wallet.depositNonce = depositNonce; wallet.pools = pools; wallet.notes = notes
+            wallet.scanned = scanned; wallet.nullifiersSeen = nullifiersSeen
+            return ShieldedWalletFile(chain: chain, operatorToken: operatorToken, accounts: [:], legacy: wallet)
+        }
+    }
+
+    private func read() throws -> ShieldedWalletFile? {
         guard let data = try PrivateFile.read(walletURL) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let wallet = try decoder.decode(ShieldedWallet.self, from: data)
-        guard wallet.version == ShieldedWallet.currentVersion else {
-            throw ShieldedError.unsupportedWalletVersion(wallet.version)
+        guard let header = try JSONSerialization.jsonObject(with: data) as? [String: Any], let version = header["version"] as? Int else {
+            throw ShieldedError.unsupportedWalletVersion(0)
         }
-        return wallet
+        switch version {
+        case 1: return try decoder.decode(LegacyFile.self, from: data).file
+        case ShieldedWalletFile.currentVersion: return try decoder.decode(ShieldedWalletFile.self, from: data)
+        default: throw ShieldedError.unsupportedWalletVersion(version)
+        }
     }
 
-    func save(_ wallet: ShieldedWallet) throws {
+    private func write(_ file: ShieldedWalletFile) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try PrivateFile.write(try encoder.encode(wallet), to: walletURL)
+        try PrivateFile.write(try encoder.encode(file), to: walletURL)
     }
 
-    func loadLeaves(addressIndex: Int) throws -> [UInt8]? {
-        guard let data = try PrivateFile.read(directory.appendingPathComponent(Self.leavesFile(chain: chain, addressIndex: addressIndex))) else { return nil }
+    func load(account: Address) throws -> ShieldedWallet? { try read()?.accounts[account.value] }
+
+    func save(_ wallet: ShieldedWallet, account: Address) throws {
+        var file = try read() ?? ShieldedWalletFile(chain: chain)
+        file.accounts[account.value] = wallet
+        try write(file)
+    }
+
+    func operatorToken() throws -> String? { try read()?.operatorToken }
+
+    func setOperatorToken(_ token: String?) throws {
+        var file = try read() ?? ShieldedWalletFile(chain: chain)
+        file.operatorToken = token
+        try write(file)
+    }
+
+    func legacyWallet() throws -> ShieldedWallet? { try read()?.legacy }
+
+    func adoptLegacyWallet(for account: Address) throws {
+        guard var file = try read(), let legacy = file.legacy, file.accounts[account.value] == nil else { return }
+        file.accounts[account.value] = legacy
+        file.legacy = nil
+        try write(file)
+        for address in legacy.addresses {
+            let old = directory.appendingPathComponent(Self.legacyLeavesFile(chain: chain, addressIndex: address.index))
+            let new = directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: address.index))
+            if FileManager.default.fileExists(atPath: old.path), !FileManager.default.fileExists(atPath: new.path) {
+                try? FileManager.default.moveItem(at: old, to: new)
+            }
+        }
+    }
+
+    func loadLeaves(account: Address, addressIndex: Int) throws -> [UInt8]? {
+        guard let data = try PrivateFile.read(directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: addressIndex))) else { return nil }
         guard data.count == XMSSAuthTree.leavesBytes else { return nil }
         return [UInt8](data)
     }
 
-    func saveLeaves(_ leaves: [UInt8], addressIndex: Int) throws {
+    func saveLeaves(_ leaves: [UInt8], account: Address, addressIndex: Int) throws {
         precondition(leaves.count == XMSSAuthTree.leavesBytes)
-        try PrivateFile.write(Data(leaves), to: directory.appendingPathComponent(Self.leavesFile(chain: chain, addressIndex: addressIndex)))
+        try PrivateFile.write(Data(leaves), to: directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: addressIndex)))
     }
 }
 
 /// For tests and previews: nothing touches the disk.
 final class InMemoryShieldedWalletStore: ShieldedWalletStore, @unchecked Sendable {
     private let lock = NSLock()
-    private var wallet: ShieldedWallet?
-    private var leaves: [Int: [UInt8]] = [:]
+    private var file: ShieldedWalletFile
+    private var leaves: [String: [UInt8]] = [:]
     /// Every wallet ever saved, oldest first, so tests can check what was persisted when.
     private(set) var history: [ShieldedWallet] = []
 
-    init(wallet: ShieldedWallet? = nil) { self.wallet = wallet }
+    init(chain: String = "shadownet", wallets: [String: ShieldedWallet] = [:], legacy: ShieldedWallet? = nil) {
+        file = ShieldedWalletFile(chain: chain, accounts: wallets, legacy: legacy)
+    }
 
-    func load() throws -> ShieldedWallet? { lock.withLock { wallet } }
-    func save(_ wallet: ShieldedWallet) throws { lock.withLock { self.wallet = wallet; history.append(wallet) } }
-    func loadLeaves(addressIndex: Int) throws -> [UInt8]? { lock.withLock { leaves[addressIndex] } }
-    func saveLeaves(_ leaves: [UInt8], addressIndex: Int) throws { lock.withLock { self.leaves[addressIndex] = leaves } }
+    func load(account: Address) throws -> ShieldedWallet? { lock.withLock { file.accounts[account.value] } }
+    func save(_ wallet: ShieldedWallet, account: Address) throws { lock.withLock { file.accounts[account.value] = wallet; history.append(wallet) } }
+    func operatorToken() throws -> String? { lock.withLock { file.operatorToken } }
+    func setOperatorToken(_ token: String?) throws { lock.withLock { file.operatorToken = token } }
+    func legacyWallet() throws -> ShieldedWallet? { lock.withLock { file.legacy } }
+    func adoptLegacyWallet(for account: Address) throws {
+        lock.withLock {
+            guard let legacy = file.legacy, file.accounts[account.value] == nil else { return }
+            file.accounts[account.value] = legacy
+            file.legacy = nil
+        }
+    }
+    func loadLeaves(account: Address, addressIndex: Int) throws -> [UInt8]? { lock.withLock { leaves["\(account.value)/\(addressIndex)"] } }
+    func saveLeaves(_ leaves: [UInt8], account: Address, addressIndex: Int) throws { lock.withLock { self.leaves["\(account.value)/\(addressIndex)"] = leaves } }
 }
 
 /// What can go wrong between the wallet, the rollup node, the proving service and the operator.
