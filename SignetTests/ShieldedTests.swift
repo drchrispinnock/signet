@@ -269,6 +269,11 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
         var outputs: [String]
         if request.count == 171 {
             outputs = request[1...9].map(Self.felt)
+        } else if let n = Int(request[1].dropFirst(2), radix: 16), request.count == 1 + 4 + n * 206 + 24 {
+            // A transfer: the three output commitments and memo hashes are in the witness.
+            let w = request, tail = 5 + 206 * n
+            outputs = [w[2], w[3]].map(Self.felt) + (0..<n).map { Self.felt(w[5 + 9 * $0]) } + [Self.felt(w[4])]
+                + [w[tail], w[tail + 8], w[tail + 16]].map(Self.felt) + [w[tail + 7], w[tail + 15], w[tail + 23]].map(Self.felt)
         } else {
             guard let n = Int(request[1].dropFirst(2), radix: 16), request.count == 1 + 6 + n * 206 + 15 else { return .failed("bad witness") }
             let w = request
@@ -305,6 +310,27 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
             throw ShieldedError.withdrawalNotReady("outbox level \(outboxLevel) is not cemented")
         }
         return OutboxProof(commitment: "src13Ycd5ZPbQGiLiVuWqAMUhNuaWafb5T7KoqHsMGEAStvScGDFgx", proof: "aabb")
+    }
+
+    /// Applies the last submitted transfer as the kernel would: the nullifiers are spent and
+    /// the three notes join the tree. Returns their commitments.
+    func applyLastTransfer() -> [String] {
+        lock.withLock {
+            let b = Hex.decode(submitted.last!.payload)!
+            var o = 7
+            func u32() -> Int { let v = Int(b[o]) << 24 | Int(b[o + 1]) << 16 | Int(b[o + 2]) << 8 | Int(b[o + 3]); o += 4; return v }
+            func take(_ n: Int) -> [UInt8] { let s = Array(b[o..<(o + n)]); o += n; return s }
+            _ = take(32)
+            let end = o + u32()
+            var spent: [String] = []
+            while o < end { let l = u32(); spent.append(Hex.encode(take(l))) }
+            _ = take(8)
+            let cms = (0..<3).map { _ in take(32) }
+            _ = take(u32())
+            for cm in cms { notes.append(cm + take(u32())) }
+            nullifiers += spent
+            return cms.map(Hex.encode)
+        }
     }
 
     /// Applies the last submitted unshield as the kernel would: the nullifiers are spent, the
@@ -644,6 +670,61 @@ struct UnshieldFlowTests {
         #expect(throws: ShieldedError.tooManyInputs(8)) { try WalletViewModel.selectNotes(notes, covering: 4_900_001) }
         #expect(throws: ShieldedError.insufficientShielded(available: 5_500_000, needed: 5_500_001)) { try WalletViewModel.selectNotes(notes, covering: 5_500_001) }
         #expect(try WalletViewModel.selectNotes([], covering: 0).isEmpty)
+    }
+
+    /// Alice (sample account 0) sends to Bob (sample account 1), both in the same directory:
+    /// Bob's shielded address comes from his Shielded address sheet, goes into Alice's address
+    /// book, and the note reaches him with the memo while Alice gets her change.
+    @Test func sendsAShieldedTransferToAnotherAccountsAddress() async throws {
+        let (model, store, rollup, note) = try await shieldedModel()
+        let alice = WalletViewModel.sampleWallets[0], bob = WalletViewModel.sampleWallets[1]
+        // Bob hands out his address: the JSON other wallets take, with its fingerprint; a new one is a fresh address of his.
+        model.select(bob)
+        let handed = try await model.shieldedReceiveAddress()
+        #expect(handed.index == 0 && handed.json.contains("\"ek_v\"") && handed.fingerprint.count == 64)
+        let fresh = try await model.makeShieldedAddress()
+        let bobWallet = try store.load(account: bob.address)
+        #expect(fresh.index == 1 && fresh.fingerprint != handed.fingerprint && bobWallet?.addresses.count == 2)
+        let again = try await model.shieldedReceiveAddress()
+        #expect(again == fresh, "the newest address is the one handed out")
+        // Alice pastes it, saves it, and sends 1 tz with a memo.
+        model.select(alice)
+        await model.refresh()
+        let pasted = try await model.shieldedRecipient(from: fresh.json)
+        #expect(pasted.fingerprint == fresh.fingerprint && pasted.name.isEmpty)
+        await #expect(throws: ShieldedError.self) { _ = try await model.shieldedRecipient(from: "{\"d_j\": \"zz\"}") }
+        try model.addShieldedContact(pasted, name: "Bob")
+        #expect(throws: ShieldedError.contactExists("Bob")) { try model.addShieldedContact(pasted, name: "Robert") }
+        let contact = try #require(try model.shieldedContacts().first)
+        #expect(contact.name == "Bob" && contact.fingerprint == fresh.fingerprint)
+        let known = try await model.shieldedRecipient(from: fresh.json)
+        #expect(known.name == "Bob", "a known address comes back with its name")
+        let estimate = try await model.estimateSendShielded(amount: 1, recipient: contact, memo: "for lunch")
+        #expect(estimate.inputs == [note] && estimate.changeMutez == 600_000 && estimate.fees == Decimal(string: "0.2"))
+        await #expect(throws: ShieldedError.memoTooLong) { _ = try await model.estimateSendShielded(amount: 1, recipient: contact, memo: String(repeating: "x", count: 1025)) }
+        let receipt = try await model.sendShielded(approved: estimate)
+        #expect(receipt.amount == 1 && receipt.transfer.recipientName == "Bob" && receipt.transfer.memo == "for lunch" && receipt.transfer.nullifiers == [note.nullifier] && !receipt.transfer.applied)
+        let witness = try #require(rollup.proofRequests.last)
+        #expect(witness.count == 1 + 4 + 206 + 24 && witness[0] == "0xea" && witness[1] == "0x1")
+        let sent = try #require(rollup.submitted.last)
+        #expect(sent.kind == "transfer" && sent.payload.hasPrefix("110003"))
+        var wallet = try #require(try store.load(account: alice.address))
+        #expect(wallet.transfers.count == 1 && wallet.availableMutez == 0 && wallet.addresses.count == 2 && wallet.addresses[0].nextKeyIndex == 2)
+        // The kernel applies it: Alice's note is spent and her change is back; Bob has 1 tz with the memo.
+        let cms = rollup.applyLastTransfer()
+        #expect(cms[0] == receipt.transfer.recipientCm && cms[1] == receipt.transfer.changeCm)
+        await model.refresh()
+        wallet = try #require(model.shieldedWallet)
+        #expect(wallet.notes.count == 2 && wallet.notes[0].spent && wallet.notes[1].valueMutez == "600000" && wallet.notes[1].addressIndex == 1 && wallet.transfers[0].applied)
+        #expect(model.shieldedTransfers.first?.applied == true && wallet.availableMutez == 600_000)
+        model.select(bob)
+        await model.refresh()
+        let received = try #require(model.shieldedWallet?.notes.first)
+        #expect(received.cm == cms[0] && received.valueMutez == "1000000" && received.addressIndex == 1 && received.memo == "for lunch" && model.shieldedWallet?.balanceMutez == 1_000_000)
+        #expect(model.shieldedWallet?.notes.count == 1, "the change and the producer note are not Bob's")
+        try model.removeShieldedContact(contact.fingerprint)
+        let left = try model.shieldedContacts()
+        #expect(left.isEmpty)
     }
 
     @Test func forgesRecipientsAsOutboxMessagesNameThem() {

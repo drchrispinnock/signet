@@ -696,7 +696,26 @@ automatic download is off by default. The updater is not started under the test 
   and Taquito's `smartRollupExecuteOutboxMessage` through the approved-limits path
   (`sendOutboxExecution` is a signing call). An operator failure drops the record so the
   notes are free again; `forgetWithdrawal` does the same by hand for one never delivered.
-  The layer 1 execution has not been exercised live yet. Send shielded is to follow. The research, verified Shadownet
+  The layer 1 execution has not been exercised live yet. **Send shielded** ("Send
+  shielded…"; `SendShieldedSheet`) is a private transfer: the same preparation as an unshield
+  (`prepareSpend`, always with a change address, since the kernel takes exactly three output
+  notes), then `tzelBuildTransfer` (sighash `fold(0x01, auth_domain, root, nullifiers…, fee,
+  cm_1, cm_2, cm_3, mh_1, mh_2, mh_3)`, the `4 + 206n + 24`-word `run_transfer` witness, the
+  recipient's note with the memo and role `transfer_recipient`, the change note, the producer
+  note; `test/tzel-transfer.cjs` checks it and the tag 3 wire against the reference crate's
+  bytes), `run_transfer` at the proving service, `tzelEncodeTransferMessage` and the operator;
+  the transfer (`ShieldedTransfer`) is on file as soon as the operator has it and its notes
+  stay reserved until the scan sees them spent. **A shielded recipient is the payment address
+  itself**, the 2496-byte record (diversifier, auth root, public seed, nullifier tag, two
+  ML-KEM-768 keys): the protocol has no short form, so wallets exchange the reference JSON and
+  compare a fingerprint, the BLAKE2s-251 of the canonical record (`tzelPaymentAddress`,
+  `WalletViewModel.shieldedRecipient(from:)`). "Shielded address…" (`ShieldedAddressSheet`)
+  shows the account's newest address as that JSON with its fingerprint and a Copy button
+  (`shieldedReceiveAddress`), makes a fresh one on request (`makeShieldedAddress`, so two
+  payers cannot tell they paid the same wallet), and keeps the network's shielded address
+  book (`ShieldedContact`, in `tzel-<chain>.json` beside the token, shared by every account;
+  `addShieldedContact` / `removeShieldedContact`). A received note keeps its memo
+  (`ShieldedNote.memo`). The research, verified Shadownet
   parameters and the step plan are in `docs/tzel/RESEARCH.md` (section 8); the spec note is
   `docs/spec/shield.md` and the protocol is https://github.com/trilitech/tzel/.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in

@@ -53,6 +53,8 @@ struct ShieldedNote: Codable, Hashable, Sendable, Identifiable {
     let valueMutez: String
     let addressIndex: Int
     var spent = false
+    /// The memo it came with, when there was one (a shielded transfer's).
+    var memo: String?
 
     var value: UInt64 { UInt64(valueMutez) ?? 0 }
 }
@@ -88,6 +90,39 @@ struct ShieldedWithdrawal: Codable, Hashable, Sendable, Identifiable {
     var producerFee: UInt64 { UInt64(producerFeeMutez) ?? 0 }
 }
 
+/// A shielded transfer handed to the operator: `amountMutez` to the payment address with
+/// `recipientFingerprint`. Its input notes stay reserved until the rollup spends them.
+struct ShieldedTransfer: Codable, Hashable, Sendable, Identifiable {
+    var id: String { submissionID }
+    let submissionID: String
+    let recipientFingerprint: String
+    /// The address-book name it was sent to, if any.
+    let recipientName: String?
+    let amountMutez: String
+    let rollupFeeMutez: String
+    let producerFeeMutez: String
+    let memo: String
+    let nullifiers: [String]
+    let recipientCm: String
+    let changeCm: String
+    let created: Date
+    var operationHash: String?
+    /// The rollup has spent every input: the recipient has the note.
+    var applied = false
+
+    var amount: UInt64 { UInt64(amountMutez) ?? 0 }
+}
+
+/// A shielded address of someone else: the payment address as the reference JSON, under a
+/// name, with its fingerprint (the hash of the canonical record) for checking against theirs.
+struct ShieldedContact: Codable, Hashable, Sendable, Identifiable {
+    var id: String { fingerprint }
+    var name: String
+    let fingerprint: String
+    let address: [String: String]
+    let created: Date
+}
+
 /// The shielded wallet of one account on one network: the master key and everything derived
 /// or learned from the rollup. Each tz account has its own, so the dashboard's Shielded row is
 /// that account's; they all live in one file per chain in the wallet directory
@@ -111,13 +146,15 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     var leafCms: [String] = []
     /// Unshields handed to the operator, until their layer 1 side is done.
     var withdrawals: [ShieldedWithdrawal] = []
+    /// Shielded transfers handed to the operator.
+    var transfers: [ShieldedTransfer] = []
 
     init(chain: String, masterSk: String) {
         self.chain = chain
         self.masterSk = masterSk
     }
 
-    private enum CodingKeys: String, CodingKey { case chain, masterSk, addresses, depositNonce, pools, notes, scanned, nullifiersSeen, leafCms, withdrawals }
+    private enum CodingKeys: String, CodingKey { case chain, masterSk, addresses, depositNonce, pools, notes, scanned, nullifiersSeen, leafCms, withdrawals, transfers }
 
     /// Fields added after version 2 was first written are absent from older files.
     init(from decoder: Decoder) throws {
@@ -132,6 +169,7 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
         nullifiersSeen = try c.decodeIfPresent(Int.self, forKey: .nullifiersSeen) ?? 0
         leafCms = try c.decodeIfPresent([String].self, forKey: .leafCms) ?? []
         withdrawals = try c.decodeIfPresent([ShieldedWithdrawal].self, forKey: .withdrawals) ?? []
+        transfers = try c.decodeIfPresent([ShieldedTransfer].self, forKey: .transfers) ?? []
     }
 
     /// A wallet with a fresh random master key.
@@ -146,8 +184,8 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     /// Unspent notes, in mutez.
     var balanceMutez: UInt64 { notes.filter { !$0.spent }.reduce(0) { $0 &+ $1.value } }
     var balance: Decimal { Decimal(balanceMutez) / Mutez.perTez }
-    /// The nullifiers of notes an unshield in flight will spend.
-    var reservedNullifiers: Set<String> { Set(withdrawals.filter { !$0.applied }.flatMap(\.nullifiers)) }
+    /// The nullifiers of notes an unshield or transfer in flight will spend.
+    var reservedNullifiers: Set<String> { Set(withdrawals.filter { !$0.applied }.flatMap(\.nullifiers) + transfers.filter { !$0.applied }.flatMap(\.nullifiers)) }
     /// Unspent notes no unshield in flight has claimed.
     var availableNotes: [ShieldedNote] {
         let reserved = reservedNullifiers
@@ -172,6 +210,28 @@ struct ShieldedWalletFile: Codable, Equatable, Sendable {
     /// A version 1 file held one wallet for the whole network; it is kept here until an
     /// account adopts it (`ShieldedWalletStore.adoptLegacyWallet`).
     var legacy: ShieldedWallet?
+    /// Other people's shielded addresses, shared by every account on the network.
+    var contacts: [ShieldedContact] = []
+
+    init(chain: String, operatorToken: String? = nil, accounts: [String: ShieldedWallet] = [:], legacy: ShieldedWallet? = nil, contacts: [ShieldedContact] = []) {
+        self.chain = chain
+        self.operatorToken = operatorToken
+        self.accounts = accounts
+        self.legacy = legacy
+        self.contacts = contacts
+    }
+
+    private enum CodingKeys: String, CodingKey { case version, chain, operatorToken, accounts, legacy, contacts }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
+        chain = try c.decode(String.self, forKey: .chain)
+        operatorToken = try c.decodeIfPresent(String.self, forKey: .operatorToken)
+        accounts = try c.decodeIfPresent([String: ShieldedWallet].self, forKey: .accounts) ?? [:]
+        legacy = try c.decodeIfPresent(ShieldedWallet.self, forKey: .legacy)
+        contacts = try c.decodeIfPresent([ShieldedContact].self, forKey: .contacts) ?? []
+    }
 }
 
 /// Where a network's shielded wallets are kept.
@@ -187,6 +247,9 @@ protocol ShieldedWalletStore: Sendable {
     /// The 65536 × 32 bytes of an address's auth tree leaves, if built.
     func loadLeaves(account: Address, addressIndex: Int) throws -> [UInt8]?
     func saveLeaves(_ leaves: [UInt8], account: Address, addressIndex: Int) throws
+    /// The network's shielded address book.
+    func contacts() throws -> [ShieldedContact]
+    func saveContacts(_ contacts: [ShieldedContact]) throws
 }
 
 /// `tzel-<chain>.json` and `tzel-<chain>-<account>-auth<j>.bin` in the wallet directory, written
@@ -287,6 +350,14 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         precondition(leaves.count == XMSSAuthTree.leavesBytes)
         try PrivateFile.write(Data(leaves), to: directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: addressIndex)))
     }
+
+    func contacts() throws -> [ShieldedContact] { try read()?.contacts ?? [] }
+
+    func saveContacts(_ contacts: [ShieldedContact]) throws {
+        var file = try read() ?? ShieldedWalletFile(chain: chain)
+        file.contacts = contacts
+        try write(file)
+    }
 }
 
 /// For tests and previews: nothing touches the disk.
@@ -315,6 +386,8 @@ final class InMemoryShieldedWalletStore: ShieldedWalletStore, @unchecked Sendabl
     }
     func loadLeaves(account: Address, addressIndex: Int) throws -> [UInt8]? { lock.withLock { leaves["\(account.value)/\(addressIndex)"] } }
     func saveLeaves(_ leaves: [UInt8], account: Address, addressIndex: Int) throws { lock.withLock { self.leaves["\(account.value)/\(addressIndex)"] = leaves } }
+    func contacts() throws -> [ShieldedContact] { lock.withLock { file.contacts } }
+    func saveContacts(_ contacts: [ShieldedContact]) throws { lock.withLock { file.contacts = contacts } }
 }
 
 /// What can go wrong between the wallet, the rollup node, the proving service and the operator.
@@ -341,6 +414,9 @@ enum ShieldedError: LocalizedError, Equatable {
     case treeStale
     case withdrawalUnknown(String)
     case withdrawalNotReady(String)
+    case badPaymentAddress(String)
+    case contactExists(String)
+    case memoTooLong
     /// The operator still has it: not a failure, but not delivered within the wait either.
     case submissionPending(String)
 
@@ -368,6 +444,9 @@ enum ShieldedError: LocalizedError, Equatable {
         case .treeStale: "The rollup's commitment tree moved while the unshield was being prepared. Nothing was sent; try again."
         case .withdrawalUnknown(let id): "Withdrawal \(id) is not one of this wallet's."
         case .withdrawalNotReady(let detail): "This withdrawal cannot be executed on Tezos yet: \(detail)"
+        case .badPaymentAddress(let detail): "That is not a shielded payment address: \(detail)"
+        case .contactExists(let name): "That shielded address is already in the address book as “\(name)”."
+        case .memoTooLong: "The memo must be at most 1024 bytes."
         case .submissionPending(let detail): "The operator has the request but has not delivered it to the rollup yet: \(detail). It stays listed; refresh later."
         }
     }
@@ -388,5 +467,13 @@ extension Address {
         case [2, 90, 121]: return Hex.encode([1] + payload + [0])
         default: return nil
         }
+    }
+}
+
+extension ShieldedAddress {
+    /// The address as a payment address in the reference JSON form, what another wallet
+    /// (Signet or the tzel CLI) takes as a recipient.
+    var paymentAddressJSON: [String: String] {
+        ["d_j": dJ, "auth_root": authRoot, "auth_pub_seed": pubSeed, "nk_tag": nkTag, "ek_v": ekV, "ek_d": ekD]
     }
 }

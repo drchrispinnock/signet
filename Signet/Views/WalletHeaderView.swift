@@ -198,6 +198,8 @@ struct OperationsMenuItems: View {
             if model.canShield {
                 Button("Shield tez…") { model.isPresentingShield = true }
                 Button("Unshield tez…") { model.isPresentingUnshield = true }
+                Button("Send shielded…") { model.isPresentingSendShielded = true }
+                Button("Shielded address…") { model.isPresentingShieldedAddress = true }
             }
             Divider()
             Button("Create multisig…") { model.isPresentingCreateMultisig = true }

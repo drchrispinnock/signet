@@ -414,7 +414,28 @@ does not need the reference wallet's fresh-address-per-deposit habit.
   state (with the operator, queued, waiting with the time left, ready with an Execute button,
   executed with the explorer link).
 
-**Next, in order:**
+**Done (2026-10-20, afternoon): Send shielded.**
 
-1. *Send shielded.* Same as unshield with a recipient PaymentAddress (JSON blob) and an address
-   book with fingerprints.
+- *Recipient.* The reference has no short shielded address: `tzel-wallet receive` mints a
+  fresh address and prints the `PaymentAddress` JSON (`d_j`, `auth_root`, `auth_pub_seed`,
+  `nk_tag`, `ek_v`, `ek_d`; the two ML-KEM-768 keys make it 2496 bytes canonical), and
+  `send --to bob-address.json` takes that file. Nothing on the rollup names the recipient: a
+  note is found only by the recipient's detection key. Signet therefore takes the JSON
+  (pasted, or from the reference CLI's `{index, address}` wrapper), names it by a
+  fingerprint, `H(canonical record)` (our convention, not the reference's, which has none),
+  keeps an address book per chain in `tzel-<chain>.json`, and hands out the account's newest
+  address the same way with a "New address" button that builds another signing tree.
+- *Wire.* Tag 3, length-prefixed body `root ‖ nullifiers ‖ fee ‖ cm_1 ‖ cm_2 ‖ cm_3 ‖ proof ‖
+  note_1 ‖ note_2 ‖ note_3`, verified against the reference crate's encoding of a
+  three-input sample (10711 bytes). Sighash `fold(0x01, auth_domain, root, nf…, fee, cm_1,
+  cm_2, cm_3, mh_1, mh_2, mh_3)`; witness `[len, n, auth_domain, root, fee, inputs as for an
+  unshield, 3 × (cm, d_j, v, rseed, auth_root, auth_pub_seed, nk_tag, mh)]`, 4 + 206n + 24;
+  public outputs `[auth_domain, root, nf…, fee, cm_1..3, mh_1..3]`. Exactly three outputs
+  always: the change note is made even for zero change. Roles `transfer_recipient` (with the
+  memo, up to 1024 bytes) and `transfer_change`.
+- *Flow.* `prepareSpend` (shared with unshield), `estimateSendShielded`, `sendShielded`,
+  `ShieldedTransfer` records (reserved notes, applied by the scan), `forgetTransfer`.
+  `SendShieldedFlowTests` moves 1 tz between two accounts of one directory through the mock
+  rollup and reads the memo on the other side. Not run live yet.
+
+**Next, in order:**

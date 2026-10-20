@@ -109,6 +109,7 @@
 		9C76914707853D3D3BF484BF /* NetworkBadgeMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */; };
 		9D02BBA44BF0655F9D191FC8 /* tzel-shadownet-producer.json in Resources */ = {isa = PBXBuildFile; fileRef = 1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */; };
 		9D832937DA172705C3CCB872 /* ConnectDAppSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53331E96FFD222A1898C7F83 /* ConnectDAppSheet.swift */; };
+		A1BE576EEB551E14BF193DF9 /* SendShieldedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */; };
 		A4C2D6AE665CA6309C22E732 /* TezosTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB43BB3B884C40E4BF7D28D /* TezosTransaction.swift */; };
 		A4EAD7B70EFB608697E679E5 /* NodeMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49EBC889E951D255F516827F /* NodeMonitorTests.swift */; };
 		A5A2409814B37E05C0876756 /* FaucetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05930E7B824730A8A1C63579 /* FaucetTests.swift */; };
@@ -146,6 +147,7 @@
 		D5114AC1C526FA5C1E938482 /* OctezConnectPairingDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */; };
 		D64977C485264CB70239E5A6 /* TezClientStoreDirectoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12061334BC624B52CD710148 /* TezClientStoreDirectoryTests.swift */; };
 		D773B43372E1FBDED1176B97 /* DAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E46F73256A892AA7016BC04 /* DAppTests.swift */; };
+		D7D4D8587A077B2856D2DA3E /* ShieldedAddressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C9D3B9E3472F14CFB602CD /* ShieldedAddressSheet.swift */; };
 		DC0AF9C711D8A8C05F021FB5 /* DAppConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E70E02FF7663B97A85CBD8A8 /* DAppConnectionManager.swift */; };
 		DC590F952233EC9207BF20E7 /* StakingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */; };
 		DD55FDBEC099D83C97895445 /* GovernanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */; };
@@ -204,6 +206,7 @@
 		2480FCA7277757AFED969B9B /* EndpointPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointPolicy.swift; sourceTree = "<group>"; };
 		26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TzKTService.swift; sourceTree = "<group>"; };
 		278776717D4BD5F05FF06B65 /* NFTGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTGridView.swift; sourceTree = "<group>"; };
+		2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendShieldedSheet.swift; sourceTree = "<group>"; };
 		31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRepairTests.swift; sourceTree = "<group>"; };
 		37D1A33134A80A7023ED60D8 /* ChainServiceTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChainServiceTestSupport.swift; sourceTree = "<group>"; };
 		389A75014E3B2DEFD52F2274 /* Signet.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Signet.entitlements; sourceTree = "<group>"; };
@@ -325,6 +328,7 @@
 		D47811A27E6DCA933C13141F /* Blake2s.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blake2s.swift; sourceTree = "<group>"; };
 		D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectPairingDiagnostic.swift; sourceTree = "<group>"; };
 		D55C4D86A1145ACAF063447D /* WalletBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletBackup.swift; sourceTree = "<group>"; };
+		D5C9D3B9E3472F14CFB602CD /* ShieldedAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldedAddressSheet.swift; sourceTree = "<group>"; };
 		D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeStatusBar.swift; sourceTree = "<group>"; };
 		D88E3C67501524EFC2417151 /* CreateMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateMultisigSheet.swift; sourceTree = "<group>"; };
 		D9682C459E924F07DEF53FC3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -401,7 +405,9 @@
 				4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */,
 				392C832007D3B6DE8AB37D22 /* SendSheet.swift */,
 				4B5133556944367214FA9041 /* SendSheet+Preview.swift */,
+				2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */,
 				BFC7070B3A5754283DA58F7D /* SettingsView.swift */,
+				D5C9D3B9E3472F14CFB602CD /* ShieldedAddressSheet.swift */,
 				7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */,
 				479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */,
 				7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */,
@@ -803,10 +809,12 @@
 				F69C430DC456544A2DC19040 /* RenameWalletSheet.swift in Sources */,
 				15B6085B392A57A2CF3BC9F9 /* SendSheet+Preview.swift in Sources */,
 				C09D68D63C60BAC7529DD300 /* SendSheet.swift in Sources */,
+				A1BE576EEB551E14BF193DF9 /* SendShieldedSheet.swift in Sources */,
 				E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */,
 				E7EA15D2639194B6837F7822 /* SessionKeys.swift in Sources */,
 				E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */,
 				95F1191724EFC0F40EBE89C7 /* ShieldSheet.swift in Sources */,
+				D7D4D8587A077B2856D2DA3E /* ShieldedAddressSheet.swift in Sources */,
 				437BEDF2C4A2FA96A2D6E07A /* ShieldedService.swift in Sources */,
 				48BF0FDADB88E86B0E19C32E /* ShieldedWallet.swift in Sources */,
 				ACEEFBEA79DEAC5A35BA2E00 /* SignMultisigSheet.swift in Sources */,

@@ -25,6 +25,9 @@ enum ShieldProgress: Hashable, Sendable {
     case submittingUnshield
     /// Executing a withdrawal's outbox message on Tezos.
     case executing
+    /// Send shielded: proving and handing over.
+    case provingTransfer
+    case submittingTransfer
 
     var text: String {
         switch self {
@@ -39,6 +42,8 @@ enum ShieldProgress: Hashable, Sendable {
         case .provingUnshield: "Proving the unshield (a minute or two)…"
         case .submittingUnshield: "Handing the unshield to the operator…"
         case .executing: "Executing the withdrawal on Tezos…"
+        case .provingTransfer: "Proving the transfer (a minute or two)…"
+        case .submittingTransfer: "Handing the transfer to the operator…"
         }
     }
 }
@@ -49,6 +54,7 @@ struct ShieldedSnapshot: Sendable {
     var pools: [ShieldedPoolStatus]
     var row: AssetBalance
     var withdrawals: [ShieldedWithdrawalStatus] = []
+    var transfers: [ShieldedTransfer] = []
 }
 
 /// An unshield and where it stands, as of the last scan.
@@ -129,6 +135,37 @@ struct UnshieldEstimate: Sendable {
     var changeMutez: UInt64 { inputMutez &- totalMutez }
     var change: Decimal { Decimal(changeMutez) / Mutez.perTez }
     var fees: Decimal { Decimal(rollupFeeMutez + producerFeeMutez) / Mutez.perTez }
+}
+
+/// A shielded transfer estimate (S31): the recipient, the notes it will spend and the fees.
+struct SendShieldedEstimate: Sendable {
+    let context: WalletViewModel.BridgeContext
+    let amount: Decimal
+    let amountMutez: UInt64
+    let recipient: ShieldedContact
+    let memo: String
+    let rollupFeeMutez: UInt64
+    let producerFeeMutez: UInt64
+    let inputs: [ShieldedNote]
+
+    var totalMutez: UInt64 { amountMutez + rollupFeeMutez + producerFeeMutez }
+    var inputMutez: UInt64 { inputs.reduce(0) { $0 &+ $1.value } }
+    var changeMutez: UInt64 { inputMutez &- totalMutez }
+    var change: Decimal { Decimal(changeMutez) / Mutez.perTez }
+    var fees: Decimal { Decimal(rollupFeeMutez + producerFeeMutez) / Mutez.perTez }
+}
+
+struct SendShieldedReceipt: Hashable, Sendable {
+    let transfer: ShieldedTransfer
+    var amount: Decimal { Decimal(transfer.amount) / Mutez.perTez }
+}
+
+/// One of the account's own shielded addresses as something to hand out.
+struct ShieldedReceiveAddress: Hashable, Sendable {
+    let index: Int
+    /// The reference JSON, pretty-printed, as another wallet pastes it.
+    let json: String
+    let fingerprint: String
 }
 
 struct UnshieldReceipt: Hashable, Sendable {
@@ -222,7 +259,7 @@ extension WalletViewModel {
             var details: [AssetBalance.Detail] = []
             let pooled = pools.compactMap(\.balanceMutez).reduce(0, +)
             if pooled > 0 { details.append(AssetBalance.Detail(id: "pooled", label: "In deposit pools, not yet shielded", amount: Decimal(pooled) / Mutez.perTez)) }
-            if let reserved = wallet?.reservedMutez, reserved > 0 { details.append(AssetBalance.Detail(id: "unshielding", label: "Leaving in an unshield, not yet applied", amount: Decimal(reserved) / Mutez.perTez)) }
+            if let reserved = wallet?.reservedMutez, reserved > 0 { details.append(AssetBalance.Detail(id: "unshielding", label: "Leaving in an unshield or transfer, not yet applied", amount: Decimal(reserved) / Mutez.perTez)) }
             return AssetBalance(id: "shielded", kind: .shielded, name: "Shielded", symbol: "tz", amount: wallet?.balance ?? 0, details: details, unavailable: unavailable)
         }
         var wallet: ShieldedWallet?
@@ -258,7 +295,9 @@ extension WalletViewModel {
                                   let nullifier = note["nullifier"]?.stringValue, let value = note["v"]?.stringValue, let addressIndex = note["addressIndex"]?.intValue
                             else { throw ShieldedError.badReply("scan result") }
                             if !current.notes.contains(where: { $0.index == index }) {
-                                current.notes.append(ShieldedNote(index: index, cm: cm, rseed: rseed, nullifier: nullifier, valueMutez: value, addressIndex: addressIndex))
+                                var found = ShieldedNote(index: index, cm: cm, rseed: rseed, nullifier: nullifier, valueMutez: value, addressIndex: addressIndex)
+                                if let memo = note["memo"]?.stringValue, !memo.isEmpty { found.memo = memo }
+                                current.notes.append(found)
                             }
                         }
                     }
@@ -300,9 +339,13 @@ extension WalletViewModel {
                     }
                 }
             }
-            // Executed withdrawals stay a week for the record.
+            // Executed withdrawals and applied transfers stay a week for the record.
             current.withdrawals.removeAll { $0.executedHash != nil && $0.created < Date().addingTimeInterval(-7 * 86_400) }
             let withdrawals = current.withdrawals.map { ShieldedWithdrawalStatus(withdrawal: $0, cementedLevel: cemented) }
+            for i in current.transfers.indices where !current.transfers[i].applied && current.transfers[i].nullifiers.allSatisfy(spent.contains) {
+                current.transfers[i].applied = true
+            }
+            current.transfers.removeAll { $0.applied && $0.created < Date().addingTimeInterval(-7 * 86_400) }
             // Pools: what the rollup holds; a pool drained by a shield whose note we have seen is done.
             var statuses: [ShieldedPoolStatus] = []
             let seenCms = Set(current.notes.map(\.cm))
@@ -315,11 +358,11 @@ extension WalletViewModel {
             }
             current.pools = statuses.map(\.pool)
             if current != before { try store.save(current, account: account) }
-            return ShieldedSnapshot(wallet: current, pools: statuses, row: row(current, pools: statuses), withdrawals: withdrawals)
+            return ShieldedSnapshot(wallet: current, pools: statuses, row: row(current, pools: statuses), withdrawals: withdrawals, transfers: current.transfers)
         } catch {
             let statuses = current.pools.map { ShieldedPoolStatus(pool: $0, balanceMutez: nil) }
             let withdrawals = current.withdrawals.map { ShieldedWithdrawalStatus(withdrawal: $0, cementedLevel: nil) }
-            return ShieldedSnapshot(wallet: current, pools: statuses, row: row(current, pools: statuses, unavailable: "Shielded balance unavailable: \(error.localizedDescription)"), withdrawals: withdrawals)
+            return ShieldedSnapshot(wallet: current, pools: statuses, row: row(current, pools: statuses, unavailable: "Shielded balance unavailable: \(error.localizedDescription)"), withdrawals: withdrawals, transfers: current.transfers)
         }
     }
 
@@ -667,70 +710,17 @@ extension WalletViewModel {
         let rollup = shieldedRollupFactory(config)
         shieldProgress = .readingTree
         defer { shieldProgress = nil }
-
-        // The tree as the rollup has it now, our notes and the nullifiers with it.
-        let snapshot = await Self.scanShielded(store: store, account: account, rollup: rollup, bridge: shieldedBridge)
-        if let problem = snapshot.row.unavailable { throw ShieldedError.badReply(problem) }
-        guard var wallet = snapshot.wallet else { throw ShieldedError.insufficientShielded(available: 0, needed: approved.totalMutez) }
-        let head = try await rollup.head()
-        let root = try await rollup.treeRoot(at: head.hash)
-        let size = try await rollup.treeSize(at: head.hash)
-        guard wallet.leafCms.count == size else { throw ShieldedError.treeStale }
-        let fee = try await rollup.requiredTxFee(at: head)
-        guard fee == approved.rollupFeeMutez else { throw ShieldedError.feeChanged(from: approved.rollupFeeMutez, to: fee) }
-        let authDomain = try await rollup.authDomain(at: head.hash)
-        let available = Dictionary(wallet.availableNotes.map { ($0.index, $0) }, uniquingKeysWith: { a, _ in a })
-        let inputs = try approved.inputs.map { note -> ShieldedNote in
-            guard let now = available[note.index], now.cm == note.cm, now.value == note.value else { throw ShieldedError.treeStale }
-            return now
-        }
-        let sum = inputs.reduce(0) { $0 &+ $1.value }
-        guard sum >= approved.totalMutez else { throw ShieldedError.insufficientShielded(available: sum, needed: approved.totalMutez) }
-        let change = sum - approved.totalMutez
-        guard bridgeContext == context else { throw WalletError.contextChanged }
-
-        // Change goes to a fresh address of ours, made (and its signing tree built) first.
-        var changeAddress: ShieldedAddress?
-        if change > 0 {
-            let made = try await makeAddress(index: wallet.addresses.count, of: wallet, account: account)
-            wallet.addresses.append(made)
-            changeAddress = made
-        }
-        // One signature per key index, ever: every input's index is spent on disk before it is used.
-        var reserved: [(note: ShieldedNote, address: ShieldedAddress, keyIdx: Int)] = []
-        for note in inputs {
-            guard let at = wallet.addresses.firstIndex(where: { $0.index == note.addressIndex }) else { throw ShieldedError.treeMissing(note.addressIndex) }
-            let keyIdx = wallet.addresses[at].nextKeyIndex
-            guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(note.addressIndex) }
-            wallet.addresses[at].nextKeyIndex = keyIdx + 1
-            reserved.append((note, wallet.addresses[at], keyIdx))
-        }
-        try store.save(wallet, account: account)
-        shieldedWallet = wallet
-
-        // Each input's auth path from its address's native tree.
-        var trees: [Int: [[UInt8]]] = [:]
-        var inputRecords: [[String: Any]] = []
-        for r in reserved {
-            if trees[r.address.index] == nil {
-                let leaves = try await leaves(of: r.address, in: wallet, account: account)
-                guard let pubSeed = Hex.decode(r.address.pubSeed) else { throw ShieldedError.treeMissing(r.address.index) }
-                trees[r.address.index] = XMSSAuthTree.levels(pubSeed: pubSeed, leaves: leaves)
-            }
-            guard let levels = trees[r.address.index] else { throw ShieldedError.treeMissing(r.address.index) }
-            let path = XMSSAuthTree.path(levels: levels, index: r.keyIdx).map(Hex.encode)
-            inputRecords.append(["note": ["index": r.note.index, "cm": r.note.cm, "rseed": r.note.rseed, "v": r.note.valueMutez], "address": r.address.bridgeRecord, "keyIdx": r.keyIdx, "authPath": path])
-        }
-        let seeds = try await shieldedBridge.call("tzelAccount", [wallet.masterSk])
+        let spend = try await prepareSpend(inputs: approved.inputs, totalMutez: approved.totalMutez, approvedFee: approved.rollupFeeMutez, changeAddressAlways: false, account: account, store: store, rollup: rollup, context: context)
+        let change = spend.changeMutez, fee = spend.fee, root = spend.root, head = spend.head
         let request: [String: Any] = [
-            "account": seeds.foundationObject, "authDomain": authDomain, "root": root, "leafCms": wallet.leafCms,
+            "account": spend.seeds.foundationObject, "authDomain": spend.authDomain, "root": root, "leafCms": spend.wallet.leafCms,
             "vPub": String(approved.amountMutez), "fee": String(fee), "producerFee": String(config.producerFeeMutez), "recipient": approved.recipient,
-            "inputs": inputRecords, "changeAddress": changeAddress?.bridgeRecord ?? NSNull(), "producerAddress": try config.producerAddressJSON(),
+            "inputs": spend.inputRecords, "changeAddress": spend.changeAddress?.bridgeRecord ?? NSNull(), "producerAddress": try config.producerAddressJSON(),
         ]
         let built = try await shieldedBridge.call("tzelBuildUnshield", [String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)])
-        let n = inputs.count
+        let n = spend.inputs.count
         guard let witness = built["witness"]?.arrayValue?.compactMap(\.stringValue), witness.count == 1 + 6 + n * 206 + 15,
-              let nullifiers = built["nullifiers"]?.arrayValue?.compactMap(\.stringValue), nullifiers == inputs.map(\.nullifier),
+              let nullifiers = built["nullifiers"]?.arrayValue?.compactMap(\.stringValue), nullifiers == spend.inputs.map(\.nullifier),
               let producerCm = built["producerCm"]?.stringValue, let producerEnc = built["producerEnc"]?.stringValue,
               let outputs = built["publicOutputs"]?.arrayValue?.compactMap(\.stringValue), outputs.count == 2 + n + 7,
               built["changeMutez"]?.stringValue == String(change)
@@ -773,11 +763,262 @@ extension WalletViewModel {
         return UnshieldReceipt(withdrawal: withdrawal, changeMutez: change)
     }
 
+    /// What an unshield and a shielded transfer do alike: the inputs checked against the
+    /// rollup's tree and fee as they are now, the change address made, every input's key
+    /// index spent on disk, and the auth paths taken from the native trees.
+    private struct SpendPreparation {
+        let wallet: ShieldedWallet
+        let head: RollupHead
+        let root: String
+        let authDomain: String
+        let fee: UInt64
+        let inputs: [ShieldedNote]
+        let changeMutez: UInt64
+        let changeAddress: ShieldedAddress?
+        let inputRecords: [[String: Any]]
+        let seeds: JSONValue
+    }
+
+    private func prepareSpend(inputs approvedInputs: [ShieldedNote], totalMutez: UInt64, approvedFee: UInt64, changeAddressAlways: Bool, account: Address, store: any ShieldedWalletStore, rollup: any ShieldedRollup, context: BridgeContext?) async throws -> SpendPreparation {
+        // The tree as the rollup has it now, our notes and the nullifiers with it.
+        let snapshot = await Self.scanShielded(store: store, account: account, rollup: rollup, bridge: shieldedBridge)
+        if let problem = snapshot.row.unavailable { throw ShieldedError.badReply(problem) }
+        guard var wallet = snapshot.wallet else { throw ShieldedError.insufficientShielded(available: 0, needed: totalMutez) }
+        let head = try await rollup.head()
+        let root = try await rollup.treeRoot(at: head.hash)
+        let size = try await rollup.treeSize(at: head.hash)
+        guard wallet.leafCms.count == size else { throw ShieldedError.treeStale }
+        let fee = try await rollup.requiredTxFee(at: head)
+        guard fee == approvedFee else { throw ShieldedError.feeChanged(from: approvedFee, to: fee) }
+        let authDomain = try await rollup.authDomain(at: head.hash)
+        let available = Dictionary(wallet.availableNotes.map { ($0.index, $0) }, uniquingKeysWith: { a, _ in a })
+        let inputs = try approvedInputs.map { note -> ShieldedNote in
+            guard let now = available[note.index], now.cm == note.cm, now.value == note.value else { throw ShieldedError.treeStale }
+            return now
+        }
+        let sum = inputs.reduce(0) { $0 &+ $1.value }
+        guard sum >= totalMutez else { throw ShieldedError.insufficientShielded(available: sum, needed: totalMutez) }
+        let change = sum - totalMutez
+        guard bridgeContext == context else { throw WalletError.contextChanged }
+
+        // Change goes to a fresh address of ours, made (and its signing tree built) first.
+        var changeAddress: ShieldedAddress?
+        if change > 0 || changeAddressAlways {
+            let made = try await makeAddress(index: wallet.addresses.count, of: wallet, account: account)
+            wallet.addresses.append(made)
+            changeAddress = made
+        }
+        // One signature per key index, ever: every input's index is spent on disk before it is used.
+        var reserved: [(note: ShieldedNote, address: ShieldedAddress, keyIdx: Int)] = []
+        for note in inputs {
+            guard let at = wallet.addresses.firstIndex(where: { $0.index == note.addressIndex }) else { throw ShieldedError.treeMissing(note.addressIndex) }
+            let keyIdx = wallet.addresses[at].nextKeyIndex
+            guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(note.addressIndex) }
+            wallet.addresses[at].nextKeyIndex = keyIdx + 1
+            reserved.append((note, wallet.addresses[at], keyIdx))
+        }
+        try store.save(wallet, account: account)
+        shieldedWallet = wallet
+
+        // Each input's auth path from its address's native tree.
+        var trees: [Int: [[UInt8]]] = [:]
+        var inputRecords: [[String: Any]] = []
+        for r in reserved {
+            if trees[r.address.index] == nil {
+                let leaves = try await leaves(of: r.address, in: wallet, account: account)
+                guard let pubSeed = Hex.decode(r.address.pubSeed) else { throw ShieldedError.treeMissing(r.address.index) }
+                trees[r.address.index] = XMSSAuthTree.levels(pubSeed: pubSeed, leaves: leaves)
+            }
+            guard let levels = trees[r.address.index] else { throw ShieldedError.treeMissing(r.address.index) }
+            let path = XMSSAuthTree.path(levels: levels, index: r.keyIdx).map(Hex.encode)
+            inputRecords.append(["note": ["index": r.note.index, "cm": r.note.cm, "rseed": r.note.rseed, "v": r.note.valueMutez], "address": r.address.bridgeRecord, "keyIdx": r.keyIdx, "authPath": path])
+        }
+        let seeds = try await shieldedBridge.call("tzelAccount", [wallet.masterSk])
+        return SpendPreparation(wallet: wallet, head: head, root: root, authDomain: authDomain, fee: fee, inputs: inputs, changeMutez: change, changeAddress: changeAddress, inputRecords: inputRecords, seeds: seeds)
+    }
+
     private func updateWithdrawals(account: Address, store: any ShieldedWalletStore, _ change: (inout [ShieldedWithdrawal]) -> Void) throws {
         guard var latest = try store.load(account: account) else { return }
         change(&latest.withdrawals)
         try store.save(latest, account: account)
         shieldedWallet = latest
+    }
+
+    private func updateTransfers(account: Address, store: any ShieldedWalletStore, _ change: (inout [ShieldedTransfer]) -> Void) throws {
+        guard var latest = try store.load(account: account) else { return }
+        change(&latest.transfers)
+        try store.save(latest, account: account)
+        shieldedWallet = latest
+    }
+
+    // MARK: Shielded addresses
+
+    /// A shielded recipient is nothing but a payment address (the 2496-byte record: diversifier,
+    /// auth root, public seed, nullifier tag and two ML-KEM keys); the protocol has no shorter
+    /// name for one. Reads the reference JSON another wallet printed, or a saved contact's, and
+    /// names it by its fingerprint, the hash of the canonical record.
+    func shieldedRecipient(from text: String) async throws -> ShieldedContact {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ShieldedError.badPaymentAddress("nothing was given") }
+        let parsed: JSONValue
+        do { parsed = try await shieldedBridge.call("tzelPaymentAddress", [trimmed]) } catch { throw ShieldedError.badPaymentAddress(error.localizedDescription) }
+        guard let fingerprint = parsed["fingerprint"]?.stringValue, Hex.decode(fingerprint)?.count == 32, let fields = parsed["address"]?.objectValue else { throw ShieldedError.badPaymentAddress("unexpected reply") }
+        let address = fields.compactMapValues(\.stringValue)
+        guard address.count == 6 else { throw ShieldedError.badPaymentAddress("fields missing") }
+        if let known = try shieldedContacts().first(where: { $0.fingerprint == fingerprint }) { return known }
+        return ShieldedContact(name: "", fingerprint: fingerprint, address: address, created: Date())
+    }
+
+    /// The network's shielded address book (shared by every account in the directory).
+    func shieldedContacts() throws -> [ShieldedContact] {
+        guard network.shielded != nil else { return [] }
+        return try shieldedStore(for: network.chain).contacts()
+    }
+
+    /// Adds `contact` under `name`; the same address twice is refused.
+    func addShieldedContact(_ contact: ShieldedContact, name: String) throws {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        var contacts = try store.contacts()
+        if let existing = contacts.first(where: { $0.fingerprint == contact.fingerprint }) { throw ShieldedError.contactExists(existing.name) }
+        if contacts.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) { throw WalletError.aliasExists(trimmed) }
+        contacts.append(ShieldedContact(name: trimmed, fingerprint: contact.fingerprint, address: contact.address, created: Date()))
+        try store.saveContacts(contacts)
+    }
+
+    func removeShieldedContact(_ fingerprint: String) throws {
+        let store = shieldedStore(for: network.chain)
+        var contacts = try store.contacts()
+        contacts.removeAll { $0.fingerprint == fingerprint }
+        try store.saveContacts(contacts)
+    }
+
+    /// The account's newest shielded address to hand out (the wallet and its first address
+    /// are made if need be), as the JSON another wallet pastes, with its fingerprint.
+    func shieldedReceiveAddress() async throws -> ShieldedReceiveAddress {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        shieldProgress = .preparing
+        defer { shieldProgress = nil }
+        let wallet = try await ensureShieldedWallet(config: config, account: account)
+        guard let address = wallet.addresses.max(by: { $0.index < $1.index }) else { throw ShieldedError.treeMissing(0) }
+        return try await receiveAddress(address)
+    }
+
+    /// A fresh shielded address of the account (its signing tree built, seconds), so that
+    /// what is handed to one payer links to nothing handed to another.
+    func makeShieldedAddress() async throws -> ShieldedReceiveAddress {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        shieldProgress = .preparing
+        defer { shieldProgress = nil }
+        var wallet = try await ensureShieldedWallet(config: config, account: account)
+        let made = try await makeAddress(index: wallet.addresses.count, of: wallet, account: account)
+        wallet.addresses.append(made)
+        try store.save(wallet, account: account)
+        shieldedWallet = wallet
+        return try await receiveAddress(made)
+    }
+
+    private func receiveAddress(_ address: ShieldedAddress) async throws -> ShieldedReceiveAddress {
+        let parsed = try await shieldedBridge.call("tzelPaymentAddress", [try Self.json(.object(address.paymentAddressJSON.mapValues { .string($0) }))])
+        guard let fingerprint = parsed["fingerprint"]?.stringValue else { throw ShieldedError.badReply("payment address") }
+        let data = try JSONSerialization.data(withJSONObject: address.paymentAddressJSON, options: [.prettyPrinted, .sortedKeys])
+        return ShieldedReceiveAddress(index: address.index, json: String(decoding: data, as: UTF8.self), fingerprint: fingerprint)
+    }
+
+    // MARK: Send shielded
+
+    /// What sending `amount` tez to `recipient` with `memo` would spend. Nothing is sent.
+    func estimateSendShielded(amount: Decimal, recipient: ShieldedContact, memo: String) async throws -> SendShieldedEstimate {
+        let config = try shieldedConfig
+        guard let wallet = selectedWallet, let context = bridgeContext else { throw WalletError.emptyAlias }
+        guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)), let amountMutez = UInt64(Mutez.fromTez(amount)), amountMutez > 0 else { throw SendViewModel.SendError.invalidAmount }
+        guard memo.utf8.count <= 1024 else { throw ShieldedError.memoTooLong }
+        let shielded = try shieldedStore(for: network.chain).load(account: wallet.address)
+        let rollup = shieldedRollupFactory(config)
+        let fee = try await rollup.requiredTxFee(at: rollup.head())
+        let (total, overflow) = amountMutez.addingReportingOverflow(fee + config.producerFeeMutez)
+        guard !overflow else { throw SendViewModel.SendError.invalidAmount }
+        let inputs = try Self.selectNotes(shielded?.availableNotes ?? [], covering: total)
+        guard bridgeContext == context else { throw WalletError.contextChanged }
+        return SendShieldedEstimate(context: context, amount: amount, amountMutez: amountMutez, recipient: recipient, memo: memo, rollupFeeMutez: fee, producerFeeMutez: config.producerFeeMutez, inputs: inputs)
+    }
+
+    /// Sends `approved.amount` tez to `approved.recipient` as a shielded transfer: the same
+    /// preparation as an unshield (a change address is always made, since the kernel takes
+    /// exactly three output notes), then `tzelBuildTransfer`, `run_transfer`, the operator;
+    /// the transfer is on file as soon as the operator has it. The recipient sees the note on
+    /// their next scan; nothing identifies them on the rollup but their own viewing keys.
+    func sendShielded(approved: SendShieldedEstimate) async throws -> SendShieldedReceipt {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        guard approved.context == bridgeContext, canShield else { throw WalletError.contextChanged }
+        let context = bridgeContext
+        let store = shieldedStore(for: network.chain)
+        guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
+        let rollup = shieldedRollupFactory(config)
+        shieldProgress = .readingTree
+        defer { shieldProgress = nil }
+        let spend = try await prepareSpend(inputs: approved.inputs, totalMutez: approved.totalMutez, approvedFee: approved.rollupFeeMutez, changeAddressAlways: true, account: account, store: store, rollup: rollup, context: context)
+        guard let changeAddress = spend.changeAddress else { throw ShieldedError.treeMissing(spend.wallet.addresses.count) }
+        let fee = spend.fee, root = spend.root
+        let request: [String: Any] = [
+            "account": spend.seeds.foundationObject, "authDomain": spend.authDomain, "root": root, "leafCms": spend.wallet.leafCms,
+            "amount": String(approved.amountMutez), "fee": String(fee), "producerFee": String(config.producerFeeMutez), "recipient": approved.recipient.address, "memo": approved.memo,
+            "inputs": spend.inputRecords, "changeAddress": changeAddress.bridgeRecord, "producerAddress": try config.producerAddressJSON(),
+        ]
+        let built = try await shieldedBridge.call("tzelBuildTransfer", [String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)])
+        let n = spend.inputs.count
+        guard let witness = built["witness"]?.arrayValue?.compactMap(\.stringValue), witness.count == 1 + 4 + n * 206 + 24,
+              let nullifiers = built["nullifiers"]?.arrayValue?.compactMap(\.stringValue), nullifiers == spend.inputs.map(\.nullifier),
+              let cms = built["cms"]?.arrayValue?.compactMap(\.stringValue), cms.count == 3, let encs = built["encs"]?.arrayValue?.compactMap(\.stringValue), encs.count == 3,
+              let outputs = built["publicOutputs"]?.arrayValue?.compactMap(\.stringValue), outputs.count == 2 + n + 7,
+              built["changeMutez"]?.stringValue == String(spend.changeMutez), built["recipientFingerprint"]?.stringValue == approved.recipient.fingerprint
+        else { throw ShieldedError.badReply("transfer witness") }
+
+        shieldProgress = .provingTransfer
+        let bundle = try await rollup.prove(program: "run_transfer", arguments: witness)
+        let message: [String: Any] = [
+            "root": root, "nullifiers": nullifiers, "fee": String(fee), "cms": cms, "encs": encs,
+            "proofBytes": bundle.proofBytes, "outputPreimage": bundle.outputPreimage, "expectedOutputs": outputs, "programHash": bundle.programHash,
+        ]
+        let encoded = try await shieldedBridge.call("tzelEncodeTransferMessage", [String(decoding: try JSONSerialization.data(withJSONObject: message), as: UTF8.self)])
+        guard let payload = encoded.stringValue, Hex.decode(payload) != nil else {
+            throw ShieldedError.badReply("transfer message: \(String(describing: encoded).prefix(200))")
+        }
+
+        shieldProgress = .submittingTransfer
+        let submission = try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        var transfer = ShieldedTransfer(submissionID: submission.id, recipientFingerprint: approved.recipient.fingerprint, recipientName: approved.recipient.name.isEmpty ? nil : approved.recipient.name, amountMutez: String(approved.amountMutez), rollupFeeMutez: String(fee), producerFeeMutez: String(config.producerFeeMutez), memo: approved.memo, nullifiers: nullifiers, recipientCm: cms[0], changeCm: cms[1], created: Date(), operationHash: submission.operationHash)
+        try updateTransfers(account: account, store: store) { $0.append(transfer) }
+        do {
+            let delivered = try await rollup.awaitDelivery(of: submission, token: token)
+            transfer.operationHash = delivered.operationHash
+            let final = transfer
+            try updateTransfers(account: account, store: store) { list in
+                if let at = list.firstIndex(where: { $0.id == final.id }) { list[at].operationHash = final.operationHash }
+            }
+        } catch ShieldedError.submissionPending {
+            // Still with the operator: the record stays, the scan will see it land.
+        } catch {
+            try? updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == submission.id } }
+            throw error
+        }
+        await refreshAfterOperation()
+        return SendShieldedReceipt(transfer: transfer)
+    }
+
+    /// Drops a transfer the rollup has not applied, freeing its notes (see `forgetWithdrawal`).
+    func forgetTransfer(_ id: String) throws {
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        guard let wallet = try store.load(account: account), let transfer = wallet.transfers.first(where: { $0.id == id }) else { throw ShieldedError.withdrawalUnknown(id) }
+        guard !transfer.applied else { throw ShieldedError.withdrawalNotReady("the rollup has applied it") }
+        try updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == id } }
+        shieldedTransfers.removeAll { $0.id == id }
     }
 
     /// Drops a withdrawal the rollup has not applied, freeing its notes. For one the operator

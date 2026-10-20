@@ -722,3 +722,62 @@ export function encodeUnshieldMessage(m) {
   );
   return concatBytes(new Uint8Array([KERNEL_WIRE_VERSION & 0xff, KERNEL_WIRE_VERSION >>> 8, KERNEL_UNSHIELD_TAG]), u32be(body.length), body);
 }
+
+// ── Transfer (private → private) ─────────────────────────────────────────────────────────
+//
+// A transfer spends one to seven notes into exactly three: the recipient's, our change (to a
+// fresh address, zero when there is none) and the producer fee's. The recipient is nothing but
+// a payment address, the 2496-byte record above; there is no short form of it in the protocol,
+// so wallets exchange the JSON and compare a fingerprint, the hash of the canonical bytes.
+
+export const paymentAddressFingerprint = (a) => hash(encodePaymentAddress(a));
+
+/// `fold(0x01, auth_domain, root, nf_0 … nf_{n-1}, fee, cm_1, cm_2, cm_3, mh_1, mh_2, mh_3)`.
+export function transferSighash(p) {
+  if (p.nullifiers.length === 0 || p.nullifiers.length > MAX_UNSHIELD_INPUTS) throw new Error("tzel: a transfer spends one to seven notes");
+  return fold([feltOfInt(1), felt(p.authDomain), felt(p.root), ...p.nullifiers.map(felt), feltOfInt(p.fee),
+               felt(p.outputs[0].cm), felt(p.outputs[1].cm), felt(p.outputs[2].cm), felt(p.outputs[0].mh), felt(p.outputs[1].mh), felt(p.outputs[2].mh)]);
+}
+
+/// The `run_transfer` witness (`cairo/src/run_transfer.cairo`): a length word, `n`, the three
+/// fixed felts, the inputs as for an unshield, then the three outputs as `cm, d_j, v, rseed,
+/// auth_root, auth_pub_seed, nk_tag, mh`.
+export function transferWitness(p) {
+  const n = p.inputs.length;
+  if (n === 0 || n > MAX_UNSHIELD_INPUTS) throw new Error("tzel: a transfer spends one to seven notes");
+  if (p.outputs.length !== 3) throw new Error("tzel: a transfer makes three notes");
+  const fields = [feltOfInt(n), p.authDomain, p.root, feltOfInt(p.fee)];
+  for (const i of p.inputs) fields.push(i.nullifier, i.nkSpend, i.address.authRoot, i.address.pubSeed, feltOfInt(i.keyIdx), i.address.dJ, feltOfInt(i.v), i.rseed, feltOfInt(i.index));
+  for (const i of p.inputs) {
+    if (i.cmPath.length !== TREE_DEPTH) throw new Error("tzel: a transfer input needs its 48 commitment-path siblings");
+    fields.push(...i.cmPath);
+  }
+  for (const i of p.inputs) {
+    if (i.authPath.length !== AUTH_DEPTH) throw new Error("tzel: a transfer input needs its 16 auth-path siblings");
+    fields.push(...i.authPath);
+  }
+  for (const i of p.inputs) {
+    if (i.signature.length !== WOTS_CHAINS) throw new Error("tzel: a transfer input needs its 133 signature chains");
+    fields.push(...i.signature);
+  }
+  for (const o of p.outputs) fields.push(o.note.cm, o.address.dJ, feltOfInt(o.v), o.note.rseed, o.address.authRoot, o.address.pubSeed, o.address.nkTag, o.note.mh);
+  if (fields.length !== 4 + n * (9 + TREE_DEPTH + AUTH_DEPTH + WOTS_CHAINS) + 24) throw new Error("tzel: transfer witness has the wrong length");
+  return [intHex(fields.length), ...fields.map(feltHex)];
+}
+
+// A transfer body on the kernel wire (tag 3), length-prefixed like an unshield's: `root ‖
+// nullifiers ‖ fee ‖ cm_1 ‖ cm_2 ‖ cm_3 ‖ proof ‖ note_1 ‖ note_2 ‖ note_3`.
+
+export const KERNEL_TRANSFER_TAG = 3;
+
+export function encodeTransferMessage(m) {
+  if (m.nullifiers.length === 0 || m.nullifiers.length > MAX_UNSHIELD_INPUTS) throw new Error("tzel: a transfer spends one to seven notes");
+  if (m.cms.length !== 3 || m.encs.length !== 3) throw new Error("tzel: a transfer carries three notes");
+  const proof = encodeStarkProof(m.proofBytes, m.outputPreimage);
+  const notes = m.encs.map(encodeEncryptedNote);
+  const body = concatBytes(
+    felt(m.root), encodeFeltList(m.nullifiers), u64le(m.fee), ...m.cms.map(felt),
+    u32be(proof.length), proof, ...notes.flatMap((n) => [u32be(n.length), n]),
+  );
+  return concatBytes(new Uint8Array([KERNEL_WIRE_VERSION & 0xff, KERNEL_WIRE_VERSION >>> 8, KERNEL_TRANSFER_TAG]), u32be(body.length), body);
+}

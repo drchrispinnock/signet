@@ -19,7 +19,7 @@ import { TezosToolkit } from "@taquito/taquito";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { approvedEstimate, sendApproved, parseLimits } from "./operations.js";
 import {
-  AUTH_TREE_SIZE, FELT_BYTES, MAX_UNSHIELD_INPUTS, TREE_DEPTH, acceptsNote, accountId, authLeaf, authRootFromPath, buildOutputNote, bytesToHex, commit, decodeEncryptedNote, decodePublishedNote, decryptMemo, depositBalanceKey, depositBlind, depositPubkeyHash, depositRecipient, deriveAccount, deriveAsk, deriveAuthPubSeed, deriveDiversifier, deriveNkSpend, deriveNkTag, deriveRcm, detect, encodeEncryptedNote, encodeShieldMessage, encodeUnshieldMessage, feltOfInt, hexToBytes, kemDetectSeed, kemKeygen, kemViewSeed, memoText, merklePath, merkleRoot, nullifier, ownerTag, paymentAddressFromJSON, shieldSighash, shieldWitness, unshieldSighash, unshieldWitness, wotsSign,
+  AUTH_TREE_SIZE, FELT_BYTES, MAX_UNSHIELD_INPUTS, TREE_DEPTH, acceptsNote, accountId, authLeaf, authRootFromPath, buildOutputNote, bytesToHex, commit, decodeEncryptedNote, decodePublishedNote, decryptMemo, depositBalanceKey, depositBlind, depositPubkeyHash, depositRecipient, deriveAccount, deriveAsk, deriveAuthPubSeed, deriveDiversifier, deriveNkSpend, deriveNkTag, deriveRcm, detect, encodeEncryptedNote, encodeShieldMessage, encodeTransferMessage, encodeUnshieldMessage, feltOfInt, hexToBytes, kemDetectSeed, kemKeygen, kemViewSeed, memoText, merklePath, merkleRoot, nullifier, ownerTag, paymentAddressFingerprint, paymentAddressFromJSON, paymentAddressToJSON, shieldSighash, shieldWitness, transferSighash, transferWitness, unshieldSighash, unshieldWitness, wotsSign,
 } from "./tzel.js";
 
 const hex = bytesToHex;
@@ -248,22 +248,24 @@ const RECIPIENT = /^(tz[1-4]|KT1)[1-9A-HJ-NP-Za-km-z]{33}$/;
  * the signing seed derives the address's public seed, and the auth path leads to its root.
  * The caller has already persisted every key index as used.
  */
-export async function tzelBuildUnshield(json) {
-  const p = typeof json === "string" ? JSON.parse(json) : json;
+/**
+ * What an unshield and a transfer share: the account seeds, the tree copy checked against the
+ * rollup's root, the fees, the producer, and every input checked before anything is signed
+ * (its commitment is in the tree where the note says and recomputes from the note and its
+ * address, the signing seed derives the address's public seed, the auth path leads to its
+ * root, no key index signs twice). Returns the inputs with their nullifiers and paths.
+ */
+function spendInputs(p, what) {
   const account = typeof p.account === "string" ? JSON.parse(p.account) : p.account;
   const nk = feltIn(account.nk, "nk"), askBase = feltIn(account.askBase, "ask_base"), outgoingSeed = feltIn(account.outgoingSeed, "outgoing_seed");
   const authDomain = feltIn(p.authDomain, "auth_domain"), root = feltIn(p.root, "root");
   const leafCms = (p.leafCms ?? []).map((h, i) => feltIn(h, `commitment ${i}`));
   if (leafCms.length === 0) throw new Error("tzel: the commitment tree is empty");
   if (hex(merkleRoot(leafCms, TREE_DEPTH)) !== hex(root)) throw new Error("tzel: the local copy of the commitment tree does not hash to the rollup's root; scan again");
-  const vPub = mutez(p.vPub, "unshield value"), fee = mutez(p.fee, "fee"), producerFee = mutez(p.producerFee, "producer fee");
-  if (vPub === 0n) throw new Error("tzel: an unshield of 0 tez is refused");
+  const fee = mutez(p.fee, "fee"), producerFee = mutez(p.producerFee, "producer fee");
   if (producerFee === 0n) throw new Error("tzel: the producer fee must be positive");
-  const recipient = String(p.recipient ?? "").trim();
-  if (!RECIPIENT.test(recipient)) throw new Error(`tzel: the recipient must be a tz or KT1 address, not ${JSON.stringify(recipient)}`);
-  const recipientId = accountId(recipient);
   const producer = paymentAddressFromJSON(p.producerAddress);
-  if (!Array.isArray(p.inputs) || p.inputs.length === 0 || p.inputs.length > MAX_UNSHIELD_INPUTS) throw new Error("tzel: an unshield spends one to seven notes");
+  if (!Array.isArray(p.inputs) || p.inputs.length === 0 || p.inputs.length > MAX_UNSHIELD_INPUTS) throw new Error(`tzel: ${what} spends one to seven notes`);
 
   const used = new Set();
   let sum = 0n;
@@ -287,13 +289,29 @@ export async function tzelBuildUnshield(json) {
     sum += v;
     return { address, askJ, keyIdx, authPath, index, cm, rseed, v, nkSpend, nullifier: nullifier(nkSpend, cm, index), cmPath: merklePath(leafCms, TREE_DEPTH, index) };
   });
+  return { outgoingSeed, authDomain, root, fee, producerFee, producer, inputs, sum };
+}
+
+/** Our own address record with its ML-KEM keys, as an output note's recipient. */
+function ownAddress(record) {
+  return { ...addressRecord(record), ekV: bytes(record.ekV, "ek_v", 1184), ekD: bytes(record.ekD, "ek_d", 1184) };
+}
+
+export async function tzelBuildUnshield(json) {
+  const p = typeof json === "string" ? JSON.parse(json) : json;
+  const vPub = mutez(p.vPub, "unshield value");
+  if (vPub === 0n) throw new Error("tzel: an unshield of 0 tez is refused");
+  const recipient = String(p.recipient ?? "").trim();
+  if (!RECIPIENT.test(recipient)) throw new Error(`tzel: the recipient must be a tz or KT1 address, not ${JSON.stringify(recipient)}`);
+  const recipientId = accountId(recipient);
+  const { outgoingSeed, authDomain, root, fee, producerFee, producer, inputs, sum } = spendInputs(p, "an unshield");
   const total = vPub + fee + producerFee;
   if (sum < total) throw new Error(`tzel: the inputs hold ${sum} mutez, less than the ${total} the unshield needs`);
   const changeValue = sum - total;
   let change = null;
   if (changeValue > 0n) {
     if (!p.changeAddress) throw new Error("tzel: the change needs an address");
-    const address = { ...addressRecord(p.changeAddress), ekV: bytes(p.changeAddress.ekV, "ek_v", 1184), ekD: bytes(p.changeAddress.ekD, "ek_d", 1184) };
+    const address = ownAddress(p.changeAddress);
     change = { address, v: changeValue, note: buildOutputNote(address, changeValue, "", { seed: outgoingSeed, role: "unshield_change" }) };
   }
   const producerNote = buildOutputNote(producer, producerFee, "dal", { seed: outgoingSeed, role: "producer_fee" });
@@ -360,4 +378,72 @@ export async function sendOutboxExecution(rpcUrl, signerSpec, rollup, cementedCo
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(await signerFor(signerSpec));
   return sendApproved(tk, rpcUrl, "smartRollupExecuteOutboxMessage", params, parseLimits(limitsJson));
+}
+
+// ---- Transfer (Send shielded) --------------------------------------------------------------------
+
+/**
+ * Checks a payment address given as the reference JSON (`d_j`, `auth_root`, `auth_pub_seed`,
+ * `nk_tag`, `ek_v`, `ek_d`, hex) or as our own record, and returns it normalised with its
+ * fingerprint, the hash of the canonical 2496-byte record: what two people compare when one
+ * hands the other an address, since the protocol has no shorter name for it.
+ */
+export async function tzelPaymentAddress(json) {
+  let value = typeof json === "string" ? JSON.parse(json) : json;
+  if (value && typeof value === "object" && value.address && typeof value.address === "object") value = value.address;   // the reference CLI's `{ index, address }`
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("tzel: a payment address is a JSON object");
+  const address = value.d_j !== undefined ? paymentAddressFromJSON(value) : ownAddress(value);
+  return { address: paymentAddressToJSON(address), fingerprint: hex(paymentAddressFingerprint(address)) };
+}
+
+/**
+ * Builds a transfer of `amount` mutez to `recipient` (a payment address, JSON) with `memo`
+ * from `inputs` (as for `tzelBuildUnshield`), the change to `changeAddress` (always present:
+ * the kernel takes exactly three notes, so a zero change note goes to it) and the producer
+ * fee note. Returns the witness, the three notes and the `2 + n + 7` public outputs.
+ */
+export async function tzelBuildTransfer(json) {
+  const p = typeof json === "string" ? JSON.parse(json) : json;
+  const amount = mutez(p.amount, "transfer amount");
+  if (amount === 0n) throw new Error("tzel: a transfer of 0 tez is refused");
+  const recipient = (await tzelPaymentAddress(p.recipient)).address;
+  const recipientAddress = paymentAddressFromJSON(recipient);
+  const memo = String(p.memo ?? "");
+  if (new TextEncoder().encode(memo).length > 1024) throw new Error("tzel: the memo is longer than 1024 bytes");
+  const { outgoingSeed, authDomain, root, fee, producerFee, producer, inputs, sum } = spendInputs(p, "a transfer");
+  const total = amount + fee + producerFee;
+  if (sum < total) throw new Error(`tzel: the inputs hold ${sum} mutez, less than the ${total} the transfer needs`);
+  const changeValue = sum - total;
+  if (!p.changeAddress) throw new Error("tzel: the change needs an address");
+  const changeAddress = ownAddress(p.changeAddress);
+  const outputs = [
+    { address: recipientAddress, v: amount, note: buildOutputNote(recipientAddress, amount, memo, { seed: outgoingSeed, role: "transfer_recipient" }) },
+    { address: changeAddress, v: changeValue, note: buildOutputNote(changeAddress, changeValue, "", { seed: outgoingSeed, role: "transfer_change" }) },
+    { address: producer, v: producerFee, note: buildOutputNote(producer, producerFee, "dal", { seed: outgoingSeed, role: "producer_fee" }) },
+  ];
+  const nullifiers = inputs.map((i) => i.nullifier);
+  const sighash = transferSighash({ authDomain, root, nullifiers, fee, outputs: outputs.map((o) => o.note) });
+  for (const i of inputs) i.signature = wotsSign(i.askJ, i.address.pubSeed, i.keyIdx, sighash);
+  const witness = transferWitness({ inputs, authDomain, root, fee, outputs });
+  return {
+    witness,
+    sighash: hex(sighash),
+    recipientFingerprint: hex(paymentAddressFingerprint(recipientAddress)),
+    nullifiers: nullifiers.map(hex),
+    changeMutez: changeValue.toString(10),
+    cms: outputs.map((o) => hex(o.note.cm)), encs: outputs.map((o) => hex(encodeEncryptedNote(o.note.enc))), mhs: outputs.map((o) => hex(o.note.mh)),
+    recipientRseed: hex(outputs[0].note.rseed),
+    publicOutputs: [authDomain, root, ...nullifiers, feltOfInt(fee), ...outputs.map((o) => o.note.cm), ...outputs.map((o) => o.note.mh)].map(hex),
+  };
+}
+
+/** The kernel inbox message for a proved transfer, as hex for the operator (outputs checked as for a shield). */
+export async function tzelEncodeTransferMessage(json) {
+  const m = typeof json === "string" ? JSON.parse(json) : json;
+  const outputPreimage = verifiedOutputPreimage(m, "transfer");
+  return hex(encodeTransferMessage({
+    root: feltIn(m.root, "root"), nullifiers: m.nullifiers.map((s, i) => feltIn(s, `nullifier ${i}`)), fee: mutez(m.fee, "fee"),
+    cms: m.cms.map((s, i) => feltIn(s, `cm_${i + 1}`)), encs: m.encs.map((s, i) => decodeEncryptedNote(bytes(s, `note ${i + 1}`))),
+    proofBytes: bytes(m.proofBytes, "proof bytes"), outputPreimage,
+  }));
 }
