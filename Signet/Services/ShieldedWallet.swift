@@ -196,6 +196,45 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
 
     func address(at index: Int) -> ShieldedAddress? { addresses.first { $0.index == index } }
     func pool(_ pubkeyHash: String) -> DepositPool? { pools.first { $0.pubkeyHash == pubkeyHash } }
+
+    /// What a scan found (`scanned`, worked out from `base`) put onto this wallet, the one on
+    /// file now, which may have moved on while the scan ran: a key index spent, an address, a
+    /// pool or a record added, a withdrawal executed. The scan owns the notes, the cursors, the
+    /// commitments and the records' progress; everything else comes from here, and nothing is
+    /// ever rolled back: a key index only grows (an index used twice would leak the signing
+    /// key), a spent note stays spent, and what the scan retired or pruned goes.
+    func merging(scan scanned: ShieldedWallet, since base: ShieldedWallet) -> ShieldedWallet {
+        var merged = self
+        for address in scanned.addresses where merged.address(at: address.index) == nil { merged.addresses.append(address) }
+        for i in merged.addresses.indices {
+            if let theirs = scanned.address(at: merged.addresses[i].index) { merged.addresses[i].nextKeyIndex = max(merged.addresses[i].nextKeyIndex, theirs.nextKeyIndex) }
+        }
+        merged.addresses.sort { $0.index < $1.index }
+        merged.depositNonce = max(merged.depositNonce, scanned.depositNonce)
+        var notes = scanned.notes
+        for note in merged.notes where !notes.contains(where: { $0.index == note.index }) { notes.append(note) }
+        for i in notes.indices where merged.notes.contains(where: { $0.index == notes[i].index && $0.spent }) { notes[i].spent = true }
+        merged.notes = notes.sorted { $0.index < $1.index }
+        merged.scanned = max(merged.scanned, scanned.scanned)
+        merged.nullifiersSeen = max(merged.nullifiersSeen, scanned.nullifiersSeen)
+        if scanned.leafCms.count >= merged.leafCms.count { merged.leafCms = scanned.leafCms }
+        let retired = Set(base.pools.map(\.id)).subtracting(scanned.pools.map(\.id))
+        merged.pools.removeAll { retired.contains($0.id) }
+        let prunedWithdrawals = Set(base.withdrawals.map(\.id)).subtracting(scanned.withdrawals.map(\.id))
+        merged.withdrawals.removeAll { prunedWithdrawals.contains($0.id) }
+        for i in merged.withdrawals.indices {
+            guard let theirs = scanned.withdrawals.first(where: { $0.id == merged.withdrawals[i].id }) else { continue }
+            if theirs.applied { merged.withdrawals[i].applied = true }
+            if merged.withdrawals[i].outboxLevel == nil, let level = theirs.outboxLevel {
+                merged.withdrawals[i].outboxLevel = level
+                merged.withdrawals[i].messageIndex = theirs.messageIndex
+            }
+        }
+        let prunedTransfers = Set(base.transfers.map(\.id)).subtracting(scanned.transfers.map(\.id))
+        merged.transfers.removeAll { prunedTransfers.contains($0.id) }
+        for i in merged.transfers.indices where scanned.transfers.contains(where: { $0.id == merged.transfers[i].id && $0.applied }) { merged.transfers[i].applied = true }
+        return merged
+    }
 }
 
 /// `tzel-<chain>.json`: the network's operator token and one `ShieldedWallet` per tz account.
@@ -238,6 +277,12 @@ struct ShieldedWalletFile: Codable, Equatable, Sendable {
 protocol ShieldedWalletStore: Sendable {
     func load(account: Address) throws -> ShieldedWallet?
     func save(_ wallet: ShieldedWallet, account: Address) throws
+    /// Changes `account`'s wallet as it is on file *now*, in one step no other writer can get
+    /// between: every change made after an `await` goes through here, since a scan or another
+    /// operation may have written in the meantime. Starts from `initial` when there is no
+    /// wallet yet and one is given, else does nothing and returns `nil`. Returns the wallet as
+    /// written (not written when `change` leaves it as it was).
+    func update(account: Address, initial: ShieldedWallet?, _ change: (inout ShieldedWallet) throws -> Void) throws -> ShieldedWallet?
     func operatorToken() throws -> String?
     func setOperatorToken(_ token: String?) throws
     /// The version 1 file's single wallet, not yet an account's.
@@ -258,6 +303,24 @@ protocol ShieldedWalletStore: Sendable {
 struct FileShieldedWalletStore: ShieldedWalletStore {
     let directory: URL
     let chain: String
+
+    /// One lock per wallet file in this process: the scan writes from its own task while the
+    /// main actor spends key indexes, and each must see the other's write.
+    private final class FileLocks: @unchecked Sendable {
+        private let guardLock = NSLock()
+        private var locks: [String: NSLock] = [:]
+        func lock(for file: URL) -> NSLock {
+            guardLock.withLock {
+                let key = file.standardizedFileURL.path
+                if let existing = locks[key] { return existing }
+                let fresh = NSLock()
+                locks[key] = fresh
+                return fresh
+            }
+        }
+    }
+    private static let fileLocks = FileLocks()
+    private func locked<T>(_ body: () throws -> T) rethrows -> T { try Self.fileLocks.lock(for: walletURL).withLock(body) }
 
     static func walletFile(chain: String) -> String { "tzel-\(chain).json" }
     static func leavesFile(chain: String, account: Address, addressIndex: Int) -> String { "tzel-\(chain)-\(account.value)-auth\(addressIndex).bin" }
@@ -308,29 +371,50 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         try PrivateFile.write(try encoder.encode(file), to: walletURL)
     }
 
-    func load(account: Address) throws -> ShieldedWallet? { try read()?.accounts[account.value] }
+    func load(account: Address) throws -> ShieldedWallet? { try locked { try read()?.accounts[account.value] } }
 
     func save(_ wallet: ShieldedWallet, account: Address) throws {
-        var file = try read() ?? ShieldedWalletFile(chain: chain)
-        file.accounts[account.value] = wallet
-        try write(file)
+        try locked {
+            var file = try read() ?? ShieldedWalletFile(chain: chain)
+            file.accounts[account.value] = wallet
+            try write(file)
+        }
     }
 
-    func operatorToken() throws -> String? { try read()?.operatorToken }
+    func update(account: Address, initial: ShieldedWallet?, _ change: (inout ShieldedWallet) throws -> Void) throws -> ShieldedWallet? {
+        try locked {
+            var file = try read() ?? ShieldedWalletFile(chain: chain)
+            guard let before = file.accounts[account.value] ?? initial else { return nil }
+            var wallet = before
+            try change(&wallet)
+            if wallet != before || file.accounts[account.value] == nil {
+                file.accounts[account.value] = wallet
+                try write(file)
+            }
+            return wallet
+        }
+    }
+
+    func operatorToken() throws -> String? { try locked { try read()?.operatorToken } }
 
     func setOperatorToken(_ token: String?) throws {
-        var file = try read() ?? ShieldedWalletFile(chain: chain)
-        file.operatorToken = token
-        try write(file)
+        try locked {
+            var file = try read() ?? ShieldedWalletFile(chain: chain)
+            file.operatorToken = token
+            try write(file)
+        }
     }
 
-    func legacyWallet() throws -> ShieldedWallet? { try read()?.legacy }
+    func legacyWallet() throws -> ShieldedWallet? { try locked { try read()?.legacy } }
 
     func adoptLegacyWallet(for account: Address) throws {
-        guard var file = try read(), let legacy = file.legacy, file.accounts[account.value] == nil else { return }
-        file.accounts[account.value] = legacy
-        file.legacy = nil
-        try write(file)
+        guard let legacy = try locked({ () throws -> ShieldedWallet? in
+            guard var file = try read(), let legacy = file.legacy, file.accounts[account.value] == nil else { return nil }
+            file.accounts[account.value] = legacy
+            file.legacy = nil
+            try write(file)
+            return legacy
+        }) else { return }
         for address in legacy.addresses {
             let old = directory.appendingPathComponent(Self.legacyLeavesFile(chain: chain, addressIndex: address.index))
             let new = directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: address.index))
@@ -351,12 +435,14 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         try PrivateFile.write(Data(leaves), to: directory.appendingPathComponent(Self.leavesFile(chain: chain, account: account, addressIndex: addressIndex)))
     }
 
-    func contacts() throws -> [ShieldedContact] { try read()?.contacts ?? [] }
+    func contacts() throws -> [ShieldedContact] { try locked { try read()?.contacts ?? [] } }
 
     func saveContacts(_ contacts: [ShieldedContact]) throws {
-        var file = try read() ?? ShieldedWalletFile(chain: chain)
-        file.contacts = contacts
-        try write(file)
+        try locked {
+            var file = try read() ?? ShieldedWalletFile(chain: chain)
+            file.contacts = contacts
+            try write(file)
+        }
     }
 }
 
@@ -374,6 +460,15 @@ final class InMemoryShieldedWalletStore: ShieldedWalletStore, @unchecked Sendabl
 
     func load(account: Address) throws -> ShieldedWallet? { lock.withLock { file.accounts[account.value] } }
     func save(_ wallet: ShieldedWallet, account: Address) throws { lock.withLock { file.accounts[account.value] = wallet; history.append(wallet) } }
+    func update(account: Address, initial: ShieldedWallet?, _ change: (inout ShieldedWallet) throws -> Void) throws -> ShieldedWallet? {
+        try lock.withLock {
+            guard let before = file.accounts[account.value] ?? initial else { return nil }
+            var wallet = before
+            try change(&wallet)
+            if wallet != before || file.accounts[account.value] == nil { file.accounts[account.value] = wallet; history.append(wallet) }
+            return wallet
+        }
+    }
     func operatorToken() throws -> String? { lock.withLock { file.operatorToken } }
     func setOperatorToken(_ token: String?) throws { lock.withLock { file.operatorToken = token } }
     func legacyWallet() throws -> ShieldedWallet? { lock.withLock { file.legacy } }

@@ -150,6 +150,72 @@ struct ShieldedWalletStoreTests {
         #expect(!WalletBackup.files.contains("tzel-shadownet-auth0.bin"))
     }
 
+    /// A scan that started before a spend must not undo it when it writes: the key index spent
+    /// meanwhile, the change address and the record added stay, while the scan's notes, cursors
+    /// and record progress land. Found live on Shadownet (2026-10-20): the refresh started after
+    /// a shield was still scanning when the unshield spent the next WOTS+ key, and its save
+    /// rolled the index back, which would have signed twice with one key.
+    @Test func aScanMergesOntoTheWalletAsItIsOnFile() throws {
+        let account = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        var base = ShieldedWallet(chain: "shadownet", masterSk: "ab")
+        let address = ShieldedAddress(index: 0, dJ: "d0", authRoot: "r0", pubSeed: "p0", nkTag: "n0", ekV: "v0", ekD: "e0", nextKeyIndex: 1)
+        base.addresses = [address]
+        base.depositNonce = 1
+        base.pools = [DepositPool(pubkeyHash: "p-drained", blind: "b", addressIndex: 0, authDomain: "ad", depositedMutez: "1000000", operationHash: "ooA", shieldedCm: "cmA", created: Date())]
+        base.notes = [ShieldedNote(index: 3, cm: "cmA", rseed: "rs", nullifier: "nfA", valueMutez: "800000", addressIndex: 0)]
+        base.scanned = 4; base.nullifiersSeen = 2; base.leafCms = ["c0", "c1", "c2", "cmA"]
+        let old = ShieldedWithdrawal(submissionID: "w-old", recipient: account.value, amountMutez: "1", rollupFeeMutez: "1", producerFeeMutez: "1", nullifiers: ["x"], changeCm: nil, submittedLevel: 1, created: Date(timeIntervalSince1970: 0), operationHash: "ooO", applied: true, outboxLevel: 1, messageIndex: 0, executedHash: "ooE")
+        base.withdrawals = [old]
+
+        // The scan: a new note, the pool retired, the week-old executed withdrawal pruned, cursors on.
+        var scanned = base
+        scanned.notes.append(ShieldedNote(index: 5, cm: "cmB", rseed: "rs", nullifier: "nfB", valueMutez: "100", addressIndex: 0, memo: "hi"))
+        scanned.pools = []
+        scanned.withdrawals = []
+        scanned.scanned = 6; scanned.nullifiersSeen = 3; scanned.leafCms += ["cmB", "c5"]
+
+        // Meanwhile on file: the unshield spent key 1, made address 1, reserved a new pool and recorded itself.
+        var latest = base
+        latest.addresses[0].nextKeyIndex = 2
+        latest.addresses.append(ShieldedAddress(index: 1, dJ: "d1", authRoot: "r1", pubSeed: "p1", nkTag: "n1", ekV: "v1", ekD: "e1", nextKeyIndex: 0))
+        latest.depositNonce = 2
+        latest.pools.append(DepositPool(pubkeyHash: "p-new", blind: "b", addressIndex: 0, authDomain: "ad", depositedMutez: "0", operationHash: nil, shieldedCm: nil, created: Date()))
+        let new = ShieldedWithdrawal(submissionID: "w-new", recipient: account.value, amountMutez: "300000", rollupFeeMutez: "100000", producerFeeMutez: "100000", nullifiers: ["nfA"], changeCm: "cmC", submittedLevel: 9, created: Date(), operationHash: "ooN")
+        latest.withdrawals.append(new)
+
+        let merged = latest.merging(scan: scanned, since: base)
+        #expect(merged.addresses.map(\.nextKeyIndex) == [2, 0], "a key index is never rolled back and an address never lost")
+        #expect(merged.depositNonce == 2)
+        #expect(merged.pools.map(\.pubkeyHash) == ["p-new"], "the retired pool goes, the new one stays")
+        #expect(merged.notes.map(\.cm) == ["cmA", "cmB"] && merged.notes[1].memo == "hi")
+        #expect(merged.scanned == 6 && merged.nullifiersSeen == 3 && merged.leafCms.count == 6)
+        #expect(merged.withdrawals.map(\.id) == ["w-new"], "the pruned record goes, the new one stays")
+
+        // The scan's progress on a record lands without undoing what the account did to it since.
+        var applying = latest
+        applying.withdrawals = [old, new]
+        var seen = scanned
+        var progressed = new; progressed.applied = true; progressed.outboxLevel = 12; progressed.messageIndex = 1
+        seen.withdrawals = [old, progressed]
+        var executed = applying
+        executed.withdrawals[1].executedHash = "ooX"
+        let later = executed.merging(scan: seen, since: applying)
+        #expect(later.withdrawals[1].applied && later.withdrawals[1].outboxLevel == 12 && later.withdrawals[1].messageIndex == 1 && later.withdrawals[1].executedHash == "ooX")
+        var spentMeanwhile = seen
+        spentMeanwhile.notes[0].spent = true
+        #expect(latest.merging(scan: spentMeanwhile, since: base).notes[0].spent, "a spent note stays spent")
+
+        // The store's update is the one step that writes it, from what is on file at that moment.
+        let store = InMemoryShieldedWalletStore()
+        #expect(try store.update(account: account, initial: nil, { $0.scanned = 1 }) == nil, "nothing to update without a wallet")
+        #expect(try store.update(account: account, initial: base, { _ in })?.scanned == 4 && store.history.count == 1, "made from the initial wallet")
+        #expect(try store.update(account: account, initial: nil, { _ in })?.scanned == 4 && store.history.count == 1, "not written when unchanged")
+        _ = try store.update(account: account, initial: nil) { $0.addresses[0].nextKeyIndex += 1 }
+        #expect(try store.load(account: account)?.addresses[0].nextKeyIndex == 2 && store.history.count == 2)
+        #expect(throws: ShieldedError.treeStale) { try store.update(account: account, initial: nil) { _ in throw ShieldedError.treeStale } }
+        #expect(try store.load(account: account)?.addresses[0].nextKeyIndex == 2, "a change that throws writes nothing")
+    }
+
     /// A version 1 file (one wallet for the network, token inside) is read and handed to the
     /// account that adopts it, leaves file included; nothing shielded is lost.
     @Test func aVersionOneFileIsAdoptedByAnAccount() throws {
@@ -799,6 +865,85 @@ struct ShadownetShieldTests {
         let liveHead = try await rollup.head()
         let poolBalance = try await rollup.poolBalance(at: liveHead.hash, pubkeyHash: pool.pubkeyHash)
         #expect(poolBalance != nil || token != nil)
+    }
+
+    /// Shadownet, privately: Alice shields 1 tz, pastes Bob's shielded address and sends him
+    /// 0.5 tz with a memo through the real prover and operator; the rollup applies it, her change
+    /// comes back and Bob's scan finds the note with its memo. Needs the operator token.
+    @Test(.tags(.network), .liveNetwork, .enabled(if: ProcessInfo.processInfo.environment["SIGNET_TZEL_OPERATOR_TOKEN"] != nil, "needs SIGNET_TZEL_OPERATOR_TOKEN"), .timeLimit(.minutes(20)))
+    @MainActor func sendsAShieldedTransferOnShadownet() async throws {
+        let token = try #require(ProcessInfo.processInfo.environment["SIGNET_TZEL_OPERATOR_TOKEN"])
+        let keys = InMemoryWalletStore()
+        var wallets: [Wallet] = []
+        var secrets: [String] = []
+        for alias in ["alice", "bob"] {
+            let material = try await KeyGenerator().generate(scheme: .tz1)
+            let wallet = Wallet(alias: alias, address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
+            try keys.add(wallet, secretKey: material.secretKey)
+            wallets.append(wallet)
+            secrets.append(material.secretKey)
+        }
+        let alice = wallets[0], bob = wallets[1]
+        let store = InMemoryShieldedWalletStore()
+        let model = WalletViewModel(wallets: wallets, chainFactory: { TaquitoChainService(network: $0) }, walletStore: keys, shieldedStoreFactory: { _, _ in store })
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        try model.setShieldedOperatorToken(token, for: .shadownet)
+
+        // Alice is funded by the faucet (asked once more after a refusal: it dislikes requests
+        // in quick succession, and the shield test may have just made one) and Bob by Alice on
+        // layer 1, since the dashboard scans only an account the chain knows.
+        let faucet = try #require(FaucetService(network: .shadownet))
+        do { _ = try await faucet.requestTez(to: alice.address, amount: 5) } catch {
+            print("faucet refused once: \(error); asking again in a minute")
+            try await Task.sleep(for: .seconds(60))
+            _ = try await faucet.requestTez(to: alice.address, amount: 5)
+        }
+        let layer1 = TaquitoChainService(network: .shadownet)
+        var funded = false
+        for _ in 0..<40 { try await Task.sleep(for: .seconds(4)); if let a = try? await layer1.tezBalance(for: alice.address), a.spendable >= 5 { funded = true; break } }
+        #expect(funded)
+        let gift = try await layer1.estimateTransfer(from: alice, to: bob.address, amount: 1)
+        let sent = try await layer1.sendTransfer(from: alice, signer: .secret(secrets[0], passphrase: nil, address: alice.address), to: bob.address, amount: 1, limits: try #require(gift.limits))
+        _ = try await layer1.waitForConfirmation(of: sent.hash)
+        #expect(try await layer1.tezBalance(for: bob.address).spendable == 1)
+
+        // Bob hands out his address.
+        model.select(bob)
+        let handed = try await model.shieldedReceiveAddress()
+
+        // Alice shields 1 tz and waits for her note.
+        model.select(alice)
+        await model.refresh()
+        let pool = try await model.prepareShield()
+        let shield = try await model.estimateShield(amount: 1, pool: pool)
+        let shielded = try await model.shieldTez(approved: shield, passphrase: nil)
+        print("shielded \(shielded.shieldedMutez) mutez, op \(shielded.operationHash ?? "-")")
+        var seen = false
+        for _ in 0..<30 { try await Task.sleep(for: .seconds(6)); await model.refresh(); if model.shieldedWallet?.notes.contains(where: { $0.cm == shielded.cm }) == true { seen = true; break } }
+        #expect(seen, "the shielded note was found")
+
+        // She pastes Bob's address, keeps it, and sends him 0.5 tz with a memo.
+        let recipient = try await model.shieldedRecipient(from: handed.json)
+        #expect(recipient.fingerprint == handed.fingerprint)
+        try model.addShieldedContact(recipient, name: "Bob")
+        let contact = try #require(try model.shieldedContacts().first)
+        let estimate = try await model.estimateSendShielded(amount: 0.5, recipient: contact, memo: "live test")
+        #expect(estimate.inputs.map(\.cm) == [shielded.cm] && estimate.changeMutez == shielded.shieldedMutez - 500_000 - estimate.rollupFeeMutez - 100_000)
+        let receipt = try await model.sendShielded(approved: estimate)
+        print("transfer submission \(receipt.transfer.submissionID), op \(receipt.transfer.operationHash ?? "-"), change \(estimate.changeMutez)")
+        var applied = false
+        for _ in 0..<30 { try await Task.sleep(for: .seconds(6)); await model.refresh(); if model.shieldedTransfers.first?.applied == true { applied = true; break } }
+        #expect(applied, "the rollup applied the transfer")
+        let after = try #require(model.shieldedWallet)
+        #expect(after.notes.first { $0.cm == shielded.cm }?.spent == true && after.notes.contains { $0.cm == receipt.transfer.changeCm } && after.balanceMutez == estimate.changeMutez)
+
+        // Bob finds it, memo and all.
+        model.select(bob)
+        await model.refresh()
+        let received = try #require(model.shieldedWallet?.notes.first { $0.cm == receipt.transfer.recipientCm })
+        #expect(received.valueMutez == "500000" && received.memo == "live test" && model.shieldedWallet?.balanceMutez == 500_000)
+        #expect(model.shieldedWallet?.notes.count == 1, "the change and the producer note are not Bob's")
     }
 
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(2)))

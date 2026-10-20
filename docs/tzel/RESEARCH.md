@@ -436,6 +436,27 @@ does not need the reference wallet's fresh-address-per-deposit habit.
 - *Flow.* `prepareSpend` (shared with unshield), `estimateSendShielded`, `sendShielded`,
   `ShieldedTransfer` records (reserved notes, applied by the scan), `forgetTransfer`.
   `SendShieldedFlowTests` moves 1 tz between two accounts of one directory through the mock
-  rollup and reads the memo on the other side. Not run live yet.
+  rollup and reads the memo on the other side.
+
+**Live on Shadownet (2026-10-20, evening).** `ShadownetShieldTests` ran with the operator
+token: a faucet-funded account shielded 1 tz (0.8 tz note after the two fees), unshielded
+0.3 tz (applied by the rollup, change note back, outbox message waiting about 201700 blocks
+for cementation), and a second test shielded 1 tz on one account and sent 0.5 tz with a memo
+to another account's address; the recipient's scan found the note with the memo. Two things
+learned: the teztnets faucet refuses requests in quick succession ("An error occurred"), so
+the second account is funded by the first on layer 1; and two submissions through the
+operator at once collide on its single injecting key (HTTP 502 with octez-client's
+"Asynchronous injection failed"), so the suite is `.serialized`. Signet handles that failure
+by dropping the record, which frees the notes. The third run caught a real bug: the test's
+check that the first address had signed twice failed because `refreshAfterOperation` starts a
+refresh 6 s and 15 s after the shield, that scan read the wallet before the unshield spent the
+next WOTS+ key index, and its save at the end wrote the old index back; the next signature
+would have reused a one-time key. Fixed the same evening: `ShieldedWalletStore.update` is
+one locked read-change-write of the wallet on file, every key spend takes its index from that
+(never from a copy read before an `await`) and checks the input is still unspent and
+unreserved, the change address and new wallets go on the same way, and the scan writes with
+`ShieldedWallet.merging(scan:since:)`, a three-way merge that never rolls an index, address,
+pool or record back. Only the layer 1 outbox execution remains untried live, until the first
+withdrawal cements in about 14 days.
 
 **Next, in order:**
