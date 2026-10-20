@@ -435,7 +435,7 @@ automatic download is off by default. The updater is not started under the test 
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Remember key when session-only, Forget account |
-  dApps | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
+  dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
   has Cmd-comma. File has Create Backup (`backUp(force: true)`).
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new

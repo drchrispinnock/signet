@@ -196,6 +196,7 @@ struct OperationsMenuItems: View {
                 Button("Bridge…") { model.isPresentingBridge = true }
             }
             if model.canShield {
+                Divider()
                 Button("Shield tez…") { model.isPresentingShield = true }
                 Button("Unshield tez…") { model.isPresentingUnshield = true }
                 Button("Send shielded…") { model.isPresentingSendShielded = true }
