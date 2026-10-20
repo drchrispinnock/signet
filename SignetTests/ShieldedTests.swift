@@ -792,7 +792,9 @@ struct ShadownetShieldTests {
             print("operator refused as expected without a token: \(detail)")
         }
         let saved = try #require(try store.load(account: wallet.address))
-        #expect(saved.pools.first?.operationHash != nil && saved.addresses[0].nextKeyIndex == 1, "the deposit landed and the shield was signed once")
+        // The first address signs the shield, and with the token the unshield too.
+        let signatures = token == nil ? 1 : 2
+        #expect(saved.pools.first?.operationHash != nil && saved.addresses[0].nextKeyIndex == signatures, "the deposit landed and the address signed \(signatures) time(s)")
         let rollup = RollupNodeService(config: .shadownet)
         let liveHead = try await rollup.head()
         let poolBalance = try await rollup.poolBalance(at: liveHead.hash, pubkeyHash: pool.pubkeyHash)
