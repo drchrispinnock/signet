@@ -656,7 +656,15 @@ automatic download is off by default. The updater is not started under the test 
   the pool's operation), else the selected account (`adoptLegacyShieldedWallet`). The 2 MB
   leaves are `tzel-<chain>-<account>-auth<j>.bin` beside it, not backed up, rebuilt from the
   master key when missing. `FileShieldedWalletStore` / `InMemoryShieldedWalletStore` behind
-  `ShieldedWalletStore`; the model takes a `shieldedStoreFactory` and a
+  `ShieldedWalletStore`; **every write made after an `await` goes through
+  `update(account:initial:_:)`**, one locked read-change-write of the wallet as it is on file
+  at that moment (the file store keeps one in-process lock per wallet file), because the scan
+  runs from its own task while the main actor spends key indexes: a key index is taken from
+  the wallet on file *now*, never from a copy read before the network was awaited, and the
+  scan writes by `ShieldedWallet.merging(scan:since:)`, a three-way merge that lands its
+  notes, cursors and record progress without rolling back an index, an address, a pool or a
+  record added meanwhile (found live: the refresh started after a shield was still scanning
+  when the unshield spent the next WOTS+ key, and its save undid that); the model takes a `shieldedStoreFactory` and a
   `shieldedRollupFactory` (`ShieldedRollup`: `RollupNodeService` over `BoundedHTTP`, or the
   tests' `MockShieldedRollup`). **Shield tez** ("Shield tez…" in both menus when
   `WalletViewModel.canShield`; `ShieldSheet`) is two steps run back to back
@@ -715,7 +723,9 @@ automatic download is off by default. The updater is not started under the test 
   note; `test/tzel-transfer.cjs` checks it and the tag 3 wire against the reference crate's
   bytes), `run_transfer` at the proving service, `tzelEncodeTransferMessage` and the operator;
   the transfer (`ShieldedTransfer`) is on file as soon as the operator has it and its notes
-  stay reserved until the scan sees them spent. **A shielded recipient is the payment address
+  stay reserved until the scan sees them spent;
+  `ShadownetShieldTests.sendsAShieldedTransferOnShadownet` is the live round trip between two
+  faucet-funded accounts (it needs the token). **A shielded recipient is the payment address
   itself**, the 2496-byte record (diversifier, auth root, public seed, nullifier tag, two
   ML-KEM-768 keys): the protocol has no short form, so wallets exchange the reference JSON and
   compare a fingerprint, the BLAKE2s-251 of the canonical record (`tzelPaymentAddress`,

@@ -341,7 +341,6 @@ extension WalletViewModel {
             }
             // Executed withdrawals and applied transfers stay a week for the record.
             current.withdrawals.removeAll { $0.executedHash != nil && $0.created < Date().addingTimeInterval(-7 * 86_400) }
-            let withdrawals = current.withdrawals.map { ShieldedWithdrawalStatus(withdrawal: $0, cementedLevel: cemented) }
             for i in current.transfers.indices where !current.transfers[i].applied && current.transfers[i].nullifiers.allSatisfy(spent.contains) {
                 current.transfers[i].applied = true
             }
@@ -357,7 +356,10 @@ extension WalletViewModel {
                 statuses.append(ShieldedPoolStatus(pool: pool, balanceMutez: balance))
             }
             current.pools = statuses.map(\.pool)
-            if current != before { try store.save(current, account: account) }
+            // Onto the wallet as it is on file now: a key index may have been spent, an address
+            // or a record added while this scan ran, and none of that is rolled back.
+            if let merged = try store.update(account: account, initial: nil, { $0 = $0.merging(scan: current, since: before) }) { current = merged }
+            let withdrawals = current.withdrawals.map { ShieldedWithdrawalStatus(withdrawal: $0, cementedLevel: cemented) }
             return ShieldedSnapshot(wallet: current, pools: statuses, row: row(current, pools: statuses), withdrawals: withdrawals, transfers: current.transfers)
         } catch {
             let statuses = current.pools.map { ShieldedPoolStatus(pool: $0, balanceMutez: nil) }
@@ -403,11 +405,20 @@ extension WalletViewModel {
     private func ensureShieldedWallet(config: ShieldedConfig, account: Address) async throws -> ShieldedWallet {
         let store = shieldedStore(for: network.chain)
         var wallet = try store.load(account: account) ?? ShieldedWallet.make(chain: network.chain)
-        if wallet.addresses.isEmpty {
-            wallet.addresses.append(try await makeAddress(index: 0, of: wallet, account: account))
-            try store.save(wallet, account: account)
-        } else if try store.load(account: account) == nil {
-            try store.save(wallet, account: account)
+        // The first address takes seconds to build, so the wallet is written only once it is
+        // there, onto whatever is on file by then: another caller may have made the wallet
+        // meanwhile, and theirs is kept (its address built next time round if it has none).
+        var rounds = 0
+        while wallet.addresses.isEmpty, rounds < 2 {
+            rounds += 1
+            let first = try await makeAddress(index: 0, of: wallet, account: account)
+            let masterSk = wallet.masterSk
+            var created = wallet
+            created.addresses.append(first)
+            guard let now = try store.update(account: account, initial: created, { latest in
+                if latest.masterSk == masterSk, latest.addresses.isEmpty { latest.addresses.append(first) }
+            }) else { throw ShieldedError.treeMissing(0) }
+            wallet = now
         }
         shieldedWallet = wallet
         return wallet
@@ -494,18 +505,19 @@ extension WalletViewModel {
         let ticketer = try await rollup.bridgeTicketer(at: head.hash)
         guard ticketer == config.ticketer.value else { throw ShieldedError.ticketerMismatch(configured: ticketer ?? "unset", expected: config.ticketer.value) }
         let authDomain = try await rollup.authDomain(at: head.hash)
-        var wallet = try await ensureShieldedWallet(config: config, account: account)
+        let wallet = try await ensureShieldedWallet(config: config, account: account)
         guard bridgeContext == context else { throw WalletError.contextChanged }
         if let unfunded = wallet.pools.first(where: { $0.operationHash == nil && $0.authDomain == authDomain }) { return unfunded }
         guard let address = wallet.addresses.first else { throw ShieldedError.treeMissing(0) }
-        let nonce = wallet.depositNonce
-        wallet.depositNonce += 1
+        let store = shieldedStore(for: network.chain)
+        var nonce: UInt64 = 0
+        guard try store.update(account: account, initial: nil, { nonce = $0.depositNonce; $0.depositNonce += 1 }) != nil else { throw ShieldedError.treeMissing(0) }
         let made = try await shieldedBridge.call("tzelDepositPool", [wallet.masterSk, address.index, String(nonce), authDomain, address.authRoot, address.pubSeed])
         guard let pubkeyHash = made["pubkeyHash"]?.stringValue, let blind = made["blind"]?.stringValue, Hex.decode(pubkeyHash)?.count == 32 else { throw ShieldedError.badReply("deposit pool") }
         let pool = DepositPool(pubkeyHash: pubkeyHash, blind: blind, addressIndex: address.index, authDomain: authDomain, depositedMutez: "0", operationHash: nil, shieldedCm: nil, created: Date())
-        wallet.pools.append(pool)
-        try shieldedStore(for: network.chain).save(wallet, account: account)   // the pool is on file before any tez go to it
-        shieldedWallet = wallet
+        // The pool is on file before any tez go to it.
+        guard let saved = try store.update(account: account, initial: nil, { $0.pools.append(pool) }) else { throw ShieldedError.treeMissing(0) }
+        shieldedWallet = saved
         return pool
     }
 
@@ -537,8 +549,7 @@ extension WalletViewModel {
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
         let store = shieldedStore(for: network.chain)
         guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
-        guard var shielded = try store.load(account: wallet.address) else { throw ShieldedError.poolUnknown(approved.pool.pubkeyHash) }
-        guard let at = shielded.pools.firstIndex(where: { $0.pubkeyHash == approved.pool.pubkeyHash }) else { throw ShieldedError.poolUnknown(approved.pool.pubkeyHash) }
+        guard let shielded = try store.load(account: wallet.address), shielded.pool(approved.pool.pubkeyHash) != nil else { throw ShieldedError.poolUnknown(approved.pool.pubkeyHash) }
         let amountMutez = Mutez.fromTez(approved.amount)
         guard let added = UInt64(amountMutez), added + config.producerFeeMutez > 0 else { throw SendViewModel.SendError.invalidAmount }
 
@@ -547,11 +558,15 @@ extension WalletViewModel {
         let chain = currentChain
         let deposit = ShieldDeposit(ticketer: config.ticketer, rollup: config.rollupAddress, pubkeyHash: approved.pool.pubkeyHash, amount: approved.amount)
         let sent = try await chain.sendShieldDeposit(from: wallet, signer: signer, deposit: deposit, limits: limits)
-        // On file before the block is waited for: the pool is funded (or about to be) by this operation.
-        shielded.pools[at].operationHash = sent.hash
-        shielded.pools[at].depositedMutez = String((UInt64(shielded.pools[at].depositedMutez) ?? 0) + added)
-        try store.save(shielded, account: wallet.address)
-        shieldedWallet = shielded
+        // On file before the block is waited for: the pool is funded (or about to be) by this
+        // operation (and put back should a scan have retired it meanwhile: the tez are on their way).
+        let funded = try store.update(account: wallet.address, initial: nil) { latest in
+            if latest.pool(approved.pool.pubkeyHash) == nil { latest.pools.append(approved.pool) }
+            guard let at = latest.pools.firstIndex(where: { $0.pubkeyHash == approved.pool.pubkeyHash }) else { return }
+            latest.pools[at].operationHash = sent.hash
+            latest.pools[at].depositedMutez = String((UInt64(latest.pools[at].depositedMutez) ?? 0) + added)
+        }
+        if let funded { shieldedWallet = funded }
         shieldProgress = .waitingForLayer1
         let level: Int
         do {
@@ -576,10 +591,8 @@ extension WalletViewModel {
         let context = bridgeContext
         let store = shieldedStore(for: network.chain)
         guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
-        guard var wallet = try store.load(account: account) else { throw ShieldedError.poolUnknown(pubkeyHash) }
-        guard let poolAt = wallet.pools.firstIndex(where: { $0.pubkeyHash == pubkeyHash }) else { throw ShieldedError.poolUnknown(pubkeyHash) }
-        let pool = wallet.pools[poolAt]
-        guard let addressAt = wallet.addresses.firstIndex(where: { $0.index == pool.addressIndex }) else { throw ShieldedError.treeMissing(pool.addressIndex) }
+        guard var wallet = try store.load(account: account), let pool = wallet.pool(pubkeyHash) else { throw ShieldedError.poolUnknown(pubkeyHash) }
+        guard wallet.address(at: pool.addressIndex) != nil else { throw ShieldedError.treeMissing(pool.addressIndex) }
         let rollup = shieldedRollupFactory(config)
         shieldProgress = .waitingForRollup
         defer { shieldProgress = nil }
@@ -603,12 +616,17 @@ extension WalletViewModel {
         guard authDomain == pool.authDomain else { throw ShieldedError.rollupNotConfigured("its authentication domain changed since the deposit") }
         guard bridgeContext == context else { throw WalletError.contextChanged }
 
-        // One signature per key index, ever: the index is spent on disk before it is used.
-        let address = wallet.addresses[addressAt]
-        let keyIdx = address.nextKeyIndex
-        guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(address.index) }
-        wallet.addresses[addressAt].nextKeyIndex = keyIdx + 1
-        try store.save(wallet, account: account)
+        // One signature per key index, ever: the index is spent on file before it is used, taken
+        // from the wallet as it is on file now (a scan or another spend may have moved it on
+        // since it was read).
+        var keyIdx = 0
+        guard let spent = try store.update(account: account, initial: nil, { latest in
+            guard let at = latest.addresses.firstIndex(where: { $0.index == pool.addressIndex }) else { throw ShieldedError.treeMissing(pool.addressIndex) }
+            keyIdx = latest.addresses[at].nextKeyIndex
+            guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(pool.addressIndex) }
+            latest.addresses[at].nextKeyIndex = keyIdx + 1
+        }), let address = spent.address(at: pool.addressIndex) else { throw ShieldedError.poolUnknown(pubkeyHash) }
+        wallet = spent
         shieldedWallet = wallet
 
         let leaves = try await leaves(of: address, in: wallet, account: account)
@@ -644,11 +662,9 @@ extension WalletViewModel {
         shieldProgress = .submitting
         let submission = try await rollup.deliver(kind: "shield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
         // The note is ours once the scan sees it; the pool is retired when it is seen drained.
-        if var latest = try store.load(account: account), let at = latest.pools.firstIndex(where: { $0.pubkeyHash == pubkeyHash }) {
-            latest.pools[at].shieldedCm = clientCm
-            try store.save(latest, account: account)
-            shieldedWallet = latest
-        }
+        if let latest = try store.update(account: account, initial: nil, { latest in
+            if let at = latest.pools.firstIndex(where: { $0.pubkeyHash == pubkeyHash }) { latest.pools[at].shieldedCm = clientCm }
+        }) { shieldedWallet = latest }
         await refreshAfterOperation()
         return ShieldReceipt(pool: pubkeyHash, depositHash: depositHash, depositLevel: depositLevel, shieldedMutez: value, rollupFeeMutez: fee, producerFeeMutez: producerFee, submissionID: submission.id, operationHash: submission.operationHash, cm: clientCm)
     }
@@ -804,21 +820,28 @@ extension WalletViewModel {
         // Change goes to a fresh address of ours, made (and its signing tree built) first.
         var changeAddress: ShieldedAddress?
         if change > 0 || changeAddressAlways {
-            let made = try await makeAddress(index: wallet.addresses.count, of: wallet, account: account)
-            wallet.addresses.append(made)
-            changeAddress = made
+            changeAddress = try await makeAddress(index: (wallet.addresses.map(\.index).max() ?? -1) + 1, of: wallet, account: account)
         }
-        // One signature per key index, ever: every input's index is spent on disk before it is used.
+        // One signature per key index, ever: every input's index is spent on file before it is
+        // used, taken from the wallet as it is on file now (a scan or another spend may have
+        // moved it on since it was read, and may have reserved or spent an input).
         var reserved: [(note: ShieldedNote, address: ShieldedAddress, keyIdx: Int)] = []
-        for note in inputs {
-            guard let at = wallet.addresses.firstIndex(where: { $0.index == note.addressIndex }) else { throw ShieldedError.treeMissing(note.addressIndex) }
-            let keyIdx = wallet.addresses[at].nextKeyIndex
-            guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(note.addressIndex) }
-            wallet.addresses[at].nextKeyIndex = keyIdx + 1
-            reserved.append((note, wallet.addresses[at], keyIdx))
-        }
-        try store.save(wallet, account: account)
+        guard let spent = try store.update(account: account, initial: nil, { latest in
+            if let made = changeAddress, latest.address(at: made.index) == nil { latest.addresses.append(made) }
+            let taken = latest.reservedNullifiers
+            reserved = []
+            for note in inputs {
+                guard let now = latest.notes.first(where: { $0.index == note.index }), now.cm == note.cm, !now.spent, !taken.contains(now.nullifier) else { throw ShieldedError.treeStale }
+                guard let at = latest.addresses.firstIndex(where: { $0.index == note.addressIndex }) else { throw ShieldedError.treeMissing(note.addressIndex) }
+                let keyIdx = latest.addresses[at].nextKeyIndex
+                guard keyIdx < XMSSAuthTree.size else { throw ShieldedError.keysExhausted(note.addressIndex) }
+                latest.addresses[at].nextKeyIndex = keyIdx + 1
+                reserved.append((note, latest.addresses[at], keyIdx))
+            }
+        }) else { throw ShieldedError.insufficientShielded(available: 0, needed: totalMutez) }
+        wallet = spent
         shieldedWallet = wallet
+        if let made = changeAddress { changeAddress = wallet.address(at: made.index) }
 
         // Each input's auth path from its address's native tree.
         var trees: [Int: [[UInt8]]] = [:]
@@ -838,16 +861,12 @@ extension WalletViewModel {
     }
 
     private func updateWithdrawals(account: Address, store: any ShieldedWalletStore, _ change: (inout [ShieldedWithdrawal]) -> Void) throws {
-        guard var latest = try store.load(account: account) else { return }
-        change(&latest.withdrawals)
-        try store.save(latest, account: account)
+        guard let latest = try store.update(account: account, initial: nil, { change(&$0.withdrawals) }) else { return }
         shieldedWallet = latest
     }
 
     private func updateTransfers(account: Address, store: any ShieldedWalletStore, _ change: (inout [ShieldedTransfer]) -> Void) throws {
-        guard var latest = try store.load(account: account) else { return }
-        change(&latest.transfers)
-        try store.save(latest, account: account)
+        guard let latest = try store.update(account: account, initial: nil, { change(&$0.transfers) }) else { return }
         shieldedWallet = latest
     }
 
@@ -914,12 +933,13 @@ extension WalletViewModel {
         let store = shieldedStore(for: network.chain)
         shieldProgress = .preparing
         defer { shieldProgress = nil }
-        var wallet = try await ensureShieldedWallet(config: config, account: account)
-        let made = try await makeAddress(index: wallet.addresses.count, of: wallet, account: account)
-        wallet.addresses.append(made)
-        try store.save(wallet, account: account)
-        shieldedWallet = wallet
-        return try await receiveAddress(made)
+        let wallet = try await ensureShieldedWallet(config: config, account: account)
+        let index = (wallet.addresses.map(\.index).max() ?? -1) + 1
+        let made = try await makeAddress(index: index, of: wallet, account: account)
+        // Onto the wallet as it is on file now; the same index made meanwhile is the same address.
+        guard let saved = try store.update(account: account, initial: nil, { if $0.address(at: made.index) == nil { $0.addresses.append(made) } }) else { throw ShieldedError.treeMissing(index) }
+        shieldedWallet = saved
+        return try await receiveAddress(saved.address(at: index) ?? made)
     }
 
     private func receiveAddress(_ address: ShieldedAddress) async throws -> ShieldedReceiveAddress {
