@@ -14,6 +14,9 @@ struct AppState: Codable, Equatable, Sendable {
     var l2NodeURLs: [String: String]?
     /// Shielded transactions on by network name, only where the user turned them on.
     var shieldedEnabled: [String: Bool]?
+    /// TzEL services by network name, then by `ShieldedConfig.Setting` raw value, only where
+    /// the user replaced what we ship.
+    var shieldedSettings: [String: [String: String]]?
     /// TzKT API, explorer and faucet links by network name, then by `Network.Service` raw
     /// value, only where the user replaced the default; an empty string means the link is off.
     var serviceURLs: [String: [String: String]]?
@@ -28,6 +31,11 @@ extension AppState {
         let l2Node = l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
         network = network.usingL2(enabled: l2Enabled?[base.name] ?? false, node: l2Node)
         network = network.usingShielded(enabled: shieldedEnabled?[base.name] ?? false)
+        for setting in ShieldedConfig.Setting.allCases {
+            // Saved text that is not valid for the item is ignored.
+            guard let saved = shieldedSettings?[base.name]?[setting.rawValue], let config = network.shielded?.using(saved, for: setting) else { continue }
+            network = network.usingShielded(config: config)
+        }
         for service in Network.Service.allCases {
             guard let saved = serviceURLs?[base.name]?[service.rawValue] else { continue }
             // "" is a link the user turned off; anything that is not a URL is ignored.
@@ -65,11 +73,19 @@ extension AppState {
         l2Enabled = flags.isEmpty ? nil : flags
     }
 
-    /// Shielded transactions are off by default everywhere; only "on" is saved.
+    /// Shielded transactions are off by default everywhere; only "on" is saved, and of the
+    /// TzEL services only those replaced.
     mutating func rememberShielded(of net: Network) {
         var flags = shieldedEnabled ?? [:]
         flags[net.name] = net.shieldedEnabled ? true : nil
         shieldedEnabled = flags.isEmpty ? nil : flags
+        var all = shieldedSettings ?? [:]
+        var settings = all[net.name] ?? [:]
+        for setting in ShieldedConfig.Setting.allCases {
+            settings[setting.rawValue] = net.isUsingDefault(setting) ? nil : net.shielded?.text(for: setting)
+        }
+        all[net.name] = settings.isEmpty ? nil : settings
+        shieldedSettings = all.isEmpty ? nil : all
     }
 
     /// TzKT, explorer and faucet links ("" for a link turned off).

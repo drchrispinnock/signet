@@ -33,6 +33,88 @@ struct ShieldedConfig: Hashable, Sendable {
         producer: .resource("tzel-shadownet-producer")
     )
 
+    /// The items the Networks sheet lets the user replace per network (the producer's payment
+    /// address is a 2.5 KB record and stays as shipped).
+    enum Setting: String, CaseIterable, Sendable {
+        case rollupNode, rollupAddress, ticketer, operatorURL, provingURL, producerFee
+
+        var title: String {
+            switch self {
+            case .rollupNode: "Rollup node"
+            case .rollupAddress: "Rollup"
+            case .ticketer: "Bridge ticketer"
+            case .operatorURL: "Operator"
+            case .provingURL: "Proving service"
+            case .producerFee: "Producer fee"
+            }
+        }
+
+        var isURL: Bool { self == .rollupNode || self == .operatorURL || self == .provingURL }
+
+        var prompt: String {
+            switch self {
+            case .rollupNode, .operatorURL, .provingURL: "http(s)://…"
+            case .rollupAddress: "sr1…"
+            case .ticketer: "KT1…"
+            case .producerFee: "mutez"
+            }
+        }
+    }
+
+    func text(for setting: Setting) -> String {
+        switch setting {
+        case .rollupNode: rollupNode.absoluteString
+        case .rollupAddress: rollupAddress
+        case .ticketer: ticketer.value
+        case .operatorURL: operatorURL.absoluteString
+        case .provingURL: provingURL.absoluteString
+        case .producerFee: String(producerFeeMutez)
+        }
+    }
+
+    /// The same deployment with `setting` replaced by what the user typed; `nil` when refused.
+    func using(_ text: String, for setting: Setting) -> ShieldedConfig? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var copy = self
+        switch setting {
+        case .rollupNode: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: url, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
+        case .operatorURL: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: url, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
+        case .provingURL: guard let url = Self.serviceURL(from: trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: url, producerFeeMutez: producerFeeMutez, producer: producer)
+        case .rollupAddress: guard Self.isRollupAddress(trimmed) else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: trimmed, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
+        case .ticketer: guard trimmed.hasPrefix("KT1"), Address(trimmed).isValidAccount else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: Address(trimmed), operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: producerFeeMutez, producer: producer)
+        case .producerFee: guard let fee = UInt64(trimmed), fee > 0 else { return nil }; copy = ShieldedConfig(rollupNode: rollupNode, rollupAddress: rollupAddress, ticketer: ticketer, operatorURL: operatorURL, provingURL: provingURL, producerFeeMutez: fee, producer: producer)
+        }
+        return copy
+    }
+
+    static func problem(_ text: String, for setting: Setting) -> String {
+        switch setting {
+        case .rollupNode, .operatorURL, .provingURL: text.contains("@") ? "Leave credentials out of the URL." : "Enter an http or https URL with a host name."
+        case .rollupAddress: "Enter a Smart Rollup address (sr1…)."
+        case .ticketer: "Enter the bridge ticketer's contract address (KT1…)."
+        case .producerFee: "Enter a whole number of mutez above zero."
+        }
+    }
+
+    static func isRollupAddress(_ text: String) -> Bool {
+        text.count == 36 && text.hasPrefix("sr1") && text.dropFirst(3).allSatisfy { "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains($0) }
+    }
+
+    /// A TzEL service URL: http or https (the Shadownet deployment serves plain HTTP), a host,
+    /// no credentials. Note that App Transport Security only lets plain HTTP through for the
+    /// hosts named in `Info.plist`.
+    static func serviceURL(from text: String) -> URL? {
+        var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") { trimmed.removeLast() }
+        guard !trimmed.isEmpty, !trimmed.contains(" ") else { return nil }
+        if !trimmed.lowercased().hasPrefix("http://"), !trimmed.lowercased().hasPrefix("https://") {
+            guard !trimmed.contains("://") else { return nil }
+            trimmed = "https://" + trimmed
+        }
+        guard let url = URL(string: trimmed), let host = url.host(percentEncoded: false), !host.isEmpty, url.user == nil, url.password == nil else { return nil }
+        return url
+    }
+
     func producerAddressJSON() throws -> [String: String] {
         switch producer {
         case .json(let fields):

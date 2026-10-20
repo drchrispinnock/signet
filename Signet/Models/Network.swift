@@ -51,7 +51,10 @@ struct Network: Hashable, Identifiable, Sendable {
     let shieldedAvailable: Bool
     /// Where they live: the TzEL rollup node, rollup, bridge ticketer, operator and proving
     /// service (`ShieldedConfig`). Shipped for Shadownet; `nil` where Signet cannot shield yet.
-    let shielded: ShieldedConfig?
+    /// `shielded` is the deployment in use (each item replaceable in the Networks sheet),
+    /// `shieldedDefault` the one we ship.
+    var shielded: ShieldedConfig?
+    let shieldedDefault: ShieldedConfig?
     /// Etherlink's bridge helper contract on layer 1 (`deposit %evm_address %l2_address`) and the
     /// Smart Rollup it feeds, for depositing tez to a Michelson-interface account. Shipped for
     /// mainnet and Shadownet; a user-supplied Layer 2 node does not come with a bridge.
@@ -75,6 +78,7 @@ struct Network: Hashable, Identifiable, Sendable {
         self.name = name
         self.shieldedAvailable = shieldedAvailable
         self.shielded = shielded
+        self.shieldedDefault = shielded
         self.chain = chain
         self.rpcURL = rpcURL
         self.defaultRPCURL = rpcURL
@@ -138,6 +142,17 @@ struct Network: Hashable, Identifiable, Sendable {
         var copy = self
         copy.shieldedEnabled = enabled
         return copy
+    }
+
+    /// The same network with its TzEL deployment replaced (only where one is shipped).
+    func usingShielded(config: ShieldedConfig) -> Network {
+        var copy = self
+        if shieldedDefault != nil { copy.shielded = config }
+        return copy
+    }
+
+    func isUsingDefault(_ setting: ShieldedConfig.Setting) -> Bool {
+        shielded?.text(for: setting) == shieldedDefault?.text(for: setting)
     }
 
     /// The links a network uses besides its node: the TzKT API, the block explorer and the

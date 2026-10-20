@@ -296,9 +296,28 @@ final class WalletViewModel {
     /// Whether shielded transactions are on for `base` (saved or default), without switching.
     func isShieldedEnabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).shieldedEnabled }
 
-    /// Turns shielded transactions on or off for `base`. Only the choice is kept for now.
+    /// Turns shielded transactions on or off for `base`.
     func setShieldedEnabled(_ enabled: Bool, for base: Network) {
         change(base) { $0.usingShielded(enabled: enabled) }
+    }
+
+    /// A TzEL service of `base` as in use (saved or shipped), without switching.
+    func shieldedSetting(_ setting: ShieldedConfig.Setting, in base: Network) -> String? {
+        resolved(Network.named(base.name) ?? base).shielded?.text(for: setting)
+    }
+
+    /// Replaces a TzEL service of `base` with what the user typed. False (and no change) when
+    /// the text is refused or the network ships no deployment.
+    @discardableResult
+    func setShieldedSetting(_ text: String, for setting: ShieldedConfig.Setting, in base: Network) -> Bool {
+        guard let config = resolved(Network.named(base.name) ?? base).shielded?.using(text, for: setting) else { return false }
+        change(base) { $0.usingShielded(config: config) }
+        return true
+    }
+
+    func useDefaultShieldedSetting(for setting: ShieldedConfig.Setting, in base: Network) {
+        guard let shipped = base.shieldedDefault?.text(for: setting) else { return }
+        setShieldedSetting(shipped, for: setting, in: base)
     }
 
     /// Applies a per-network change: through `network` (which persists and reloads) when

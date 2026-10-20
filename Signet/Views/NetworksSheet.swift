@@ -27,6 +27,7 @@ struct NetworksSheet: View {
         VStack(spacing: 0) {
             Form {
                 nodeSection
+                shieldedSection
                 servicesSection
             }
             .formStyle(.grouped)
@@ -122,32 +123,64 @@ struct NetworksSheet: View {
                     }
                 }
             }
+        } header: {
+            SectionHeader(title: "Networks", help: nodeHelp)
+        }
+    }
+
+    /// Shielded transactions (TzEL): the switch, every service of the deployment (each
+    /// replaceable, with Use Default), and the operator's access token.
+    private var shieldedSection: some View {
+        Section {
             Toggle("Enable Shielded Transactions", isOn: shieldedEnabled)
-            if let base = editingNetwork, model.isShieldedEnabled(for: base), base.shielded != nil {
-                LabeledContent("TzEL operator token") {
-                    VStack(alignment: .trailing, spacing: 8) {
-                        SecureField("", text: $operatorTokenText, prompt: Text(model.shieldedOperatorTokenIsSet(for: base) ? "On file; paste a new one to replace it" : "Paste the operator's access token"))
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit(applyOperatorToken)
-                            .frame(minWidth: 300)
-                        if let operatorTokenError { Text(operatorTokenError).font(.callout).foregroundStyle(.red) }
-                        HStack {
-                            if model.shieldedOperatorTokenIsSet(for: base) {
-                                Button("Remove") { operatorTokenText = ""; applyOperatorToken() }
+            if let base = editingNetwork, model.isShieldedEnabled(for: base) {
+                if base.shieldedDefault != nil {
+                    ForEach(ShieldedConfig.Setting.allCases, id: \.self) { setting in
+                        SettingField(
+                            title: setting.title,
+                            current: model.shieldedSetting(setting, in: base) ?? "",
+                            defaultValue: base.shieldedDefault?.text(for: setting) ?? "",
+                            prompt: setting.prompt,
+                            monospaced: true,
+                            apply: { model.setShieldedSetting($0, for: setting, in: base) },
+                            problem: { ShieldedConfig.problem($0, for: setting) },
+                            useDefault: { model.useDefaultShieldedSetting(for: setting, in: base) }
+                        )
+                        .id("\(base.name)/shielded/\(setting.rawValue)")
+                    }
+                    LabeledContent("Operator token") {
+                        VStack(alignment: .trailing, spacing: 8) {
+                            SecureField("", text: $operatorTokenText, prompt: Text(model.shieldedOperatorTokenIsSet(for: base) ? "On file; paste a new one to replace it" : "Paste the operator's access token"))
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit(applyOperatorToken)
+                                .frame(minWidth: 300)
+                            if let operatorTokenError { Text(operatorTokenError).font(.callout).foregroundStyle(.red) }
+                            HStack {
+                                if model.shieldedOperatorTokenIsSet(for: base) {
+                                    Button("Remove") { operatorTokenText = ""; applyOperatorToken() }
+                                }
+                                Button("Apply", action: applyOperatorToken)
+                                    .disabled(operatorTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
-                            Button("Apply", action: applyOperatorToken)
-                                .disabled(operatorTokenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
+                } else {
+                    Text(base.shieldedAvailable
+                         ? "\(base.name) has shielded transactions, but Signet does not know its TzEL services yet; the switch is remembered."
+                         : "\(base.name) has no shielded transactions yet; the switch is remembered for when it does.")
+                        .font(.callout).foregroundStyle(.orange)
                 }
             }
         } header: {
-            Text("Networks")
-        } footer: {
-            Text(nodeFooter)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            SectionHeader(title: "Shielded Transactions", help: shieldedHelp)
         }
+    }
+
+    private var shieldedHelp: String {
+        "With Shielded Transactions on, the dashboard shows the account's shielded tez on the TzEL rollup and the menus offer Shield tez, Unshield tez, Send shielded and Shielded address. "
+        + "The rollup node serves the notes and nullifiers, the rollup and bridge ticketer are checked before any tez move, the proving service makes the proofs, and the operator relays them to the rollup, which needs its access token (kept with the shielded wallet in the wallet directory, never in Signet's settings). "
+        + "The producer fee is the note every shielded operation pays the DAL slot producer, in mutez. Plain http is accepted, but macOS only lets it through for the hosts Signet ships with; use https for anything else. "
+        + "Settings are kept per network; Use Default restores what Signet ships."
     }
 
     /// The links beside the node. Each field is applied on Return or with Apply; empty text
@@ -167,11 +200,7 @@ struct NetworksSheet: View {
                 }
             }
         } header: {
-            Text("Links")
-        } footer: {
-            Text(servicesFooter)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            SectionHeader(title: "Links", help: servicesFooter)
         }
     }
 
@@ -230,7 +259,7 @@ struct NetworksSheet: View {
         return Network.nodeURL(from: l2NodeText) != model.l2NodeURL(for: base)
     }
 
-    private var nodeFooter: String {
+    private var nodeHelp: String {
         guard let base = editingNetwork else { return "" }
         var text = "The node Signet uses for \(base.name). Each network keeps its own; switch networks with the badge at the top of the main window."
         if base.chain == "custom" {
@@ -247,15 +276,6 @@ struct NetworksSheet: View {
         if model.isL2Enabled(for: base) {
             text += " With Layer 2 on, the dashboard shows each tz1, tz2 or tz3 account's balance on Etherlink, read from the Layer 2 Michelson node"
             text += base.l2DefaultRPCURL.map { " (default \($0.absoluteString))." } ?? " you enter here."
-        }
-        if model.isShieldedEnabled(for: base) {
-            if let config = base.shielded {
-                text += " With Shielded Transactions on, the dashboard shows the account's shielded tez on the TzEL rollup (node \(config.rollupNode.absoluteString)) and the menu offers Shield tez. Shielding hands proved requests to the operator at \(config.operatorURL.host() ?? config.operatorURL.absoluteString), which needs its access token; it is kept with the shielded wallet in the wallet directory."
-            } else {
-                text += base.shieldedAvailable
-                    ? " \(base.name) has shielded transactions, but Signet does not know its TzEL services yet; the switch is remembered."
-                    : " \(base.name) has no shielded transactions yet (Shadownet and Quantumnet have them); the switch is remembered for when it does."
-            }
         }
         return text
     }
@@ -334,6 +354,75 @@ struct NetworksSheet: View {
                 l2NodeWarning = identity
             }
         }
+    }
+}
+
+/// A section title with an ⓘ that shows the explanation on hover, instead of a paragraph
+/// under the section.
+private struct SectionHeader: View {
+    let title: String
+    let help: String
+    @State private var showing = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Image(systemName: "info.circle")
+                .foregroundStyle(.secondary)
+                .onHover { showing = $0 }
+                .popover(isPresented: $showing, arrowEdge: .bottom) {
+                    Text(help).font(.callout).frame(width: 400, alignment: .leading).padding(12)
+                }
+                .help(help)
+                .accessibilityLabel("About \(title)")
+        }
+    }
+}
+
+/// One text setting with its error line and Use Default / Apply buttons.
+private struct SettingField: View {
+    let title: String
+    let current: String
+    let defaultValue: String
+    let prompt: String
+    var monospaced = false
+    /// Applies the text; false when it was refused.
+    let apply: (String) -> Bool
+    let problem: (String) -> String
+    let useDefault: () -> Void
+
+    @State private var text = ""
+    @State private var error: String?
+
+    var body: some View {
+        LabeledContent(title) {
+            VStack(alignment: .trailing, spacing: 8) {
+                TextField("", text: $text, prompt: Text(prompt))
+                    .font(monospaced ? .callout.monospaced() : .callout)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .onSubmit(submit)
+                    .frame(minWidth: 300)
+                if let error { Text(error).font(.callout).foregroundStyle(.red) }
+                HStack {
+                    Button("Use Default") { useDefault(); error = nil }
+                        .disabled(current == defaultValue)
+                    Button("Apply", action: submit)
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines) == current)
+                }
+            }
+        }
+        .onAppear(perform: sync)
+        .onChange(of: current) { sync() }
+    }
+
+    private func sync() {
+        text = current
+        error = nil
+    }
+
+    private func submit() {
+        if apply(text) { error = nil } else { error = problem(text) }
     }
 }
 

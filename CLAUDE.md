@@ -604,14 +604,20 @@ automatic download is off by default. The updater is not started under the test 
   a Layer 2 service only (`ChainError.notALayer2Service` otherwise) and
   `WalletViewModel.etherlinkAliasStatus` / `estimateEtherlinkLink` / `linkToEtherlink` use
   `layer2Chain`. `EtherlinkLiveTests.linksAFreshAccountToItsEtherlinkAlias` is the live check.
-- **Shielded transactions (TzEL).** The Networks sheet has an "Enable Shielded
-  Transactions" switch per network (`Network.shieldedEnabled`, off by default, saved in
+- **Shielded transactions (TzEL).** The Networks sheet has a "Shielded Transactions"
+  section per network: the switch (`Network.shieldedEnabled`, off by default, saved in
   `AppState.shieldedEnabled` only where on; `WalletViewModel.isShieldedEnabled(for:)` /
-  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`). `Network.shielded` is the
-  deployment Signet knows how to reach (`ShieldedConfig`: rollup node, rollup, bridge
-  ticketer, operator, proving service, producer fee and the producer's payment address, a
-  bundled resource `tzel-shadownet-producer.json`); shipped for Shadownet, `nil` elsewhere
-  (`shieldedAvailable` only says a network has them). With the switch on and a config, the
+  `setShieldedEnabled(_:for:)`, `Network.usingShielded(enabled:)`), then, where a deployment
+  is shipped, a field per service (`ShieldedConfig.Setting`: rollup node, rollup, bridge
+  ticketer, operator, proving service, producer fee; each with Use Default, applied through
+  `setShieldedSetting` / `useDefaultShieldedSetting`, validated by `ShieldedConfig.using(_:for:)`,
+  saved in `AppState.shieldedSettings` only where replaced) and the operator token.
+  `Network.shielded` is the deployment in use and `shieldedDefault` the shipped one
+  (`ShieldedConfig`: rollup node, rollup, bridge ticketer, operator, proving service, producer
+  fee and the producer's payment address, a bundled resource `tzel-shadownet-producer.json`,
+  which stays as shipped); shipped for Shadownet, `nil` elsewhere (`shieldedAvailable` only
+  says a network has them). Every section of the Networks sheet explains itself through an ⓘ
+  beside its title (`SectionHeader`, a popover on hover) rather than a footer paragraph. With the switch on and a config, the
   dashboard's **Shielded** row (`AssetBalance.Kind.shielded`, logo `ShieldLogo`, under
   Etherlink or tez, hidden when the account is not on chain) is the wallet's unspent notes,
   found by scanning the rollup (`WalletViewModel.scanShielded`: new tree positions since the
