@@ -155,21 +155,11 @@ struct NoWalletsView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 10) {
-                if hasOctezWallet {
-                    StartOption(
-                        title: "Import your octez-client wallet",
-                        detail: "Found \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "account" : "accounts") in ~/.tezos-client. Copies the files into ~/.signet; octez-client keeps working.",
-                        symbol: "square.and.arrow.down.on.square",
-                        prominent: true,
-                        action: importWallets
-                    )
-                    .keyboardShortcut(.defaultAction)
-                }
                 StartOption(
                     title: "Create a new account",
                     detail: "Generate a fresh key on this Mac, protected with a password.",
                     symbol: "plus.circle",
-                    prominent: !hasOctezWallet
+                    prominent: true
                 ) { model.isPresentingCreateWallet = true }
                     .keyboardShortcut("n", modifiers: .command)
                 StartOption(
@@ -184,6 +174,14 @@ struct NoWalletsView: View {
                     symbol: "lock.rectangle.stack"
                 ) { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
+                if hasOctezWallet {
+                    StartOption(
+                        title: "Import your octez-client wallet",
+                        detail: "Found \(model.importableWalletCount) \(model.importableWalletCount == 1 ? "account" : "accounts") in ~/.tezos-client. Copies the files into ~/.signet; octez-client keeps working.",
+                        symbol: "square.and.arrow.down.on.square",
+                        action: importWallets
+                    )
+                }
             }
             .frame(maxWidth: 440)
 
