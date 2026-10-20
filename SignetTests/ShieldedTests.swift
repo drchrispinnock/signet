@@ -202,9 +202,14 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
     var pools: [String: UInt64] = [:]
     var notes: [[UInt8]] = []
     var nullifiers: [String] = []
+    /// What `/tzel/v1/state/tree/root` serves; tests set it from the bridge's `tzelMerkleRoot`.
+    var treeRoot: String?
+    var cemented = 0
+    var outbox: [OutboxEntry] = []
     var submitted: [(kind: String, payload: String, token: String)] = []
     var proofRequests: [[String]] = []
     var failProving: String?
+    var failDelivery = false
 
     func head() async throws -> RollupHead { lock.withLock { RollupHead(hash: "BLmock\(level)", level: level) } }
     func smartRollupAddress() async throws -> String { lock.withLock { address } }
@@ -216,6 +221,7 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
         case RollupState.verifierConfig: return verifierInstalled ? [1, 2, 3] : nil
         case RollupState.bridgeTicketer: return Array(ticketer.utf8)
         case RollupState.treeSize: return le(UInt64(notes.count), 8)
+        case RollupState.treeRoot: return treeRoot.flatMap(Hex.decode)
         case RollupState.nullifierCount: return le(UInt64(nullifiers.count), 8)
         case RollupState.lastInputLevel, RollupState.privateTxFeeLevel: return privateTxsInLevel > 0 ? le(UInt64(level + 1), 4) : nil
         case RollupState.privateTxCountInLevel: return le(privateTxsInLevel, 8)
@@ -246,17 +252,38 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
         lock.withLock { proofRequests.append(arguments); return "job-\(proofRequests.count)" }
     }
 
-    /// "Proves" by echoing the witness's nine public outputs behind the bootloader header, as the service does.
+    /// A witness word (`0x…`, big-endian) as a felt, hex.
+    static func felt(_ arg: String) -> String {
+        var hex = String(arg.dropFirst(2))
+        hex = String(repeating: "0", count: 64 - hex.count) + hex
+        return Hex.encode(Hex.decode(hex)!.reversed())
+    }
+
+    /// "Proves" by echoing the witness's public outputs behind the bootloader header, as the
+    /// service does: the shield's nine, or the unshield's `2 + n + 7` (the two commitments the
+    /// circuit would compute are computed with the bridge).
     func proofJob(id: String, lastStatus: String?) async throws -> ProofJob {
         let (request, failure): ([String]?, String?) = lock.withLock { (proofRequests.last, failProving) }
         if let failure { return .failed(failure) }
-        guard let request, request.count == 171 else { return .failed("bad witness") }
-        let outputs = request[1...9].map { arg -> String in
-            var hex = String(arg.dropFirst(2))
-            hex = String(repeating: "0", count: 64 - hex.count) + hex
-            return Hex.encode(Hex.decode(hex)!.reversed())
+        guard let request else { return .failed("no witness") }
+        var outputs: [String]
+        if request.count == 171 {
+            outputs = request[1...9].map(Self.felt)
+        } else {
+            guard let n = Int(request[1].dropFirst(2), radix: 16), request.count == 1 + 6 + n * 206 + 15 else { return .failed("bad witness") }
+            let w = request
+            func commitment(_ at: Int) async throws -> String {
+                let v = String(UInt64(w[at + 1].dropFirst(2), radix: 16) ?? 0)
+                return try await TaquitoBridge.shared.call("tzelNoteCommitment", [Self.felt(w[at]), v, Self.felt(w[at + 2]), Self.felt(w[at + 3]), Self.felt(w[at + 4]), Self.felt(w[at + 5])]).stringValue ?? ""
+            }
+            let flag = 7 + 206 * n
+            let hasChange = w[flag] != "0x0"
+            let changeCm = hasChange ? try await commitment(flag + 1) : Hex.encode(XMSSAuthTree.feltOfInt(0))
+            let feeCm = try await commitment(flag + 8)
+            outputs = [w[2], w[3]].map(Self.felt) + (0..<n).map { Self.felt(w[7 + 9 * $0]) } + [w[4], w[5], w[6]].map(Self.felt)
+                + [changeCm, Self.felt(w[flag + 7]), feeCm, Self.felt(w[flag + 14])]
         }
-        let header = [1, 12].map { Hex.encode(XMSSAuthTree.feltOfInt($0)) } + [String(repeating: "ab", count: 32), Hex.encode(XMSSAuthTree.feltOfInt(9))]
+        let header = [1, outputs.count + 3].map { Hex.encode(XMSSAuthTree.feltOfInt(UInt64($0))) } + [String(repeating: "ab", count: 32), Hex.encode(XMSSAuthTree.feltOfInt(UInt64(outputs.count)))]
         return lastStatus == nil ? .running : .done(ProofBundle(proofBytes: "aabbcc", outputPreimage: header + outputs))
     }
 
@@ -267,7 +294,45 @@ final class MockShieldedRollup: ShieldedRollup, @unchecked Sendable {
     }
 
     func submission(id: String, token: String) async throws -> OperatorSubmission {
-        OperatorSubmission(id: id, status: "submitted_to_l1", transport: "dal", operationHash: "ooShieldPointer", detail: nil)
+        if lock.withLock({ failDelivery }) { return OperatorSubmission(id: id, status: "failed", transport: "dal", operationHash: nil, detail: "slot not attested") }
+        return OperatorSubmission(id: id, status: "submitted_to_l1", transport: "dal", operationHash: "ooShieldPointer", detail: nil)
+    }
+
+    func cementedLevel() async throws -> Int { lock.withLock { cemented } }
+    func pendingOutbox() async throws -> [OutboxEntry] { lock.withLock { outbox } }
+    func outboxProof(outboxLevel: Int, messageIndex: Int) async throws -> OutboxProof {
+        guard lock.withLock({ cemented >= outboxLevel && outbox.contains { $0.outboxLevel == outboxLevel && $0.messageIndex == messageIndex } }) else {
+            throw ShieldedError.withdrawalNotReady("outbox level \(outboxLevel) is not cemented")
+        }
+        return OutboxProof(commitment: "src13Ycd5ZPbQGiLiVuWqAMUhNuaWafb5T7KoqHsMGEAStvScGDFgx", proof: "aabb")
+    }
+
+    /// Applies the last submitted unshield as the kernel would: the nullifiers are spent, the
+    /// change note (if any) and the producer note join the tree, and the ticketer's `burn` for
+    /// the recipient is queued in the outbox at the current level.
+    func applyLastUnshield() -> (changeCm: String?, nullifiers: [String]) {
+        lock.withLock {
+            let b = Hex.decode(submitted.last!.payload)!
+            var o = 7
+            func u32() -> Int { let v = Int(b[o]) << 24 | Int(b[o + 1]) << 16 | Int(b[o + 2]) << 8 | Int(b[o + 3]); o += 4; return v }
+            func take(_ n: Int) -> [UInt8] { let s = Array(b[o..<(o + n)]); o += n; return s }
+            _ = take(32)
+            let end = o + u32()
+            var spent: [String] = []
+            while o < end { let l = u32(); spent.append(Hex.encode(take(l))) }
+            let vPub = take(8).enumerated().reduce(UInt64(0)) { $0 | UInt64($1.element) << (8 * UInt64($1.offset)) }
+            _ = take(8)
+            let recipient = String(decoding: take(u32()), as: UTF8.self)
+            let cmChange = take(32)
+            _ = take(u32())
+            var changeCm: String?
+            if take(1)[0] == 0xff { notes.append(cmChange + take(u32())); changeCm = Hex.encode(cmChange) }
+            let cmFee = take(32)
+            notes.append(cmFee + take(u32()))
+            nullifiers += spent
+            outbox.append(OutboxEntry(outboxLevel: level, messageIndex: outbox.count, destination: ticketer, entrypoint: "burn", receiver: Address(recipient).forgedContract ?? "", amountMutez: vPub))
+            return (changeCm, spent)
+        }
     }
 
     /// Puts the client note of the last submitted shield into the tree, as the kernel would.
@@ -431,6 +496,9 @@ struct ShieldFlowTests {
             func proofJob(id: String, lastStatus: String?) async throws -> ProofJob { throw URLError(.cannotConnectToHost) }
             func submit(kind: String, payloadHex: String, rollupAddress: String, token: String) async throws -> OperatorSubmission { throw URLError(.cannotConnectToHost) }
             func submission(id: String, token: String) async throws -> OperatorSubmission { throw URLError(.cannotConnectToHost) }
+            func cementedLevel() async throws -> Int { throw URLError(.cannotConnectToHost) }
+            func pendingOutbox() async throws -> [OutboxEntry] { throw URLError(.cannotConnectToHost) }
+            func outboxProof(outboxLevel: Int, messageIndex: Int) async throws -> OutboxProof { throw URLError(.cannotConnectToHost) }
         }
         var wallet = ShieldedWallet.make(chain: "shadownet")
         wallet.notes.append(ShieldedNote(index: 0, cm: "11", rseed: "22", nullifier: "33", valueMutez: "2500000", addressIndex: 0))
@@ -453,6 +521,136 @@ struct ShieldFlowTests {
         model.switchNetwork(to: .quantumnet)
         await model.refresh()
         #expect(model.assets.first { $0.kind == .shielded } == .shieldedPlaceholder && !model.canShield)
+    }
+}
+
+@MainActor
+struct UnshieldFlowTests {
+    private func shieldedModel() async throws -> (WalletViewModel, InMemoryShieldedWalletStore, MockShieldedRollup, ShieldedNote) {
+        let store = InMemoryShieldedWalletStore()
+        let rollup = MockShieldedRollup()
+        let keys = InMemoryWalletStore()
+        try keys.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), walletStore: keys, shieldedStoreFactory: { _, _ in store }, shieldedRollupFactory: { _ in rollup })
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        model.shieldedCreditPolls = 2
+        model.shieldedPollInterval = .milliseconds(10)
+        try model.setShieldedOperatorToken("operator-secret", for: .shadownet)
+        // A 1.8 tz note at tree position 0, from a 2 tz deposit.
+        let pool = try await model.prepareShield()
+        rollup.pools[pool.pubkeyHash] = 2_000_000
+        _ = try await model.shieldTez(approved: try await model.estimateShield(amount: 2, pool: pool), passphrase: nil)
+        let cm = rollup.applyLastShield()
+        rollup.treeRoot = try await TaquitoBridge.shared.call("tzelMerkleRoot", [try WalletViewModel.json(.array([.string(cm)]))]).stringValue
+        await model.refresh()
+        let note = try #require(model.shieldedWallet?.notes.first)
+        #expect(model.shieldedWallet?.leafCms == [cm] && note.valueMutez == "1800000" && !note.spent)
+        return (model, store, rollup, note)
+    }
+
+    @Test func unshieldsANoteWithChangeAndFollowsTheWithdrawalToTezos() async throws {
+        let (model, store, rollup, note) = try await shieldedModel()
+        let me = WalletViewModel.sampleWallets[0].address
+        // A bad recipient, or more than the notes hold, is refused at the estimate.
+        await #expect(throws: ShieldedError.badRecipient("bob")) { _ = try await model.estimateUnshield(amount: 1, recipient: "bob") }
+        await #expect(throws: ShieldedError.insufficientShielded(available: 1_800_000, needed: 2_200_000)) { _ = try await model.estimateUnshield(amount: 2, recipient: me.value) }
+        let estimate = try await model.estimateUnshield(amount: 1, recipient: " \(me.value) ")
+        #expect(estimate.inputs == [note] && estimate.rollupFeeMutez == 100_000 && estimate.producerFeeMutez == 100_000 && estimate.changeMutez == 600_000 && estimate.recipient == me.value)
+        // The rollup's fee moved since the estimate: refused before anything is proved or any key spent.
+        rollup.privateTxsInLevel = 3
+        await #expect(throws: ShieldedError.feeChanged(from: 100_000, to: 400_000)) { _ = try await model.unshieldTez(approved: estimate) }
+        rollup.privateTxsInLevel = 0
+        #expect(try store.load(account: me)?.addresses[0].nextKeyIndex == 1 && rollup.proofRequests.count == 1)
+
+        let receipt = try await model.unshieldTez(approved: estimate)
+        #expect(receipt.amount == 1 && receipt.changeMutez == 600_000 && receipt.withdrawal.recipient == me.value && receipt.withdrawal.nullifiers == [note.nullifier])
+        #expect(receipt.withdrawal.operationHash == "ooShieldPointer" && receipt.withdrawal.submittedLevel == rollup.level && receipt.withdrawal.changeCm != nil)
+        var wallet = try #require(try store.load(account: me))
+        #expect(wallet.addresses.count == 2 && wallet.addresses[0].nextKeyIndex == 2 && wallet.addresses[1].nextKeyIndex == 0, "one key spent, a change address made")
+        #expect(try store.loadLeaves(account: me, addressIndex: 1)?.count == XMSSAuthTree.leavesBytes, "the change address's signing tree is kept")
+        #expect(wallet.withdrawals.count == 1 && !wallet.withdrawals[0].applied && wallet.availableMutez == 0 && wallet.balanceMutez == 1_800_000 && wallet.reservedMutez == 1_800_000)
+        #expect(model.assets.first { $0.kind == .shielded }?.details.map(\.id) == ["unshielding"])
+        // The witness: one input, 227 felts after the length word; the message: tag 4, then the root.
+        let witness = try #require(rollup.proofRequests.last)
+        #expect(witness.count == 1 + 6 + 206 + 15 && witness[0] == "0xe3" && witness[1] == "0x1")
+        let sent = try #require(rollup.submitted.last)
+        #expect(sent.kind == "unshield" && sent.payload.hasPrefix("110004") && String(sent.payload.dropFirst(14).prefix(64)) == rollup.treeRoot)
+        // The key index was on file before the proof was asked for, the withdrawal before the operator was polled.
+        let saves = store.history
+        let indexSpent = try #require(saves.firstIndex { $0.addresses.first?.nextKeyIndex == 2 })
+        let recorded = try #require(saves.firstIndex { !$0.withdrawals.isEmpty })
+        #expect(indexSpent < recorded)
+        // A reserved note is not offered to another unshield.
+        await #expect(throws: ShieldedError.insufficientShielded(available: 0, needed: 300_000)) { _ = try await model.estimateUnshield(amount: 0.1, recipient: me.value) }
+
+        // The kernel applies it: the note is spent, the change note is ours, the withdrawal is in the outbox and waiting.
+        let applied = rollup.applyLastUnshield()
+        #expect(applied.changeCm == receipt.withdrawal.changeCm && applied.nullifiers == [note.nullifier])
+        await model.refresh()
+        wallet = try #require(model.shieldedWallet)
+        #expect(wallet.notes.count == 2 && wallet.notes[0].spent && wallet.notes[1].valueMutez == "600000" && wallet.notes[1].addressIndex == 1 && wallet.notes[1].index == 1)
+        #expect(wallet.leafCms.count == 3 && wallet.balanceMutez == 600_000 && wallet.availableMutez == 600_000)
+        let status = try #require(model.shieldedWithdrawals.first)
+        #expect(status.withdrawal.applied && status.withdrawal.outboxLevel == rollup.level && status.withdrawal.messageIndex == 0)
+        #expect(status.state == .waiting(blocksLeft: rollup.level))
+        await #expect(throws: ShieldedError.withdrawalNotReady("the rollup commitment covering it is not cemented yet (about 14 days after the unshield)")) { _ = try await model.estimateWithdrawalExecution(status.id) }
+        // Cemented: the account executes it through the approved-limits path.
+        rollup.cemented = rollup.level
+        await model.refresh()
+        #expect(model.shieldedWithdrawals.first?.state == .ready)
+        let execution = try await model.estimateWithdrawalExecution(status.id)
+        #expect(execution.execution.cementedCommitment.hasPrefix("src1") && execution.execution.rollup == ShieldedConfig.shadownet.rollupAddress && execution.estimate.limits != nil)
+        let hash = try await model.executeWithdrawal(approved: execution, passphrase: nil)
+        #expect(hash == "ooMockOutbox" && model.shieldedWallet?.withdrawals.first?.executedHash == "ooMockOutbox")
+        #expect(model.shieldedWithdrawals.first?.state == .executed("ooMockOutbox"))
+        await #expect(throws: ShieldedError.withdrawalNotReady("it has been executed already")) { _ = try await model.estimateWithdrawalExecution(status.id) }
+    }
+
+    @Test func anUndeliveredUnshieldFreesItsNotesAndAnExactOneMakesNoChange() async throws {
+        let (model, store, rollup, note) = try await shieldedModel()
+        let me = WalletViewModel.sampleWallets[0].address
+        // The operator gives up on it: no withdrawal stays, the notes are available again, the key index stays spent.
+        rollup.failDelivery = true
+        let estimate = try await model.estimateUnshield(amount: 1, recipient: me.value)
+        await #expect(throws: ShieldedError.submissionFailed("slot not attested")) { _ = try await model.unshieldTez(approved: estimate) }
+        var wallet = try #require(try store.load(account: me))
+        #expect(wallet.withdrawals.isEmpty && wallet.availableMutez == 1_800_000 && wallet.addresses[0].nextKeyIndex == 2 && wallet.addresses.count == 2)
+        rollup.failDelivery = false
+        // Unshielding exactly what is left after the fees: no change note, the flag and its fields are zero.
+        let exact = try await model.estimateUnshield(amount: 1.6, recipient: "KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4")
+        #expect(exact.changeMutez == 0 && exact.inputs == [note])
+        let receipt = try await model.unshieldTez(approved: exact)
+        #expect(receipt.changeMutez == 0 && receipt.withdrawal.changeCm == nil)
+        wallet = try #require(try store.load(account: me))
+        #expect(wallet.addresses.count == 2 && wallet.addresses[0].nextKeyIndex == 3, "no further change address")
+        let witness = try #require(rollup.proofRequests.last)
+        #expect(Array(witness[(7 + 206)..<(7 + 206 + 8)]) == Array(repeating: "0x0", count: 8))
+        // Forgetting one the operator has not delivered frees the notes; when it lands after all, the scan still spends them.
+        try model.forgetWithdrawal(receipt.withdrawal.id)
+        #expect(try store.load(account: me)?.availableMutez == 1_800_000 && model.shieldedWithdrawals.isEmpty)
+        let applied = rollup.applyLastUnshield()
+        #expect(applied.changeCm == nil)
+        await model.refresh()
+        #expect(model.shieldedWallet?.balanceMutez == 0 && model.shieldedWallet?.notes.count == 1 && model.shieldedWallet?.leafCms.count == 2)
+    }
+
+    @Test func selectsTheLargestNotesFirstAndRefusesMoreThanSevenInputs() throws {
+        func note(_ i: Int, _ v: UInt64) -> ShieldedNote { ShieldedNote(index: i, cm: "cm\(i)", rseed: "", nullifier: "nf\(i)", valueMutez: String(v), addressIndex: 0) }
+        let notes = (0..<10).map { note($0, UInt64($0 + 1) * 100_000) }
+        #expect(try WalletViewModel.selectNotes(notes, covering: 1_000_000).map(\.index) == [9])
+        #expect(try WalletViewModel.selectNotes(notes, covering: 1_000_001).map(\.index) == [9, 8])
+        #expect(try WalletViewModel.selectNotes(notes, covering: 4_900_000).map(\.index) == [9, 8, 7, 6, 5, 4, 3])
+        #expect(throws: ShieldedError.tooManyInputs(8)) { try WalletViewModel.selectNotes(notes, covering: 4_900_001) }
+        #expect(throws: ShieldedError.insufficientShielded(available: 5_500_000, needed: 5_500_001)) { try WalletViewModel.selectNotes(notes, covering: 5_500_001) }
+        #expect(try WalletViewModel.selectNotes([], covering: 0).isEmpty)
+    }
+
+    @Test func forgesRecipientsAsOutboxMessagesNameThem() {
+        #expect(Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb").forgedContract == "00006b82198cb179e8306c1bedd08f12dc863f328886")
+        #expect(Address("KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4").forgedContract?.hasPrefix("01") == true && Address("KT1RCZzNe8G4VQ94YWqb6Xz4q9WGWVdMWSB4").forgedContract?.count == 44)
+        #expect(Address("tz3Rb5RVucLc6ani23jVdZM4Qm6c4oQ74zhh").forgedContract?.hasPrefix("0002") == true)
+        #expect(Address("bob").forgedContract == nil)
     }
 }
 
@@ -495,6 +693,19 @@ struct ShadownetShieldTests {
             var seen = false
             for _ in 0..<30 { try await Task.sleep(for: .seconds(6)); await model.refresh(); if model.shieldedWallet?.notes.contains(where: { $0.cm == receipt.cm }) == true { seen = true; break } }
             #expect(seen && model.shieldedWallet?.balanceMutez == receipt.shieldedMutez)
+            // Then part of it back to the account: proved by the real `run_unshield`, applied by
+            // the kernel (the nullifier appears, the change note is ours) and queued in the
+            // outbox. Executing it on layer 1 is 14 days away, so the test stops at "waiting".
+            let unshield = try await model.estimateUnshield(amount: 0.3, recipient: wallet.address.value)
+            #expect(unshield.inputs.map(\.cm) == [receipt.cm] && unshield.changeMutez == receipt.shieldedMutez - 300_000 - unshield.rollupFeeMutez - 100_000)
+            let withdrawal = try await model.unshieldTez(approved: unshield)
+            print("unshield submission \(withdrawal.withdrawal.submissionID), op \(withdrawal.withdrawal.operationHash ?? "-"), change \(withdrawal.changeMutez)")
+            var applied = false
+            for _ in 0..<30 { try await Task.sleep(for: .seconds(6)); await model.refresh(); if model.shieldedWithdrawals.first?.withdrawal.applied == true { applied = true; break } }
+            #expect(applied, "the rollup applied the unshield")
+            let after = try #require(model.shieldedWallet)
+            #expect(after.notes.first { $0.cm == receipt.cm }?.spent == true && after.notes.contains { $0.cm == withdrawal.withdrawal.changeCm } && after.balanceMutez == withdrawal.changeMutez)
+            if case .waiting(let blocks) = try #require(model.shieldedWithdrawals.first).state { print("outbox message at level \(model.shieldedWithdrawals.first?.withdrawal.outboxLevel ?? 0), \(blocks) blocks to cementation") } else { Issue.record("expected the withdrawal to be waiting for cementation: \(String(describing: model.shieldedWithdrawals.first?.state))") }
         } catch ShieldedError.operatorRefused(let detail) {
             #expect(token == nil, "the operator refused the token: \(detail)")
             print("operator refused as expected without a token: \(detail)")
@@ -523,6 +734,12 @@ struct ShadownetShieldTests {
         #expect(try await rollup.nullifier(at: head.hash, index: 0).count == 64)
         #expect(try await rollup.poolBalance(at: head.hash, pubkeyHash: String(repeating: "00", count: 32)) == nil)
         #expect(try await rollup.programHash(named: "run_shield").count == 64)
+        #expect(try await rollup.programHash(named: "run_unshield").count == 64)
+        #expect(try await rollup.treeRoot(at: head.hash).count == 64)
+        #expect(try await rollup.cementedLevel() < head.level)
+        let pending = try await rollup.pendingOutbox()
+        #expect(pending.allSatisfy { $0.entrypoint == "burn" && $0.destination == ShieldedConfig.shadownet.ticketer.value && $0.receiver.count == 44 })
+        if let first = pending.first { await #expect(throws: ShieldedError.self) { _ = try await rollup.outboxProof(outboxLevel: first.outboxLevel, messageIndex: first.messageIndex) } }
         await #expect(throws: ShieldedError.self) { _ = try await rollup.submit(kind: "shield", payloadHex: "00", rollupAddress: ShieldedConfig.shadownet.rollupAddress, token: "not-the-token") }
     }
 }

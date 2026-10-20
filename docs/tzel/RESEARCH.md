@@ -362,10 +362,59 @@ does not need the reference wallet's fresh-address-per-deposit habit.
   Note that the operator's bearer token therefore travels in the clear, as it does from the
   reference CLI; worth asking the tzel team for HTTPS on the operator before real funds.
 
+**Done (2026-10-20): Unshield tez.**
+
+- *Wire.* The unshield body (tag 4) is itself length-prefixed under the version and tag:
+  `root ‖ nullifiers ‖ v_pub u64le ‖ fee u64le ‖ recipient ‖ cm_change ‖ proof ‖ change note? ‖
+  cm_fee ‖ fee note`. The nullifier list is `u32be(36n) ‖ (u32be(32) ‖ felt)×n` (every felt in
+  a list carries its own length, unlike the fixed felts of the struct), the recipient is
+  `u32be(len) ‖ UTF-8`, a note is `u32be(3455) ‖ record`, and the optional change note is
+  `0x00` or `0xff ‖ note`. Verified byte for byte against the reference crate's encoding of a
+  two-input sample with and without change (the scratch Rust probe again; 7233 and 3774
+  bytes, SHA-256s in `test/tzel-unshield.cjs`).
+- *Sighash and witness.* `fold(0x02, auth_domain, root, nf_0 … nf_{n-1}, v_pub, fee,
+  recipient_id, cm_change, mh_change, cm_fee, mh_fee)` with `recipient_id = H(UTF-8 of the
+  tz/KT1 address)` (`accountId`); the witness is `[len, n, auth_domain, root, v_pub, fee,
+  recipient_id, 9 felts per input (nf, nk_spend, auth_root, auth_pub_seed, key_idx, d_j, v,
+  rseed, position), 48 commitment-path siblings per input, 16 auth-path siblings per input,
+  133 signature chains per input, has_change and the change note's 7 fields (zeros when
+  none), the producer note's 7 fields]`, 6 + 206n + 15 words; the kernel checks the proof's
+  `2 + n + 7` public outputs in that order, bootloader-wrapped by the proving service like the
+  shield's. Each input is signed with the next WOTS+ key of *its* address, so an unshield can
+  spend several keys of one address. One to seven inputs, largest notes first (the reference
+  wallet's selection). Change goes to a fresh address of ours (role `unshield_change`), whose
+  signing tree is built first; the producer note is as for a shield.
+- *Commitment-tree paths.* The reference wallet reads every note to rebuild the tree; Signet
+  keeps every commitment it has scanned in the wallet (`leafCms`, 32 bytes a note) so the
+  paths come from the bridge's `merklePath` with no second read, and a wallet from before the
+  copy existed reads again from where the copy ends. The builder refuses a copy that does not
+  hash to the rollup's `tree/root`. The kernel keeps a window of valid roots, so the head root
+  is used.
+- *After the rollup.* The rollup node's `/local/outbox/pending` lists every outbox message not
+  yet executed: for an unshield, the ticketer's `burn` with the recipient forged as a
+  Michelson contract (`00 00 ‖ pkh` for tz1, and so on; `Address.forgedContract`) and the
+  amount, at an `outbox_level`. The scan marks a withdrawal applied when its nullifiers are
+  spent, then matches it to the first pending message with that receiver and amount at or
+  after the level it was submitted at. `/global/block/cemented/level` says how far cementation
+  has come (Shadownet: head minus about 201 600 levels, the 14-day refutation window), and
+  `/global/block/cemented/helpers/proofs/outbox/<level>/messages?index=<i>` returns
+  `{commitment, proof}` (a `sc_rollup.node.outbox_level_not_cemented` error before then).
+  Executing is Taquito's `smartRollupExecuteOutboxMessage` through the approved-limits path
+  (`estimateOutboxExecution` / `sendOutboxExecution`, a signing call), from the selected
+  account, which pays the fee; anyone could execute it. Not exercised live yet: nothing of
+  ours is 14 days old.
+- *Flow and UI.* `estimateUnshield` (fee of the moment, note selection), `unshieldTez` (scans
+  again so the tree copy and the inputs are current, refuses a changed rollup fee or a spent
+  input, builds the change address, spends every key index on disk before signing, proves,
+  encodes, submits, and records the withdrawal as soon as the operator has it; an operator
+  failure drops the record so the notes are free again, a timeout keeps it),
+  `estimateWithdrawalExecution` / `executeWithdrawal`, `forgetWithdrawal` for one the operator
+  never delivered. The Shielded row's figure stays the unspent notes with a "Leaving in an
+  unshield" detail line for reserved ones; `UnshieldSheet` lists the withdrawals with their
+  state (with the operator, queued, waiting with the time left, ready with an Execute button,
+  executed with the explorer link).
+
 **Next, in order:**
 
-1. *Unshield tez.* Transfer-style witness with commitment-tree paths (`merklePath` over the
-   full note list), `recipient_id`, the outbox message tracked locally, and the Layer 1
-   `smart_rollup_execute_outbox_message` once cemented (about 14 days).
-2. *Send shielded.* Same as unshield with a recipient PaymentAddress (JSON blob) and an address
+1. *Send shielded.* Same as unshield with a recipient PaymentAddress (JSON blob) and an address
    book with fingerprints.

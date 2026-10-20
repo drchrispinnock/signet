@@ -196,6 +196,24 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    func estimateOutboxExecution(from wallet: Wallet, execution: OutboxExecution) async throws -> TransferEstimate {
+        guard let publicKey = wallet.publicKey else {
+            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
+        }
+        try await verifyChain()
+        let result = try await bridge.call("estimateOutboxExecution", [network.rpcURL.absoluteString, wallet.address.value, publicKey, execution.rollup, execution.cementedCommitment, execution.outputProof], timeout: 120)
+        return try Self.estimate(from: result, amount: 0)
+    }
+
+    func sendOutboxExecution(from wallet: Wallet, signer: SigningKey, execution: OutboxExecution, limits: OperationLimits) async throws -> SentOperation {
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendOutboxExecution", [network.rpcURL.absoluteString, signer.bridgeSpec, execution.rollup, execution.cementedCommitment, execution.outputProof, limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected outbox execution payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     // MARK: Etherlink alias (0.9.3), on the Layer 2 service
 
     /// Asks the gateway's `resolveAddress` view (Tezos runtime 0 → Ethereum runtime 1) on the

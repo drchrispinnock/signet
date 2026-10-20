@@ -286,7 +286,8 @@ export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, e
 // ---- Shielded tez (TzEL) ---------------------------------------------------------------------
 export {
   shieldDepositParams, estimateShieldDeposit, sendShieldDeposit, tzelAccount, tzelAddressKeys, tzelAuthLeaf, tzelDepositPool,
-  tzelScan, tzelBuildShield, tzelEncodeShieldMessage,
+  tzelScan, tzelBuildShield, tzelEncodeShieldMessage, tzelNoteCommitment, tzelMerkleRoot, tzelBuildUnshield, tzelEncodeUnshieldMessage,
+  estimateOutboxExecution, sendOutboxExecution,
 } from "./shield.js";
 
 /** Diagnostic: proves console output reaches the host. */

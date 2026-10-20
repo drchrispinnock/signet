@@ -674,7 +674,29 @@ automatic download is off by default. The updater is not started under the test 
   `ShadownetShieldTests` is the live round trip (with `SIGNET_TZEL_OPERATOR_TOKEN` the note is
   seen in the scan; without it the operator's refusal is the expected end and the pool stays
   funded). The rollup node and operator speak plain HTTP, exempted from App Transport
-  Security for those two hosts alone in `Info.plist`. Unshield and Send shielded are to follow. The research, verified Shadownet
+  Security for those two hosts alone in `Info.plist`. **Unshield tez** ("Unshield tez…"
+  beside Shield; `UnshieldSheet`) spends one to seven of the account's notes (largest first,
+  `selectNotes`) for `v_pub` tez to a tz or KT1 account on layer 1: `estimateUnshield` reads
+  the rollup's fee of the moment and picks the notes; `unshieldTez` scans again (the wallet
+  keeps every commitment it has read, `leafCms`, so the 48-deep Merkle paths come from the
+  bridge's `merklePath` and the builder refuses a copy that does not hash to the rollup's
+  `tree/root`), refuses a changed fee or a spent input, makes a fresh address for the change
+  and builds its tree, spends every input's next WOTS+ key index on disk *before* signing,
+  then `tzelBuildUnshield` (sighash `fold(0x02, auth_domain, root, nullifiers…, v_pub, fee,
+  recipient_id, cm_change, mh_change, cm_fee, mh_fee)`, one signature per input from its own
+  address, the `6 + 206n + 15`-word witness; `test/tzel-unshield.cjs` checks it and the tag 4
+  wire against the reference crate's bytes), `run_unshield` at the proving service,
+  `tzelEncodeUnshieldMessage` and the operator. The withdrawal (`ShieldedWithdrawal`) is on
+  file as soon as the operator has it and its notes stay reserved (the row's "Leaving in an
+  unshield" line; `availableNotes`) until the scan sees their nullifiers; it is then matched
+  to the rollup node's pending outbox message (`/local/outbox/pending`, the ticketer's `burn`
+  for the recipient as forged, `Address.forgedContract`, and the amount) and, once
+  `/global/block/cemented/level` has passed its level (about 14 days), the sheet's Execute
+  button runs `estimateWithdrawalExecution` / `executeWithdrawal`: the node's outbox proof
+  and Taquito's `smartRollupExecuteOutboxMessage` through the approved-limits path
+  (`sendOutboxExecution` is a signing call). An operator failure drops the record so the
+  notes are free again; `forgetWithdrawal` does the same by hand for one never delivered.
+  The layer 1 execution has not been exercised live yet. Send shielded is to follow. The research, verified Shadownet
   parameters and the step plan are in `docs/tzel/RESEARCH.md` (section 8); the spec note is
   `docs/spec/shield.md` and the protocol is https://github.com/trilitech/tzel/.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in

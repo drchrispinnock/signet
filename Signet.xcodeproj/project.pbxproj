@@ -15,6 +15,7 @@
 		07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */; };
 		085B233AC77880DCA51C819A /* WalletViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E264E393D7C759C2774CF1 /* WalletViewModel.swift */; };
 		08A411B770ABF211793F1F75 /* Blake2s.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47811A27E6DCA933C13141F /* Blake2s.swift */; };
+		08CCFB1467F8E3B1DB2040BA /* UnshieldSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AECB242F13564C4E0715C4D /* UnshieldSheet.swift */; };
 		0CED335B769FC20C5E1FBF97 /* ChainServiceTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1A33134A80A7023ED60D8 /* ChainServiceTestSupport.swift */; };
 		0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */; };
 		0DC2DAF901DB2FA364724E8F /* RememberKeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */; };
@@ -284,6 +285,7 @@
 		96A3BD623F0ED733BBC7B1FE /* Keccak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keccak.swift; sourceTree = "<group>"; };
 		997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmitMultisigSheet.swift; sourceTree = "<group>"; };
 		9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportAccountSheet.swift; sourceTree = "<group>"; };
+		9AECB242F13564C4E0715C4D /* UnshieldSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnshieldSheet.swift; sourceTree = "<group>"; };
 		9B4B35923D2D6F06B90A2A49 /* SignetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignetApp.swift; sourceTree = "<group>"; };
 		9B7333B6F53BDA303AE19D83 /* DAppRequestSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppRequestSheet.swift; sourceTree = "<group>"; };
 		9B7EAC88691E2C2CC72CA41F /* AccountAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatarView.swift; sourceTree = "<group>"; };
@@ -406,6 +408,7 @@
 				997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */,
 				D9682C459E924F07DEF53FC3 /* Theme.swift */,
 				5FC9EC06EA2E130C77234325 /* TokenListView.swift */,
+				9AECB242F13564C4E0715C4D /* UnshieldSheet.swift */,
 				E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */,
 				075C70E256C22BF792C133B6 /* WalletHomeView.swift */,
 			);
@@ -821,6 +824,7 @@
 				EAEF01D7B57BA984CCB2B996 /* TokenListView.swift in Sources */,
 				C4D72615EE6CDE9929FCAEA6 /* Transfer.swift in Sources */,
 				07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */,
+				08CCFB1467F8E3B1DB2040BA /* UnshieldSheet.swift in Sources */,
 				887DB0322DE85C7FDA7634F3 /* UpdaterService.swift in Sources */,
 				9384F5734C7FA30F1AAAF719 /* Wallet.swift in Sources */,
 				CB80BBF7F6376C6654FF32D6 /* WalletBackup.swift in Sources */,

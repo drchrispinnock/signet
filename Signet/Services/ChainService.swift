@@ -48,6 +48,11 @@ protocol ChainService: Sendable {
     func estimateShieldDeposit(from wallet: Wallet, deposit: ShieldDeposit) async throws -> TransferEstimate
     /// Signs and injects the deposit with exactly the approved `limits` (S14).
     func sendShieldDeposit(from wallet: Wallet, signer: SigningKey, deposit: ShieldDeposit, limits: OperationLimits) async throws -> SentOperation
+    /// Executing an unshield's outbox message on layer 1 (the ticketer's `burn` paying the
+    /// recipient), once the rollup commitment covering it is cemented.
+    func estimateOutboxExecution(from wallet: Wallet, execution: OutboxExecution) async throws -> TransferEstimate
+    /// Signs and injects the execution with exactly the approved `limits` (S14).
+    func sendOutboxExecution(from wallet: Wallet, signer: SigningKey, execution: OutboxExecution, limits: OperationLimits) async throws -> SentOperation
 
     // Etherlink alias (0.9.3), on a Layer 2 (Michelson interface) service only: whether the
     // account's EVM-side address exists on chain yet, and the gateway call that creates it.
@@ -203,4 +208,12 @@ struct ShieldDeposit: Hashable, Sendable {
     let rollup: String
     let pubkeyHash: String
     let amount: Decimal
+}
+
+/// A rollup outbox message to execute on layer 1: the rollup, the cemented commitment the
+/// rollup node proved it against and that proof (hex).
+struct OutboxExecution: Hashable, Sendable {
+    let rollup: String
+    let cementedCommitment: String
+    let outputProof: String
 }

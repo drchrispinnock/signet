@@ -643,3 +643,82 @@ export function encodeShieldMessage(m) {
     felt(m.clientCm), encodeEncryptedNote(m.clientEnc), felt(m.producerCm), encodeEncryptedNote(m.producerEnc),
   );
 }
+
+// ── Unshield (private → public) ──────────────────────────────────────────────────────────
+//
+// An unshield spends one to seven of the wallet's notes: `v_pub` mutez leave for a layer 1
+// account through the rollup's outbox (the ticketer's `burn`, executable once the commitment
+// covering it is cemented), the rollup's fee is burnt, a note pays the DAL producer, and any
+// change comes back as a note to a fresh address of ours. Each input is authorised by a WOTS+
+// signature over the one sighash from its address's auth tree and shown to be in the commitment
+// tree under `root`.
+
+export const MAX_UNSHIELD_INPUTS = 7;
+
+/// `fold(0x02, auth_domain, root, nf_0 … nf_{n-1}, v_pub, fee, recipient_id, cm_change, mh_change, cm_fee, mh_fee)`.
+export function unshieldSighash(p) {
+  if (p.nullifiers.length === 0 || p.nullifiers.length > MAX_UNSHIELD_INPUTS) throw new Error("tzel: an unshield spends one to seven notes");
+  return fold([feltOfInt(2), felt(p.authDomain), felt(p.root), ...p.nullifiers.map(felt), feltOfInt(p.vPub), feltOfInt(p.fee), felt(p.recipientId),
+               felt(p.cmChange), felt(p.mhChange), felt(p.cmFee), felt(p.mhFee)]);
+}
+
+/// The `run_unshield` witness (`cairo/src/run_unshield.cairo`): a length word, then `n`, the five
+/// fixed felts, nine felts per input, the 48 commitment-path siblings per input, the 16 auth-path
+/// siblings per input, the 133 signature chains per input, the change note (a flag and seven
+/// fields, zeros when there is none) and the producer-fee note's seven fields.
+export function unshieldWitness(p) {
+  const n = p.inputs.length;
+  if (n === 0 || n > MAX_UNSHIELD_INPUTS) throw new Error("tzel: an unshield spends one to seven notes");
+  const fields = [feltOfInt(n), p.authDomain, p.root, feltOfInt(p.vPub), feltOfInt(p.fee), p.recipientId];
+  for (const i of p.inputs) fields.push(i.nullifier, i.nkSpend, i.address.authRoot, i.address.pubSeed, feltOfInt(i.keyIdx), i.address.dJ, feltOfInt(i.v), i.rseed, feltOfInt(i.index));
+  for (const i of p.inputs) {
+    if (i.cmPath.length !== TREE_DEPTH) throw new Error("tzel: an unshield input needs its 48 commitment-path siblings");
+    fields.push(...i.cmPath);
+  }
+  for (const i of p.inputs) {
+    if (i.authPath.length !== AUTH_DEPTH) throw new Error("tzel: an unshield input needs its 16 auth-path siblings");
+    fields.push(...i.authPath);
+  }
+  for (const i of p.inputs) {
+    if (i.signature.length !== WOTS_CHAINS) throw new Error("tzel: an unshield input needs its 133 signature chains");
+    fields.push(...i.signature);
+  }
+  if (p.change) {
+    fields.push(feltOfInt(1), p.change.address.dJ, feltOfInt(p.change.v), p.change.note.rseed, p.change.address.authRoot, p.change.address.pubSeed, p.change.address.nkTag, p.change.note.mh);
+  } else {
+    for (let i = 0; i < 8; i++) fields.push(feltOfInt(0));
+  }
+  fields.push(p.producer.dJ, feltOfInt(p.producerFee), p.producerNote.rseed, p.producer.authRoot, p.producer.pubSeed, p.producer.nkTag, p.producerNote.mh);
+  if (fields.length !== 6 + n * (9 + TREE_DEPTH + AUTH_DEPTH + WOTS_CHAINS) + 15) throw new Error("tzel: unshield witness has the wrong length");
+  return [intHex(fields.length), ...fields.map(feltHex)];
+}
+
+// An unshield body on the kernel wire (tag 4) is itself length-prefixed: `root ‖ nullifiers ‖
+// v_pub ‖ fee ‖ recipient ‖ cm_change ‖ proof ‖ change note? ‖ cm_fee ‖ fee note`. The nullifier
+// list is `u32be(36n) ‖ (u32be(32) ‖ felt)×n`, the recipient is `u32be(len) ‖ UTF-8`, each note
+// is `u32be(3455) ‖ record`, and the optional change note is `0x00` or `0xff ‖ note`.
+
+export const KERNEL_UNSHIELD_TAG = 4;
+export const MAX_ACCOUNT_ID_BYTES = 1024;
+
+function encodeFeltList(felts) {
+  return concatBytes(u32be(felts.length * (4 + FELT_BYTES)), ...felts.flatMap((f) => [u32be(FELT_BYTES), felt(f)]));
+}
+
+export function encodeUnshieldMessage(m) {
+  const recipient = utf8ToBytes(m.recipient);
+  if (recipient.length === 0 || recipient.length > MAX_ACCOUNT_ID_BYTES) throw new Error("tzel: bad recipient length for the kernel wire");
+  if (m.nullifiers.length === 0 || m.nullifiers.length > MAX_UNSHIELD_INPUTS) throw new Error("tzel: an unshield spends one to seven notes");
+  const proof = encodeStarkProof(m.proofBytes, m.outputPreimage);
+  const feeNote = encodeEncryptedNote(m.producerEnc);
+  let change = new Uint8Array([0x00]);
+  if (m.changeEnc) {
+    const note = encodeEncryptedNote(m.changeEnc);
+    change = concatBytes(new Uint8Array([0xff]), u32be(note.length), note);
+  }
+  const body = concatBytes(
+    felt(m.root), encodeFeltList(m.nullifiers), u64le(m.vPub), u64le(m.fee), u32be(recipient.length), recipient, felt(m.cmChange),
+    u32be(proof.length), proof, change, felt(m.cmFee), u32be(feeNote.length), feeNote,
+  );
+  return concatBytes(new Uint8Array([KERNEL_WIRE_VERSION & 0xff, KERNEL_WIRE_VERSION >>> 8, KERNEL_UNSHIELD_TAG]), u32be(body.length), body);
+}

@@ -83,6 +83,25 @@ struct OperatorSubmission: Hashable, Sendable {
     var succeeded: Bool { status == "submitted_to_l1" }
 }
 
+/// A message the rollup has queued for layer 1 and not yet seen executed: for an unshield, the
+/// ticketer's `burn` paying `amountMutez` to the forged `receiver`.
+struct OutboxEntry: Hashable, Sendable {
+    let outboxLevel: Int
+    let messageIndex: Int
+    let destination: String
+    let entrypoint: String
+    /// The receiver as forged in the parameters (`Address.forgedContract`), hex.
+    let receiver: String
+    let amountMutez: UInt64
+}
+
+/// What executing an outbox message on layer 1 needs: the cemented commitment it is proved
+/// against and the rollup node's proof, hex.
+struct OutboxProof: Hashable, Sendable {
+    let commitment: String
+    let proof: String
+}
+
 /// The three services a shield talks to, behind one protocol so the flow can be tested
 /// without a network (`MockShieldedRollup` in the tests).
 protocol ShieldedRollup: Sendable {
@@ -99,6 +118,12 @@ protocol ShieldedRollup: Sendable {
     func proofJob(id: String, lastStatus: String?) async throws -> ProofJob
     func submit(kind: String, payloadHex: String, rollupAddress: String, token: String) async throws -> OperatorSubmission
     func submission(id: String, token: String) async throws -> OperatorSubmission
+    /// The level of the last cemented commitment: outbox messages up to it can be executed.
+    func cementedLevel() async throws -> Int
+    /// The outbox messages the rollup node has not seen executed.
+    func pendingOutbox() async throws -> [OutboxEntry]
+    /// The proof for executing one outbox message, against the last cemented commitment.
+    func outboxProof(outboxLevel: Int, messageIndex: Int) async throws -> OutboxProof
 }
 
 /// The kernel's durable-state layout (`apps/wallet` of trilitech/tzel, `/tzel/v1/state/…`).
@@ -110,6 +135,7 @@ enum RollupState {
     static let privateTxFeeLevel = "/tzel/v1/state/fees/private_tx_level"
     static let privateTxCountInLevel = "/tzel/v1/state/fees/private_tx_count_in_level"
     static let treeSize = "/tzel/v1/state/tree/size"
+    static let treeRoot = "/tzel/v1/state/tree/root"
     static let notePrefix = "/tzel/v1/state/notes/"
     static let nullifierCount = "/tzel/v1/state/nullifiers/count"
     static let nullifierIndexPrefix = "/tzel/v1/state/nullifiers/index/"
@@ -179,6 +205,14 @@ extension ShieldedRollup {
         try await u64(at: block, key: RollupState.depositBalance(pubkeyHash))
     }
 
+    /// The commitment tree's current root, hex.
+    func treeRoot(at block: String) async throws -> String {
+        guard let bytes = try await durableValue(block: block, key: RollupState.treeRoot), bytes.count == 32 else {
+            throw ShieldedError.badReply("the commitment tree root is missing")
+        }
+        return Hex.encode(bytes)
+    }
+
     func treeSize(at block: String) async throws -> Int {
         guard let size = try await u64(at: block, key: RollupState.treeSize) else { return 0 }
         guard size <= UInt64(Int32.max) else { throw ShieldedError.badReply("tree size \(size)") }
@@ -243,12 +277,17 @@ extension ShieldedRollup {
 
     /// Hands a message to the operator and waits until it is on layer 1 (or has failed).
     func deliver(kind: String, payloadHex: String, rollupAddress: String, token: String, timeout: Duration = .seconds(600)) async throws -> OperatorSubmission {
-        var current = try await submit(kind: kind, payloadHex: payloadHex, rollupAddress: rollupAddress, token: token)
+        try await awaitDelivery(of: try await submit(kind: kind, payloadHex: payloadHex, rollupAddress: rollupAddress, token: token), token: token, timeout: timeout)
+    }
+
+    /// Polls a submission until it is on layer 1 (or has failed).
+    func awaitDelivery(of submitted: OperatorSubmission, token: String, timeout: Duration = .seconds(600)) async throws -> OperatorSubmission {
+        var current = submitted
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
         while !current.isTerminal {
             guard clock.now < deadline else {
-                throw ShieldedError.submissionFailed("submission \(current.id) is still \(current.status) after \(timeout)")
+                throw ShieldedError.submissionPending("submission \(current.id) is still \(current.status) after \(timeout)")
             }
             try await Task.sleep(for: .seconds(5))
             current = try await submission(id: current.id, token: token)
@@ -270,6 +309,7 @@ struct RollupNodeService: ShieldedRollup {
 
     private static let smallReply = 16 << 10
     private static let noteReply = 64 << 10
+    private static let pageReply = 4 << 20
     /// A proof bundle is a few hundred KB of hex; the kernel takes up to 8 MB of proof.
     private static let proofReply = 24 << 20
     private static let proofLimits = BoundedHTTP.JSONLimits(depth: 16, nodes: 10_000, string: 20 << 20)
@@ -404,5 +444,56 @@ struct RollupNodeService: ShieldedRollup {
 
     func submission(id: String, token: String) async throws -> OperatorSubmission {
         try Self.parseSubmission(try await getJSON(url(config.operatorURL, "/v1/rollup/submissions/\(id)"), limit: Self.noteReply, json: .record, token: token))
+    }
+
+    // MARK: Outbox
+
+    func cementedLevel() async throws -> Int {
+        let level = try await getJSON(url(config.rollupNode, "/global/block/cemented/level"), limit: Self.smallReply)
+        guard let number = (level as? NSNumber)?.intValue ?? (level as? String).flatMap(Int.init) else { throw ShieldedError.badReply("no cemented level") }
+        return number
+    }
+
+    /// `/local/outbox/pending`: `[{outbox_level, messages: [{message_index, message: {transactions: [{destination, entrypoint, parameters}]}}]}]`.
+    func pendingOutbox() async throws -> [OutboxEntry] {
+        let reply = try await getJSON(url(config.rollupNode, "/local/outbox/pending"), limit: Self.pageReply, json: .page)
+        guard let levels = reply as? [[String: Any]] else { throw ShieldedError.badReply("pending outbox") }
+        var entries: [OutboxEntry] = []
+        for level in levels {
+            guard let outboxLevel = (level["outbox_level"] as? NSNumber)?.intValue ?? (level["outbox_level"] as? String).flatMap(Int.init),
+                  let messages = level["messages"] as? [[String: Any]] else { continue }
+            for message in messages {
+                guard let index = (message["message_index"] as? NSNumber)?.intValue ?? (message["message_index"] as? String).flatMap(Int.init),
+                      let transactions = (message["message"] as? [String: Any])?["transactions"] as? [[String: Any]], transactions.count == 1,
+                      let transaction = transactions.first, let destination = transaction["destination"] as? String, let entrypoint = transaction["entrypoint"] as? String,
+                      let entry = Self.burnEntry(outboxLevel: outboxLevel, index: index, destination: destination, entrypoint: entrypoint, parameters: transaction["parameters"])
+                else { continue }
+                entries.append(entry)
+            }
+        }
+        return entries
+    }
+
+    /// The ticketer's `burn`: `Pair receiver (Pair ticketer (Pair (Pair 0 None) amount))`.
+    static func burnEntry(outboxLevel: Int, index: Int, destination: String, entrypoint: String, parameters: Any?) -> OutboxEntry? {
+        func args(_ node: Any?) -> [[String: Any]]? { ((node as? [String: Any])?["args"] as? [[String: Any]]) }
+        guard let top = args(parameters), top.count == 2, let receiver = top[0]["bytes"] as? String,
+              let second = args(top[1]), second.count == 2, let third = args(second[1]), third.count == 2,
+              let amountText = third[1]["int"] as? String, let amount = UInt64(amountText)
+        else { return nil }
+        return OutboxEntry(outboxLevel: outboxLevel, messageIndex: index, destination: destination, entrypoint: entrypoint, receiver: receiver.lowercased(), amountMutez: amount)
+    }
+
+    func outboxProof(outboxLevel: Int, messageIndex: Int) async throws -> OutboxProof {
+        let reply: Any
+        do {
+            reply = try await getJSON(url(config.rollupNode, "/global/block/cemented/helpers/proofs/outbox/\(outboxLevel)/messages", query: [URLQueryItem(name: "index", value: String(messageIndex))]), limit: Self.pageReply, json: .page, timeout: 60)
+        } catch ShieldedError.badReply(let detail) where detail.contains("not_cemented") {
+            throw ShieldedError.withdrawalNotReady("the rollup commitment covering it is not cemented yet (about 14 days after the unshield)")
+        }
+        guard let object = reply as? [String: Any], let commitment = object["commitment"] as? String, commitment.hasPrefix("src1"),
+              let proof = object["proof"] as? String, Hex.decode(proof) != nil, !proof.isEmpty
+        else { throw ShieldedError.badReply("outbox proof") }
+        return OutboxProof(commitment: commitment, proof: proof)
     }
 }

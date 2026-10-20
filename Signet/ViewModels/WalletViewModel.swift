@@ -111,6 +111,7 @@ final class WalletViewModel {
     var isPresentingGovernance = false
     var isPresentingBridge = false
     var isPresentingShield = false
+    var isPresentingUnshield = false
 
     // Shielded tez (TzEL): `WalletViewModel+Shielded.swift` owns the flow; the state is here
     // because `@Observable` storage cannot live in an extension.
@@ -118,6 +119,8 @@ final class WalletViewModel {
     var shieldedWallet: ShieldedWallet?
     /// Its deposit pools with what the rollup holds for each.
     var shieldedPools: [ShieldedPoolStatus] = []
+    /// Its unshields, with where each stands between the operator and layer 1.
+    var shieldedWithdrawals: [ShieldedWithdrawalStatus] = []
     /// What a shield in progress is doing, for the Shield sheet.
     var shieldProgress: ShieldProgress?
     /// Stores by directory and chain, so one wallet file is read and written through one store.
@@ -214,6 +217,7 @@ final class WalletViewModel {
         faucetStatus = .idle
         shieldedWallet = nil
         shieldedPools = []
+        shieldedWithdrawals = []
     }
 
     /// Which load is current. Every refresh captures the generation, the account, the network and
@@ -686,6 +690,7 @@ final class WalletViewModel {
         if let shielded = snapshot.shielded {
             shieldedWallet = shielded.wallet
             shieldedPools = shielded.pools
+            shieldedWithdrawals = shielded.withdrawals
         }
         portfolioState = snapshot.portfolio.state
         // An unavailable indexer keeps the last known lists (they are from this same context).

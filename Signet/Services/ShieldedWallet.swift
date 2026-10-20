@@ -57,6 +57,37 @@ struct ShieldedNote: Codable, Hashable, Sendable, Identifiable {
     var value: UInt64 { UInt64(valueMutez) ?? 0 }
 }
 
+/// An unshield handed to the operator: `amountMutez` leave for `recipient` on layer 1 through
+/// the rollup's outbox. Its input notes stay reserved until the rollup spends them (`applied`);
+/// then its outbox message is looked for on the rollup node, and once the commitment covering
+/// it is cemented (about 14 days) the account can execute it on Tezos (`executedHash`).
+struct ShieldedWithdrawal: Codable, Hashable, Sendable, Identifiable {
+    var id: String { submissionID }
+    let submissionID: String
+    let recipient: String
+    let amountMutez: String
+    let rollupFeeMutez: String
+    let producerFeeMutez: String
+    /// The nullifiers of the notes it spends.
+    let nullifiers: [String]
+    let changeCm: String?
+    /// The rollup level when it was submitted: its outbox message cannot be earlier.
+    let submittedLevel: Int
+    let created: Date
+    /// The operator's layer 1 operation carrying it, when reported.
+    var operationHash: String?
+    /// The rollup has spent every input: the withdrawal is in its outbox.
+    var applied = false
+    var outboxLevel: Int?
+    var messageIndex: Int?
+    /// The layer 1 operation that executed the outbox message.
+    var executedHash: String?
+
+    var amount: UInt64 { UInt64(amountMutez) ?? 0 }
+    var rollupFee: UInt64 { UInt64(rollupFeeMutez) ?? 0 }
+    var producerFee: UInt64 { UInt64(producerFeeMutez) ?? 0 }
+}
+
 /// The shielded wallet of one account on one network: the master key and everything derived
 /// or learned from the rollup. Each tz account has its own, so the dashboard's Shielded row is
 /// that account's; they all live in one file per chain in the wallet directory
@@ -75,10 +106,32 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     var scanned = 0
     /// How many rollup nullifiers have been checked against our notes.
     var nullifiersSeen = 0
+    /// Every commitment in the rollup's tree, in order, as far as the scan has read it: an
+    /// unshield proves its inputs against the tree, so it needs the whole thing.
+    var leafCms: [String] = []
+    /// Unshields handed to the operator, until their layer 1 side is done.
+    var withdrawals: [ShieldedWithdrawal] = []
 
     init(chain: String, masterSk: String) {
         self.chain = chain
         self.masterSk = masterSk
+    }
+
+    private enum CodingKeys: String, CodingKey { case chain, masterSk, addresses, depositNonce, pools, notes, scanned, nullifiersSeen, leafCms, withdrawals }
+
+    /// Fields added after version 2 was first written are absent from older files.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        chain = try c.decode(String.self, forKey: .chain)
+        masterSk = try c.decode(String.self, forKey: .masterSk)
+        addresses = try c.decodeIfPresent([ShieldedAddress].self, forKey: .addresses) ?? []
+        depositNonce = try c.decodeIfPresent(UInt64.self, forKey: .depositNonce) ?? 0
+        pools = try c.decodeIfPresent([DepositPool].self, forKey: .pools) ?? []
+        notes = try c.decodeIfPresent([ShieldedNote].self, forKey: .notes) ?? []
+        scanned = try c.decodeIfPresent(Int.self, forKey: .scanned) ?? 0
+        nullifiersSeen = try c.decodeIfPresent(Int.self, forKey: .nullifiersSeen) ?? 0
+        leafCms = try c.decodeIfPresent([String].self, forKey: .leafCms) ?? []
+        withdrawals = try c.decodeIfPresent([ShieldedWithdrawal].self, forKey: .withdrawals) ?? []
     }
 
     /// A wallet with a fresh random master key.
@@ -93,6 +146,15 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     /// Unspent notes, in mutez.
     var balanceMutez: UInt64 { notes.filter { !$0.spent }.reduce(0) { $0 &+ $1.value } }
     var balance: Decimal { Decimal(balanceMutez) / Mutez.perTez }
+    /// The nullifiers of notes an unshield in flight will spend.
+    var reservedNullifiers: Set<String> { Set(withdrawals.filter { !$0.applied }.flatMap(\.nullifiers)) }
+    /// Unspent notes no unshield in flight has claimed.
+    var availableNotes: [ShieldedNote] {
+        let reserved = reservedNullifiers
+        return notes.filter { !$0.spent && !reserved.contains($0.nullifier) }
+    }
+    var availableMutez: UInt64 { availableNotes.reduce(0) { $0 &+ $1.value } }
+    var reservedMutez: UInt64 { balanceMutez &- availableMutez }
 
     func address(at index: Int) -> ShieldedAddress? { addresses.first { $0.index == index } }
     func pool(_ pubkeyHash: String) -> DepositPool? { pools.first { $0.pubkeyHash == pubkeyHash } }
@@ -272,6 +334,15 @@ enum ShieldedError: LocalizedError, Equatable {
     case badReply(String)
     case unsupportedWalletVersion(Int)
     case treeMissing(Int)
+    case insufficientShielded(available: UInt64, needed: UInt64)
+    case tooManyInputs(Int)
+    case badRecipient(String)
+    case feeChanged(from: UInt64, to: UInt64)
+    case treeStale
+    case withdrawalUnknown(String)
+    case withdrawalNotReady(String)
+    /// The operator still has it: not a failure, but not delivered within the wait either.
+    case submissionPending(String)
 
     var errorDescription: String? {
         switch self {
@@ -290,6 +361,32 @@ enum ShieldedError: LocalizedError, Equatable {
         case .badReply(let detail): "Unexpected reply from the rollup services: \(detail)"
         case .unsupportedWalletVersion(let version): "The shielded wallet file is version \(version), which this Signet does not read."
         case .treeMissing(let index): "The signing tree of shielded address \(index) is missing and could not be rebuilt."
+        case .insufficientShielded(let available, let needed): "The shielded balance available is \(AssetBalance.format(Decimal(available) / Mutez.perTez, symbol: "tz")), less than the \(AssetBalance.format(Decimal(needed) / Mutez.perTez, symbol: "tz")) the unshield and its fees need."
+        case .tooManyInputs(let count): "That amount would spend \(count) notes; an unshield can spend at most 7. Unshield a smaller amount first."
+        case .badRecipient(let text): "“\(text)” is not a Tezos account (tz1 to tz4 or KT1)."
+        case .feeChanged(let from, let to): "The rollup's fee changed from \(AssetBalance.format(Decimal(from) / Mutez.perTez, symbol: "tz")) to \(AssetBalance.format(Decimal(to) / Mutez.perTez, symbol: "tz")) since the estimate. Nothing was sent; the estimate will be made again."
+        case .treeStale: "The rollup's commitment tree moved while the unshield was being prepared. Nothing was sent; try again."
+        case .withdrawalUnknown(let id): "Withdrawal \(id) is not one of this wallet's."
+        case .withdrawalNotReady(let detail): "This withdrawal cannot be executed on Tezos yet: \(detail)"
+        case .submissionPending(let detail): "The operator has the request but has not delivered it to the rollup yet: \(detail). It stays listed; refresh later."
+        }
+    }
+}
+
+extension Address {
+    /// The address as Michelson forges a `contract`: `00` and the curve tag before an implicit
+    /// account's 20-byte hash, `01` before an originated contract's with a padding byte after.
+    /// What a rollup outbox message names as the receiver of a `burn`.
+    var forgedContract: String? {
+        guard let bytes = Base58.checkDecode(value), bytes.count == 23 else { return nil }
+        let payload = Array(bytes[3...])
+        switch Array(bytes[0..<3]) {
+        case [6, 161, 159]: return Hex.encode([0, 0] + payload)
+        case [6, 161, 161]: return Hex.encode([0, 1] + payload)
+        case [6, 161, 164]: return Hex.encode([0, 2] + payload)
+        case [6, 161, 166]: return Hex.encode([0, 3] + payload)
+        case [2, 90, 121]: return Hex.encode([1] + payload + [0])
+        default: return nil
         }
     }
 }

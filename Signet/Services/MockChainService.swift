@@ -104,6 +104,15 @@ struct MockChainService: ChainService {
         return SentOperation(hash: "ooMockShieldDeposit")
     }
 
+    func estimateOutboxExecution(from wallet: Wallet, execution: OutboxExecution) async throws -> TransferEstimate {
+        TransferEstimate(fee: 0.001234, burn: 0, total: 0.001234, gasLimit: 6000, storageLimit: 0, limits: OperationLimits(feeMutez: "1234", gasLimit: 6000, storageLimit: 0))
+    }
+
+    func sendOutboxExecution(from wallet: Wallet, signer: SigningKey, execution: OutboxExecution, limits: OperationLimits) async throws -> SentOperation {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        return SentOperation(hash: "ooMockOutbox")
+    }
+
     /// Accounts linked so far in this process; a link call adds the sender.
     nonisolated(unsafe) static var linkedAliases: Set<Address> = []
 
