@@ -156,9 +156,9 @@ automatic download is off by default. The updater is not started under the test 
   A backup folder that is the wallet directory, inside it or around it is refused
   (`BackupError.overlapsWallet`).
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys)
-  `NoWalletsView` offers four ways in: import `~/.tezos-client` when one exists (an exact file
-  copy, shown first and highlighted), create a new account, import an existing key or phrase, or
-  connect a Ledger. The merge
+  `NoWalletsView` offers four ways in: create a new account (first and highlighted), import an
+  existing key or phrase, connect a Ledger, or, last and only when one exists, import
+  `~/.tezos-client` (an exact file copy). The merge
   path in `TezosClientStore.importWallets` remains but is not exposed in the menu. The app is
   deliberately not sandboxed so it can reach both directories.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
