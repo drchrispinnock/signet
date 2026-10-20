@@ -73,9 +73,10 @@ struct NFTClassificationTests {
 
         #expect(nfts.map(\.name) == ["United in Baking", "Captain Stake"])
         #expect(nfts[0].id == "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton:634799")
-        // displayUri beats thumbnailUri and artifactUri.
+        // displayUri comes first, then thumbnailUri and the image artifact as fallbacks, one URL per gateway each.
         #expect(nfts[0].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc")
-        #expect(nfts[0].imageURLs.count == IPFS.gateways.count)
+        #expect(nfts[0].imageURLs.count == 3 * IPFS.gateways.count)
+        #expect(nfts[0].imageURLs.map { IPFS.gatewayContentPath(of: $0)?.cid } == (["QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc", "QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP", "Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9"].flatMap { Array(repeating: $0, count: IPFS.gateways.count) }))
         // An image artifact is acceptable when there is nothing else.
         #expect(nfts[1].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmSowixsFjPYXBbZecwPvgEw7TrV4bm6DN7nfJQmNS1ccv")
         #expect(nfts[1].balance == 20)
@@ -105,6 +106,44 @@ struct ImageLoaderTests {
         #expect(small.size.width == 200)
         #expect(small.size.height == 100)
         #expect(ImageLoader.downsample(Data("not an image".utf8), maxPixelSize: 200) == nil)
+    }
+
+    /// A display render over the size cap is over it on every gateway: the loader asks one
+    /// gateway, skips the others for that content and goes on to the thumbnail.
+    @Test func skipsEveryGatewayForContentTooLargeAndFallsBackToTheThumbnail() async throws {
+        let image = NSImage(size: NSSize(width: 40, height: 20), flipped: false) { rect in NSColor.blue.setFill(); rect.fill(); return true }
+        let tiff = try #require(image.tiffRepresentation)
+        let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        let large = "QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc"
+        let small = "QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP"
+        let urls = IPFS.candidateURLs(for: "ipfs://\(large)") + IPFS.candidateURLs(for: "ipfs://\(small)")
+        #expect(urls.count == 2 * IPFS.gateways.count)
+        actor Log { var urls: [URL] = []; func add(_ url: URL) { urls.append(url) } }
+        let log = Log()
+        let loader = ImageLoader(fetch: { url in
+            await log.add(url)
+            if url.path.contains(large) { return .tooLarge }
+            if url.host() == IPFS.gateways[0].host() { return .unavailable }
+            return .data(png)
+        })
+        let loaded = await loader.image(for: urls, maxPixelSize: 100)
+        #expect(loaded?.size.width == 40)
+        // One request for the large content, then the thumbnail on the first gateway that serves it.
+        let asked = await log.urls
+        #expect(asked.count == 3)
+        #expect(asked.filter { $0.path.contains(large) }.count == 1)
+        #expect(asked.last?.host() == IPFS.gateways[1].host())
+    }
+
+    /// Collect United's display renders are 11 MB PNGs with 200 KB thumbnails (found on
+    /// tz1gUCWWwmwEpc7eVd4NHy3UhL28K4j9L6jy): the tile must come from the thumbnail.
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(2)))
+    func loadsATooLargeDisplayRenderByItsThumbnail() async {
+        let urls = IPFS.candidateURLs(for: "ipfs://QmdK2YTx3mdAytcncXWt6gzYrXPtWcVFT9V3dUvZXj1kdf")
+            + IPFS.candidateURLs(for: "ipfs://QmRHZdk1MY1sarQ5cDu45bZ5UM2x68AV3owh1YxWfajhdQ")
+        let image = await ImageLoader().image(for: urls, maxPixelSize: 100)
+        #expect(image != nil)
+        #expect((image?.size.width ?? 0) <= 100)
     }
 
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))

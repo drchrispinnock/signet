@@ -16,19 +16,39 @@ actor ImageLoader {
     static let maxBytes = 8 << 20
     static let maxConcurrent = 6
 
+    /// What one download attempt came to.
+    enum Fetch: Sendable {
+        case data(Data)
+        /// The content is larger than `maxBytes`: it will be on every gateway, so the other
+        /// URLs naming the same IPFS content are not worth a request.
+        case tooLarge
+        /// Refused, unreachable, rate-limited or not an image: the next URL may still work.
+        case unavailable
+    }
+
     private let cache = NSCache<NSString, NSImage>()
-    private let downloader: @Sendable (URL) async -> Data?
+    private let fetcher: @Sendable (URL) async -> Fetch
     private var inFlight: [String: Task<NSImage?, Never>] = [:]
     private var active = 0
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    init(download: (@Sendable (URL) async -> Data?)? = nil) {
-        downloader = download ?? { await ImageLoader.download($0) }
+    init(fetch: (@Sendable (URL) async -> Fetch)? = nil) {
+        fetcher = fetch ?? { await ImageLoader.fetch($0) }
         cache.countLimit = 300
         cache.totalCostLimit = 96 << 20
     }
 
-    /// Tries `candidates` in order; returns the first that yields a decodable image.
+    /// A loader whose downloads are answered by `download` (`nil` is `unavailable`); for tests.
+    init(download: @escaping @Sendable (URL) async -> Data?) {
+        self.init(fetch: { url in
+            if let data = await download(url) { .data(data) } else { .unavailable }
+        })
+    }
+
+    /// Tries `candidates` in order; returns the first that yields a decodable image. The
+    /// candidates are a token's images best first, one URL per gateway for each (display
+    /// render, then thumbnail, then artifact): when a gateway says the content is too large,
+    /// every other gateway's copy of that content is skipped and the next image is tried.
     func image(for candidates: [URL], maxPixelSize: Int = 400) async -> NSImage? {
         guard let key = candidates.first?.absoluteString else { return nil }
         if let cached = cache.object(forKey: key as NSString) { return cached }
@@ -39,11 +59,20 @@ actor ImageLoader {
         let task = Task<NSImage?, Never> {
             await self.acquireSlot()
             defer { self.releaseSlot() }
+            var tooLarge: [IPFS.ContentPath] = []
             for url in candidates {
                 guard !Task.isCancelled else { return nil }
                 guard EndpointPolicy.isPublicHTTPS(url) else { continue }
-                guard let data = await downloader(url) else { continue }
-                if let image = Self.downsample(data, maxPixelSize: maxPixelSize) { return image }
+                let content = IPFS.gatewayContentPath(of: url)
+                if let content, tooLarge.contains(content) { continue }
+                switch await fetcher(url) {
+                case .data(let data):
+                    if let image = Self.downsample(data, maxPixelSize: maxPixelSize) { return image }
+                case .tooLarge:
+                    if let content { tooLarge.append(content) }
+                case .unavailable:
+                    continue
+                }
             }
             return nil
         }
@@ -81,13 +110,17 @@ actor ImageLoader {
         return type.hasPrefix("image/") || type == "application/octet-stream" || type == "application/xml" || type == "text/xml" || type.isEmpty
     }
 
-    /// Downloads `url` with the per-task policy delegate; `nil` on any refusal or failure.
-    private static func download(_ url: URL) async -> Data? {
+    /// Downloads `url` through the pinned public client; `unavailable` on any refusal or
+    /// failure, `tooLarge` when the content passes `maxBytes` (curl stops at the declared
+    /// length before a byte of the body, or while it streams).
+    private static func fetch(_ url: URL) async -> Fetch {
         do {
             let reply = try await PublicHTTPClient.data(for: URLRequest(url: url), limit: maxBytes, followRedirects: true)
-            guard acceptsResponse(status: reply.status, contentType: reply.headers["content-type"], contentLength: Int64(reply.data.count)) else { return nil }
-            return reply.data
-        } catch { return nil }
+            guard acceptsResponse(status: reply.status, contentType: reply.headers["content-type"], contentLength: Int64(reply.data.count)) else { return .unavailable }
+            return .data(reply.data)
+        } catch let error as URLError where error.code == .dataLengthExceedsMaximum {
+            return .tooLarge
+        } catch { return .unavailable }
     }
 
     /// Decodes at most `maxPixelSize` on the long edge so a grid of large artworks stays cheap.

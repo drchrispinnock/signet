@@ -118,6 +118,10 @@ enum PublicHTTPClient {
         }
         process.waitUntilExit()
         try cancellation.check()
+        // curl exits 63 when the declared or streamed size passes max-filesize: the content is
+        // too large wherever it is fetched from, which callers may treat differently from a
+        // gateway that could not be reached.
+        guard process.terminationStatus != 63 else { throw URLError(.dataLengthExceedsMaximum) }
         guard process.terminationStatus == 0 else { throw URLError(.cannotLoadFromNetwork) }
         return try decode(bytes, limit: limit)
     }
