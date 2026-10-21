@@ -14,7 +14,7 @@
 180-multisig.md
 190-baking.md
 200-etherlink.md
-210-shield.md
+#210-shield.md
 250-whatscoming.md
 900-backmatter.md
 910-apx-ownnode.md
