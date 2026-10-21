@@ -188,9 +188,11 @@ struct StakingSheet: View {
             HStack {
                 TextField("Amount", text: $amountText, prompt: Text("0.0")).font(.body.monospacedDigit())
                 Text("tz").foregroundStyle(.secondary)
-                Button("Max") {
-                    let max = kind == .stake ? max(0, (balance?.spendable ?? 0) - Decimal(string: "0.01")!) : (balance?.staked ?? 0)
-                    amountText = NSDecimalNumber(decimal: max).stringValue
+                // No Max for staking: the fee comes out of the spendable balance, so staking all
+                // of it (or all but a guess at the fee) fails or leaves the account unusable.
+                // Unstaking everything is fine, since the fee is paid from the spendable part.
+                if kind == .unstake {
+                    Button("Max") { amountText = NSDecimalNumber(decimal: balance?.staked ?? 0).stringValue }
                 }
             }
             LabeledContent(kind == .stake ? "Spendable" : "Staked", value: AssetBalance.format(kind == .stake ? (balance?.spendable ?? 0) : (balance?.staked ?? 0), symbol: "tz"))
