@@ -23,6 +23,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    # A hung step fails the run instead of holding the runner for GitHub's six-hour limit.
+    timeout-minutes: 45
     env:
       # The secrets context cannot be used in step `if`s, so surface presence as job env.
       HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.DEVELOPER_ID != '' }}
@@ -59,6 +61,11 @@ jobs:
           curl -sSfO https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
           security import DeveloperIDG2CA.cer -k build.keychain
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          # A new keychain locks itself after 300 s of inactivity, and a locked keychain makes
+          # codesign wait for a password prompt that never comes: the 0.9.6 archive hung for
+          # two hours twice, because the test step before it had grown past five minutes. Keep
+          # it unlocked for the whole job (no lock on sleep, six-hour timeout).
+          security set-keychain-settings -lut 21600 build.keychain
           rm cert.p12
           echo "DEVELOPER_ID=${{ secrets.DEVELOPER_ID }}" >> "$GITHUB_ENV"
 
