@@ -328,7 +328,17 @@ struct ShadownetDAppPrepareTests {
         let sent = try await TaquitoBridge.shared.call("octezConnectExecute", [rpc.absoluteString, signer.bridgeSpec, prepared])
         let hash = try #require(sent["hash"]?.stringValue)
         print("dApp batch \(hash)")
+        // S15: the signed bytes are on record until the operation is seen in a block, and no
+        // second operation from the account may be signed meanwhile. The block watcher is what
+        // clears the record; DAppConnectionManager runs it after every execution and waits for
+        // it before the next one, so a dApp's back-to-back operations go through.
+        #expect(try TaquitoBridge.shared.operationJournal.read().contains(hash))
+        await #expect(throws: (any Error).self, "a second operation must wait for the block") {
+            try await TaquitoBridge.shared.call("octezConnectExecute", [rpc.absoluteString, signer.bridgeSpec, prepared])
+        }
         _ = try await chain.waitForConfirmation(of: hash)
+        #expect(!(try TaquitoBridge.shared.operationJournal.read().contains(hash)))
+        #expect(try await chain.pendingOperation(for: wallet.address) == nil)
         #expect(try await chain.tezBalance(for: Address(recipient.address)).spendable == 1)
         #expect(try await chain.delegateInfo(for: wallet.address).delegate?.value == baker)
     }
