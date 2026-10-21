@@ -141,6 +141,7 @@
 		C94B8B23BB3A0B92843414C5 /* AccountAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B7EAC88691E2C2CC72CA41F /* AccountAvatarView.swift */; };
 		CAACE4F7F93B951CEBA5DC00 /* AddAddressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */; };
 		CB80BBF7F6376C6654FF32D6 /* WalletBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D55C4D86A1145ACAF063447D /* WalletBackup.swift */; };
+		CC416E163124554D18F60393 /* ArtworkCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */; };
 		CEA73B444F784FD76B29360A /* StakingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F6224B138E3946294DCF2F /* StakingTests.swift */; };
 		D00A61ADCB828C0F5819423F /* AuditRepairTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */; };
 		D040B3DBCE102CE52E93484E /* PublicHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */; };
@@ -155,6 +156,7 @@
 		DD55FDBEC099D83C97895445 /* GovernanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */; };
 		DD999C456935284E5FC4DDFF /* NodeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD76C823B36485828A3E50A5 /* NodeMonitor.swift */; };
 		DE6242C7123257F1E4BFA919 /* FaucetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED1010B47F417371C6C455 /* FaucetService.swift */; };
+		DF7BCF4269CA7D56B03497B0 /* ArtworkCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */; };
 		E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7070B3A5754283DA58F7D /* SettingsView.swift */; };
 		E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A977FC2E863E73A21EF39F /* SendViewModel.swift */; };
 		E428724605E404E9B227878E /* DAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F940745F8842D7E206AB1B3D /* DAppRequest.swift */; };
@@ -206,6 +208,7 @@
 		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
 		201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectEndToEnd.swift; sourceTree = "<group>"; };
 		2480FCA7277757AFED969B9B /* EndpointPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointPolicy.swift; sourceTree = "<group>"; };
+		26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCache.swift; sourceTree = "<group>"; };
 		26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TzKTService.swift; sourceTree = "<group>"; };
 		278776717D4BD5F05FF06B65 /* NFTGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTGridView.swift; sourceTree = "<group>"; };
 		2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendShieldedSheet.swift; sourceTree = "<group>"; };
@@ -217,6 +220,7 @@
 		3C28E33024C38536C06397DB /* LedgerKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerKey.swift; sourceTree = "<group>"; };
 		3E46F73256A892AA7016BC04 /* DAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppTests.swift; sourceTree = "<group>"; };
 		3ED923E5AE3EE96BE5D624FB /* GovernanceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GovernanceSheet.swift; sourceTree = "<group>"; };
+		3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCacheTests.swift; sourceTree = "<group>"; };
 		41A0D0255843FAE3AF79D460 /* LedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerTests.swift; sourceTree = "<group>"; };
 		41AADDEDE2F5B7EE9F4DFF8F /* OctezConnectCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectCryptoTests.swift; sourceTree = "<group>"; };
 		42FFEDDCB3BE24F2E5C54DE0 /* Governance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Governance.swift; sourceTree = "<group>"; };
@@ -466,6 +470,7 @@
 			children = (
 				83072D0DF452B9C3626CC42E /* AddressBookTests.swift */,
 				CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */,
+				3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */,
 				A7347B803D9BD4E4E863D671 /* ArtworkPolicyTests.swift */,
 				31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */,
 				57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */,
@@ -548,6 +553,7 @@
 			children = (
 				046B82438F96A071EF2BC434 /* Appearance.swift */,
 				CD834C06F49658A295BADA09 /* AppStateStore.swift */,
+				26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */,
 				D47811A27E6DCA933C13141F /* Blake2s.swift */,
 				7CFFCC07C40D3228BDBE387C /* BoundedHTTP.swift */,
 				6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */,
@@ -748,6 +754,7 @@
 				8D9405F75AAB8B8C0884DA0B /* AddressScheme.swift in Sources */,
 				58532C6573A1A3FB460EA85A /* AppStateStore.swift in Sources */,
 				07D7E4480040CCD4175347AC /* Appearance.swift in Sources */,
+				CC416E163124554D18F60393 /* ArtworkCache.swift in Sources */,
 				13354E2B7B8C14D263838D0A /* AssetBalance.swift in Sources */,
 				3AFF0D10060A8DBD9DA6D1CB /* AssetListView.swift in Sources */,
 				28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */,
@@ -861,6 +868,7 @@
 			files = (
 				C1520149D8096C061FFD673F /* AddressBookTests.swift in Sources */,
 				31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */,
+				DF7BCF4269CA7D56B03497B0 /* ArtworkCacheTests.swift in Sources */,
 				145E0B88B61BD0E4C096F15E /* ArtworkPolicyTests.swift in Sources */,
 				D00A61ADCB828C0F5819423F /* AuditRepairTests.swift in Sources */,
 				7C90079CDB99B2DB05EEBE1F /* AuditRepairTests2.swift in Sources */,
