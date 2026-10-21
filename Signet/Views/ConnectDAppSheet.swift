@@ -31,8 +31,9 @@ struct ConnectDAppSheet: View {
 
             Form {
                 Section {
-                    TextField("Pairing code", text: $code, prompt: Text("Paste the code from the dApp"), axis: .vertical)
-                        .lineLimit(3...5)
+                    // Masked like a password: whoever holds the code can pair their own wallet
+                    // with that dApp session, so it should not sit readable on screen.
+                    SecureField("Pairing code", text: $code, prompt: Text("Paste the code from the dApp"))
                         .font(.callout.monospaced())
                         .autocorrectionDisabled()
                     Text("In the dApp choose Octez Connect (or Beacon), then “Pair wallet on another device” and copy the code. Signet connects over the Tezos relay; the dApp can be in any browser.")

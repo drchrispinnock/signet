@@ -323,7 +323,8 @@ automatic download is off by default. The updater is not started under the test 
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
   Pairing is Umami-style: the user pastes the dApp's "pair wallet on another device" code
-  (`ConnectDAppSheet`, "dApps…" in the burger and Operations menus, Cmd-Shift-D), or a `signet://?type=tzip10&data=<code>` link
+  (`ConnectDAppSheet`, "dApps…" in the burger and Operations menus, Cmd-Shift-D; the field is
+  a `SecureField`, since the code lets its holder pair any wallet with that dApp session), or a `signet://?type=tzip10&data=<code>` link
   opens the app (the `signet` URL scheme is registered in Info.plist; `DAppPairingLink.code(from:)`
   parses it, `WalletViewModel.handleIncomingURL` stores it in `pendingPairingCode` and the sheet
   pairs with it and dismisses itself when the dApp's first request arrives, since only one sheet
