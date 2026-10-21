@@ -18,6 +18,7 @@ final class DAppConnectionManager {
         case unsupportedNetwork(String)
         case refusedPayload(String)
         case notGranted(String)
+        case previousUnconfirmed(hash: String)
 
         var errorDescription: String? {
             switch self {
@@ -26,9 +27,14 @@ final class DAppConnectionManager {
             case .unsupportedNetwork(let type): "The dApp wants the “\(type)” network, which Signet does not have."
             case .refusedPayload(let why): why
             case .notGranted(let why): why
+            case .previousUnconfirmed(let hash): "The account's previous operation, \(hash.prefix(12))…, has not been seen in a block yet. Wait a moment and approve again, or open Send to watch or resend it."
             }
         }
     }
+
+    /// Watches an operation until it is in a block, on the chain service for `network`, and
+    /// returns the block level. The watcher is what clears the operation's recovery record (S15).
+    typealias Confirmation = @MainActor (_ hash: String, _ network: Network) async throws -> Int
 
     /// Where a pairing stands: the dApp has to join the relay room before it can ask anything.
     enum PairingState: Equatable, Sendable {
@@ -48,6 +54,9 @@ final class DAppConnectionManager {
     /// Something to show briefly after a request completes, e.g. "Sent ooABC…".
     private(set) var lastOutcome: String?
     private(set) var pairing: PairingState = .idle
+    /// The account's previous operation an approval is waiting to see in a block before it
+    /// signs the next one; `nil` when nothing is being waited for.
+    private(set) var awaitingHash: String?
     /// Requests whose work is done (operation injected, message signed, permission chosen) but
     /// whose reply the dApp has not received yet: id → the reply to resend (S17).
     private(set) var undelivered: [String: UndeliveredReply] = [:]
@@ -64,6 +73,9 @@ final class DAppConnectionManager {
     private let walletsProvider: @MainActor () -> [Wallet]
     private let permissionLoader: (@MainActor () async throws -> [DAppPermission])?
     private let signerProvider: @MainActor (Wallet, String?) throws -> SigningKey?
+    private let confirmation: Confirmation?
+    /// Running watchers by operation hash, so one operation is never watched twice.
+    private var watchers: [String: Task<Int, Error>] = [:]
     private var startTask: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
     private var sessionGeneration = UUID()
@@ -77,12 +89,14 @@ final class DAppConnectionManager {
          storage: any BridgeStorage,
          diagnostics: Bool = false,
          permissionLoader: (@MainActor () async throws -> [DAppPermission])? = nil,
+         confirmation: Confirmation? = nil,
          wallets: @escaping @MainActor () -> [Wallet],
          signer: @escaping @MainActor (Wallet, String?) throws -> SigningKey?) {
         self.bridge = bridge
         self.storage = storage
         self.diagnostics = diagnostics
         self.permissionLoader = permissionLoader
+        self.confirmation = confirmation
         self.walletsProvider = wallets
         self.signerProvider = signer
     }
@@ -373,9 +387,13 @@ final class DAppConnectionManager {
             _ = try await grant(for: request)
             let (wallet, signer) = try signer(for: source, passphrase: passphrase)
             guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
+            try await settlePrevious(from: source, on: network)
             let result = try await bridge.sign("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, prepared.preparedJSON, network.expectedChainID ?? NSNull()])
             guard let hash = result["hash"]?.stringValue, !hash.isEmpty else { throw TaquitoBridge.BridgeError.javaScript("no operation hash") }
             let injected = result["injected"]?.boolValue ?? true
+            // Watch it into a block in the background: that clears its recovery record, so the
+            // account's next operation (from this dApp or Send) is not held up by it.
+            _ = watch(hash, on: network)
             let summary = injected ? "Sent \(hash.prefix(12))… for “\(request.app.name)” from \(wallet.alias)"
                 : "Signed \(hash.prefix(12))… for “\(request.app.name)”; the node's answer was lost, so check the explorer before retrying"
             await deliver(request, ["type": "operation_response", "id": id, "transactionHash": hash], summary: summary)
@@ -454,6 +472,35 @@ final class DAppConnectionManager {
         }
     }
 
+    // MARK: Confirmation (S15)
+
+    /// dApps send operations back to back (an approval, then the swap). The signed bytes of
+    /// the last one stay on record until it is seen in a block, and nothing else may be signed
+    /// for that account meanwhile, so an approval waits here for that block and then goes on,
+    /// instead of failing and sending the user to Send. The wait is the one place that may
+    /// take a while; `awaitingHash` tells the sheet what it is waiting for.
+    private func settlePrevious(from source: Address, on network: Network) async throws {
+        let value = try await bridge.call("pendingOperation", [network.rpcURL.absoluteString, source.value], timeout: 30)
+        guard value != .null, let hash = value["hash"]?.stringValue, !hash.isEmpty else { return }
+        guard let watcher = watch(hash, on: network) else { throw ConnectError.previousUnconfirmed(hash: hash) }
+        awaitingHash = hash
+        defer { awaitingHash = nil }
+        do { _ = try await watcher.value }
+        catch { throw ConnectError.previousUnconfirmed(hash: hash) }
+    }
+
+    /// The watcher for `hash`, started if none is running; `nil` without a confirmation service.
+    private func watch(_ hash: String, on network: Network) -> Task<Int, Error>? {
+        guard let confirmation else { return nil }
+        if let running = watchers[hash] { return running }
+        let task = Task { [weak self] in
+            defer { self?.watchers[hash] = nil }
+            return try await confirmation(hash, network)
+        }
+        watchers[hash] = task
+        return task
+    }
+
     // MARK: Helpers
 
     /// The wallet for `source` and what signs for it.
@@ -509,9 +556,10 @@ final class DAppConnectionManager {
 
     /// Errors the user can fix and try again without the dApp hearing about it.
     private static func isRetryable(_ error: Error) -> Bool {
+        if case ConnectError.previousUnconfirmed = error { return true }
         switch known(error) {
-        case .wrongPassphrase, .ledgerDeclined, .ledgerAppNotOpen, .ledgerLocked, .ledgerNotConnected: true
-        default: false
+        case .wrongPassphrase, .ledgerDeclined, .ledgerAppNotOpen, .ledgerLocked, .ledgerNotConnected: return true
+        default: return false
         }
     }
 

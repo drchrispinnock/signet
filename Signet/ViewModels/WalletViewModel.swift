@@ -561,6 +561,13 @@ final class WalletViewModel {
         return DAppConnectionManager(
             bridge: bridge, storage: storage,
             diagnostics: dappDiagnostics,
+            // The block watcher runs on the chain service (the shared bridge, whose journal the
+            // dApp bridge shares), never on the dApp bridge: a read that times out discards its
+            // context, which must not take the Octez Connect session with it.
+            confirmation: { [unowned self] hash, network in
+                let service = network == self.network ? self.chain : self.chainFactory(network)
+                return try await service.waitForConfirmation(of: hash)
+            },
             wallets: { [unowned self] in self.wallets },
             signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
         )

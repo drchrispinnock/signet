@@ -283,6 +283,7 @@ struct DAppRequestSheet: View {
     }
 
     private var workingText: String {
+        if let hash = dapps.awaitingHash { return "Waiting for the previous operation \(hash.prefix(10))… to reach a block…" }
         let onLedger = sourceWallet?.keyKind == .ledger
         switch request {
         case .operation: return onLedger ? "Confirm on your Ledger…" : "Signing and sending…"

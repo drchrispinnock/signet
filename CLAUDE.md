@@ -346,7 +346,15 @@ automatic download is off by default. The updater is not started under the test 
   passphrase:)` executes `preparedJSON` through `octezConnectExecute`, which refuses any batch
   whose operations lack fee, gas and storage. Execution locally forges those frozen contents,
   verifies the source and reveal key, signs and preapplies them, then injects without rebuilding
-  or re-estimating (password for encrypted keys, Ledger approval on the device). `ShadownetDAppPrepareTests` is the live prepare-then-execute round trip.
+  or re-estimating (password for encrypted keys, Ledger approval on the device). After
+  injection the manager watches the operation into a block on the chain service (the
+  `confirmation` closure `WalletViewModel.makeDApps` passes; the shared bridge, whose
+  operation journal the dApp bridge shares), which clears its S15 recovery record; before
+  signing, `settlePrevious` waits for any record still open for that account (dApps send
+  operations back to back, and the record blocks the next signing) and the sheet says what it
+  is waiting for (`awaitingHash`), so the user is never sent to Send to clear it. The watcher
+  must not run on the dApp bridge: a read timeout there would discard the Octez Connect
+  session. `ShadownetDAppPrepareTests` is the live prepare-then-execute round trip.
   A sign_payload is only accepted
   when its type is `micheline` and the hex is `05` followed by exactly one well-formed Micheline
   expression (`MichelineBinary`, a strict reader of the binary encoding; the bridge's
