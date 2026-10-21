@@ -30,7 +30,8 @@ Simply because I haven't attempted a project in Swift using AI before. All the c
 - Native multisig accounts (compatible with octez-client)
 - Basic explorer - transactions, assets and NFTs
 - Session-only key store
-- Etherlink support. Transactions between tz addresses.
+- Etherlink support. Transactions between tz addresses. 
+- Early experimental Tzel support on shadownet
 
 ### Will it steal my keys?
 
@@ -42,5 +43,6 @@ Ping me and we can queue it up. Work on this will be between other things and mi
 
 ### This is only on Macs right? What about other platforms
 
-There might be a Windows version soon. There might also be a Linux version tool. 
+There are other sorts of computers? What are they then? How quaint? Only kidding. There might be a Windows version soon. There might also be a Linux version tool. 
+
 Claude tells me I can turn this into an iOS app. I would probably have to remove a few things such as "Buy" to get it into the app store.
