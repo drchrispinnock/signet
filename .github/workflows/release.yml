@@ -4,10 +4,11 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-# Pushing a tag like v0.2 builds the app and attaches Signet-0.2.zip to a GitHub release, plus
-# appcast.xml so running copies of Signet find the update (Sparkle reads
-# releases/latest/download/appcast.xml). The appcast is signed with the SPARKLE_PRIVATE_KEY
-# secret (the output of Sparkle's `generate_keys -x`); publication requires this key.
+# Pushing a tag like v0.2 builds the app and attaches Signet-0.2.zip and Signet-0.2.dmg to a
+# GitHub release, plus appcast.xml so running copies of Signet find the update (Sparkle reads
+# releases/latest/download/appcast.xml and downloads the zip; the disk image is for people).
+# The appcast is signed with the SPARKLE_PRIVATE_KEY secret (the output of Sparkle's
+# `generate_keys -x`); publication requires this key.
 #
 # Fail closed (S25): the release is created as a draft, so `releases/latest` never points at a
 # release whose build failed or whose assets are incomplete; it is published only after the zip
@@ -116,7 +117,7 @@ jobs:
           mkdir -p dist
           gh release view "$GITHUB_REF_NAME" --json body --jq .body > "dist/Signet-${GITHUB_REF_NAME#v}.md"
 
-      - name: Build release zip and appcast
+      - name: Build release zip, disk image and appcast
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           SPARKLE_APPCAST: '1'
@@ -126,7 +127,7 @@ jobs:
         # With the Sparkle key configured, a release without its appcast would silently stop
         # updates: refuse to publish it.
         run: |
-          ls dist/Signet-*.zip
+          ls dist/Signet-*.zip dist/Signet-*.dmg
           if [ ! -s dist/appcast.xml ]; then
             echo "::error::SPARKLE_PRIVATE_KEY is set but no appcast.xml was produced"; exit 1
           fi
@@ -135,11 +136,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         # --clobber so a rerun replaces the assets (the appcast's signature must match the zip it
-        # sits beside). Both are attached before the release becomes visible.
+        # sits beside). All three are attached before the release becomes visible.
         run: |
           [ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = "true" ] || {
             echo "::error::Release was published before asset upload; refusing mutation"; exit 1; }
-          gh release upload "$GITHUB_REF_NAME" "dist/Signet-${GITHUB_REF_NAME#v}.zip" dist/appcast.xml --clobber
+          gh release upload "$GITHUB_REF_NAME" \
+            "dist/Signet-${GITHUB_REF_NAME#v}.zip" "dist/Signet-${GITHUB_REF_NAME#v}.dmg" \
+            dist/appcast.xml --clobber
 
       - name: Publish the release
         # Only now does releases/latest (and so the update feed) move to this version.

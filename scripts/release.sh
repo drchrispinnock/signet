@@ -17,9 +17,10 @@
 # Without DEVELOPER_ID the app is ad-hoc signed: it runs locally and for testers who right-click
 # and choose Open, but Gatekeeper will warn anyone who simply double-clicks a download.
 #
-# Output: dist/Signet-<version>.zip and dist/appcast.xml (the Sparkle feed, pointing at the zip on
-# the GitHub release for this version). A dist/Signet-<version>.md, if present, becomes the
-# release notes shown in the update dialog.
+# Output: dist/Signet-<version>.zip, dist/Signet-<version>.dmg and dist/appcast.xml (the Sparkle
+# feed, pointing at the zip on the GitHub release for this version; the disk image is for people
+# downloading by hand and is never an update enclosure). A dist/Signet-<version>.md, if present,
+# becomes the release notes shown in the update dialog.
 set -eu
 # Keep a failing command's status when its output is piped (zip/notarise/du below).
 set -o pipefail
@@ -41,11 +42,12 @@ WORK="build/release"
 ARCHIVE="$WORK/Signet.xcarchive"
 APP="$WORK/Signet.app"
 ZIP="$DIST/Signet-$VERSION.zip"
+DMG="$DIST/Signet-$VERSION.dmg"
 PACKAGES="build/packages"   # SPM checkouts; the Sparkle artifact carries generate_appcast
 REPO_URL="https://github.com/drchrispinnock/signet"
 
 echo "==> Signet $VERSION (build $BUILD_NUMBER)"
-rm -rf "$WORK" "$ZIP" "$DIST/appcast.xml" "$DIST/old_updates"
+rm -rf "$WORK" "$ZIP" "$DMG" "$DIST/appcast.xml" "$DIST/old_updates"
 mkdir -p "$DIST"
 
 if ! [ -d Signet.xcodeproj ]; then
@@ -95,6 +97,27 @@ if [ -n "${NOTARY_PROFILE:-}" ]; then
 fi
 
 echo "==> $(du -h "$ZIP" | cut -f1) $ZIP"
+
+# Disk image for the release page: the (by now stapled) app beside an Applications link, so a
+# first install is drag and drop. Sparkle keeps updating from the zip; only the zip is offered to
+# generate_appcast below, so the image never becomes an update enclosure.
+echo "==> Disk image"
+DMG_ROOT="$WORK/dmg"
+rm -rf "$DMG_ROOT"; mkdir -p "$DMG_ROOT"
+cp -R "$APP" "$DMG_ROOT/"
+ln -s /Applications "$DMG_ROOT/Applications"
+hdiutil create -quiet -volname "Signet $VERSION" -srcfolder "$DMG_ROOT" -fs HFS+ -format UDZO \
+  -ov "$DMG"
+if [ -n "${DEVELOPER_ID:-}" ]; then
+  codesign --force --timestamp --sign "$DEVELOPER_ID" "$DMG"
+  if [ -n "${NOTARY_PROFILE:-}" ]; then
+    echo "==> Notarising the disk image"
+    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+    xcrun stapler staple "$DMG"
+  fi
+fi
+hdiutil verify -quiet "$DMG"
+echo "==> $(du -h "$DMG" | cut -f1) $DMG"
 
 # Sparkle appcast: one item for this release, signed with the EdDSA key, downloading from the
 # GitHub release's assets. Release notes come from dist/Signet-<version>.md when the workflow
