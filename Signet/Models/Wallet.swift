@@ -60,6 +60,10 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     /// A paper key imported for this run only: its secret is in memory (`SessionKeyStore`), not
     /// in the wallet directory, and is gone when Signet quits.
     var isSessionOnly = false
+    /// The BLS proof of possession a tz4 account's reveal carries (`BLsig…`, the key's signature
+    /// over its own public key), once made with the secret key. Only an estimate for an
+    /// unrevealed tz4 account needs it; it is never stored (the reveal publishes it on chain).
+    var proofOfPossession: String?
 
     init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil) {
         self.alias = alias

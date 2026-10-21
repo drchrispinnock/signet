@@ -29,14 +29,34 @@ export async function signerFor(spec) {
   }
 }
 
-/** A signer that can identify the source but never sign: enough for estimation. */
+/**
+ * A signer that can identify the source but never sign: enough for estimation.
+ *
+ * Revealing a tz4 (BLS) account carries a proof of possession, a BLS signature over the public
+ * key that only the secret key can make, and the node verifies it even when simulating, so
+ * Taquito asks the signer for it while it prepares the reveal of an unrevealed tz4 account,
+ * even to estimate. `publicKey` may therefore be `{ publicKey, proof }`, the proof made earlier
+ * by `provePossession`; without one the estimate fails with "proof of possession required",
+ * which Swift turns into `ChainError.proofOfPossessionRequired` and answers by making the proof.
+ */
 export function readOnlySigner(publicKey, address) {
-  return {
+  let proof;
+  if (publicKey && typeof publicKey === "object") ({ publicKey, proof } = publicKey);
+  const signer = {
     publicKey: async () => publicKey,
     publicKeyHash: async () => address,
     secretKey: async () => undefined,
     sign: async () => { throw new Error("read-only signer cannot sign"); },
   };
+  if (typeof address === "string" && address.startsWith("tz4")) {
+    signer.provePossession = async () => {
+      if (typeof proof !== "string" || !proof.startsWith("BLsig")) {
+        throw new Error("Revealing this tz4 account needs its key's proof of possession (proof of possession required)");
+      }
+      return { bytes: "", sig: proof, prefixSig: proof };
+    };
+  }
+  return signer;
 }
 
 /** True for signers that need the user to act on a device. */

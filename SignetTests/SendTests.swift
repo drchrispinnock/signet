@@ -210,6 +210,88 @@ struct SendOutcomeTests {
         func bump() { count += 1 }
     }
 
+    /// A chain that needs a tz4 sender's proof of possession before it can estimate (an
+    /// unrevealed BLS account) and records every estimate's wallet.
+    final class ProofChain: TestChainService, @unchecked Sendable {
+        var estimated: [Wallet] = []
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 100, staked: 0) }
+        func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
+            estimated.append(wallet)
+            guard wallet.proofOfPossession == "BLsigProof" else { throw ChainError.proofOfPossessionRequired }
+            return TransferEstimate(fee: 0.001, burn: 0, total: amount + 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0))
+        }
+    }
+
+    static let bls = Wallet(alias: "BLS", address: Address("tz4E128TU3t1TdLCJEY4oHg8gZzZNoNBknwh"), publicKey: "BLpkTest", keyKind: .unencrypted)
+
+    @Test func makesTheProofOfPossessionAnUnrevealedTz4SenderNeeds() async throws {
+        let chain = ProofChain()
+        let proofRequests = Counter()
+        let send = SendViewModel(sender: Self.bls, wallets: [SendViewModelTests.alice], chain: chain, spendable: 100,
+                                 signerProvider: { w, _ in .secret("BLskSECRET", passphrase: nil, address: w.address) },
+                                 proofProvider: { w, passphrase in proofRequests.bump(); #expect(passphrase == nil); return "BLsigProof" })
+        send.choose(SendViewModelTests.alice)
+        try await Task.sleep(for: .milliseconds(300))
+        send.amountText = "1"
+        await send.proceedToConfirm()
+        #expect(send.step == .confirm)
+        #expect(send.errorMessage == nil)
+        #expect(proofRequests.count == 1)
+        #expect(chain.estimated.map(\.proofOfPossession) == [nil, "BLsigProof"])
+        #expect(send.sender.proofOfPossession == "BLsigProof")
+        #expect(!send.needsPassphraseForProof)
+    }
+
+    @Test func asksForThePasswordBeforeProvingPossessionWithAnEncryptedTz4Key() async throws {
+        let chain = ProofChain()
+        var vault = Self.bls
+        vault.keyKind = .encrypted
+        let proofRequests = Counter()
+        let send = SendViewModel(sender: vault, wallets: [SendViewModelTests.alice], chain: chain, spendable: 100,
+                                 signerProvider: { w, p in .secret("BLeskSECRET", passphrase: p, address: w.address) },
+                                 proofProvider: { w, passphrase in
+                                     proofRequests.bump()
+                                     guard passphrase == "open sesame" else { throw ChainError.wrongPassphrase }
+                                     return "BLsigProof"
+                                 })
+        send.choose(SendViewModelTests.alice)
+        try await Task.sleep(for: .milliseconds(300))
+        send.amountText = "1"
+        // Without the password the sheet stays on compose and asks for it; the key is not touched.
+        await send.proceedToConfirm()
+        #expect(send.step == .compose)
+        #expect(send.needsPassphraseForProof)
+        #expect(send.errorMessage == SendViewModel.SendError.proofNeedsPassphrase.localizedDescription)
+        #expect(proofRequests.count == 0)
+        #expect(!send.canProceed)
+        // A wrong password is reported as such.
+        send.passphrase = "wrong"
+        #expect(send.canProceed)
+        await send.proceedToConfirm()
+        #expect(send.step == .compose)
+        #expect(send.errorMessage == ChainError.wrongPassphrase.localizedDescription)
+        #expect(proofRequests.count == 1)
+        // The right one makes the proof, estimates and moves on; the confirm step keeps it for signing.
+        send.passphrase = "open sesame"
+        await send.proceedToConfirm()
+        #expect(send.step == .confirm)
+        #expect(!send.needsPassphraseForProof)
+        #expect(send.passphrase == "open sesame")
+        #expect(chain.estimated.map(\.proofOfPossession) == [nil, nil, nil, "BLsigProof"])
+    }
+
+    /// Without a way to make the proof the estimate's error is shown as it is.
+    @Test func reportsAMissingProofWhenNoneCanBeMade() async throws {
+        let send = SendViewModel(sender: Self.bls, wallets: [SendViewModelTests.alice], chain: ProofChain(), spendable: 100,
+                                 signerProvider: { w, _ in .secret("BLskSECRET", passphrase: nil, address: w.address) })
+        send.choose(SendViewModelTests.alice)
+        try await Task.sleep(for: .milliseconds(300))
+        send.amountText = "1"
+        await send.proceedToConfirm()
+        #expect(send.step == .compose)
+        #expect(send.errorMessage == ChainError.proofOfPossessionRequired.localizedDescription)
+    }
+
     @Test func refusesToSendWithoutAnEstimate() async throws {
         struct NoLimits: TestChainService {
             func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 100, staked: 0) }

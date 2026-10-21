@@ -123,12 +123,20 @@ struct TaquitoChainService: ChainService {
     }
 
     func estimateTransfer(from wallet: Wallet, to destination: Address, amount: Decimal) async throws -> TransferEstimate {
+        let publicKey = try Self.publicKeyArgument(for: wallet)
+        try await verifyChain()
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)], timeout: 120) }
+        return try Self.estimate(from: result, amount: amount)
+    }
+
+    /// The `publicKey` argument of the bridge's estimates: the key alone, or, for a tz4 account
+    /// whose proof of possession has been made, the key and the proof the reveal will carry.
+    static func publicKeyArgument(for wallet: Wallet) throws -> any Sendable {
         guard let publicKey = wallet.publicKey else {
             throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
         }
-        try await verifyChain()
-        let result = try await bridge.call("estimateTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, destination.value, Mutez.fromTez(amount)], timeout: 120)
-        return try Self.estimate(from: result, amount: amount)
+        if wallet.scheme == .tz4, let proof = wallet.proofOfPossession { return ["publicKey": publicKey, "proof": proof] }
+        return publicKey
     }
 
     /// An estimate as the bridge reports it: fee, burn and the limits to send with (S14, S20).
@@ -157,12 +165,10 @@ struct TaquitoChainService: ChainService {
     }
 
     func estimateEtherlinkDeposit(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
-        guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
-        }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
         guard network.canDepositToL2, let helper = network.l2BridgeHelper, let rollup = network.l2Rollup else { throw ChainError.noEtherlinkBridge }
         try await verifyChain()
-        let result = try await bridge.call("estimateEtherlinkDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount)], timeout: 120)
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateEtherlinkDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, helper.value, rollup, wallet.address.value, Mutez.fromTez(amount)], timeout: 120) }
         return try Self.estimate(from: result, amount: amount)
     }
 
@@ -179,11 +185,9 @@ struct TaquitoChainService: ChainService {
     // MARK: Shielded tez (TzEL)
 
     func estimateShieldDeposit(from wallet: Wallet, deposit: ShieldDeposit) async throws -> TransferEstimate {
-        guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
-        }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
         try await verifyChain()
-        let result = try await bridge.call("estimateShieldDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, deposit.ticketer.value, deposit.rollup, deposit.pubkeyHash, Mutez.fromTez(deposit.amount)], timeout: 120)
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateShieldDeposit", [network.rpcURL.absoluteString, wallet.address.value, publicKey, deposit.ticketer.value, deposit.rollup, deposit.pubkeyHash, Mutez.fromTez(deposit.amount)], timeout: 120) }
         return try Self.estimate(from: result, amount: deposit.amount)
     }
 
@@ -197,11 +201,9 @@ struct TaquitoChainService: ChainService {
     }
 
     func estimateOutboxExecution(from wallet: Wallet, execution: OutboxExecution) async throws -> TransferEstimate {
-        guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
-        }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
         try await verifyChain()
-        let result = try await bridge.call("estimateOutboxExecution", [network.rpcURL.absoluteString, wallet.address.value, publicKey, execution.rollup, execution.cementedCommitment, execution.outputProof], timeout: 120)
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateOutboxExecution", [network.rpcURL.absoluteString, wallet.address.value, publicKey, execution.rollup, execution.cementedCommitment, execution.outputProof], timeout: 120) }
         return try Self.estimate(from: result, amount: 0)
     }
 
@@ -254,11 +256,9 @@ struct TaquitoChainService: ChainService {
 
     func estimateEtherlinkLink(from wallet: Wallet) async throws -> TransferEstimate {
         guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
-        guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
-        }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
         try await verifyChain()
-        let result = try await bridge.call("estimateEtherlinkLink", [network.rpcURL.absoluteString, wallet.address.value, publicKey, Network.etherlinkGateway.value], timeout: 120)
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateEtherlinkLink", [network.rpcURL.absoluteString, wallet.address.value, publicKey, Network.etherlinkGateway.value], timeout: 120) }
         return try Self.estimate(from: result)
     }
 
@@ -344,16 +344,14 @@ struct TaquitoChainService: ChainService {
     }
 
     func estimateStaking(_ operation: StakingOperation, from wallet: Wallet) async throws -> TransferEstimate {
-        guard let publicKey = wallet.publicKey else {
-            throw TaquitoBridge.BridgeError.javaScript("Account “\(wallet.alias)” has no public key, so its fees cannot be estimated.")
-        }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
         try await verifyChain()
         if let contents = rawContents(for: operation) {
             let json = String(data: try JSONSerialization.data(withJSONObject: contents), encoding: .utf8)!
-            return try Self.estimate(from: try await bridge.call("estimateRawOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, json], timeout: 120))
+            return try Self.estimate(from: try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateRawOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, json], timeout: 120) })
         }
         let arg = String(data: try JSONSerialization.data(withJSONObject: operation.bridgeArgument), encoding: .utf8)!
-        let r = try await bridge.call("estimateStakingOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, operation.bridgeKind, arg], timeout: 120)
+        let r = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateStakingOperation", [network.rpcURL.absoluteString, wallet.address.value, publicKey, operation.bridgeKind, arg], timeout: 120) }
         let amount: Decimal = { if case .stake(let a) = operation { return a } else { return 0 } }()
         return try Self.estimate(from: r, amount: amount)
     }
