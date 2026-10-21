@@ -70,9 +70,12 @@ release on `release` before building it (merge `main` up into `release` first; s
 
 `scripts/release.sh [version]` archives a Release build, signs it with `$DEVELOPER_ID` if set
 (ad-hoc otherwise), optionally notarises with `$NOTARY_PROFILE`, and writes `dist/Signet-<version>.zip`
-plus `dist/appcast.xml`, the Sparkle feed for that one release (see Updates below).
+plus `dist/appcast.xml`, the Sparkle feed for that one release (see Updates below), and
+`dist/Signet-<version>.dmg` (0.9.7), the stapled app beside an Applications link, signed,
+notarised and stapled itself, for people downloading from the release page; Sparkle never
+downloads the image, only the zip is given to `generate_appcast`.
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which does the same on a macOS runner and
-attaches the zip to a GitHub release; signing and notarisation switch on when the repository
+attaches the zip, the disk image and the appcast to a GitHub release; signing and notarisation switch on when the repository
 secrets described in the workflow exist. Since 0.4.2 those secrets are set, so tagged releases
 are Developer ID signed and notarised (identity `Developer ID Application: Christopher Pinnock
 (CP8YGC8C4P)`; local builds use `NOTARY_PROFILE=signet-notary`). Setup notes are in
