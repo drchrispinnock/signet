@@ -49,7 +49,8 @@ struct SendSheet: View {
             chain: context.chain,
             spendable: context.spendable,
             implicitAccountsOnly: context.implicitAccountsOnly,
-            signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) }
+            signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) },
+            proofProvider: { [model] wallet, passphrase in try await model.proofOfPossession(for: wallet, passphrase: passphrase) }
         )
     }
 
@@ -131,6 +132,15 @@ private struct ComposeTransferView: View {
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
+
+        if send.needsPassphraseForProof {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill").foregroundStyle(.secondary)
+                SecureField("Password for “\(send.sender.alias)”", text: $send.passphrase)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { if send.canProceed { Task { await send.proceedToConfirm() } } }
+            }
+        }
 
         if let error = send.errorMessage {
             Text(error).font(.callout).foregroundStyle(.red)

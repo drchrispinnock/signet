@@ -209,6 +209,19 @@ automatic download is off by default. The updater is not started under the test 
   kinds carry the expected address; software `signerFor` requires a nonempty string address
   before loading the key and refuses a key that derives another one
   (`ChainError.keyAddressMismatch` for secrets, `ledgerWrongDevice` for Ledgers).
+  **tz4 senders.** An unrevealed tz4 account's reveal carries a BLS proof of possession (the
+  key's signature over its own public key) that the node verifies even in simulation, so an
+  estimate from a `Wallet` without `proofOfPossession` fails with
+  `ChainError.proofOfPossessionRequired` (the bridge's `readOnlySigner` throws it for tz4, and
+  takes `{publicKey, proof}` as its key once the proof exists: `TaquitoChainService.
+  publicKeyArgument`). `SendViewModel` answers by making the proof through
+  `WalletViewModel.proofOfPossession(for:passphrase:)`, keeping it on its copy of the sender and
+  estimating again; for an encrypted key the compose step asks for the password first
+  (`needsPassphraseForProof`, `SendError.proofNeedsPassphrase`) and keeps it for the confirm
+  step. Sending then makes the real proof again with the real signer inside `prepareApproved`,
+  the same 96 bytes, so the approved reveal budget holds. The other estimate paths (staking,
+  dApps, multisig, bridge, shield) report the typed error for an unrevealed tz4 and do not make
+  the proof yet. `BLSSendTests` is the live Shadownet round trip.
   `waitForConfirmation` waits for the operation's block (the bridge's `waitForRawOperation` block watcher, up to 15 blocks; every operation is forged locally, so there is nothing for Taquito to track). `ChainError.fromBridgeMessage` maps the bridge's error
   text (wrong password, Ledger declined / locked / app not open / not connected) to typed errors
   so every sheet words them the same way.

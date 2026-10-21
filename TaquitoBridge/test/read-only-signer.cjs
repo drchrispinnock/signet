@@ -10,6 +10,15 @@ const {b58Encode,PrefixV2} = require('@taquito/utils');
     await assert.rejects(signer.sign('fixture-bytes'),error=>error.message==='read-only signer cannot sign');
   }
   const {readOnlySigner}=await load('signers.js'); await contract(readOnlySigner(publicKey,source));
+  // A tz4 reveal needs the key's proof of possession: the signer hands over the one it was given,
+  // refuses to invent one, and non-BLS accounts never offer the method.
+  const bls='tz4E128TU3t1TdLCJEY4oHg8gZzZNoNBknwh', proof='BLsig'+'9'.repeat(137);
+  assert.equal(readOnlySigner(publicKey,source).provePossession,undefined);
+  await assert.rejects(readOnlySigner(publicKey,bls).provePossession(),error=>/proof of possession required/.test(error.message));
+  const withProof=readOnlySigner({publicKey,proof},bls);
+  assert.equal(await withProof.publicKey(),publicKey);
+  assert.deepStrictEqual({...await withProof.provePossession()},{bytes:'',sig:proof,prefixSig:proof});
+  await assert.rejects(withProof.sign('fixture-bytes'),error=>error.message==='read-only signer cannot sign');
   const branch=b58Encode(new Uint8Array(32),PrefixV2.BlockHash);
   const estimate={suggestedFeeMutez:100,gasLimit:100,storageLimit:0,burnFeeMutez:0};
   const operation=p=>({kind:p.kind??'transaction',source,counter:'1',fee:String(p.fee),gas_limit:String(p.gasLimit),storage_limit:String(p.storageLimit),amount:String(p.amount??0),destination:p.to??source});

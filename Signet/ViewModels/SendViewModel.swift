@@ -22,6 +22,7 @@ final class SendViewModel {
         case noSecretKey
         case sendingToSelf
         case passphraseRequired
+        case proofNeedsPassphrase
         case notEstimated
         case notSeenYet(String)
 
@@ -33,6 +34,7 @@ final class SendViewModel {
             case .noSecretKey: "Signet has no usable secret key for this account."
             case .sendingToSelf: "That is this account's own address."
             case .passphraseRequired: "Enter the password for this account's key."
+            case .proofNeedsPassphrase: "This account's first operation reveals its key with a proof of possession, which the key must sign. Enter the account's password to continue."
             case .notEstimated: "The fee has not been estimated yet; go back and try again."
             case .notSeenYet(let hash): "Operation \(hash.prefix(12))… has not appeared in a block yet. The node may still have it; wait, or send the same signed operation again. It cannot be paid twice."
             }
@@ -54,12 +56,16 @@ final class SendViewModel {
         }
     }
 
-    let sender: Wallet
+    /// The sender as given, plus its BLS proof of possession once one had to be made (tz4).
+    private(set) var sender: Wallet
     private let wallets: [Wallet]
     private let chain: any ChainService
     /// Etherlink's Michelson interface: only tz1, tz2 and tz3 accounts can be sent to there.
     let implicitAccountsOnly: Bool
     private let signerProvider: @Sendable (Wallet, String?) throws -> SigningKey?
+    /// Makes the sender's BLS proof of possession from its key (`WalletViewModel.proofOfPossession`),
+    /// needed to estimate the first operation of a tz4 account; `nil` where none can be made.
+    private let proofProvider: (@MainActor @Sendable (Wallet, String?) async throws -> String)?
     private(set) var spendable: Decimal?
 
     var recipientText = "" { didSet { if recipientText != oldValue { recipientChanged() } } }
@@ -67,6 +73,9 @@ final class SendViewModel {
     /// Password for an encrypted sender key; asked for on the confirm step.
     var passphrase = ""
     var needsPassphrase: Bool { sender.keyKind == .encrypted }
+    /// The estimate needs the sender's proof of possession (an unrevealed tz4 account) and the
+    /// key is encrypted, so the password is asked for on the compose step already.
+    private(set) var needsPassphraseForProof = false
     /// The sender's key is on a Ledger: the user approves on the device while we wait.
     var signsOnLedger: Bool { sender.keyKind == .ledger }
     private(set) var recipient: Recipient?
@@ -83,13 +92,15 @@ final class SendViewModel {
 
     init(sender: Wallet, wallets: [Wallet], chain: any ChainService, spendable: Decimal?,
          implicitAccountsOnly: Bool = false,
-         signerProvider: @escaping @Sendable (Wallet, String?) throws -> SigningKey?) {
+         signerProvider: @escaping @Sendable (Wallet, String?) throws -> SigningKey?,
+         proofProvider: (@MainActor @Sendable (Wallet, String?) async throws -> String)? = nil) {
         self.sender = sender
         self.wallets = wallets
         self.chain = chain
         self.spendable = spendable
         self.implicitAccountsOnly = implicitAccountsOnly
         self.signerProvider = signerProvider
+        self.proofProvider = proofProvider
         self.suggestions = candidates(matching: "")
     }
 
@@ -119,7 +130,7 @@ final class SendViewModel {
         return value
     }
 
-    var canProceed: Bool { recipient != nil && amount != nil && !isBusy && !isResolving }
+    var canProceed: Bool { recipient != nil && amount != nil && !isBusy && !isResolving && !(needsPassphraseForProof && passphrase.isEmpty) }
 
     /// Everything except a small reserve for the fee.
     func useMaximum() {
@@ -197,7 +208,7 @@ final class SendViewModel {
         isBusy = true
         defer { isBusy = false }
         do {
-            let estimate = try await chain.estimateTransfer(from: sender, to: recipient.address, amount: amount)
+            let estimate = try await estimateTransfer(to: recipient.address, amount: amount)
             if let spendable, estimate.total > spendable {
                 errorMessage = SendError.insufficientFunds(available: spendable).localizedDescription
                 return
@@ -206,6 +217,24 @@ final class SendViewModel {
             step = .confirm
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// The estimate, made again with the sender's proof of possession when the node needs one:
+    /// an unrevealed tz4 account's reveal carries a BLS proof only its key can sign, so the key is
+    /// used once here, with the password for an encrypted key, which the compose step then asks for.
+    private func estimateTransfer(to destination: Address, amount: Decimal) async throws -> TransferEstimate {
+        do {
+            return try await chain.estimateTransfer(from: sender, to: destination, amount: amount)
+        } catch ChainError.proofOfPossessionRequired {
+            guard let proofProvider else { throw ChainError.proofOfPossessionRequired }
+            if needsPassphrase, passphrase.isEmpty {
+                needsPassphraseForProof = true
+                throw SendError.proofNeedsPassphrase
+            }
+            sender.proofOfPossession = try await proofProvider(sender, needsPassphrase ? passphrase : nil)
+            needsPassphraseForProof = false
+            return try await chain.estimateTransfer(from: sender, to: destination, amount: amount)
         }
     }
 

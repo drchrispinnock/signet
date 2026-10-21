@@ -127,6 +127,9 @@ enum ChainError: LocalizedError, Equatable {
     case notALayer2Service
     /// A node answered with another chain's id than the one pinned for it (S12).
     case wrongChain(expected: String, found: String)
+    /// Estimating an unrevealed tz4 account's operation: the reveal needs the key's BLS proof of
+    /// possession, which only the secret key can make (`ChainService.proofOfPossession`).
+    case proofOfPossessionRequired
 
     var errorDescription: String? {
         switch self {
@@ -135,6 +138,7 @@ enum ChainError: LocalizedError, Equatable {
         case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
         case .notALayer2Service: "This needs the Layer 2 node."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
+        case .proofOfPossessionRequired: "This account's first operation reveals its key with a proof of possession, which needs the secret key."
         case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."
         case .ledgerAppNotOpen: "Open the Tezos app on your Ledger and try again."
@@ -157,6 +161,7 @@ enum ChainError: LocalizedError, Equatable {
         if lower.contains("no ledger is connected") || lower.contains("was unplugged") { return .ledgerNotConnected }
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
         if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
+        if lower.contains("proof of possession required") { return .proofOfPossessionRequired }
         return nil
     }
 }
