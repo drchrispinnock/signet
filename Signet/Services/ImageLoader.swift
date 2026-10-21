@@ -3,14 +3,15 @@ import Foundation
 import ImageIO
 
 /// Downloads an image from the first URL that works and downsamples it for display.
-/// Decoded images are cached in memory; the shared URLCache keeps the bytes.
+/// Decoded images are cached in memory, and the production loader keeps the downsampled
+/// thumbnails on disk too (`ArtworkCache`), so artwork is fetched once, not on every launch.
 ///
 /// Artwork URLs come from token metadata, so they are untrusted (S13): only public HTTPS
 /// destinations are contacted (checked by name and again after DNS resolution), redirects
 /// may only lead to other public HTTPS destinations, the response must be an image, and the
 /// download is cut off at `maxBytes` while it streams. At most `maxConcurrent` loads run at once.
 actor ImageLoader {
-    static let shared = ImageLoader()
+    static let shared = ImageLoader(disk: ArtworkCache.standard)
 
     /// The most a single artwork may download; a thumbnail never needs more.
     static let maxBytes = 8 << 20
@@ -27,12 +28,16 @@ actor ImageLoader {
     }
 
     private let cache = NSCache<NSString, NSImage>()
+    private let disk: ArtworkCache?
+    private var pruned = false
     private let fetcher: @Sendable (URL) async -> Fetch
     private var inFlight: [String: Task<NSImage?, Never>] = [:]
     private var active = 0
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    init(fetch: (@Sendable (URL) async -> Fetch)? = nil) {
+    /// A loader with no disk cache (tests, previews) unless `disk` is given.
+    init(disk: ArtworkCache? = nil, fetch: (@Sendable (URL) async -> Fetch)? = nil) {
+        self.disk = disk
         fetcher = fetch ?? { await ImageLoader.fetch($0) }
         cache.countLimit = 300
         cache.totalCostLimit = 96 << 20
@@ -59,17 +64,28 @@ actor ImageLoader {
         let task = Task<NSImage?, Never> {
             await self.acquireSlot()
             defer { self.releaseSlot() }
+            // Anything already on disk, whichever image or gateway it came from, needs no request.
+            if let disk = self.disk {
+                for url in candidates where EndpointPolicy.isPublicHTTPS(url) {
+                    if let image = disk.image(for: url, maxPixelSize: maxPixelSize) { return image }
+                }
+            }
             var tooLarge: [IPFS.ContentPath] = []
             for url in candidates {
                 guard !Task.isCancelled else { return nil }
                 guard EndpointPolicy.isPublicHTTPS(url) else { continue }
                 let content = IPFS.gatewayContentPath(of: url)
                 if let content, tooLarge.contains(content) { continue }
+                if let disk = self.disk, disk.isTooLarge(url) { continue }
                 switch await fetcher(url) {
                 case .data(let data):
-                    if let image = Self.downsample(data, maxPixelSize: maxPixelSize) { return image }
+                    if let image = Self.downsample(data, maxPixelSize: maxPixelSize) {
+                        self.store(image, for: url, maxPixelSize: maxPixelSize)
+                        return image
+                    }
                 case .tooLarge:
                     if let content { tooLarge.append(content) }
+                    self.disk?.markTooLarge(url)
                 case .unavailable:
                     continue
                 }
@@ -81,6 +97,13 @@ actor ImageLoader {
         inFlight[key] = nil
         if let image { cache.setObject(image, forKey: key as NSString, cost: Self.cost(of: image)) }
         return image
+    }
+
+    /// Writes a fetched thumbnail to the disk cache, pruning the folder first once per process.
+    private func store(_ image: NSImage, for url: URL, maxPixelSize: Int) {
+        guard let disk else { return }
+        if !pruned { pruned = true; disk.prune() }
+        disk.store(image, for: url, maxPixelSize: maxPixelSize)
     }
 
     /// Bytes an image roughly occupies once decoded, for the cache's cost limit.

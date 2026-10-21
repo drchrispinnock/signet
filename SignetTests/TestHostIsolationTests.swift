@@ -13,5 +13,7 @@ struct TestHostIsolationTests {
         #expect(model.wallets.isEmpty)
         #expect(!model.dapps.isStarted)
         #expect(model.lastBackup == nil && model.lastBackupError == nil)
+        // The artwork cache under ~/Library/Caches is a real path too.
+        #expect(ArtworkCache.standard == nil)
     }
 }
