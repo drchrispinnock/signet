@@ -5,8 +5,6 @@
 009-mainmatter.md
 100-introduction.md
 110-starting.md
-120-networks.md
-130-getting.md
 140-transactions.md
 150-othertypesofaccount.md
 160-delegatingstaking.md

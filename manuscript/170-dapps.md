@@ -1,7 +1,9 @@
+{#id: 170-dapps_1_Distribute}
 # Distributed Apps
 
 Distributed Apps (dApps) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a distributed exchange (DEX) to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
+{#id: 170-dapps_2_Connecting}
 ## Connecting to a dApp
 
 Signet uses [Octez Connect](https://octez-connect.tezos.com) (formerly called Beacon) to connect to dApp websites. We will go through the full process with Object.com and 3Route, but here are some things to be aware of. On dApp websites, there will be a button to `Sign in`, `Connect Wallet` or `Sync`. If you click on this, a dialogue will appear. Sometimes it will ask you which style of connection to use - choose Beacon or Octez Connect. Then usually there will be a popup asking you which wallet you use.
@@ -15,6 +17,7 @@ Then in Signet, choose `dApps..` from burger menu. In the first dialogue, you wi
 
 You will always be able to use this method to connect Signet to a dApp, but in the future, Signet will be on the list of wallets. You'll be able to choose it there and the Signet application will automatically receive the pairing code without you having to worry about it.
 
+{#id: 170-dapps_2_Buying}
 ## Buying an NFT from Objkt
 
 We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
@@ -85,6 +88,7 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
+{#id: 170-dapps_2_Quipuswap}
 ## Quipuswap
 
 [Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a full-reserve backed stablecoin pegged to the US dollar. This means for every 1 USDtz in existence there is a real US dollar in reserve.
@@ -109,6 +113,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ![](170/quipuswap-assets.png)
 
+{#id: 170-dapps_2_3Route}
 ## 3Route
 
 3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote with in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.

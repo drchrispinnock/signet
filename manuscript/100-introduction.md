@@ -5,4 +5,3 @@
   - What is a wallet
 
 
-We follow the techniques in <!-- MARKUPBIBTAG R-2 -->[3]<!-- ENDMARKUPBIBTAG -->.
