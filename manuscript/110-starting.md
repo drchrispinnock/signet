@@ -92,7 +92,7 @@ This should resolve as Captain Stake. Signet looks up addresses on the block exp
 {#id: 110-starting_2_Getting}
 ## Getting your first tez
 
-In the first days of cryptocurrencies, one would have to find someone else who had some and persuade them to give you some usually for cash. Things are different now. There are *centralised exchanges* offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pellerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
+In the first days of cryptocurrencies, one would have to find someone else who had some and persuade them to give you some usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pellerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
 
 1. Buying tez or any cryptoasset for the first time might require significant patience on your part.
 2. In your country, there may be laws around purchasing cryptocurrencies. I'm afraid it's up to you to find out what is possible where you live.
@@ -118,6 +118,8 @@ Mt Pelerin is the only provider that is directly integrated into Signet. Unfortu
 Here we get a page with our address details, instructions and a button to click. The button will take us to the Coinbase web site. You'll have to sign up there, buy the tez and transfer it to your wallet.
 
 Now I could improve this piece of Signet and in fact Transak will allow wallets to embed it, as will other providers. But that requires some extra work and developer API access. This may come later on depending on demand for the feature.
+
+Please make sure that you record all your cryptoasset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
 
 {#id: 110-starting_2_Getting_2}
 ## Getting tez on a test network
