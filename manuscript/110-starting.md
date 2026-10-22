@@ -1,22 +1,21 @@
+{#id: 110-starting_1_Getting}
 # Getting started
 
+{#id: 110-starting_2_Installati}
 ## Installation
 
-Signet is an open-source project and the source code is available from [Github](https://github.com/drchrispinnock/signet). At the moment it's for Apple Mac's only. It is written in Swift and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases).
+Signet is an open-source project and the source code is available from [Github](https://github.com/drchrispinnock/signet). At the moment it's for Apple Mac's only. It is written in Swift and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac AppStore.
 
-To install Signet is like most Apple Mac applications: download it and move it to the application folder. Go to the release page and download the zip file. Your Mac may decompress this automatically. If not, you can click on the zip folder and it will decompress. Copy the Signet application into your applications folder. There's usually a shortcut in your Finder window.
+To install Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the application folder. Go to the release page and download the DMG file. Click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your applications folder. 
 
 ![](110/finder.png)
 
-On the first run, you will get this message:
-
+On the first run, you will get this message because it is a stand-alone application from outside the AppStore:
 ![](110/warning.png)
-
-XXX we need a way of providing some certainly on this XXX
-XXX GPG signing XXX
-
+<!-- XXX we need a way of providing some certainly on this XXX XXX GPG signing XXX -->
 Click `OK` and continue.
 
+{#id: 110-starting_2_Running}
 ## Running Signet for the first time
 
 When you run Signet for the first time, you'll be presented with some options to set up an account for use on the Tezos network. Many wallets start from cold and assume you'll want to create a new wallet. When we designed Signet, we assumed that you might have a Tezos wallet already.
@@ -50,6 +49,7 @@ and import your key there. We will cover all the options on this import method i
 
 If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the ledger in and run the Tezos Wallet application, then choose the key type to add the key. We will cover this option more in a later chapter.
 
+{#id: 110-starting_2_Key}
 ## Key hygiene
 
 There's two rules for beginners.
