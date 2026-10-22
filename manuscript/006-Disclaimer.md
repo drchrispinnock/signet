@@ -1,6 +1,6 @@
 # Disclaimer
 
-This is a book about a cryptocurrency wallet. The Signet software is provided with absolutely no warranty. At the time of writing it's still under development.
+This is a book about a cryptocurrency wallet called Signet. The software is provided with absolutely no warranty. At the time of writing it's still under development.
 
 In the book, we talk about buying Tezos coins, NFTs and swapping tokens. The activities are shown for educational purposes. Do not take anything written in this book as investment advice.
 

@@ -60,7 +60,7 @@ Before you do anything, particularly anything involving monetary value, back up 
 
 ![](110/export.png)
 
-You can press the view button to look at it and write it down. Or you can use the copy facility to copy and paste it somewhere. The best way to back this up is write it down on paper. Keep two copies in a very safe place. We will go into more detail on key storage later on. But please do this step.
+You can press the view button to look at it and write it down. Or you can use the copy facility to copy and paste it somewhere. The best way to back this up is write it down on paper. Keep two copies in a two safe and different places. We will go into more detail on key storage later on. But please do this step.
 
 2\. Don't get too attached to your account.
 

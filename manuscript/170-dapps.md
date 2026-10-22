@@ -17,7 +17,7 @@ You will always be able to use this method to connect Signet to a dApp, but in t
 
 ## Buying an NFT from Objkt
 
-We will cover what an non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
+We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
 
 Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. The items sometimes have a fixed price and others you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
 
@@ -43,7 +43,7 @@ Then choose `Sign` to sign the connection transaction.
 
 ![](170/objkt-sign.png)
 
-You should now be logged in with you account. Choose `Continue` on objkt.com if needed. We started our login on a specific piece of art. We can now buy this. Scroll down to `Buy from artist` and click it.
+You should now be logged in with your account. Choose `Continue` on objkt.com if needed. We started our login on a specific piece of art. We can now buy this. Scroll down to `Buy from artist` and click it.
 
 ![](170/objkt-buy.png)
 
@@ -77,7 +77,7 @@ We have only scratched the surface here. You can mint your own NFTs at Objkt.com
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is one that represents a unique digital token that represents ownership of an item or asset. We will be purchasing a piece of art and we will receive an NFT to show our ownership. We can sell or transfer this NFT.
 
-Note that the artwork usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplantary file system (IPFS)*.
+Note that the artwork usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
 
 Although it may be possible to buy more than one copy of each artwork, each one has a unique record of ownership on the chain. So an NFT is unique in this sense.
 
