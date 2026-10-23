@@ -210,6 +210,35 @@ struct MultisigFlowTests {
         await #expect(throws: WalletViewModel.MultisigError.self) { try await model.multisigSignerKey(from: "hello") }
     }
 
+    /// The Baking sheet's consensus/companion key field takes a tz address too, and must be able
+    /// to tell "never revealed" (the usual case for a fresh signing key) from every other failure.
+    @Test func keyFieldResolvesAddressesAndReportsUnrevealedOnes() async throws {
+        #expect(WalletViewModel.keyFieldContent("") == .empty)
+        #expect(WalletViewModel.keyFieldContent(" edpkPASTEDpublickey ") == .publicKey("edpkPASTEDpublickey"))
+        #expect(WalletViewModel.keyFieldContent(" xmpkSOMETHING ") == .other("xmpkSOMETHING"))   // tz6 keys are passed on as typed
+        #expect(WalletViewModel.keyFieldContent(Self.watch.address.value) == .address(Self.watch.address))
+        #expect(WalletViewModel.keyFieldContent("KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi") == .other("KT1BEqzn5Wx8uJrZNvuS9DVHmLvG9td3fDLi"))
+        #expect(WalletViewModel.keyFieldContent("tz1notanaddress") == .other("tz1notanaddress"))
+
+        let service = MockMultisigService()
+        let model = makeModel(service)
+        let ours = try await model.publicKey(forKeyOrAddress: Self.alice.address.value)
+        #expect(ours.key == "edpkALICE" && ours.source == .ownAccount(alias: Self.alice.alias))
+        let pasted = try await model.publicKey(forKeyOrAddress: "BLpkPASTED")
+        #expect(pasted.key == "BLpkPASTED" && pasted.source == .pasted)
+        // Never revealed: the typed error the sheet turns into "paste the public key instead".
+        do {
+            _ = try await model.publicKey(forKeyOrAddress: Self.watch.address.value)
+            Issue.record("an unrevealed address resolved to a key")
+        } catch WalletViewModel.MultisigError.notRevealed(let address) {
+            #expect(address == Self.watch.address)
+        }
+        service.revealed = [Self.watch.address.value: "p2pkWATCHrevealed"]
+        service.keyAddresses = ["p2pkWATCHrevealed": Self.watch.address.value]
+        let revealed = try await model.publicKey(forKeyOrAddress: Self.watch.address.value)
+        #expect(revealed.key == "p2pkWATCHrevealed" && revealed.source == .revealedOnChain)
+    }
+
     /// A multisig delegates like it spends: a proposal the signers sign, then one submission.
     @Test func delegateChangesAreProposalsToo() async throws {
         let service = MockMultisigService(keys: ["edpkALICE", "sppkBOB"], threshold: 2)

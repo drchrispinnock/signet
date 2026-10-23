@@ -15,6 +15,11 @@ struct BakingSheet: View {
     @State private var keyPassphrase = ""
     @State private var chosenKeyWallet: Wallet?
     @State private var pastedPublicKey = ""
+    /// A pasted tz address resolved to its public key (our record, or the key it revealed on chain).
+    @State private var resolvedKey: (address: Address, key: String, source: WalletViewModel.ResolvedKeySource)?
+    /// Why a pasted address gave no key, worded for someone setting up a baker.
+    @State private var lookupNote: String?
+    @State private var lookupTask: Task<Void, Never>?
     @State private var pastedProof = ""
     @State private var limitText = ""
     @State private var edgeText = ""
@@ -166,7 +171,55 @@ struct BakingSheet: View {
     // MARK: Key picker
 
     private func resetKeyPicker() {
-        chosenKeyWallet = nil; pastedPublicKey = ""; pastedProof = ""; keyPassphrase = ""
+        lookupTask?.cancel(); lookupTask = nil
+        chosenKeyWallet = nil; pastedPublicKey = ""; pastedProof = ""; keyPassphrase = ""; resolvedKey = nil; lookupNote = nil
+    }
+
+    /// The pasted field, read as a key or an address.
+    private var pastedContent: WalletViewModel.KeyFieldContent { WalletViewModel.keyFieldContent(pastedPublicKey) }
+
+    /// Looks up the key behind a pasted tz address. A key, or anything else, is passed on as typed:
+    /// the chain or the bridge refuses what is not a key, and tz6 (xmpk) keys are only ever pasted.
+    private func pastedKeyChanged() {
+        lookupTask?.cancel(); lookupTask = nil
+        resolvedKey = nil; lookupNote = nil
+        guard case .address(let address) = pastedContent else { return }
+        chosenKeyWallet = nil
+        lookupTask = Task {
+            do {
+                let found = try await model.publicKey(forKeyOrAddress: address.value)
+                guard !Task.isCancelled, pastedContent == .address(address) else { return }
+                resolvedKey = (address, found.key, found.source)
+            } catch WalletViewModel.MultisigError.notRevealed {
+                guard !Task.isCancelled, pastedContent == .address(address) else { return }
+                lookupNote = "\(address.shortened()) has not revealed a public key on \(model.network.name). That is usual for a new consensus or companion key: it has never sent an operation, so the chain does not know it. Paste the public key itself instead; on the machine that holds the key, octez-client show address <alias> prints it."
+            } catch {
+                guard !Task.isCancelled, pastedContent == .address(address) else { return }
+                lookupNote = error.localizedDescription
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lookupStatus: some View {
+        if case .address = pastedContent {
+            if let resolvedKey {
+                let origin = switch resolvedKey.source {
+                case .ownAccount(let alias): "the key of your account “\(alias)”"
+                case .revealedOnChain: "the key it revealed on \(model.network.name)"
+                case .pasted: "the key"
+                }
+                Text("\(resolvedKey.address.shortened()) is \(origin): \(resolvedKey.key.prefix(12))…")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else if let lookupNote {
+                Text(lookupNote).font(.callout).foregroundStyle(.orange)
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Looking up the key this address revealed…").font(.callout).foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private func eligibleWallets(_ role: KeyRole) -> [Wallet] {
@@ -178,8 +231,11 @@ struct BakingSheet: View {
 
     private var pickedPublicKey: String? {
         if let pk = chosenKeyWallet?.publicKey { return pk }
-        let pasted = pastedPublicKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return pasted.isEmpty ? nil : pasted
+        switch pastedContent {
+        case .empty: return nil
+        case .publicKey(let key), .other(let key): return key
+        case .address(let address): return resolvedKey?.address == address ? resolvedKey?.key : nil
+        }
     }
     private var pickedIsBLS: Bool { pickedPublicKey?.hasPrefix("BLpk") == true }
     private var proofNeeded: Bool { pickedIsBLS }
@@ -197,10 +253,11 @@ struct BakingSheet: View {
                     Text("\(w.alias)  \(w.address.shortened())  (\(w.scheme.rawValue)\(w.keyKind.canSign ? "" : ", public key only"))").tag(Optional(w))
                 }
             }
-            TextField("Or paste a public key", text: $pastedPublicKey,
-                      prompt: Text(role == .companion ? "BLpk…" : "edpk… / sppk… / p2pk… / BLpk… / mdpk… / xmpk…"))
+            TextField("Or paste a public key or address", text: $pastedPublicKey,
+                      prompt: Text(role == .companion ? "BLpk… or tz4…" : "edpk… / sppk… / p2pk… / BLpk… / mdpk… / xmpk… or a tz address"))
                 .font(.callout.monospaced()).autocorrectionDisabled()
-                .onChange(of: pastedPublicKey) { if !pastedPublicKey.isEmpty { chosenKeyWallet = nil } }
+                .onChange(of: pastedPublicKey) { if !pastedPublicKey.isEmpty { chosenKeyWallet = nil }; pastedKeyChanged() }
+            lookupStatus
             if proofNeeded {
                 if let w = chosenKeyWallet, w.scheme == .tz4, w.keyKind.canSign {
                     if w.keyKind == .encrypted { SecureField("Password for “\(w.alias)” (to prove possession)", text: $keyPassphrase) }
