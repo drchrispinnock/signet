@@ -75,12 +75,25 @@ And we can send to it in the same way:
 {#id: 140-transactions_2_Making}
 ## Making large transactions
 
-As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. (By the way, that includes the addresses in this book which are provided for example only.) Secondly, if you are making a large transaction of tez, make sure you are in contact with the receiver. It's best practice to send 1tz first, make sure it arrives in the right place and then send the rest with another transaction. It's also a good idea to add commonly used addresses to the address book, which we will cover next
+As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. (By the way, that includes the addresses in this book which are provided for example only.) Secondly, if you are making a large transaction of tez, make sure you are in contact with the receiver. It's best practice to send 1tz first, make sure it arrives in the right place and then send the rest with another transaction. It's also a good idea to add commonly used addresses to the address book.
 
 {#id: 140-transactions_2_Address}
-## Address Book
+## The Address Book
 
-XXX
+Signet has an address book so that you can store other addresses that you use a lot. In the address book, you just store the tz address (or a KT1 smart contract address). You can give it a friendly name and refer to it by that in all the other Signet menus. 
+
+Suppose that you have a friend called Trevor and they have an account 
+```
+tz1ho3Aexyse2LDTA9tp1qYD62zHsnXsPMsc
+```
+
+We can add this to our address book by using the burger menu and choosing `Add address...`, then entering the detail:
+
+![](140/address.png)
+Now I can refer to Trevor when I'm making a transaction, such as a Send:
+
+![](140/trevor.png)
+It's better to keep addresses in the address book so that we are sure who we are sending funds to when we make transactions.
 
 {#id: 140-transactions_2_Selling}
 ## Selling and Swapping

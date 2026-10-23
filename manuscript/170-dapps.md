@@ -71,12 +71,11 @@ I'm the proud owner of the NFT.
 If I click the icon top-right on objkt.com, I can go to my Profile. Under the `Owned` tab, I can see the purchase as well as in my wallet. Top right on the thumbnail are three dots. Click this and choose `Properties`
 
 ![](170/verpera-properties.png)
-
 There are details about the image on the objkt site. The image is a PNG file. The royalty rate is 25% which goes to the artist in this case. You can see when the token was minted (i.e. created) and the smart contract used to record the ownership on chain. Additionally there are download links for the image from Objkt's asset server and the IPFS service (more on this below).
 
 You can do various other things here with the NFT. For example, you transfer it another account on the chain. You can even burn (i.e. destroy) the NFT if you want to - it's your property.
 
-We have only scratched the surface here. You can mint your own NFTs at Objkt.com and if you have an artistic streak, I would encourage you to experiment with it. Let's end the section with some terminology about NFTs.
+Let's end the section with some terminology about NFTs.
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is one that represents a unique digital token that represents ownership of an item or asset. We will be purchasing a piece of art and we will receive an NFT to show our ownership. We can sell or transfer this NFT.
 
@@ -88,8 +87,21 @@ NFTs are implemented as smart contracts and often there are some interesting rul
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
+{#id: 170-dapps_2_Minting}
+## Minting an NFT at Teia
+
+Teia is another art NFT site on the Tezos blockchain.
+XXX
+
+{#id: 170-dapps_2_Buying_2}
+## Buying a Tezos Domain
+
+XXX
+
 {#id: 170-dapps_2_Quipuswap}
 ## Quipuswap
+
+*In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
 
 [Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a full-reserve backed stablecoin pegged to the US dollar. This means for every 1 USDtz in existence there is a real US dollar in reserve.
 
