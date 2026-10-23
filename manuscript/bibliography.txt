@@ -2,3 +2,9 @@ SEC|Tezos
 Tezos — a self-amending crypto-ledger White paper, L. M. Goodman, 2014, https://tezos.com/whitepaper.pdf
 Tezos, Wikipedia entry, https://en.wikipedia.org/wiki/Tezos
 Tezos - Getting Started, https://tezos.com/learn/getting-started/
+SEC|Other chains
+Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
+The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
+Mastering Bitcoin
+Mastering Ethereum
+Ethereum for dummies
