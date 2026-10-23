@@ -280,7 +280,12 @@ automatic download is off by default. The updater is not started under the test 
   updateCompanionKey`). `getDelegateInfo` reads the delegate and, for bakers, the delegate record
   (consensus/companion keys, grace period) plus whether the delegate accepts stakers. tz4 keys need a
   BLS proof of possession (`provePossession` via `InMemorySigner.provePossession`) to become
-  consensus or companion keys, so only our own tz4 wallets can be chosen for that. The key field
+  consensus or companion keys, so only our own tz4 wallets can be chosen for that. "Create proof
+  of possession…" (both menus, after Export secret key, shown by `canProveSelectedKey`: a tz4
+  account with a clear or encrypted key; Taquito's Ledger signer cannot make one) opens
+  `ProofOfPossessionSheet`, which asks the password for an encrypted key, calls
+  `proofOfPossession(for:passphrase:)` and shows the public key and the `BLsig…` proof with
+  Copy buttons, the same proof `octez-client create bls proof for <alias>` prints. The key field
   of the Baking sheet takes a public key or a tz address: an address is resolved by
   `WalletViewModel.publicKey(forKeyOrAddress:)` (shared with the multisig signer picker; our own
   record first, else the key the address revealed on chain, checked locally to hash to that
@@ -465,7 +470,7 @@ automatic download is off by default. The updater is not started under the test 
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
-  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key | Add address, Remember key when session-only, Forget account |
+  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
   dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
   has Cmd-comma. File has Create Backup (`backUp(force: true)`).

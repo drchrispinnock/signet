@@ -84,6 +84,7 @@ final class WalletViewModel {
     var isPresentingConnectLedger = false
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
+    var isPresentingProofOfPossession = false
     var isPresentingForget = false
     var isPresentingRememberKey = false
     var isPresentingCreateMultisig = false
@@ -108,6 +109,10 @@ final class WalletViewModel {
 
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
+    /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds: the
+    /// proof is the key's signature over its own public key, and Taquito's Ledger signer cannot
+    /// make one.
+    var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && canExportSelectedKey }
     var isPresentingGovernance = false
     var isPresentingBridge = false
     var isPresentingShield = false

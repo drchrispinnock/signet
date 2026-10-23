@@ -181,6 +181,9 @@ struct OperationsMenuItems: View {
                 .disabled(model.selectedWallet == nil)
             Button("Export secret key…") { model.isPresentingExportKey = true }
                 .disabled(!model.canExportSelectedKey)
+            if model.canProveSelectedKey {
+                Button("Create proof of possession…") { model.isPresentingProofOfPossession = true }
+            }
             Divider()
             Button("Add address…") { model.isPresentingAddAddress = true }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
