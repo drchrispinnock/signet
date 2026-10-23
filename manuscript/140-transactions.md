@@ -1,5 +1,5 @@
 {#id: 140-transactions_1_Making}
-# Making Transactions
+# Transactions and Addresses
 
 *Please note that the addresses on the Tezos blockchain used in the chapter are shown for demonstrative purposes only. Please do not send funds to them.*
 
@@ -52,7 +52,7 @@ There is a final confirmation window. We click `Confirm and Send`. And the trans
 
 It is possible sometimes that the transaction does not go through. Usually this is due to congested or busy node. We will should you have to change nodes later on. But you can try the transaction again in such circumstances.
 
-Let's pop back to the address window again. Let's put in this address 
+Let's pop back to the address window again. Let's put in this address:
 
 ```
 tz1Xf8zdT3DbAX9cHw3c3CXh79rc4nK4gCe8
@@ -75,8 +75,12 @@ And we can send to it in the same way:
 {#id: 140-transactions_2_Making}
 ## Making large transactions
 
-As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. That includes the addresses in this book which are provided for example only.
+As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. (By the way, that includes the addresses in this book which are provided for example only.) Secondly, if you are making a large transaction of tez, make sure you are in contact with the receiver. It's best practice to send 1tz first, make sure it arrives in the right place and then send the rest with another transaction. It's also a good idea to add commonly used addresses to the address book, which we will cover next
 
+{#id: 140-transactions_2_Address}
+## Address Book
+
+XXX
 
 {#id: 140-transactions_2_Selling}
 ## Selling and Swapping
