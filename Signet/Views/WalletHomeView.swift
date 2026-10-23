@@ -39,6 +39,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingExportKey) {
             ExportKeySheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingProofOfPossession) {
+            ProofOfPossessionSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingForget) {
             ForgetAccountSheet(model: model)
         }

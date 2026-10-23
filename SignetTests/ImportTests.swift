@@ -89,6 +89,28 @@ struct ImportTests {
         #expect(!watch.canExportSelectedKey)
     }
 
+    /// Create proof of possession is offered for a tz4 account whose secret key we hold, and
+    /// signs through the same path as the Baking sheet's consensus-key proof.
+    @Test @MainActor func proofOfPossessionIsForOurOwnBLSKeys() async throws {
+        let tz4 = Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm")
+        let cases: [(Wallet, Bool)] = [
+            (Wallet(alias: "bls", address: tz4, publicKey: "BLpkX", keyKind: .unencrypted), true),
+            (Wallet(alias: "bls vault", address: tz4, publicKey: "BLpkX", keyKind: .encrypted), true),
+            (Wallet(alias: "bls ledger", address: tz4, publicKey: "BLpkX", keyKind: .ledger), false),
+            (Wallet(alias: "bls watch", address: tz4, keyKind: .none), false),
+            (Wallet(alias: "ed", address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"), publicKey: "edpkX", keyKind: .unencrypted), false),
+        ]
+        for (wallet, expected) in cases {
+            let model = WalletViewModel(wallets: [wallet], chain: MockChainService())
+            #expect(model.canProveSelectedKey == expected, "\(wallet.alias)")
+        }
+        let store = InMemoryWalletStore()
+        try store.add(Wallet(alias: "bls", address: tz4, publicKey: "BLpkX", keyKind: .unencrypted), secretKey: "BLskCLEAR")
+        let model = WalletViewModel(chain: MockChainService(), walletStore: store)
+        #expect(model.canProveSelectedKey)
+        #expect(try await model.proofOfPossession(for: try #require(model.selectedWallet), passphrase: nil) == "BLsigMockProof")
+    }
+
     @Test @MainActor func forgetRemovesTheAliasFromEveryFile() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("signet-forget-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }

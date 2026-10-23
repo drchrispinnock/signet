@@ -34,6 +34,7 @@
 		1FD01BA37E823824E784F994 /* OctezConnectEndToEnd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */; };
 		200A996B9BB378A8A8B94907 /* DAppPairingLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DA319AA4EE1C529012FFFD /* DAppPairingLinkTests.swift */; };
 		24BFD9B2163DAC152D8E54F2 /* OctezConnectStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */; };
+		258B228FB6E654342B3331EB /* ProofOfPossessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */; };
 		2642CCC0385340DBDBB000C6 /* IPFS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4B9106C1A9902CED9500D0 /* IPFS.swift */; };
 		28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A212889342C7C573BC835EB1 /* BakingSheet.swift */; };
 		297795808F6473E66D33DC6E /* KeyImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */; };
@@ -204,6 +205,7 @@
 		154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicHTTPClient.swift; sourceTree = "<group>"; };
 		17A5D3A61994CA0F42AB7C64 /* BuyWebViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyWebViewTests.swift; sourceTree = "<group>"; };
 		17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGenerator.swift; sourceTree = "<group>"; };
+		19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofOfPossessionSheet.swift; sourceTree = "<group>"; };
 		1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTests.swift; sourceTree = "<group>"; };
 		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
 		201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectEndToEnd.swift; sourceTree = "<group>"; };
@@ -409,6 +411,7 @@
 				FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */,
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
+				19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */,
 				525C79C726F273E9E3375452 /* ReceiveSheet.swift */,
 				B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */,
 				4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */,
@@ -816,6 +819,7 @@
 				93CA5BDA4B5439D81270BCAB /* OperationJournal.swift in Sources */,
 				945A8B6A3D1933615DBBD5C5 /* PrivateFile.swift in Sources */,
 				15FF63E596D6B4BF37C12288 /* Profiles.swift in Sources */,
+				258B228FB6E654342B3331EB /* ProofOfPossessionSheet.swift in Sources */,
 				D040B3DBCE102CE52E93484E /* PublicHTTPClient.swift in Sources */,
 				0535E8D871DA72D6F3E22641 /* QRCode.swift in Sources */,
 				F26C76D739108A6AA2B3ACC9 /* ReceiveSheet.swift in Sources */,
