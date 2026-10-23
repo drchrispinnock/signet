@@ -9,4 +9,6 @@ For tax purposes, you should record the monetary value of any purchases of crypt
 
 Before trying anything on Tezos's production network, *mainnet*, it's prudent to try it on one of the test networks first.
 
+Theaddresses on the Tezos blockchain used in the book are shown for demonstrative purposes only. Please do not send funds to them.
+
 As the Signet software develops, the user interface may change. Sometimes this will be slight and other times the change will be big. It's possible that the book will be out of sync with the release of software, although efforts will be made to keep it up to date.
