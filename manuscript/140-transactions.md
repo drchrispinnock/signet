@@ -12,7 +12,7 @@ Tezos is no different. You can replace the basic banking functions of transferri
 
 Receiving tez in your Signet account is a passive operation. All you need to do is give the sender your address. You can either copy it from the top left of your Signet menu, or click the Receive button. 
 
-![](120/receive.png)
+![](140/receive.png)
 This screen gives you the possible to copy your address, but also a bar code. Some mobile wallets will read the bar code and use it as a sending address. This is useful if you are near to the person that wants to send you the funds.
 
 In this case, someone has kindly send my wallet 1tz on *Shadownet.* You can see the transaction in the list, which is in most recent order. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Fawcet*). 
@@ -43,9 +43,12 @@ In this case, we are going to use the address above, so I type that in:
 
 Signet doesn't recognise the address, because it is not in its address book, but we know the recipient so we will continue. We are going to send 15tz as in the dialogue. We click `Continue`:
 
+![](140/confirm.png)
+
+
 There is a final confirmation window. We click `Confirm and Send`. And the transaction goes through:
 
-![](140/confirm.png)
+![](140/confirmed.png)
 
 It is possible sometimes that the transaction does not go through. Usually this is due to congested or busy node. We will should you have to change nodes later on. But you can try the transaction again in such circumstances.
 
