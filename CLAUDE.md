@@ -280,7 +280,13 @@ automatic download is off by default. The updater is not started under the test 
   updateCompanionKey`). `getDelegateInfo` reads the delegate and, for bakers, the delegate record
   (consensus/companion keys, grace period) plus whether the delegate accepts stakers. tz4 keys need a
   BLS proof of possession (`provePossession` via `InMemorySigner.provePossession`) to become
-  consensus or companion keys, so only our own tz4 wallets can be chosen for that. UI:
+  consensus or companion keys, so only our own tz4 wallets can be chosen for that. The key field
+  of the Baking sheet takes a public key or a tz address: an address is resolved by
+  `WalletViewModel.publicKey(forKeyOrAddress:)` (shared with the multisig signer picker; our own
+  record first, else the key the address revealed on chain, checked locally to hash to that
+  address) and the sheet shows where the key came from; an address that revealed nothing, the
+  usual case for a fresh signing key, gets an inline note asking for the public key itself
+  (`octez-client show address`) and Continue stays off. tz6 (xmpk) keys are only ever pasted. UI:
   `DelegateRowView` under the balances, `StakingSheet` behind the Stake tile, `BakingSheet` from the
   burger menu; `TzKTService.bakers` feeds the baker picker. Staking parameters (`StakingParameters`:
   limit of staking over baking in millionths, edge of baking over staking in billionths) are read

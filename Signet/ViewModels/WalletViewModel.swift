@@ -1384,20 +1384,50 @@ extension WalletViewModel {
         ["edpk", "sppk", "p2pk", "BLpk", "mdpk"].contains { key.hasPrefix($0) } && key.count > 6 && key.allSatisfy { $0.isLetter || $0.isNumber }
     }
 
-    /// A signer for a new multisig from what the user gave: a public key as is, or a tz address
-    /// (pasted, from the address book or one of ours) resolved to the key it has revealed on chain.
-    func multisigSignerKey(from text: String) async throws -> String {
+    /// What a field that takes "a public key or a tz address" holds.
+    enum KeyFieldContent: Equatable {
+        case empty
+        case publicKey(String)
+        /// A well-formed implicit account address (tz1 to tz6), whose key may have to be looked up.
+        case address(Address)
+        /// Neither; the text is passed on untouched and the chain or bridge will refuse it.
+        case other(String)
+    }
+
+    nonisolated static func keyFieldContent(_ text: String) -> KeyFieldContent {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if Self.isPublicKey(trimmed) { return trimmed }
+        if trimmed.isEmpty { return .empty }
+        if Self.isPublicKey(trimmed) { return .publicKey(trimmed) }
         let address = Address(trimmed)
-        guard address.isValidAccount, !address.isContract else { throw MultisigError.notASignerCandidate(trimmed) }
-        if let mine = wallets.first(where: { $0.address == address }), let key = mine.publicKey { return key }
-        guard let key = try await multisig.revealedPublicKey(rpcURL: network.rpcURL, address: address) else { throw MultisigError.notRevealed(address) }
-        // The node is not trusted to say whose key that is: it must hash to the address asked for.
-        guard Self.isPublicKey(key) else { throw MultisigError.invalidKey(key) }
-        let derived = try await multisig.address(forPublicKey: key)
-        guard derived == address else { throw MultisigError.keyAddressMismatch(address, derived) }
-        return key
+        if address.isValidAccount, !address.isContract { return .address(address) }
+        return .other(trimmed)
+    }
+
+    /// Where a resolved public key came from, for the sheet to say so.
+    enum ResolvedKeySource: Equatable { case pasted, ownAccount(alias: String), revealedOnChain }
+
+    /// The public key behind what the user gave: a public key as is, or a tz address (pasted, from
+    /// the address book or one of ours) resolved to our record of it or to the key it has revealed
+    /// on chain. An address that has never sent an operation has revealed nothing and fails with
+    /// `MultisigError.notRevealed`, so the caller can ask for the public key instead.
+    func publicKey(forKeyOrAddress text: String) async throws -> (key: String, source: ResolvedKeySource) {
+        switch Self.keyFieldContent(text) {
+        case .publicKey(let key): return (key, .pasted)
+        case .empty, .other: throw MultisigError.notASignerCandidate(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        case .address(let address):
+            if let mine = wallets.first(where: { $0.address == address }), let key = mine.publicKey { return (key, .ownAccount(alias: mine.alias)) }
+            guard let key = try await multisig.revealedPublicKey(rpcURL: network.rpcURL, address: address) else { throw MultisigError.notRevealed(address) }
+            // The node is not trusted to say whose key that is: it must hash to the address asked for.
+            guard Self.isPublicKey(key) else { throw MultisigError.invalidKey(key) }
+            let derived = try await multisig.address(forPublicKey: key)
+            guard derived == address else { throw MultisigError.keyAddressMismatch(address, derived) }
+            return (key, .revealedOnChain)
+        }
+    }
+
+    /// A signer for a new multisig from what the user gave (see `publicKey(forKeyOrAddress:)`).
+    func multisigSignerKey(from text: String) async throws -> String {
+        try await publicKey(forKeyOrAddress: text).key
     }
 
     func multisigInfo(_ contract: MultisigContract) async throws -> MultisigInfo {
