@@ -1,7 +1,7 @@
 {#id: 170-dapps_1_Distribute}
 # Distributed Apps
 
-Distributed Apps (dApps) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a distributed exchange (DEX) to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Distributed Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a *distributed exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {#id: 170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -119,9 +119,10 @@ On the burger menu at Teia, you can go to your profile and view all your creatio
 
 Under Creations, click on the NFT that you have minted and it will show you the information about it. From there you can swap more, transfer any remaining ones and even destroy it with the burn function.
 
-XXX Finish XXX
+It took a little while for my NFT to be listed but some time later, it appeared on the front page of Teia as a new NFT.
 
-
+![](170/teiafront.png)
+From the listing you can buy one of these artworks for 1tz.
 
 {#id: 170-dapps_2_Buying_2}
 ## Buying a Tezos Domain
