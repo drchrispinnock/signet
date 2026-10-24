@@ -16,6 +16,7 @@ Roman Schnider
 Roland Dowdeswell
 Thomas Letan
 Yann Regis-Gianas
+Ryan Tanaka
 Luke Youngblood
 
 Also thank you to the Tezos Foundation.

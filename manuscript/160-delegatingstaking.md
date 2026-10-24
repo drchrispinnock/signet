@@ -1,6 +1,12 @@
 {#id: delegating}
 # Delegating and Staking
 
+
+
+{#id: 160-delegatingstaking_2_Placeholde}
+## Placeholder - Baking
+
+*This probably needs to go in the introduction.*
 - What is Baking
 - Fold in material from the baking chapter
 

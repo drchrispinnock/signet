@@ -17,17 +17,19 @@
 
 [5] Quick Start Guide for Impatient Tezos Bakers, Chris Pinnock, https://chrispinnock.com/tezos/quickstart/
 
+[6] Running Octez at boot on Macs, Chris Pinnock, https://chrispinnock.com/2026/07/03/launchctl.html
+
 **Other chains**
 
-[6] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
+[7] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
 
-[7] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
+[8] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
 
-[8] Mastering Bitcoin
+[9] Mastering Bitcoin
 
-[9] Mastering Ethereum
+[10] Mastering Ethereum
 
-[10] Ethereum for dummies
+[11] Ethereum for dummies
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->
