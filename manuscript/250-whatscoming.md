@@ -17,11 +17,11 @@ At the moment, we support tz addresses on the layer 2. These can be mapped to an
 
 **TzEL shielded transactions**
 
-TzEL is a smart-rollup for private post-quantum transactions. You'll be able to move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You'll be able to withdraw them (that is "unshield" them) from the rollup. TzEL is available on *Shadownet* and it will soon be available on *Quantumnet*. Signet needs to handle shielding, transfers and unshielding on this rollup. I expect this will be implemented as a third balanced on the main Signet screen. Signet is able to use the TzEL rollup on *Shadownet* today but it is an early implementation.
+TzEL is a smart-rollup for private post-quantum transactions. You'll be able to move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You'll be able to withdraw them (that is "unshield" them) from the rollup. TzEL is available on *Shadownet* and it will soon be available on *Quantumnet*. Signet needs to handle shielding, transfers and unshielding on this rollup. I expect this will be implemented as a third balanced on the main Signet screen. Signet is able to use the TzEL rollup on *Shadownet* today but it is an early implementation. You can enabled Shielded Transactions in the menu. 
 
 **Swapping and obtaining other tokens**
 
-Other wallets support swapping tokens at DEXs. We might investigate this in a later release, but you can go to a DEX and connect it as a dApp, as we saw earlier. Also, there is the possibility of acquiring other on-chain tokens directly from Signet.
+Other wallets support swapping tokens at DEXs in the wallet. We might investigate this in a later release, but you can go to a DEX and connect it as a dApp, as we saw earlier.
 
 **Windows and Linux support**
 
