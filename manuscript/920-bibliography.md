@@ -1,5 +1,5 @@
 {#id: 920-bibliography_1_Further}
-# Further reading
+# 	Further reading
 
 
 <!-- MARKUPBIBLIOGRAPHY -->
@@ -13,17 +13,21 @@
 
 [3] Tezos - Getting Started, https://tezos.com/learn/getting-started/
 
+[4] Running Tezos Infrastructure, Chris Pinnock, https://leanpub.com/tezosinfra, In Preparation.
+
+[5] Quick Start Guide for Impatient Tezos Bakers, Chris Pinnock, https://chrispinnock.com/tezos/quickstart/
+
 **Other chains**
 
-[4] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
+[6] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
 
-[5] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
+[7] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
 
-[6] Mastering Bitcoin
+[8] Mastering Bitcoin
 
-[7] Mastering Ethereum
+[9] Mastering Ethereum
 
-[8] Ethereum for dummies
+[10] Ethereum for dummies
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->
