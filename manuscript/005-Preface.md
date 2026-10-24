@@ -114,7 +114,7 @@ Also, it is Mac only. Now I only know three people in my immediate circle of fam
 
 I finished the first draft of this book on XXX. That's only XXX weeks after I started the Signet project. I wanted to tell you this story because it is an example of the new AI world we live in. You can build an application on your computer rapidly using Claude or Codex or other tools. You need to be as prescriptive as possible. Tell the AI tool what you want. Draw it pictures. Tell it what you don't like and tell it what you do like. Eventually you'll get the application you need. 
 
-I'm typing this text into Markup, a Markdown editor that I got Claude to write. It has a formatted view and a markdown view - you can write in both. It handles images, formatting, hyperlinks, tables, citations and crosslinks. It is the editor I've always needed. And I wrote it in hours.
+I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a Markdown editor that I got Claude to write. It has a formatted view and a markdown view - you can write in both. It handles images, formatting, hyperlinks, tables, citations and crosslinks. It is the editor I've always needed. And I wrote it in hours.
 
 But let's get back to the main topics. We are here to show you how to use the Tezos blockchain with the Signet wallet. I hope you enjoy reading this book, learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
 
