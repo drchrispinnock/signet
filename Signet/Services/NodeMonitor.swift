@@ -58,6 +58,27 @@ final class NodeMonitor {
 
     typealias Probe = @Sendable (URL) async throws -> (data: Data, status: Int, latency: TimeInterval)
 
+    /// Which of the network's nodes this monitor watches: the layer 1 node, or the Layer 2
+    /// Michelson node (only while the network has Layer 2 on; idle and grey otherwise).
+    enum Layer: Sendable { case one, two }
+    let layer: Layer
+
+    /// The node being watched, or `nil` when the network has none for this layer.
+    var endpoint: URL? {
+        switch layer {
+        case .one: network.rpcURL
+        case .two: network.hasL2 ? network.l2RPCURL : nil
+        }
+    }
+
+    /// The chain id a reply must carry, when the network pins one for this layer (S12).
+    var expectedChainID: String? {
+        switch layer {
+        case .one: network.expectedChainID
+        case .two: network.expectedL2ChainID
+        }
+    }
+
     private(set) var status: NodeStatus = .unknown
     private(set) var lastChecked: Date?
     /// Called when a check sees a higher head level than the last one: something may have changed.
@@ -75,8 +96,9 @@ final class NodeMonitor {
     private let probe: Probe
     private var loop: Task<Void, Never>?
 
-    init(network: Network, probe: Probe? = nil) {
+    init(network: Network, layer: Layer = .one, probe: Probe? = nil) {
         self.network = network
+        self.layer = layer
         self.probe = probe ?? NodeMonitor.urlSessionProbe
     }
 
@@ -101,9 +123,10 @@ final class NodeMonitor {
         }
     }
 
-    /// One probe, outcome published in `status`.
+    /// One probe, outcome published in `status`. Nothing to watch leaves the status unknown.
     func checkNow() async {
-        let url = network.rpcURL.appendingPathComponent("chains/main/blocks/head/header")
+        guard let endpoint else { status = .unknown; return }
+        let url = endpoint.appendingPathComponent("chains/main/blocks/head/header")
         let probe = probe
         let result: Result<(data: Data, status: Int, latency: TimeInterval), Error>
         do {
@@ -111,7 +134,7 @@ final class NodeMonitor {
         } catch {
             result = .failure(error)
         }
-        status = Self.evaluate(result, now: Date())
+        status = Self.evaluate(result, now: Date(), expectedChainID: expectedChainID)
         lastChecked = Date()
         if let level = status.level, level != lastLevel {
             let isFirst = lastLevel == nil
@@ -121,7 +144,7 @@ final class NodeMonitor {
     }
 
     /// Pure classification so it can be tested without a network.
-    nonisolated static func evaluate(_ result: Result<(data: Data, status: Int, latency: TimeInterval), Error>, now: Date) -> NodeStatus {
+    nonisolated static func evaluate(_ result: Result<(data: Data, status: Int, latency: TimeInterval), Error>, now: Date, expectedChainID: String? = nil) -> NodeStatus {
         switch result {
         case .failure(let error):
             return .unreachable(reason: "Cannot reach node: \((error as? URLError)?.localizedDescription ?? error.localizedDescription)")
@@ -135,6 +158,10 @@ final class NodeMonitor {
                   let time = parseTimestamp(stamp)
             else {
                 return .degraded(reason: "Unexpected reply from node", level: nil)
+            }
+            // The header names its chain: a node on another network is as wrong as no node (S12).
+            if let expectedChainID, let found = object["chain_id"] as? String, found != expectedChainID {
+                return .unreachable(reason: "Node serves chain \(found), not \(expectedChainID)")
             }
             let age = now.timeIntervalSince(time)
             if age > staleHead {

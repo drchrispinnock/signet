@@ -149,6 +149,8 @@ final class WalletViewModel {
 
     /// Watches the configured node for the status bar.
     let nodeMonitor: NodeMonitor
+    /// Watches the Layer 2 Michelson node while the network has Layer 2 on; grey and idle otherwise.
+    let l2Monitor: NodeMonitor
 
     /// The network and node the app talks to. Changing either swaps the chain service and
     /// reloads the dashboard. Assign a `Network` straight from `Network.all` to use its default
@@ -157,6 +159,7 @@ final class WalletViewModel {
         didSet {
             guard network != oldValue else { return }
             nodeMonitor.network = network
+            l2Monitor.network = network
             chain = chainFactory(network)
             state.networkName = network.name
             var nodeURLs = state.nodeURLs ?? [:]
@@ -209,18 +212,18 @@ final class WalletViewModel {
         var network = base
         if let saved = state.nodeURLs?[base.name], let url = Network.nodeURL(from: saved) { network = network.usingNode(url) }
         let l2Node = state.l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
-        let l2Enabled = state.l2Enabled?[base.name] ?? (base.l2DefaultRPCURL != nil)
+        let l2Enabled = state.l2Enabled?[base.name] ?? false
         return network.usingL2(enabled: l2Enabled, node: l2Node)
     }
 
     /// Records `net`'s Etherlink choices in the saved state, only where they differ from the
-    /// defaults (on with our endpoint for mainnet and Shadownet, off elsewhere).
+    /// defaults (off, with our endpoint where we ship one).
     private func rememberL2(of net: Network) {
         var nodes = state.l2NodeURLs ?? [:]
         nodes[net.name] = net.isUsingDefaultL2Node ? nil : net.l2RPCURL?.absoluteString
         state.l2NodeURLs = nodes.isEmpty ? nil : nodes
         var flags = state.l2Enabled ?? [:]
-        flags[net.name] = net.l2Enabled == (net.l2DefaultRPCURL != nil) ? nil : net.l2Enabled
+        flags[net.name] = net.l2Enabled ? true : nil
         state.l2Enabled = flags.isEmpty ? nil : flags
     }
 
@@ -396,6 +399,7 @@ final class WalletViewModel {
         let network = Self.resolve(Network.named(state.networkName) ?? .mainnet, in: state)
         self.network = network
         self.nodeMonitor = NodeMonitor(network: network, probe: nodeProbe)
+        self.l2Monitor = NodeMonitor(network: network, layer: .two, probe: nodeProbe)
         self.chainFactory = factory
         self.chain = factory(network)
         self.keyGenerator = keyGenerator
@@ -972,6 +976,15 @@ final class WalletViewModel {
 
     /// The live chain service, for flows that run their own lookups (Send).
     var chainService: any ChainService { chain }
+
+    /// A chain service for Etherlink's Michelson interface (`Network.layer2`), for operations
+    /// between tz accounts on the rollup; `nil` unless Layer 2 is on with a node.
+    var layer2Chain: (any ChainService)? { network.layer2.map(chainFactory) }
+
+    /// The selected account's tez on Etherlink as last loaded, or `nil` when unknown.
+    var etherlinkSpendable: Decimal? {
+        assets.first { $0.kind == .etherlink && $0.unavailable == nil }?.amount
+    }
 
     /// What signs for one of our wallets: its secret key from the store (with `passphrase` if
     /// encrypted) or its Ledger key. `nil` for watch-only and remote-signer aliases.

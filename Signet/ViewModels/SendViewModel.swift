@@ -57,6 +57,8 @@ final class SendViewModel {
     let sender: Wallet
     private let wallets: [Wallet]
     private let chain: any ChainService
+    /// Etherlink's Michelson interface: only tz1, tz2 and tz3 accounts can be sent to there.
+    let implicitAccountsOnly: Bool
     private let signerProvider: @Sendable (Wallet, String?) throws -> SigningKey?
     private(set) var spendable: Decimal?
 
@@ -80,13 +82,20 @@ final class SendViewModel {
     private var resolveTask: Task<Void, Never>?
 
     init(sender: Wallet, wallets: [Wallet], chain: any ChainService, spendable: Decimal?,
+         implicitAccountsOnly: Bool = false,
          signerProvider: @escaping @Sendable (Wallet, String?) throws -> SigningKey?) {
         self.sender = sender
         self.wallets = wallets
         self.chain = chain
         self.spendable = spendable
+        self.implicitAccountsOnly = implicitAccountsOnly
         self.signerProvider = signerProvider
         self.suggestions = candidates(matching: "")
+    }
+
+    /// Whether `address` can receive here: anything on Tezos, tz1 to tz3 on Etherlink.
+    func accepts(_ address: Address) -> Bool {
+        address.isValidAccount && (!implicitAccountsOnly || WalletViewModel.usableOnEtherlink(address))
     }
 
     /// Recovery is checked before composing a replacement, including after restarting the app.
@@ -127,7 +136,7 @@ final class SendViewModel {
     private func candidates(matching text: String) -> [Wallet] {
         let needle = text.trimmingCharacters(in: .whitespaces).lowercased()
         return wallets
-            .filter { $0.address != sender.address }
+            .filter { $0.address != sender.address && accepts($0.address) }
             .filter { needle.isEmpty || $0.alias.lowercased().contains(needle) || $0.address.value.lowercased().hasPrefix(needle) }
     }
 
@@ -139,7 +148,9 @@ final class SendViewModel {
         suggestions = candidates(matching: text)
 
         let typed = Address(text)
-        if typed.isValidAccount {
+        if typed.isValidAccount, !accepts(typed) {
+            errorMessage = "On Etherlink, send only to tz1, tz2 or tz3 accounts."
+        } else if typed.isValidAccount {
             resolve(typed)
         } else if text.lowercased().hasSuffix(".tez"), text.count > 4 {
             isResolving = true
@@ -148,7 +159,7 @@ final class SendViewModel {
                 guard !Task.isCancelled else { return }
                 let address = try? await chain.resolveDomain(text)
                 guard !Task.isCancelled else { return }
-                if let address { resolve(address, via: text) } else { isResolving = false }
+                if let address, accepts(address) { resolve(address, via: text) } else { isResolving = false }
             }
         } else {
             isResolving = false

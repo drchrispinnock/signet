@@ -3,10 +3,16 @@ import Testing
 @testable import Signet
 
 /// Etherlink (0.9): per-network Etherlink settings and the dashboard's Etherlink balance row.
+extension Network {
+    /// The network with Layer 2 switched on at its shipped node, as a user would in Settings.
+    var l2On: Network { usingL2(enabled: true, node: l2RPCURL) }
+}
+
 struct EtherlinkNetworkTests {
-    @Test func mainnetAndShadownetShipAnEtherlinkEndpointOthersStartOff() {
-        #expect(Network.mainnet.hasL2 && Network.mainnet.l2RPCURL?.host() == "michelson.etherlink.mainnet.octez.io")
-        #expect(Network.shadownet.hasL2 && Network.shadownet.l2RPCURL?.host() == "michelson.etherlink.shadownet.octez.io")
+    @Test func layerTwoIsOffByDefaultAndShippedForMainnetAndShadownet() {
+        #expect(!Network.mainnet.hasL2 && Network.mainnet.l2RPCURL?.host() == "michelson.etherlink.mainnet.octez.io")
+        #expect(!Network.shadownet.hasL2 && Network.shadownet.l2RPCURL?.host() == "michelson.etherlink.shadownet.octez.io")
+        #expect(Network.mainnet.l2On.hasL2 && Network.mainnet.l2On.isUsingDefaultL2Node && Network.mainnet.l2On != Network.mainnet)
         #expect(Network.mainnet.expectedL2ChainID == "NetXohUVN5QWR4f" && Network.shadownet.expectedL2ChainID == "NetXtLrzvQDobza")
         for network in [Network.bakingnet, .ushuaianet, .quantumnet, .custom] {
             #expect(!network.l2Enabled && network.l2RPCURL == nil && !network.hasL2, "\(network.name)")
@@ -14,8 +20,18 @@ struct EtherlinkNetworkTests {
         // Switched on without a node is not usable yet; off with a node keeps the node for later.
         let on = Network.bakingnet.usingL2(enabled: true, node: nil)
         #expect(on.l2Enabled && !on.hasL2)
-        let off = Network.mainnet.usingL2(enabled: false, node: Network.mainnet.l2RPCURL)
-        #expect(!off.hasL2 && off.isUsingDefaultL2Node && off != Network.mainnet)
+        let off = Network.mainnet.l2On.usingL2(enabled: false, node: Network.mainnet.l2RPCURL)
+        #expect(!off.hasL2 && off.isUsingDefaultL2Node && off == Network.mainnet)
+    }
+
+    @Test func theLayer2NetworkIsTheMichelsonInterfaceWithItsOwnIndexer() throws {
+        #expect(Network.shadownet.layer2 == nil)   // off by default
+        let l2 = try #require(Network.shadownet.l2On.layer2)
+        #expect(l2.rpcURL == Network.shadownet.l2RPCURL && l2.expectedChainID == "NetXtLrzvQDobza" && l2.layerNumber == 2)
+        #expect(l2.tzktURL?.host() == "api.shadownet.etherlink.tzkt.io" && l2.explorerURL(operation: "ooX")?.absoluteString == "https://shadownet.etherlink.tzkt.io/ooX")
+        #expect(l2.layer2 == nil && !l2.hasL2 && !l2.isMainnet)
+        #expect(Network.mainnet.l2On.layer2?.tzktURL?.host() == "api.etherlink.tzkt.io")
+        #expect(Network.bakingnet.l2On.layer2 == nil)
     }
 
     @Test func onlyTz1ToTz3KeysAreUsableOnTheRollup() {
@@ -32,19 +48,19 @@ struct EtherlinkSettingsTests {
     @Test func etherlinkChoicesAreKeptPerNetworkAndSurviveNodeChanges() {
         let state = InMemoryAppStateStore()
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
-        #expect(model.network.name == "Mainnet" && model.isL2Enabled(for: .mainnet) && model.network.hasL2)
+        #expect(model.network.name == "Mainnet" && !model.isL2Enabled(for: .mainnet) && !model.network.hasL2)
 
-        // Off on the network in use: applied at once, saved only because it differs from the default.
-        model.setL2Enabled(false, for: .mainnet)
-        #expect(!model.network.hasL2 && !model.isL2Enabled(for: .mainnet))
-        #expect(state.load().l2Enabled == ["Mainnet": false] && state.load().l2NodeURLs == nil)
+        // On, on the network in use: applied at once and saved because it differs from the default.
+        model.setL2Enabled(true, for: .mainnet)
+        #expect(model.network.hasL2 && model.network.isUsingDefaultL2Node && model.isL2Enabled(for: .mainnet))
+        #expect(state.load().l2Enabled == ["Mainnet": true] && state.load().l2NodeURLs == nil)
         // Changing the layer 1 node keeps the Etherlink choice.
         #expect(model.setNode("rpc.example.org"))
-        #expect(!model.network.l2Enabled && model.network.rpcURL.host() == "rpc.example.org")
+        #expect(model.network.hasL2 && model.network.rpcURL.host() == "rpc.example.org")
         model.useDefaultNode()
-        #expect(!model.network.l2Enabled)
-        model.setL2Enabled(true, for: .mainnet)
-        #expect(model.network.hasL2 && model.network.isUsingDefaultL2Node && state.load().l2Enabled == nil)
+        #expect(model.network.hasL2)
+        model.setL2Enabled(false, for: .mainnet)
+        #expect(!model.network.hasL2 && state.load().l2Enabled == nil)
 
         // Another network, without switching: on needs a node before it counts.
         model.setL2Enabled(true, for: .bakingnet)
@@ -58,9 +74,10 @@ struct EtherlinkSettingsTests {
         #expect(model.network.l2Enabled && !model.network.hasL2 && state.load().l2NodeURLs == nil)
 
         // A fresh model over the same state resolves the same choices.
+        model.setL2Enabled(true, for: .mainnet)
         let again = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: state)
         #expect(again.network.name == "Bakingnet" && again.isL2Enabled(for: .bakingnet) && again.isL2Enabled(for: .mainnet))
-        #expect(again.l2NodeURL(for: .mainnet) == Network.mainnet.l2DefaultRPCURL)
+        #expect(again.l2NodeURL(for: .mainnet) == Network.mainnet.l2DefaultRPCURL && !again.isL2Enabled(for: .shadownet))
     }
 }
 
@@ -72,6 +89,9 @@ struct EtherlinkRowTests {
 
     @Test func rowFollowsTheNetworkSettingAndTheKeyKind() async {
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets + [Self.tz4], chain: MockChainService())
+        await model.refresh()
+        #expect(model.assets.map(\.id) == ["tez"])          // Layer 2 is off by default
+        model.setL2Enabled(true, for: .mainnet)
         await model.refresh()
         #expect(model.assets.map(\.id) == ["tez", "etherlink"])
         #expect(etherlinkRow(model)?.amount == Decimal(string: "5432.1") && etherlinkRow(model)?.unavailable == nil)
@@ -102,6 +122,7 @@ struct EtherlinkRowTests {
 
     @Test func anUnreachableEtherlinkNodeBlanksOnlyThatRow() async {
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: FailingEtherlink(notOnChain: false))
+        model.setL2Enabled(true, for: .mainnet)
         await model.refresh()
         #expect(model.errorMessage == nil && model.assets.map(\.id) == ["tez", "etherlink"])
         #expect(etherlinkRow(model)?.unavailable?.contains("Etherlink balance unavailable") == true)
@@ -109,6 +130,7 @@ struct EtherlinkRowTests {
 
     @Test func anAccountNotOnLayer1ShowsNoEtherlinkRow() async {
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: FailingEtherlink(notOnChain: true))
+        model.setL2Enabled(true, for: .mainnet)
         await model.refresh()
         #expect(model.accountNotOnChain && model.assets.isEmpty)
     }
@@ -116,12 +138,52 @@ struct EtherlinkRowTests {
 
 /// Live: the Shadownet Etherlink endpoint answers as a Tezos node and refuses a wrong chain id.
 struct EtherlinkLiveTests {
+    /// A transfer between two tz accounts on the Michelson interface, through the ordinary
+    /// Taquito path against the Layer 2 node: fund on layer 1, deposit through the bridge, then
+    /// send on Etherlink and watch both balances move.
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
+    func sendsTezBetweenAccountsOnEtherlink() async throws {
+        let layer1 = TaquitoChainService(network: Network.shadownet.l2On)
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownet.l2On.layer2))
+        let generator = KeyGenerator()
+        let payer = try await generator.generate(scheme: .tz1)
+        let payee = try await generator.generate(scheme: .tz2)
+        let wallet = Wallet(alias: "l2-payer", address: Address(payer.address), scheme: .tz1, publicKey: payer.publicKey, keyKind: .unencrypted)
+        let signer = SigningKey.secret(payer.secretKey, passphrase: nil, address: wallet.address)
+
+        let faucet = try #require(FaucetService(network: .shadownet))
+        _ = try await faucet.requestTez(to: wallet.address, amount: 10)
+        var funded = false
+        for _ in 0..<40 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.tezBalance(for: wallet.address), b.spendable >= 10 { funded = true; break } }
+        #expect(funded)
+
+        let deposit = try await layer1.estimateEtherlinkDeposit(from: wallet, amount: 3)
+        let sent = try await layer1.sendEtherlinkDeposit(from: wallet, signer: signer, amount: 3, limits: try #require(deposit.limits))
+        _ = try await layer1.waitForConfirmation(of: sent.hash)
+        var credited = false
+        for _ in 0..<45 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.etherlinkBalance(for: wallet.address), b >= 3 { credited = true; break } }
+        #expect(credited)
+
+        // Now the account is on Etherlink: an ordinary transfer there, fee and all.
+        let before = try await layer2.tezBalance(for: wallet.address)
+        #expect(before.spendable == 3)
+        let estimate = try await layer2.estimateTransfer(from: wallet, to: Address(payee.address), amount: 1)
+        #expect(estimate.limits != nil)
+        let transfer = try await layer2.sendTransfer(from: wallet, signer: signer, to: Address(payee.address), amount: 1, limits: try #require(estimate.limits))
+        print("etherlink transfer \(transfer.hash)")
+        let level = try await layer2.waitForConfirmation(of: transfer.hash)
+        #expect(level > 0)
+        #expect(try await layer2.tezBalance(for: Address(payee.address)).spendable == 1)
+        #expect(try await layer2.tezBalance(for: wallet.address).spendable < 2)
+    }
+
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
     func readsABalanceFromShadownetEtherlink() async throws {
-        let chain = TaquitoChainService(network: .shadownet)
+        let chain = TaquitoChainService(network: Network.shadownet.l2On)
         let balance = try await chain.etherlinkBalance(for: Address("tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx"))
         #expect(balance >= 0)
-        var wrongChain = Network.shadownet
+        await #expect(throws: ChainError.noEtherlinkNode) { _ = try await TaquitoChainService(network: .shadownet).etherlinkBalance(for: Address("tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx")) }
+        var wrongChain = Network.shadownet.l2On
         wrongChain.expectedL2ChainID = Network.mainnet.expectedL2ChainID
         await #expect(throws: ChainError.wrongChain(expected: Network.mainnet.expectedL2ChainID!, found: Network.shadownet.expectedL2ChainID!)) {
             try await TaquitoChainService(network: wrongChain).etherlinkBalance(for: Address("tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx"))

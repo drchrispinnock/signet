@@ -1,40 +1,55 @@
 import SwiftUI
 
-/// Thin strip at the bottom of the window: a coloured light and a line about the node.
+/// Thin strip at the bottom of the window: a coloured light and a line about the layer 1 node
+/// and, while the network has Layer 2 on, a second line beneath it for the Layer 2 Michelson
+/// node. The lines are a grid so hosts, levels and summaries line up in columns.
 struct NodeStatusBar: View {
     let monitor: NodeMonitor
+    var layer2: NodeMonitor? = nil
 
     var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(color)
-                .frame(width: 9, height: 9)
-                .overlay(Circle().strokeBorder(.black.opacity(0.15)))
-                .accessibilityHidden(true)
-            Text("Node:")
-                .foregroundStyle(.secondary)
-            Text(monitor.network.rpcURL.host() ?? monitor.network.rpcURL.absoluteString)
-                .fontWeight(.medium)
-            if let level = monitor.status.level {
-                Text("level \(level.formatted())")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+            GridRow { cells(monitor, label: "Layer 1:") }
+            if let layer2, layer2.endpoint != nil {
+                GridRow { cells(layer2, label: "Layer 2:") }
             }
-            Spacer()
-            Text(monitor.status.summary)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
         }
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.bar)
-        .contentShape(Rectangle())
-        .onTapGesture { Task { await monitor.checkNow() } }
-        .help(helpText)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Node \(monitor.network.rpcURL.host() ?? ""): \(monitor.status.summary)")
+    }
+
+    /// One node's cells: light, label, host, head level and the summary, which takes the rest
+    /// of the width. Clicking the host or summary checks that node again.
+    @ViewBuilder
+    private func cells(_ monitor: NodeMonitor, label: String) -> some View {
+        NodeLight(monitor: monitor)
+        Text(label).foregroundStyle(.secondary)
+        NodeHostText(monitor: monitor, label: label)
+        Text(monitor.status.level.map { "level \($0.formatted())" } ?? "")
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+        Text(monitor.status.summary)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .contentShape(Rectangle())
+            .onTapGesture { Task { await monitor.checkNow() } }
+            .help(NodeHostText.helpText(for: monitor))
+    }
+}
+
+private struct NodeLight: View {
+    let monitor: NodeMonitor
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 9, height: 9)
+            .overlay(Circle().strokeBorder(.black.opacity(0.15)))
+            .accessibilityHidden(true)
     }
 
     private var color: Color {
@@ -45,9 +60,28 @@ struct NodeStatusBar: View {
         case .red: .red
         }
     }
+}
 
-    private var helpText: String {
-        var lines = [monitor.network.rpcURL.absoluteString, monitor.status.detail]
+private struct NodeHostText: View {
+    let monitor: NodeMonitor
+    let label: String
+
+    private var host: String {
+        guard let endpoint = monitor.endpoint else { return "—" }
+        return endpoint.host() ?? endpoint.absoluteString
+    }
+
+    var body: some View {
+        Text(host)
+            .fontWeight(.medium)
+            .contentShape(Rectangle())
+            .onTapGesture { Task { await monitor.checkNow() } }
+            .help(Self.helpText(for: monitor))
+            .accessibilityLabel("\(label) \(host): \(monitor.status.summary)")
+    }
+
+    static func helpText(for monitor: NodeMonitor) -> String {
+        var lines = [monitor.endpoint?.absoluteString ?? "No node", monitor.status.detail]
         if case .healthy(_, _, let latency) = monitor.status {
             lines.append("Reply in \(String(format: "%.2f", latency)) s")
         }
@@ -60,5 +94,5 @@ struct NodeStatusBar: View {
 }
 
 #Preview {
-    NodeStatusBar(monitor: NodeMonitor(network: .mainnet))
+    NodeStatusBar(monitor: NodeMonitor(network: .mainnet), layer2: NodeMonitor(network: .mainnet, layer: .two))
 }

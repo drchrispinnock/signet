@@ -15,6 +15,26 @@ struct SendViewModelTests {
 
     private func settle() async { try? await Task.sleep(for: .milliseconds(500)) }
 
+    /// On Etherlink only tz1 to tz3 accounts can be sent to: contracts and tz4 are neither
+    /// suggested nor accepted when typed.
+    @Test func etherlinkSendsOnlyToImplicitAccounts() async {
+        let contract = Wallet(alias: "Treasury", address: Address("KT1Mkqf6TnMVmhAAuBJCizkzAu4Nhg6DTPmM"))
+        let bls = Wallet(alias: "BLS", address: Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm"))
+        let send = SendViewModel(sender: Self.me, wallets: [Self.me, Self.savings, Self.alice, contract, bls], chain: MockChainService(),
+                                 spendable: 5, implicitAccountsOnly: true, signerProvider: { w, _ in .secret("edskSECRET", passphrase: nil, address: w.address) })
+        #expect(send.suggestions.map(\.alias) == ["Savings", "Alice"])
+        send.recipientText = contract.address.value
+        #expect(send.recipient == nil && send.errorMessage?.contains("tz1, tz2 or tz3") == true)
+        send.recipientText = bls.address.value
+        #expect(send.recipient == nil && send.errorMessage != nil)
+        send.recipientText = Self.alice.address.value
+        #expect(send.recipient?.address == Self.alice.address && send.errorMessage == nil)
+        // The plain Tezos sheet still takes contracts.
+        let tezos = makeModel()
+        tezos.recipientText = contract.address.value
+        #expect(tezos.recipient?.address == contract.address)
+    }
+
     @Test func suggestsOurOtherWalletsAndFiltersByText() {
         let send = makeModel()
         #expect(send.suggestions.map(\.alias) == ["Savings", "Alice"])  // never the sender itself

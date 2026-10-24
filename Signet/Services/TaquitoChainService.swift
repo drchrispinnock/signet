@@ -16,6 +16,15 @@ struct TaquitoChainService: ChainService {
     }
 
     func tezBalance(for address: Address) async throws -> TezBalance {
+        // The Michelson interface has no staking and no full_balance: `balance` is the whole story,
+        // and an account the rollup has never seen is simply 0.
+        if network.layerNumber == 2 {
+            let mutez = try await rpcMutez("balance", for: address)
+            guard let balance = TezBalance(mutezSpendable: mutez, staked: "0", unstakedFrozen: "0", unstakedFinalizable: "0") else {
+                throw URLError(.cannotParseResponse)
+            }
+            return balance
+        }
         // Taquito rejects tz5/tz6 addresses, so ask the node directly for those.
         if let scheme = address.scheme, !scheme.isSupported {
             return try await directTezBalance(for: address)

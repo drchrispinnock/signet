@@ -1,29 +1,48 @@
 import SwiftUI
 
-/// Send tez: compose (recipient + amount), confirm (you → them), then the result.
+/// Send tez: compose (recipient + amount), confirm (you → them), then the result. With Layer 2
+/// on, the pop-up at the top left (`ChainSidePicker`) sends on Etherlink instead: the same
+/// account, through the Layer 2 Michelson node, to tz1, tz2 or tz3 accounts only.
 struct SendSheet: View {
     @Bindable var model: WalletViewModel
     @State private var send: SendViewModel
-    private let network: Network
+    @State private var side: ChainSide = .tezos
+    /// The networks captured when the sheet opened, one per side (S16).
+    private let sender: Wallet
+    private let layer1: Network
+    private let layer2: Network?
+    private let layer2Chain: (any ChainService)?
     @Environment(\.dismiss) private var dismiss
+
+    private var network: Network { side == .etherlink ? (layer2 ?? layer1) : layer1 }
+    private var canSwitch: Bool { layer2 != nil && layer2Chain != nil && WalletViewModel.usableOnEtherlink(sender.address) }
 
     init(model: WalletViewModel, sender: Wallet) {
         self.model = model
-        self.network = model.network
-        _send = State(initialValue: SendViewModel(
+        self.sender = sender
+        self.layer1 = model.network
+        self.layer2 = model.network.layer2
+        self.layer2Chain = model.layer2Chain
+        _send = State(initialValue: Self.makeSend(model: model, sender: sender, side: .tezos))
+    }
+
+    private static func makeSend(model: WalletViewModel, sender: Wallet, side: ChainSide) -> SendViewModel {
+        let onEtherlink = side == .etherlink
+        return SendViewModel(
             sender: sender,
             wallets: model.wallets,
-            chain: model.chainService,
-            spendable: model.tezBalance?.spendable,
+            chain: onEtherlink ? (model.layer2Chain ?? model.chainService) : model.chainService,
+            spendable: onEtherlink ? model.etherlinkSpendable : model.tezBalance?.spendable,
+            implicitAccountsOnly: onEtherlink,
             signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) }
-        ))
+        )
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             switch send.step {
             case .compose:
-                ComposeTransferView(send: send, network: network, onCancel: { dismiss() })
+                ComposeTransferView(send: send, network: network, side: $side, canSwitch: canSwitch, onCancel: { dismiss() })
             case .confirm, .sending:
                 ConfirmTransferView(send: send, network: network)
             case .sent, .unknown, .confirmed:
@@ -33,7 +52,8 @@ struct SendSheet: View {
                 })
             }
         }
-        .task { await send.recoverPending() }
+        .task(id: side) { await send.recoverPending() }
+        .onChange(of: side) { send = Self.makeSend(model: model, sender: sender, side: side) }
         .padding(20)
         .frame(width: 520)
         .animation(.easeInOut(duration: 0.15), value: send.step)
@@ -45,13 +65,18 @@ struct SendSheet: View {
 private struct ComposeTransferView: View {
     @Bindable var send: SendViewModel
     let network: Network
+    @Binding var side: ChainSide
+    let canSwitch: Bool
     let onCancel: () -> Void
     @FocusState private var focus: Field?
     private enum Field { case recipient, amount }
 
     var body: some View {
-        Text("Send tez")
-            .font(.title2.weight(.semibold))
+        HStack(spacing: 12) {
+            ChainSidePicker(side: $side, canSwitch: canSwitch)
+            Text(side == .etherlink ? "Send tez on Etherlink" : "Send tez")
+                .font(.title2.weight(.semibold))
+        }
 
         Form {
             LabeledContent("From") {
@@ -68,7 +93,7 @@ private struct ComposeTransferView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                TextField("To", text: $send.recipientText, prompt: Text("Address, name.tez, or an account from your list"))
+                TextField("To", text: $send.recipientText, prompt: Text(send.implicitAccountsOnly ? "tz1, tz2 or tz3 address, name.tez, or an account from your list" : "Address, name.tez, or an account from your list"))
                     .font(.body.monospaced())
                     .focused($focus, equals: .recipient)
                     .autocorrectionDisabled()
@@ -122,7 +147,7 @@ private struct ComposeTransferView: View {
             }
         } else if send.isResolving {
             HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Looking up name…").font(.callout).foregroundStyle(.secondary) }
-        } else if !send.recipientText.isEmpty, send.suggestions.isEmpty {
+        } else if !send.recipientText.isEmpty, send.suggestions.isEmpty, send.errorMessage == nil {
             Label("Not a valid address or .tez name", systemImage: "exclamationmark.triangle")
                 .font(.callout).foregroundStyle(.secondary)
         }

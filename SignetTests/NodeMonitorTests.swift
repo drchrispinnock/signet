@@ -46,6 +46,30 @@ struct NodeMonitorTests {
         #expect(status.detail.hasPrefix("Cannot reach node"))
     }
 
+    /// The Layer 2 monitor watches the Michelson node only while Layer 2 is on, and a reply
+    /// from another chain is as bad as no reply.
+    @MainActor @Test func layerTwoMonitorFollowsTheLayerTwoSetting() async {
+        let head: @Sendable (String) -> Data = { chain in Data("{\"level\": 7, \"chain_id\": \"\(chain)\", \"timestamp\": \"\(ISO8601DateFormatter().string(from: Date()))\"}".utf8) }
+        let monitor = NodeMonitor(network: Network.mainnet.l2On, layer: .two) { url in
+            if url.host() == Network.mainnet.l2RPCURL?.host() { return (head(Network.mainnet.expectedL2ChainID!), 200, 0.1) }
+            if url.host() == "l2.example.org" { return (head("NetXwrongchain"), 200, 0.1) }
+            throw URLError(.timedOut)
+        }
+        #expect(monitor.endpoint == Network.mainnet.l2RPCURL)
+        await monitor.checkNow()
+        #expect(monitor.status.light == .green && monitor.status.level == 7)
+
+        monitor.network = .mainnet   // off by default
+        #expect(monitor.endpoint == nil)
+        await monitor.checkNow()
+        #expect(monitor.status == .unknown)
+
+        monitor.network = Network.mainnet.usingL2(enabled: true, node: URL(string: "https://l2.example.org")!)
+        await monitor.checkNow()
+        #expect(monitor.status.light == .red && monitor.status.detail.contains("NetXwrongchain"))
+        monitor.stop()
+    }
+
     @MainActor
     @Test func monitorPublishesProbeResultsAndFollowsNetworkChanges() async {
         let monitor = NodeMonitor(network: .mainnet) { url in
