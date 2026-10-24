@@ -9,7 +9,7 @@ The user interface is too wordy and isn't necessarily the best. Over time I will
 
 **Better Octez Connect support**
 
-Octez Connect (formerly Beacon) is the library and infrastructure used to connect wallets to dApp web sites. To connect to a dApp in the current version you have to copy and paste codes to pair Signet with the dApp. I've put in a request to the Octez Connect team to include Signet in the list of applications to make this automatic.
+Octez Connect (formerly Beacon) is the library and infrastructure used to connect wallets to dApp web sites. To connect to a dApp in the current version you have to copy and paste codes to pair Signet with the dApp. I've put in a request to the Octez Connect team to include Signet in the list of applications to make this automatic. Unfortunately we will have to wait for dApp sites to upgrade Octez Connect before we see Signet in the list.
 
 **Better Etherlink/Tezos X support**
 

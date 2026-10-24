@@ -62,7 +62,7 @@ The first time you do this, you will need to pay a small fee to link your Ethere
 ![](200/eth.png)
 Now users on the Etherlink rollup with 0x addresses can send tez to your account using your 0x address. 
 
-At the moment, this is all that Signet can do with Etherlink. More features will be coming soon, including dApp support. This will use a relay service so that Tezos account can use its Ethereum-style address for dApps. 
+At the moment, this is all that Signet can do with Etherlink. More features will be coming soon, including dApp support. This will use a relay service so that Tezos account can use its Ethereum-style address for dApps. Also, the transactions, assets and NFTs tabs will be populated with items from the Etherlink network.
 
 The original Etherlink users had 0x addresses from the start and used Ethereum-compatible wallets. I'm undecided whether to add support for this to Signet.
 
