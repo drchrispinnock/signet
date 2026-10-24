@@ -1,3 +1,4 @@
+{#id: 250-whatscoming_1_What}
 # What's Coming in Signet
 
 Signet is still under development and I will continue to add features for the foreseeable future. Here are some possible directions.
@@ -14,9 +15,9 @@ Octez Connect (formerly Beacon) is the library and infrastructure used to connec
 
 At the moment, we support tz addresses on the layer 2. These can be mapped to an EVM address and then that address can be used on the chain with EVM dApps and contracts. We need to add the ability to use a native EVM address in the application. We also need to be able to connect to dApps using EVM addresses, which means adding Wallet Connect support. Generally, EVM accounts need to be treated a first-class citizens.
 
-**Tzel shielded transactions**
+**TzEL shielded transactions**
 
-Tzel is a smart-rollup for private post-quantum transactions. You'll be able to move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You'll be able to withdraw them (that is "unshield" them) from the rollup. Tzel is available on *shadownet* and it will soon be available on *quantumnet*. Signet needs to handle shielding, transfers and unshielding on this rollup. I expect this will be implemented as a third balanced on the main Signet screen.
+TzEL is a smart-rollup for private post-quantum transactions. You'll be able to move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You'll be able to withdraw them (that is "unshield" them) from the rollup. TzEL is available on *Shadownet* and it will soon be available on *Quantumnet*. Signet needs to handle shielding, transfers and unshielding on this rollup. I expect this will be implemented as a third balanced on the main Signet screen. Signet is able to use the TzEL rollup on *Shadownet* today but it is an early implementation.
 
 **Swapping and obtaining other tokens**
 
@@ -34,7 +35,6 @@ Claude tells me it would be easy to make an iOS application out of the current c
 
 Once Taquito supports tz6 addresses, I will add support for them. They will likely only be used for consensus, but for completeness we will need to use them on the chains.
 
-**Octez.JS vs Taquito**
+**Octez.js vs Taquito**
 
-Taquito is the library that does most of the magic under the scenes.
-Currently I'm using Taquito because it added tz5 addresses early and I wanted to get Signet on Quantumnet. I will continue with Taquito whilst it's supported.
+Taquito is the library that does most of the magic under the scenes. I started with Taquito because it added tz5 addresses early and I wanted to get Signet on *Quantumnet.* Octez.js is a fork of Taquito and is likely to have more features to use Tezos X in the future. Therefore I shall probably switch to Octez.js.
