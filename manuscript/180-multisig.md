@@ -51,7 +51,7 @@ Click `Sign` and Alice receives a signature. She should keep a copy of this. But
 
 Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills out the same detail. Then he clicks sign. He saves the signature string
 
-```edsigtu...CBzvsUJ7G2hSucjZ```
+`edsigtu...CBzvsUJ7G2hSucjZ`
 
 and sends it to Alice.
 
@@ -77,9 +77,9 @@ Once all the necessary parties have signed the transaction, it can be submitted 
 
 ![](180/submit.png)
 
-Alice choose the transaction that Signet has remember for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Sign`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
+Alice chose the transaction that Signet has remember for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Sign`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
 
-Note also that Alice can `Discard proposal`. This deletes the record of the multisig transaction if is no longer needed.
+Note also that Alice can `Discard proposal`. This is used to delete the record of the multisig transaction if it is no longer needed.
 
 We can see the transaction, in this case in Bob's Signet view:
 
