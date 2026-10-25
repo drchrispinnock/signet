@@ -6,6 +6,7 @@
 - It's possibly non-standard but I call the wallet the whole thing - each address is an account in Signet terminology.
 - It should be TzKT (not tzkt etc)
 - It should be TzEL (not tzel etc)
+- `tz` addresses should be written as code (for now)
 
 {#id: STANDARDS_1_Early}
 # Early on

@@ -7,6 +7,8 @@ In 2023, account *staking* was added as a feature to Tezos. A baker has always h
 
 Delegated funds are liquid in that they can be spent at any time. Staked funds cannot be spent. They need to be unstaked and finalised before they become liquid again. At the moment this takes <!-- MARKUPTAG unstake-->4<!-- ENDMARKUPTAG --> cycles (roughly <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days). Delegated funds at not at risk. Staked funds are part of the baker's security bond. If the baker misbehaves, you might lose your staked funds. We will talk about this at the end of the chapter.
 
+The account has a spendable fund balance and a staked fund balance. You can see the seperate balances in the main Signet screen if you click the arrow at the end of the Tezos balance line.
+
 The network effectively creates tez when a block is baked and gives it to the baker and related stakers. This means that tez is subject to inflation. By delegating and staking, and subsequently receiving rewards you are keeping up with inflation to some degree.
 
 It's not an accurate analogy but you can think of your Tezos account as a current account at the bank. You don't get any interest on it and if you do nothing, the money just sits there. Delegating is a bit like an instant access savings account. Provided your baker pays you some rewards, you get something in return, and you can spend the money at any time. Staking is more like a higher interest savings account where you have to lock your money in for a period of time.
@@ -91,7 +93,11 @@ If you want to unstake your funds, you can do so at any time, but you will have 
 
 I've unstaked the funds and now I have to wait for them to unlock. Once they are unlocked, I can come back to Signet and finalise the unstake. Since 2026, there has been a bot on Tezos called Finn. This bot automatically finalises unstaked funds, so you should have them back in your spendable balance as soon as the <!-- MARKUPTAG unstake-->4<!-- ENDMARKUPTAG --> cycles are up. Finn is only present on *Mainnet*. On the test networks, you'll have to finalise yourself.
 
-XXX Unstake and finalise on Ushuaianet.
+When there are funds available to finalise, you use the `Finalize` button on the Staking menu (Tezos has adopted American spellings and so we have used them in Signet too).
+
+![](160/finalize.png)
+Choose `Confirm` and the funds will be finalised and returned to the spendable balance.
+
 
 {#id: 160-delegatingstaking_2_The}
 ## The risks of staking
