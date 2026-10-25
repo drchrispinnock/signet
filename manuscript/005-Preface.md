@@ -3,9 +3,21 @@
 
 [Tezos](https://tezos.com/) is an environmentally friendly proof-of-stake blockchain with on-chain governance. [Signet](https://signetwallet.org) is an open source wallet application for Tezos available for the Mac. It's been written entirely with AI tools. In fact, as I type this preface (into an application I've also written with AI), I haven't written or read a single line of code. Some of my colleagues might say that this is a good thing.
 
-A blockchain wallet is the user's interface to the blockchain. It is where they store their cryptographic keys. These keys represent their accounts on the blockchain. The wallet is also where they sign operations. But it can be more. It can display information about the user's balances and their assets. Signet has been in development since 5th October 2026, but it can do most things a wallet should.
+A blockchain wallet is the user's interface to the blockchain. It is where they store their cryptographic keys. These keys represent their accounts on the blockchain. The wallet is also where they sign operations. But it can be more. It can display information about the user's balances and their assets. Signet has been in development since 5th October 2026, but it can already do most things a wallet should.
 
-But I want to tell you a story about AI application development. In the book, we will tell you a bit about Tezos and how to use the Signet wallet to interact with Tezos. We'll cover more about this in the [Introduction](#100-introduction_1_Introducti). In this preface, I'm going to tell you how I developed Signet to date. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can be descriptive.
+In this book, we will tell you a bit about Tezos and how to use the Signet wallet to interact with Tezos. By the end of the book you will have set up an account on Tezos, be able to send and receive coins, and be able to interact with distributed apps too. You'll be able to buy and sell artwork on NFT sites. Also you'll be able to buy and sell other assets on the chain.
+
+You will need a Mac computer and some patience. Buying cryptocurrency for the first time can take a few days due to cooling off rules. It depends where you live of course. But you can practice on the test networks. It's better to make mistakes on the test networks where the coins have no value, than on *Mainnet* where the coins do. 
+
+I wish you luck in your journey on Tezos and on blockchain generally.
+
+Chris Pinnock
+5th November 2026
+
+{#id: 005-Preface_1_AI}
+# Developing Signet
+
+Before we start, I want to tell you a story about AI application development. I'm going to tell you how I developed Signet. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can be descriptive.
 
 Recently, I've had urge to write an application using AI. Over the summer, I'd tried to use Claude Code to write a graphical Tezos wallet based on `octez-client`, the command-line wallet. I managed to get something usable but the user interface was not good. Most Tezos wallets use the library Octez.js (or Taquito). This library has many functions to interact with the Tezos blockchain. I asked Claude to replace the `octez-client` interface with the library but later abandoned the project and moved on to other things. The point here is that I didn't start off with a good enough design and I'd let Claude do the work. 
 
@@ -118,6 +130,5 @@ I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a 
 
 But let's get back to the main topics. We are here to show you how to use the Tezos blockchain with the Signet wallet. I hope you enjoy reading this book, learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
 
-Chris Pinnock
-XXX 5th November 2026 XXX
+
 

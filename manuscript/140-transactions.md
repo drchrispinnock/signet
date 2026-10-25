@@ -23,9 +23,9 @@ In this case, someone has kindly send my wallet 1tz on *Shadownet.* You can see 
 
 Sending is where we need to be a bit more careful, as we cannot fix mistakes. To send tez, you need the address of the recipient. In this example, we will send 5tz on *Shadownet* to another account that we know the address for:
 
-\```
+```
 tz1ULZN2uHvhcnbkyfBnvJhGf3n5gRs3QbN4
-\```
+```
 
 If you have more than one account in Signet, make sure you've selected the right account by dropping down on the account name and choosing it. Then to send, click the Send button:
 

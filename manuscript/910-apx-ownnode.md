@@ -11,7 +11,7 @@ In the case of running the node on the same machine as Signet, the node address 
 In Signet, go to the `Networks...` page and choose `Custom`. Fill out the node address in the dialogue:
 
 ![](910/custom.png)
-By default, Signet will try to use the node on the local machine. You can copy the other details from the *Mainnet* network if you want.
+By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings there. 
 
 {#id: 910-apx-ownnode_2_Running_2}
 ## Running directly on your Mac
@@ -119,7 +119,7 @@ Then to configure your node, become the tezos user and run these commands:
 ```
 $ sudo su - tezos
 $ octez-node config init --network=mainnet \
-	--history-mode=rolling 
+	--history-mode=rolling \
 	--net-addr="0.0.0.0" \
 	--rpc-addr="0.0.0.0" \
 	--allow-all-rpc="0.0.0.0"

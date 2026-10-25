@@ -15,6 +15,7 @@ Pierre Boutillier
 Roman Schnider
 Roland Dowdeswell
 Thomas Letan
+Dmitry Mirgaleev
 Yann Regis-Gianas
 Ryan Tanaka
 Luke Youngblood
