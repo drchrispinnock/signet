@@ -67,7 +67,7 @@ docker logs -f node
 
 You can now connect to the node from Signet with `http://localhost:8732`.
 
-The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[4]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
+The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[??]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
 
 ```
 $ octez-node config init --network=mainnet \
@@ -160,11 +160,18 @@ eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 If you want to run a node on a different network to *Mainnet*, replace `mainnet` with the values below. For the snapshot, use the link below instead of the one above. For some test networks such as *Weeklynet* and *Quantumnet*, you may need development versions of the software instead of the release.
 
-| Network      | --network                                                   | Snapshot                                                                |
-| ------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| *Shadownet*  | https://teztnets.com/shadownet                              | https://snapshots.tzinit.org/shadownet/rolling                          |
-| *Bakingnet*  | https://teztnets.com/bakingnet                              | https://snapshots.tzinit.org/bakingnet/rolling                          |
-| *Ushuaianet* | https://teztnets.com/ushuaianet                             | https://snapshots.tzinit.org/ushuaianet/rolling                         |
-| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/network.json | https://quantumnet.pqpark.dal.nomadic-labs.com/snapshots/latest.rolling |
+| Network      | --network=                                                  |
+| ------------ | ----------------------------------------------------------- |
+| *Shadownet*  | https://teztnets.com/shadownet                              |
+| *Bakingnet*  | https://teztnets.com/bakingnet                              |
+| *Ushuaianet* | https://teztnets.com/ushuaianet                             |
+| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/network.json |
+
+| Network      | Snapshot                                                                |
+| ------------ | ----------------------------------------------------------------------- |
+| *Shadownet*  | https://snapshots.tzinit.org/shadownet/rolling                          |
+| *Bakingnet*  | https://snapshots.tzinit.org/bakingnet/rolling                          |
+| *Ushuaianet* | https://snapshots.tzinit.org/ushuaianet/rolling                         |
+| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/snapshots/latest.rolling |
 
 For *Weeklynet*, refer to the instructions at the [Teztnets site](https://teztnets.com), as it reboots every week. 

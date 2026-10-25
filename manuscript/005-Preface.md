@@ -11,7 +11,7 @@ You will need a Mac computer and some patience. Buying cryptocurrency for the fi
 
 I wish you luck in your journey on Tezos and on blockchain generally.
 
-Chris Pinnock
+Chris Pinnock  
 5th November 2026
 
 {#id: 005-Preface_1_AI}
