@@ -7,6 +7,7 @@
 140-transactions.md
 150-othertypesofaccount.md
 160-delegatingstaking.md
+165-settings.md
 170-dapps.md
 180-multisig.md
 190-baking.md
