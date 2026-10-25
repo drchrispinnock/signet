@@ -1,7 +1,7 @@
 {#id: 170-dapps_1_Distribute}
 # Distributed Apps
 
-Distributed Apps (dApps) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a distributed exchange (DEX) to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Distributed Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a *distributed exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {#id: 170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -90,13 +90,74 @@ People tend to refer to digital art whose purchases have been recorded on blockc
 {#id: 170-dapps_2_Minting}
 ## Minting an NFT at Teia
 
-Teia is another art NFT site on the Tezos blockchain.
-XXX
+[Teia](https://teia.art) is another art NFT site on the Tezos blockchain. It's based on the *hic et nunc* NFT marketplace that is no longer with us. You can buy and sell NFTs there. We are going to upload a piece of art and mint an NFT to represent the ownership on chain. You can do this at Objkt as well, but I want to show you an alternative site on Tezos. Using the terminology of making coins, we will *mint* the NFT. On blockchains, creating assets is called *minting.*
+
+First we go to the Teia site. Top right there is a button called `Sync`. Click this and connect the dApp to Signet. Do this in exactly the same way we did for Objkt. Choose `Show More`, then `Show QR Code`, then choose Beacon. Click Copy to clipboard and paste the value into the dApps menu in Signet.
+
+Now we are logged into Teia. I'm going to mint a piece of artwork of Ms BLS and Quantum Man, who have been spending a lot of time together recently. Here is the artwork:
+
+![](170/blsquantum.png)
+
+On Teia, click the burger menu and under Create, choose `Mint`. 
+
+![](170/teiadetail.png)
+
+I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I will receive 10% of the proceeds (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
+
+![](170/preview.png)
+Scrolling down and checking all the details, I click `Mint`. Then Signet receives a request for signing the operation:
+
+![](170/teiasign.png)
+After this Teia mints the NFT and asks me how many I want to swap. This lists them on the Teia marketplace. I want to swap 4 and I'm going to price them at 1tz. I fill in the detail and sign the operation in Signet.
+
+After some time, the NFT appears in my NFT view in Signet.
+
+![](170/nftview.png)
+On the burger menu at Teia, you can go to your profile and view all your creations. The activity tab will show you the create and list operations that we just did:
+
+![](170/createandlist.png)
+
+Under Creations, click on the NFT that you have minted and it will show you the information about it. From there you can swap more, transfer any remaining ones and even destroy it with the burn function.
+
+It took a little while for my NFT to be listed but some time later, it appeared on the front page of Teia as a new NFT.
+
+![](170/teiafront.png)
+From the listing you can buy one of these artworks for 1tz.
 
 {#id: 170-dapps_2_Buying_2}
 ## Buying a Tezos Domain
 
-XXX
+Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
+
+First, let's go to the Tezos Domains website https://tezos.domains and see if the domain is available by typing it in the search box.
+
+![](170/td-search.png)
+
+It turns out that it is and we can click the button to reserve it:
+
+![](170/td-yes.png)
+
+Click Reserve, the site will ask me to connect my wallet. Follow the instructions, use Show More, then Show QR Code, then Beacon. Copy the code and paste it into the dApps dialogue in Signet.
+
+![](170/td-request.png)
+
+Next we request the domain as above. This requires you to sign an operation in Signet to hold the domain. Then after a little wait, you can register the domain for the price. In this case, it's 16tz.
+
+![](170/td-register.png)
+
+Register the domain and sign the operation to purchase it. After you have purchased it, you can set up email reminders to remind you to renew the domain at the end of the registration period. Next you can set up information about the domain:
+
+![](170/td-settings.png)
+
+I'm going to set up a website redirect to Signet's website. This means that https://signetwallet.tez.page will redirect to my site. You can also host a small website with Tezos Domains.
+
+![](170/td-website.png)
+
+Also on the settings page, you can transfer the name to another account, sell it or give permissions to another account to edit it. 
+
+You can use Tezos domain names in Signet as recipients of transactions.
+
+One word of caution. You might want to live anonymously on a blockchain. It's difficult to do this actually, but one way to be anonymous is not to have any obvious identifiers on your account. A domain name may hint that an account belongs to you.
 
 {#id: 170-dapps_2_Quipuswap}
 ## Quipuswap

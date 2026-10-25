@@ -1,12 +1,23 @@
+{#id: networks-material_1_Tezos}
 # Tezos Protocols and Networks
 
 
+This probably needs to go in the introduction.
+￼What is Baking
+￼Fold in material from the baking chapter
 
+Blockchains need participants that produce the blocks. The block production on Tezos is called baking. On other chains it is called mining or validating. The participants are called bakers. In fact we refer to both the systems that do the baking and the people who run them as bakers.
+
+Tezos is a proof-of-stake blockchain. A baker has an account on the Tezos chain, like any other participant. They need to attach their wallet to the baking process to provide a security bond, called a stake.  The block production is scheduled, favouring the bakers with the most stake. They get more opportunities to bake a block. Additionally, bakers attest other blocks produced by other bakers. The security bond is there to provide a guarantee against bad behaviour.
+
+
+{#id: networks-material_2_Protocols}
 ## Protocols
 
 xxx
 
 
+{#id: networks-material_2_Networks}
 ## Networks
 
 The Tezos production blockchain is called *mainnet.* By default, most wallets will connect to it including Signet. The Tezos coins, tez, have real-world value on this network. Obviously it is where the action happens, but there are also some test networks. On a test network, the coins do not have real-world value, so in theory you can make mistakes and it won't matter. Test networks are the place the people learn about blockchans, where application developers build distributed applications and where the blockchain developers test their software.

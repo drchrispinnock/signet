@@ -4,6 +4,7 @@ Tezos, Wikipedia entry, https://en.wikipedia.org/wiki/Tezos
 Tezos - Getting Started, https://tezos.com/learn/getting-started/
 Running Tezos Infrastructure, Chris Pinnock, https://leanpub.com/tezosinfra, In Preparation.
 Quick Start Guide for Impatient Tezos Bakers, Chris Pinnock, https://chrispinnock.com/tezos/quickstart/
+Running Octez at boot on Macs, Chris Pinnock, https://chrispinnock.com/2026/07/03/launchctl.html
 
 SEC|Other chains
 Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
