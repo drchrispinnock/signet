@@ -130,6 +130,9 @@ enum ChainError: LocalizedError, Equatable {
     /// Estimating an unrevealed tz4 account's operation: the reveal needs the key's BLS proof of
     /// possession, which only the secret key can make (`ChainService.proofOfPossession`).
     case proofOfPossessionRequired
+    /// The node refused to simulate because the source cannot pay: it holds no tez on this
+    /// network (`empty_implicit_contract`) or too little for the fee (`balance_too_low`).
+    case cannotPayFee
 
     var errorDescription: String? {
         switch self {
@@ -139,6 +142,7 @@ enum ChainError: LocalizedError, Equatable {
         case .notALayer2Service: "This needs the Layer 2 node."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .proofOfPossessionRequired: "This account's first operation reveals its key with a proof of possession, which needs the secret key."
+        case .cannotPayFee: "This account holds no tez on this network, or too little to pay the fee."
         case .wrongPassphrase: "Incorrect password for this account."
         case .ledgerDeclined: "Declined on the Ledger."
         case .ledgerAppNotOpen: "Open the Tezos app on your Ledger and try again."
@@ -162,6 +166,8 @@ enum ChainError: LocalizedError, Equatable {
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
         if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
         if lower.contains("proof of possession required") { return .proofOfPossessionRequired }
+        if lower.contains("empty_implicit_contract") || lower.contains("empty implicit contract")
+            || lower.contains("balance_too_low") || lower.contains("subtraction_underflow") { return .cannotPayFee }
         return nil
     }
 }

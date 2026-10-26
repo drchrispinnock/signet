@@ -70,6 +70,9 @@ struct BakerCandidate: Identifiable, Hashable, Sendable {
 enum StakingOperation: Hashable, Sendable {
     case delegate(to: Address?)                  // nil = remove delegation
     case registerAsBaker
+    /// The same self-delegation as registering: a baker the chain deactivated (no activity for a
+    /// few cycles) registers again to get its rights back.
+    case reactivateBaker
     case stake(Decimal)
     case unstake(Decimal)
     case finalizeUnstake
@@ -82,7 +85,7 @@ enum StakingOperation: Hashable, Sendable {
     var bridgeKind: String {
         switch self {
         case .delegate: "setDelegate"
-        case .registerAsBaker: "registerDelegate"
+        case .registerAsBaker, .reactivateBaker: "registerDelegate"
         case .stake: "stake"
         case .unstake: "unstake"
         case .finalizeUnstake: "finalizeUnstake"
@@ -95,7 +98,7 @@ enum StakingOperation: Hashable, Sendable {
     var bridgeArgument: [String: Any] {
         switch self {
         case .delegate(let to): ["delegate": to?.value ?? ""]
-        case .registerAsBaker, .finalizeUnstake: [:]
+        case .registerAsBaker, .reactivateBaker, .finalizeUnstake: [:]
         case .stake(let amount), .unstake(let amount): ["amountMutez": Mutez.fromTez(amount)]
         case .updateConsensusKey(let pk, let proof), .updateCompanionKey(let pk, let proof):
             ["pk": pk, "proof": proof ?? ""].filter { !$0.value.isEmpty }
@@ -108,6 +111,7 @@ enum StakingOperation: Hashable, Sendable {
         switch self {
         case .delegate(let to): to == nil ? "Remove delegation" : "Delegate"
         case .registerAsBaker: "Register as a baker"
+        case .reactivateBaker: "Reactivate baker"
         case .stake: "Stake"
         case .unstake: "Unstake"
         case .finalizeUnstake: "Finalize unstaked tez"
