@@ -273,7 +273,7 @@ automatic download is off by default. The updater is not started under the test 
   Before signing, `ledgerSignerFor` checks the connected device derives the wallet's address and
   fails with "does not hold this key" otherwise. Trezor is not supported: Taquito has no Trezor
   signer and Trezor's SDK needs its Bridge daemon and a browser popup.
-- **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, stake,
+- **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, reactivateBaker for a baker the chain deactivated: the same registration again, offered by a Reactivate button in the Baking sheet, stake,
   unstake, finalizeUnstake, updateConsensusKey, updateCompanionKey) is estimated with a read-only
   signer and sent via the bridge's `estimateStakingOperation` / `sendStakingOperation` (Taquito
   `contract.setDelegate/registerDelegate/stake/unstake/finalizeUnstake/updateConsensusKey/
@@ -630,7 +630,10 @@ automatic download is off by default. The updater is not started under the test 
   on the current kernel (only an EVM-side transfer with enough gas forwards). So Receive shows
   the 0x address only when the gateway's `resolveAddress` view (Tezos runtime 0 → Ethereum 1)
   on the Layer 2 node says it is recorded (`EtherlinkAliasStatus.linked`; derived is
-  `.unlinked`), and otherwise offers "Link to Etherlink": a zero-tez `%call_evm` no-op from the
+  `.unlinked`), and otherwise offers "Link to Etherlink" (or, when the account holds no tez on
+  Etherlink, or the node refuses the estimate as an empty implicit contract or balance too low,
+  `ChainError.cannotPayFee`, says so in words and points at Bridge… instead of showing the
+  node's text): a zero-tez `%call_evm` no-op from the
   account to the Michelson gateway `Network.etherlinkGateway`
   (`KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw`, the same on every Etherlink network), paid on
   Etherlink, through the approved-limits path (`src/bridge.js` `linkParams` /
