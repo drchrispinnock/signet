@@ -45,6 +45,19 @@ struct EtherlinkNetworkTests {
     }
 }
 
+struct EtherlinkLinkErrorTests {
+    /// The node's refusal to simulate for an account with nothing to pay (a fresh account on
+    /// Etherlink, or one with too little) is a typed error, so Receive can say "bridge some tez
+    /// first" instead of showing the node's text.
+    @Test func anEmptyOrPoorSourceIsCannotPayFee() {
+        #expect(ChainError.fromBridgeMessage("(permanent) proto.023-PtSeouLo.implicit.empty_implicit_contract: Empty implicit contract (tz1abc)") == .cannotPayFee)
+        #expect(ChainError.fromBridgeMessage("proto.023-PtSeouLo.contract.balance_too_low") == .cannotPayFee)
+        #expect(ChainError.fromBridgeMessage("tez.subtraction_underflow") == .cannotPayFee)
+        #expect(ChainError.fromBridgeMessage("Http error (502)") == nil)
+        #expect(ChainError.cannotPayFee.localizedDescription.contains("no tez"))
+    }
+}
+
 @MainActor
 struct EtherlinkSettingsTests {
     @Test func etherlinkChoicesAreKeptPerNetworkAndSurviveNodeChanges() {
