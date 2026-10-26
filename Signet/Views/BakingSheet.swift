@@ -97,6 +97,13 @@ struct BakingSheet: View {
                 } else if let baker {
                     LabeledContent("Status", value: baker.deactivated ? "Registered, deactivated" : "Registered, active")
                     if let grace = baker.gracePeriod { LabeledContent("Grace period until cycle", value: "\(grace)") }
+                    if baker.deactivated {
+                        Text(canOperate
+                             ? "The chain deactivated this baker because it missed its baking and attesting duties for a few cycles. Reactivating registers it again, the same operation as the first time; rights return after the usual delay, and the baker daemon must be running to keep them."
+                             : "The chain deactivated this baker because it missed its baking and attesting duties for a few cycles. Register it again from where its key lives to reactivate it.")
+                            .font(.callout).foregroundStyle(.secondary)
+                        if canOperate { Button("Reactivate…") { startConfirm(.reactivateBaker) } }
+                    }
                 } else {
                     Text(canOperate
                          ? "This account is not a baker. Registering self-delegates it; baking rights need at least the protocol's minimum stake and a running baker daemon."
@@ -145,7 +152,7 @@ struct BakingSheet: View {
             }
         }
         .formStyle(.grouped)
-        .frame(height: baker == nil ? (canOperate ? 190 : 240) : 520)
+        .frame(height: baker == nil ? (canOperate ? 190 : 240) : (baker?.deactivated == true ? 600 : 520))
     }
 
     private var watchOnlyNote: String {

@@ -13,6 +13,10 @@ struct StakingOperationTests {
         #expect(StakingOperation.updateConsensusKey(publicKey: "edpkX", proof: nil).bridgeArgument.keys.sorted() == ["pk"])
         #expect(StakingOperation.updateCompanionKey(publicKey: "BLpkX", proof: "BLsigP").bridgeArgument.keys.sorted() == ["pk", "proof"])
         #expect(StakingOperation.registerAsBaker.title == "Register as a baker")
+        // Reactivating a deactivated baker is the same self-delegation as registering.
+        #expect(StakingOperation.reactivateBaker.bridgeKind == "registerDelegate")
+        #expect(StakingOperation.reactivateBaker.bridgeArgument.isEmpty)
+        #expect(StakingOperation.reactivateBaker.title == "Reactivate baker")
     }
 
     @Test func bakersCanAlwaysStakeOthersNeedAWillingDelegate() {

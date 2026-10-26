@@ -72,7 +72,7 @@ struct DelegateRowView: View {
                 let why = kind == .remote ? "it signs remotely" : "Signet holds only its public key"
                 return (baker.deactivated ? "Deactivated. " : "") + "Watch only: \(why). Baking shows its keys and parameters."
             }
-            return baker.deactivated ? "Deactivated; see Baking in the menu" : "Self-delegated; keys and staking parameters under Baking"
+            return baker.deactivated ? "Deactivated; reactivate under Baking in the menu" : "Self-delegated; keys and staking parameters under Baking"
         }
         if info.delegate != nil {
             switch info.delegateAcceptsStaking {
