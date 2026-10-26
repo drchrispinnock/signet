@@ -273,7 +273,7 @@ automatic download is off by default. The updater is not started under the test 
   Before signing, `ledgerSignerFor` checks the connected device derives the wallet's address and
   fails with "does not hold this key" otherwise. Trezor is not supported: Taquito has no Trezor
   signer and Trezor's SDK needs its Bridge daemon and a browser popup.
-- **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, stake,
+- **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, reactivateBaker for a baker the chain deactivated: the same registration again, offered by a Reactivate button in the Baking sheet, stake,
   unstake, finalizeUnstake, updateConsensusKey, updateCompanionKey) is estimated with a read-only
   signer and sent via the bridge's `estimateStakingOperation` / `sendStakingOperation` (Taquito
   `contract.setDelegate/registerDelegate/stake/unstake/finalizeUnstake/updateConsensusKey/
