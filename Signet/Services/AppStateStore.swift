@@ -21,6 +21,9 @@ struct AppState: Codable, Equatable, Sendable {
     /// TzKT API, explorer and faucet links by network name, then by `Network.Service` raw
     /// value, only where the user replaced the default; an empty string means the link is off.
     var serviceURLs: [String: [String: String]]?
+    /// Etherlink governance contracts by network name, then by `EtherlinkGovernance.Process`
+    /// raw value, only where the user replaced what we ship; an empty string turns the process off.
+    var etherlinkGovernance: [String: [String: String]]?
 }
 
 extension AppState {
@@ -46,6 +49,15 @@ extension AppState {
                 network = network.using(url, for: service)
             }
         }
+        for process in EtherlinkGovernance.Process.allCases {
+            guard let saved = etherlinkGovernance?[base.name]?[process.rawValue] else { continue }
+            // "" is a process the user turned off; anything that is not a contract address is ignored.
+            if saved.isEmpty {
+                network = network.usingEtherlinkGovernance(nil, for: process)
+            } else if let contract = EtherlinkGovernance.contractAddress(from: saved) {
+                network = network.usingEtherlinkGovernance(contract, for: process)
+            }
+        }
         return network
     }
 
@@ -56,6 +68,7 @@ extension AppState {
         rememberL2(of: net)
         rememberShielded(of: net)
         rememberServices(of: net)
+        rememberEtherlinkGovernance(of: net)
     }
 
     mutating func rememberNode(of net: Network) {
@@ -111,6 +124,17 @@ extension AppState {
         }
         all[net.name] = links.isEmpty ? nil : links
         serviceURLs = all.isEmpty ? nil : all
+    }
+
+    /// Etherlink governance contracts ("" for a process turned off).
+    mutating func rememberEtherlinkGovernance(of net: Network) {
+        var all = etherlinkGovernance ?? [:]
+        var contracts = all[net.name] ?? [:]
+        for process in EtherlinkGovernance.Process.allCases {
+            contracts[process.rawValue] = net.isUsingDefaultEtherlinkGovernance(process) ? nil : (net.etherlinkGovernance[process]?.value ?? "")
+        }
+        all[net.name] = contracts.isEmpty ? nil : contracts
+        etherlinkGovernance = all.isEmpty ? nil : all
     }
 }
 

@@ -282,6 +282,7 @@ export {
 import { signerFor, readOnlySigner } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
 export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
+export { governanceParams, estimateEtherlinkGovernance, sendEtherlinkGovernance, etherlinkVotingRights, getEtherlinkGovernanceState, periodAt, votersFrom, deriveState } from "./etherlink-governance.js";
 
 // ---- Shielded tez (TzEL) ---------------------------------------------------------------------
 export {

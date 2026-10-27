@@ -1,10 +1,58 @@
 import SwiftUI
 
-/// On-chain voting for a baker we can sign for: upvote proposals in a proposal period, cast a
-/// ballot in the exploration and promotion votes, and otherwise say what the chain is doing.
+/// Governance for an account we can sign for: the Tezos tab is on-chain protocol voting for a
+/// baker (upvote proposals in a proposal period, cast a ballot in the exploration and promotion
+/// votes); the Etherlink tab, with Layer 2 on, is Etherlink's kernel-upgrade governance, for a
+/// baker or an account that is some baker's voting key.
 struct GovernanceSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case tezos = "Tezos"
+        case etherlink = "Etherlink"
+        var id: String { rawValue }
+    }
+
+    @State private var tab: Tab = .tezos
+
+    private var wallet: Wallet? { model.selectedWallet }
+    private var showsTabs: Bool { model.canGovernEtherlink }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                if let wallet { AccountAvatarView(address: wallet.address, size: 40) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Governance").font(.title2.weight(.semibold))
+                    if let wallet { Text("\(wallet.alias)  \(wallet.address.shortened())").font(.callout).foregroundStyle(.secondary) }
+                }
+            }
+            if showsTabs {
+                Picker("", selection: $tab) {
+                    ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            switch tab {
+            case .tezos: TezosGovernanceView(model: model, dismiss: { dismiss() })
+            case .etherlink: EtherlinkGovernanceView(model: model, dismiss: { dismiss() })
+            }
+        }
+        .padding(20)
+        .frame(width: 560)
+        .onAppear {
+            // An account that cannot vote on Tezos (a voting key that is not a baker) opens on Etherlink.
+            if showsTabs, model.delegateInfo?.isBaker != true { tab = .etherlink }
+        }
+    }
+}
+
+/// On-chain protocol voting for a baker.
+struct TezosGovernanceView: View {
+    @Bindable var model: WalletViewModel
+    let dismiss: () -> Void
 
     enum Mode: Equatable { case overview, confirm(GovernanceOperation), working(GovernanceOperation), done(hash: String, level: Int, GovernanceOperation) }
 
@@ -22,25 +70,17 @@ struct GovernanceSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                if let wallet { AccountAvatarView(address: wallet.address, size: 40) }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.title2.weight(.semibold))
-                    if let wallet { Text("\(wallet.alias)  \(wallet.address.shortened())").font(.callout).foregroundStyle(.secondary) }
-                }
-            }
+            if case .overview = mode {} else { Text(title).font(.headline) }
             content
             if let errorMessage { Text(errorMessage).font(.callout).foregroundStyle(.red) }
             buttons
         }
-        .padding(20)
-        .frame(width: 560)
         .task { await load() }
     }
 
     private var title: String {
         switch mode {
-        case .overview: "Governance"
+        case .overview: "Tezos"
         case .confirm(let op), .working(let op): op.title
         case .done(_, _, let op): "\(op.title): done"
         }
@@ -69,7 +109,10 @@ struct GovernanceSheet: View {
 
     @ViewBuilder
     private var overview: some View {
-        if let loadError {
+        if model.delegateInfo?.isBaker != true {
+            Label("Tezos protocol voting is for bakers. This account is not a baker, so it can only vote on Etherlink.", systemImage: "info.circle")
+                .foregroundStyle(.secondary)
+        } else if let loadError {
             Label(loadError, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
         } else if let info {
             Form {
@@ -225,6 +268,7 @@ struct GovernanceSheet: View {
     }
 
     private func load() async {
+        guard model.delegateInfo?.isBaker == true else { return }
         loadError = nil
         do { info = try await model.governanceInfo() } catch { loadError = "Could not read the voting period: \(error.localizedDescription)" }
     }

@@ -63,6 +63,11 @@ struct Network: Hashable, Identifiable, Sendable {
     /// TzKT for the Michelson interface and its explorer, where TzKT indexes it.
     var l2TzKTURL: URL? = nil
     var l2ExplorerURL: URL? = nil
+    /// Etherlink's governance contracts on layer 1 (slow and fast kernel upgrades), in use and
+    /// as shipped: mainnet's, nothing on the testnets. Each is replaceable or clearable in the
+    /// Networks sheet under Layer 2; a process without a contract is not offered.
+    var etherlinkGovernance: [EtherlinkGovernance.Process: Address] = [:]
+    let defaultEtherlinkGovernance: [EtherlinkGovernance.Process: Address]
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -74,8 +79,11 @@ struct Network: Hashable, Identifiable, Sendable {
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
          l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
-         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
+         l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, etherlinkGovernance: [EtherlinkGovernance.Process: String] = [:],
+         shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
+        self.defaultEtherlinkGovernance = etherlinkGovernance.mapValues(Address.init)
+        self.etherlinkGovernance = self.defaultEtherlinkGovernance
         self.shieldedAvailable = shieldedAvailable
         self.shielded = shielded
         self.shieldedDefault = shielded
@@ -128,6 +136,19 @@ struct Network: Hashable, Identifiable, Sendable {
     /// says whether the account's EVM alias exists yet.
     static let etherlinkGateway = Address("KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw")
     var isUsingDefaultL2Node: Bool { l2RPCURL == l2DefaultRPCURL }
+
+    /// Etherlink governance can be shown here: Layer 2 is on and at least one process has a contract.
+    var canGovernEtherlink: Bool { hasL2 && !etherlinkGovernance.isEmpty }
+    /// The processes with a contract, in display order.
+    var etherlinkGovernanceProcesses: [EtherlinkGovernance.Process] { EtherlinkGovernance.Process.allCases.filter { etherlinkGovernance[$0] != nil } }
+    func isUsingDefaultEtherlinkGovernance(_ process: EtherlinkGovernance.Process) -> Bool { etherlinkGovernance[process] == defaultEtherlinkGovernance[process] }
+
+    /// The same network with `process` governed through `contract` (`nil` turns the process off).
+    func usingEtherlinkGovernance(_ contract: Address?, for process: EtherlinkGovernance.Process) -> Network {
+        var copy = self
+        copy.etherlinkGovernance[process] = contract
+        return copy
+    }
 
     /// The same network with Etherlink switched on or off and pointed at `node`.
     func usingL2(enabled: Bool, node: URL?) -> Network {
@@ -271,7 +292,9 @@ struct Network: Hashable, Identifiable, Sendable {
         l2BridgeHelper: "KT1Wj8SUGmnEPFqyahHAcjcNQwe6YGhEXJb5",
         l2Rollup: "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf",
         l2TzKTURL: URL(string: "https://api.etherlink.tzkt.io")!,
-        l2ExplorerURL: URL(string: "https://etherlink.tzkt.io")!
+        l2ExplorerURL: URL(string: "https://etherlink.tzkt.io")!,
+        // The contracts of the Ganesha update (May 2026); the earlier ones still answer but count for nothing.
+        etherlinkGovernance: [.slow: "KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb", .fast: "KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo"]
     )
     static let shadownet = Network(
         name: "Shadownet",

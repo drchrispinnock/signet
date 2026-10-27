@@ -34,4 +34,8 @@ extension TestChainService {
     func signPayload(signer: SigningKey, payloadHex: String) async throws -> SignedPayload { SignedPayload(publicKey: "edpkTest", signature: "edsigTest") }
     func governanceInfo(for address: Address) async throws -> GovernanceInfo { GovernanceInfo() }
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String { "ooTest" }
+    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address] { [] }
+    func etherlinkGovernanceState(contract: Address, for address: Address) async throws -> EtherlinkGovernance.State { EtherlinkGovernance.State(contract: contract) }
+    func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)) }
+    func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
 }
