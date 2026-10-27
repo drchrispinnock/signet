@@ -5,8 +5,6 @@ SEC|Tezos
 [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/), Chris Pinnock. 
 [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html), Chris Pinnock.
 
-SEC|Other 
-
 SEC|Other chains
 Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
 The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango.

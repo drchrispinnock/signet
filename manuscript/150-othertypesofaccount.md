@@ -109,11 +109,11 @@ To use a Ledger with Tezos, you need to run through the installation process wit
 
 Plug the Ledger into your computer, open Signet and choose `Connect Ledger`. Signet will complain if it cannot find a Ledger. If it is plugged in and Signet can't find it, it is likely that you are not running the Tezos Wallet application.
 
-![](150/ledger.png) XXX Need Picture - Ledger at home XXX
+![](150/ledger.png) 
 
 Choose a name for the key in the ledger, pick the key type and account number. If you have used Ledger Live and you a Tezos address on it, the `tz1` and `44'/1729'/0'/0'` path will match the same address. In Ledger Live, any additional accounts will be `tz1` and on path `44'/1729'/1'/0'`, `44'/1729'/2'/0'` and so on. You can also use `tz2` and `tz3` keys using the Ledger in Signet, but they will not be visible in the Ledger Live software.
 
-Once the Ledger is connected, you can use the keys like any other keys in Signet. You'll need to connect the Ledger and open the Tezos Wallet application to use the key. When a transaction or operation is done, Signet will use the Ledger to sign it and you'll have to confirm it on the Ledger itself.
+Click `Add` and confirm the operation on your Ledger. Once the Ledger is connected, you can use the keys like any other keys in Signet. You'll need to connect the Ledger and open the Tezos Wallet application to use the key. When a transaction or operation is done, Signet will use the Ledger to sign it and you'll have to confirm it on the Ledger itself.
 
 {#id: 150-othertypesofaccount_2_Exporting}
 ## Exporting Keys

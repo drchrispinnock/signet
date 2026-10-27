@@ -1,9 +1,6 @@
 {#id: 920-bibliography_1_Further}
 # Further Resources and Reading
 
-
-
-
 <!-- MARKUPBIBLIOGRAPHY -->
 {begin-hanging-paragraphs}
 
@@ -18,8 +15,6 @@
 [4] [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/), Chris Pinnock.
 
 [5] [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html), Chris Pinnock.
-
-**Other**
 
 **Other chains**
 
