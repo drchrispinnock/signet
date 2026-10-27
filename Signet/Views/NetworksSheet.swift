@@ -121,6 +121,19 @@ struct NetworksSheet: View {
                         }
                     }
                 }
+                ForEach(EtherlinkGovernance.Process.allCases) { process in
+                    SettingField(
+                        title: process.settingTitle,
+                        current: model.etherlinkGovernanceContract(for: process, in: base),
+                        defaultValue: base.defaultEtherlinkGovernance[process]?.value ?? "",
+                        prompt: "KT1…",
+                        monospaced: true,
+                        apply: { model.setEtherlinkGovernanceContract($0, for: process, in: base) },
+                        problem: { _ in "Enter the governance contract's address (KT1…), or leave it empty to do without this process." },
+                        useDefault: { model.useDefaultEtherlinkGovernanceContract(for: process, in: base) }
+                    )
+                    .id("\(base.name)/governance/\(process.rawValue)")
+                }
             }
         } header: {
             SectionHeader(title: "Networks", help: nodeHelp)
@@ -197,6 +210,7 @@ struct NetworksSheet: View {
         if model.isL2Enabled(for: base) {
             text += " With Layer 2 on, the dashboard shows each tz1, tz2 or tz3 account's balance on Etherlink, read from the Layer 2 Michelson node"
             text += base.l2DefaultRPCURL.map { " (default \($0.absoluteString))." } ?? " you enter here."
+            text += " The slow and fast governance contracts are Etherlink's kernel-upgrade votes on layer 1 (\(base.defaultEtherlinkGovernance.isEmpty ? "none shipped for \(base.name)" : "mainnet's are shipped")); with one set, Governance gains an Etherlink tab for bakers and their voting keys. Leave a field empty to do without that process."
         }
         return text
     }

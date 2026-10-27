@@ -69,6 +69,14 @@ protocol ChainService: Sendable {
     func governanceInfo(for address: Address) async throws -> GovernanceInfo
     /// Injects an upvote or ballot. Returns the operation hash.
     func performGovernance(_ operation: GovernanceOperation, from wallet: Wallet, signer: SigningKey) async throws -> String
+
+    // Etherlink governance: layer 1 contracts, called with an ordinary fee.
+    /// The bakers `address` is the Etherlink voting key of on `contract` (the delegation contract's `list_voters`).
+    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address]
+    func etherlinkGovernanceState(contract: Address, for address: Address) async throws -> EtherlinkGovernance.State
+    func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate
+    /// Signs and injects the call with exactly the approved `limits` (S14).
+    func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation
 }
 
 /// Everything the indexer knows the account holds, and how much of it was fetched (S26): a

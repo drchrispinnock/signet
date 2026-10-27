@@ -16,6 +16,7 @@ final class WalletViewModel {
         case notEstimated
         case contextChanged
         case outcomeUnknown(String)
+        case invalidKernelHash
 
         var errorDescription: String? {
             switch self {
@@ -29,6 +30,7 @@ final class WalletViewModel {
             case .notEstimated: "The fee has not been estimated yet; wait for the estimate and try again."
             case .contextChanged: "The account, network or node changed since the fee was estimated. Nothing was sent; the estimate will be made again."
             case .outcomeUnknown(let hash): "The node did not confirm receiving operation \(hash.prefix(12))… and it has not appeared in a block yet. Check the explorer before trying again; do not repeat it blindly."
+            case .invalidKernelHash: "A kernel hash is 0x followed by 66 hexadecimal digits."
             }
         }
     }
@@ -145,8 +147,15 @@ final class WalletViewModel {
     var isPresentingShieldSettings = false
     var isPresentingBuy = false
 
-    /// Governance is for bakers whose key we can sign with.
-    var canGovern: Bool { selectedWallet?.keyKind.canSign == true && delegateInfo?.isBaker == true }
+    /// Governance is for bakers whose key we can sign with, and, with Layer 2 on, for an
+    /// account that is some baker's Etherlink voting key.
+    var canGovern: Bool { selectedWallet?.keyKind.canSign == true && (delegateInfo?.isBaker == true || canGovernEtherlink) }
+
+    /// The Etherlink tab of Governance: Layer 2 on with a governance contract, a key we can sign
+    /// with, and either a baker or an account the delegation contract lists as a voting key.
+    var canGovernEtherlink: Bool {
+        network.canGovernEtherlink && selectedWallet?.keyKind.canSign == true && (delegateInfo?.isBaker == true || !etherlinkVotesFor.isEmpty)
+    }
 
     /// dApp connections over Octez Connect (TZIP-10).
     private(set) var dapps: DAppConnectionManager!
@@ -161,6 +170,9 @@ final class WalletViewModel {
     private(set) var portfolioState: Portfolio.State = .complete
     private(set) var transactions: [TezosTransaction] = []
     private(set) var delegateInfo: DelegateInfo?
+    /// Bakers the selected account votes for in Etherlink governance (their voting key), as of
+    /// the last refresh; empty when Layer 2 is off or the account votes for nobody.
+    private(set) var etherlinkVotesFor: [Address] = []
     static let recentTransactionLimit = 25
 
     enum ActivityTab: String, CaseIterable, Identifiable {
@@ -221,6 +233,7 @@ final class WalletViewModel {
         nfts = []
         transactions = []
         delegateInfo = nil
+        etherlinkVotesFor = []
         tezBalance = nil
         accountNotOnChain = false
         portfolioState = .complete
@@ -299,6 +312,29 @@ final class WalletViewModel {
 
     private func changeL2(of base: Network, _ change: (Network) -> Network) { self.change(base, change) }
 
+    /// The Etherlink governance contract in use for `process` on `base` ("" when the process is off).
+    func etherlinkGovernanceContract(for process: EtherlinkGovernance.Process, in base: Network) -> String {
+        resolved(Network.named(base.name) ?? base).etherlinkGovernance[process]?.value ?? ""
+    }
+
+    /// Points `process` on `base` at the contract typed in Networks, or turns the process off for
+    /// empty text. False (and no change) when the text is not a contract address.
+    @discardableResult
+    func setEtherlinkGovernanceContract(_ text: String, for process: EtherlinkGovernance.Process, in base: Network) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var contract: Address?
+        if !trimmed.isEmpty {
+            guard let parsed = EtherlinkGovernance.contractAddress(from: trimmed) else { return false }
+            contract = parsed
+        }
+        change(base) { $0.usingEtherlinkGovernance(contract, for: process) }
+        return true
+    }
+
+    func useDefaultEtherlinkGovernanceContract(for process: EtherlinkGovernance.Process, in base: Network) {
+        change(base) { $0.usingEtherlinkGovernance($0.defaultEtherlinkGovernance[process], for: process) }
+    }
+
     /// Whether shielded transactions are on for `base` (saved or default), without switching.
     func isShieldedEnabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).shieldedEnabled }
 
@@ -343,6 +379,7 @@ final class WalletViewModel {
             state.rememberL2(of: changed)
             state.rememberShielded(of: changed)
             state.rememberServices(of: changed)
+            state.rememberEtherlinkGovernance(of: changed)
             persistState()
         }
     }
@@ -690,6 +727,7 @@ final class WalletViewModel {
             var domains: [String] = []
             var transactions: [TezosTransaction] = []
             var delegateInfo: DelegateInfo?
+            var etherlinkVotesFor: [Address] = []
             var notOnChain = false
             var error: String?
         }
@@ -701,6 +739,7 @@ final class WalletViewModel {
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
+            async let votesFor = Self.etherlinkVotesFor(address, on: network, chain: chain)
             async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
 
             let tezBalance = try await tez
@@ -713,6 +752,7 @@ final class WalletViewModel {
             snapshot.domains = try await names
             snapshot.transactions = try await history
             snapshot.delegateInfo = (try? await delegation) ?? nil
+            snapshot.etherlinkVotesFor = await votesFor
         } catch ChainError.accountNotOnChain {
             // Not on layer 1: no balance rows at all, the Etherlink one included.
             snapshot.notOnChain = true
@@ -746,7 +786,23 @@ final class WalletViewModel {
         domains = snapshot.domains
         transactions = snapshot.transactions
         delegateInfo = snapshot.delegateInfo
+        etherlinkVotesFor = snapshot.etherlinkVotesFor
         accountNotOnChain = snapshot.notOnChain
+    }
+
+    /// The bakers `address` is the Etherlink voting key of, across the network's governance
+    /// contracts; empty when Layer 2 is off, no contract is set, or the lookup fails (the
+    /// Governance item then shows for bakers alone).
+    private static func etherlinkVotesFor(_ address: Address, on network: Network, chain: any ChainService) async -> [Address] {
+        guard network.canGovernEtherlink else { return [] }
+        var bakers: [Address] = []
+        for process in network.etherlinkGovernanceProcesses {
+            guard let contract = network.etherlinkGovernance[process] else { continue }
+            for baker in (try? await chain.etherlinkVotingRights(for: address, contract: contract)) ?? [] where !bakers.contains(baker) {
+                bakers.append(baker)
+            }
+        }
+        return bakers
     }
 
     func select(_ wallet: Wallet) {
@@ -1186,6 +1242,60 @@ final class WalletViewModel {
     func governanceInfo() async throws -> GovernanceInfo {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         return try await chain.governanceInfo(for: wallet.address)
+    }
+
+    // MARK: Etherlink governance
+
+    /// The contract governing `process` on the current network, if Layer 2 is on and one is set.
+    func etherlinkGovernanceContract(for process: EtherlinkGovernance.Process) -> Address? {
+        network.canGovernEtherlink ? network.etherlinkGovernance[process] : nil
+    }
+
+    /// The current period of `process` and where the selected account stands in it.
+    func etherlinkGovernanceState(for process: EtherlinkGovernance.Process) async throws -> EtherlinkGovernance.State {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let contract = etherlinkGovernanceContract(for: process) else { throw ChainError.noEtherlinkNode }
+        return try await chain.etherlinkGovernanceState(contract: contract, for: wallet.address)
+    }
+
+    /// A governance call's estimate together with the context it was made in (S31): the exact
+    /// contract and operation, the account, network and directory.
+    struct EtherlinkGovernanceEstimate: Sendable {
+        let estimate: TransferEstimate
+        let contract: Address
+        let operation: EtherlinkGovernance.Operation
+        let context: BridgeContext
+    }
+
+    func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, process: EtherlinkGovernance.Process) async throws -> EtherlinkGovernanceEstimate {
+        guard let wallet = selectedWallet, let context = bridgeContext else { throw WalletError.emptyAlias }
+        guard let contract = etherlinkGovernanceContract(for: process) else { throw ChainError.noEtherlinkNode }
+        if let hash = operation.kernelHash, !EtherlinkGovernance.isKernelHash(hash) { throw WalletError.invalidKernelHash }
+        let chain = self.chain
+        let estimate = try await chain.estimateEtherlinkGovernance(operation, contract: contract, from: wallet)
+        guard bridgeContext == context else { throw WalletError.contextChanged }
+        return EtherlinkGovernanceEstimate(estimate: estimate, contract: contract, operation: operation, context: context)
+    }
+
+    /// Sends the approved governance call with its approved limits (S14) and waits for its block.
+    /// The estimate must have been made for this operation in the context it runs in now (S31).
+    func performEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, process: EtherlinkGovernance.Process, approved: EtherlinkGovernanceEstimate?, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let approved, let limits = approved.estimate.limits else { throw WalletError.notEstimated }
+        guard let contract = etherlinkGovernanceContract(for: process), approved.contract == contract, approved.operation == operation, approved.context == bridgeContext else {
+            throw WalletError.contextChanged
+        }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let chain = self.chain
+        let sent = try await chain.sendEtherlinkGovernance(operation, contract: contract, from: wallet, signer: signer, limits: limits)
+        let level: Int
+        do {
+            level = try await chain.waitForConfirmation(of: sent.hash)
+        } catch where !sent.injected {
+            throw WalletError.outcomeUnknown(sent.hash)
+        }
+        await refreshAfterOperation()
+        return (sent.hash, level)
     }
 
     /// Upvotes or casts a ballot for the selected baker and waits one block.
