@@ -1,5 +1,5 @@
 {#id: 190-baking_1_Operations}
-# Operations for Bakers
+#  Operations for Bakers
 
 If you are not going to bake on Tezos, you can safely skip this chapter.
 
@@ -9,7 +9,7 @@ A baker also has some parameters to manage regarding staking. They can set their
 
 The bakers also vote in the on-chain governance elections and this is done by signing operations with the master key.
 
-The good news is that you can do all of these operations with the Signet wallet. You just need to import the master key into to wallet or connect the ledger that they key is held on. This, of course, works particularly well if you want to use a separate key for consensus. 
+The good news is that you can do all of these operations with the Signet wallet. You just need to import the master key into the wallet or connect the ledger that the key is held on. This, of course, works particularly well if you want to use a separate key for consensus. 
 
 A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two tz4 keys. The baking fund is safe and the other keys do the work. Moreover, the Tezos X roadmap needs the baking community to use tz4 keys.
 
@@ -28,7 +28,7 @@ Click `Register as Baker`.
 
 There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You'll need to stake at least 6000tz or 10% of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. Go to the `Staking` button and stake whatever you would like.
 
-You now need to setup your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure  <!-- MARKUPBIBTAG ad263967 -->[3]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 7a121253 -->[4]<!-- ENDMARKUPBIBTAG -->. If you are going to hold your baking key
+You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure  <!-- MARKUPBIBTAG ad263967 -->[3]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 7a121253 -->[4]<!-- ENDMARKUPBIBTAG -->. If you are going to hold your baking key
 
 {#id: 190-baking_2_Consensus}
 ## Consensus and Companion keys
@@ -83,7 +83,7 @@ If you have the keys in your wallet already, you can select them from the addres
 
 Signet cannot get the public key from the tz4 address, which is a hash of the public key and it complains. This would have worked if the address was created in our wallet or if the key had been revealed on the network.
 
-Anyway, now you have set the consensus and companion key for your baker and we can see all the operations on the block explorer. Now you need to finalise setting you your baker with the companion and consensus key.
+Anyway, now you have set the consensus and companion key for your baker and we can see all the operations on the block explorer. Now you need to finalise setting up your baker with the companion and consensus key.
 
 ![](190/blkexplorer.png)
 
@@ -94,7 +94,7 @@ Anyway, now you have set the consensus and companion key for your baker and we c
 Now go back to the `Baking...` menu and scroll to the bottom of it.
 
 ![](190/stakingparameters.png)
-Here you can set the two staking parameters. The Limit of staking over baking controls the amount of external stake you can accept from our accounts. If it is set to 0 (the default), you cannot accept staking requests. The maximum value is 9. The Edge of baking over staking is the amount of reward you take as a baker from the block reward. The rest goes to the external stakers in proportion to their stake. The default is 100%, so any staker would not get any rewards. If you are going to offer staking, it's up to you what you set these parameters too. There's probably no good reason not to set the limit to 9 if you are accepting staking. Then you need to choose a rate that is attractive enough to stakers, but good enough for you to make a fee.
+Here you can set the two staking parameters. The Limit of staking over baking controls the amount of external stake you can accept from other accounts. If it is set to 0 (the default), you cannot accept staking requests. The maximum value is 9. The Edge of baking over staking is the amount of reward you take as a baker from the block reward. The rest goes to the external stakers in proportion to their stake. The default is 100%, so any staker would not get any rewards. If you are going to offer staking, it's up to you what you set these parameters to. There's probably no good reason not to set the limit to 9 if you are accepting staking. Then you need to choose a rate that is attractive enough to stakers, but good enough for you to make a fee.
 
 You can change these parameters at any time, but the changes take <!-- MARKUPTAG paramchange-->5<!-- ENDMARKUPTAG --> cycles to take effect.
 
@@ -113,9 +113,9 @@ PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
 We can see this here in the governance window. Choose a key that is a baking key and go to `Governance`. Here we are in the proposal period, there are 254 blocks remaining and our voting power is 999999tz:
 
 ![](gvn/propose.png)
-(Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network run the Tallinn protocol. We will vote for the Ushuaia protocol on the network.).
+(Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.).
 
-To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal that has the most votes and has quorum wins the round. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
+To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you are someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal that has the most votes and has quorum wins the round. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
 ![](gvn/upvote.png)
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
@@ -130,13 +130,13 @@ Coming back to the Governance screen, we see that we have 39.92% of the 55% quor
 ![](gvn/3-exploration.png)
 
 
-The next phase of the governance process is Cooldown. During this period, blockchain participants do more testing, review their results and if they haven't already implement changes to their code and infrastructure in preparation for the protocol changes. Here we are in Cooldown and there is nothing for us to do from a voting perspective:
+The next phase of the governance process is Cooldown. During this period, blockchain participants do more testing, review their results and if they haven't already, implement changes to their code and infrastructure in preparation for the protocol changes. Here we are in Cooldown and there is nothing for us to do from a voting perspective:
 ![](gvn/4-cooldown.png)
 
 The next phase is the Promotion period. By this stage, the bakers are confident that the protocol proposal is fit for purpose. If they are not, this is their chance to vote against it. Again, they can vote for, against or pass. Here we are in the Promotion period:
 
 ![](gvn/promotion.png)
-We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next windows. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol.
+We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol.
 
 The last phase is Adoption. There is nothing to do from a governance process. It's time to make sure all of our applications are up to date. If we are running a baker, we'll need to update it to the latest Octez. Essentially the governance process is complete. The Adoption period gives the blockchain participants time to update their applications and systems.
 
@@ -144,7 +144,7 @@ The last phase is Adoption. There is nothing to do from a governance process. It
 
 After this period, the network switches to the new protocol and returns to the Proposal stage.
 
-If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the quorum and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there is not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
+If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the quorum and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there are not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
 
 
 {#id: 190-baking_2_Baking}

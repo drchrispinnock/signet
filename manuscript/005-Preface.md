@@ -21,9 +21,9 @@ Chris Pinnock
 
 Before we start, I want to tell you a story about AI application development. I'm typing this at the end of October 2026 and Signet has only been in development for 23 days. I'm going to tell you how I developed it. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can be descriptive.
 
-Recently, I've had urge to write an application using AI. Over the summer, I'd tried to use Claude Code to write a graphical Tezos wallet based on `octez-client`, the command-line wallet. I managed to get something usable but the user interface was not good. Most Tezos wallets use the library Octez.js (or Taquito). This library has many functions to interact with the Tezos blockchain. I asked Claude to replace the `octez-client` interface with the library but later abandoned the project and moved on to other things. The point here is that I didn't start off with a good enough design and I'd let Claude do the work. 
+Recently, I've had an urge to write an application using AI. Over the summer, I'd tried to use Claude Code to write a graphical Tezos wallet based on `octez-client`, the command-line wallet. I managed to get something usable but the user interface was not good. Most Tezos wallets use the library Octez.js (or Taquito). This library has many functions to interact with the Tezos blockchain. I asked Claude to replace the `octez-client` interface with the library but later abandoned the project and moved on to other things. The point here is that I didn't start off with a good enough design and I'd let Claude do the work. 
 
-For some reason, I got the urge to pick up the project on Monday 5th October 2026. It would be a wallet for Tezos, but this time it would be different. I started a blank GIT repository, mulled over a few ideas, and picked up a pencil and drew a user interface. It was probably the least interesting user interface ever designed, but here it is:
+For some reason, I got the urge to pick up the project on Monday 5th October 2026. It would be a wallet for Tezos, but this time it would be different. I started a blank Git repository, mulled over a few ideas, and picked up a pencil and drew a user interface. It was probably the least interesting user interface ever designed, but here it is:
 
 ![](005/paper.png)
 
@@ -49,26 +49,26 @@ After some vibe-coding, I had the first version of Signet. It was based on the T
 
 Here is a screenshot from version 0.1 of Signet. The NFT view was done early on and has only had one refinement since. Also the balance lookup was there too. I removed the Etherlink balance to begin with - this would come later on.
 ![](005/signet-v0.1.png)
-According to Github, I released v0.1 at 2007 on the 5th October 2026, the same day I started the project. At 2053 on the same day, I released v0.2 which included a basic address book and the capability to send tez. 
+According to GitHub, I released v0.1 at 20:07 on the 5th October 2026, the same day I started the project. At 20:53 on the same day, I released v0.2 which included a basic address book and the capability to send tez. 
 
-When I started working for the Tezos Foundation in 2021, I used two desktop wallets on the Mac. One of my biggest frustrations with them was logging into dApps. A dApp is essentially a web site and the site needs a connect from the desktop wallet to sign operations. This is done with a system called Octez Connect (formerly Beacon). A session is established through the Octez Connect infrastructure so that the dApp can request operations from the wallet. This didn't work very well for me then, and I switched to the browser based wallet, Temple.
+When I started working for the Tezos Foundation in 2021, I used two desktop wallets on the Mac. One of my biggest frustrations with them was logging into dApps. A dApp is essentially a web site and the site needs a connection from the desktop wallet to sign operations. This is done with a system called Octez Connect (formerly Beacon). A session is established through the Octez Connect infrastructure so that the dApp can request operations from the wallet. This didn't work very well for me then, and I switched to the browser based wallet, Temple.
 
 I decided that Signet must have good dApp support, or there was little point in continuing with it. On Tuesday 6th October, I asked Claude to implement dApp support. Claude started work on it, but we didn't finish it. In fact, there was an obstacle getting it to work. On Wednesday, I had other things to do.
 
 On Thursday 8th October 2026, I logged into X to see that Taquito had added tz5 key support. This is significant because they are quantum resistant keys and quantum computing is a current topic. Once we have a quantum computer available, our traditional crypto keys will not be safe. Recently, the development team launched *Quantumnet*, an experimental post-quantum test network for Tezos. On that Thursday morning over coffee, I realised that I could make the first transaction on *Quantumnet* with a graphical wallet.
 
-I asked Claude to use the beta version of Taquito and at 1335 on the same day, I [tweeted](https://x.com/chrispinnock/status/2108174370967368073):
+I asked Claude to use the beta version of Taquito and at 13:35 on the same day, I [tweeted](https://x.com/chrispinnock/status/2108174370967368073):
 
 ![](005/tweet.png)
 I had generated a tz5 key, used the *Quantumnet* faucet to get some coins and then sent them to another account. Also I'd added recent transactions to Signet as you can see in the tweet. 
 
-According to the Github logs, I did 7 releases on that day - versions 0.3, 0.4, 0.4.1, 0.4.2, 0.5, 0.6 and 0.7. Features that I added:
+According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 0.4.1, 0.4.2, 0.5, 0.6 and 0.7. Features that I added:
 
 - Sync names with TzKT profiles service
-- Add a tab of deFi assets to the front screen
+- Add a tab of DeFi assets to the front screen
 - Apple package signing (to avoid errors for other users wanting to run Signet)
 - Ledger Support - using a key from the hardware wallet
-- Buy Tez from Mt Pellerin
+- Buy Tez from Mt Pelerin
 - On a test network, Buy becomes Get and integrates directly to the test network faucet.
 - Baker key management and governance
 - Import keys, seed phrases, export keys and forget accounts
@@ -76,29 +76,29 @@ According to the Github logs, I did 7 releases on that day - versions 0.3, 0.4, 
 - I got ChatGPT/Codex to audit the code and did some cleanup
 - Automatic updates of the application with Sparkle
 
-Not bad for a days work. Essentially the wallet was fully functional on the 8th October. And it had operations to make life for a baker easier. You can keep your master baking key in Signet (or on a ledger of course), delegate consensus and companion keys to ones on your baker, and handle all your baking parameters in Signet. 
+Not bad for a day's work. Essentially the wallet was fully functional on the 8th October. And it had operations to make life for a baker easier. You can keep your master baking key in Signet (or on a ledger of course), delegate consensus and companion keys to ones on your baker, and handle all your baking parameters in Signet. 
 
-Buying tez worked via a widget with Mt Pellerin. The only disadvantage is the cooling off periods, so it took me 7 days to receive the tez (which I did). On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks faucet into Signet so that users can easily get tez on accounts.
+Buying tez worked via a widget with Mt Pelerin. The only disadvantage is the cooling off periods, so it took me 7 days to receive the tez (which I did). On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks' faucets into Signet so that users can easily get tez on accounts.
 
 Then I took a day off.
 
-On Saturday 10th October, I spent the day ferrying people around in my car, but I had a couple of hours free in the afternoon. One thing that is missing from most Tezos wallets is multisig account support. A multisig account is one where more than one account signs the operations. You can have a committee of accounts as signers and at deployment time, choose how many are needed to sign the transactions. For example, you can set up a multisig account with 5000tz with 5 signers of which 3 are needed. The Code Development team implemented multisig recently, using a smart contract and by adding commands to `octez-client` to make it easier to use it.
+On Saturday 10th October, I spent the day ferrying people around in my car, but I had a couple of hours free in the afternoon. One thing that is missing from most Tezos wallets is multisig account support. A multisig account is one where more than one account signs the operations. You can have a committee of accounts as signers and at deployment time, choose how many are needed to sign the transactions. For example, you can set up a multisig account with 5000tz with 5 signers of which 3 are needed. 
 
 I asked Claude to get me a list of commands to use a multisig wallet using `octez-client`. It wrote me a nice "how to" document, which I tried myself. I summarised it in a [text file](https://github.com/drchrispinnock/signet/blob/main/docs/spec/multisig.txt). I decided we needed four new menu items, Create Multisig (to create a new multisig account), Add Multisig (to add an existing multisig contract to Signet), Sign a multisig transaction and Submit a multisig transaction. Claude read the Octez sources and figured out how to implement these functions.
 
-At 1633, I released Signet v0.8 with multisig account support. (On 12th October, I made a [video demonstrating multisig](https://www.youtube.com/watch?v=CV-jszi9uuk&list=PLaeBlcwTd5PY&index=5) and showed that the smart contracts are the same as the ones originated by `octez-client` for multisig accounts.)
+At 16:33, I released Signet v0.8 with multisig account support. (On 12th October, I made a [video demonstrating multisig](https://www.youtube.com/watch?v=CV-jszi9uuk&list=PLaeBlcwTd5PY&index=5) and showed that the smart contracts are the same as the ones originated by `octez-client` for multisig accounts.)
 
-In the evening, I ran a source code audit on ChatGPT/Codex and got Claude to fix the issues. Codex finished any outstanding problems. This was release v0.8.1 at 1939.
+In the evening, I ran a source code audit on ChatGPT/Codex and got Claude to fix the issues. Codex finished any outstanding problems. This was release v0.8.1 at 19:39.
 
 I took a break on the Sunday and resumed on Monday 12th. The good thing about using an AI agent is it is essentially like a member of staff. You tell it what you want and you tell it when to come back to you with questions. I haven't turned off the checks with Claude yet, because I'm using a machine that I use for other things. But if I had, it would have sped things up even more.
 
 On Monday 12th, I did some further audit with Codex (v0.8.2), added support to forget a key when Signet exits, added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet could participate on the production network *Mainnet* and all the test networks for Tezos. 
 
- Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve to Tezos's tz2 addresses and so you can use your tz2 key pair on Ethereum (and Bitcoin and other Ethereum-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use tz1, tz2 and tz3 Tezos addresses on the Etherlink via the Michelson interface. Then you can used a derived 0x address to communicate with the Ethereum-style contracts.
+ Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's tz2 addresses and so you can use your tz2 key pair on Ethereum (and Bitcoin and other Ethereum-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use tz1, tz2 and tz3 Tezos addresses on the Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
 
 I cannot remember in the timeline when I did this, but I had a call with Thomas Letan to talk about this interface. As a result of that call, I decided this style of address was the right one to start with on Signet. There would be no need to create new addresses and the Taquito library should be able to use the Michelson interface on Etherlink as it uses a similar remote procedure call scheme (RPC) to the Tezos layer 1 RPC.
 
-On Monday 12th at 1725 I released 0.9 which included support to show the Etherlink balance of the account. Then about 2 hours later, I had bridge integration, so that a user could bridge tez from their layer 1 account to Etherlink. According to Github I did a release at 535 on Tuesday 13th - this is entirely possible as my sleep patterns were disturbed that week. The release included send and receive of tez between Tezos addresses on the Etherlink rollup. Also I added a switch to hide Etherlink in the wallet.
+On Monday 12th at 17:25 I released 0.9 which included support to show the Etherlink balance of the account. Then about 2 hours later, I had bridge integration, so that a user could bridge tez from their layer 1 account to Etherlink. According to GitHub I did a release at 05:35 on Tuesday 13th - this is entirely possible as my sleep patterns were disturbed that week. The release included send and receive of tez between Tezos addresses on the Etherlink rollup. Also I added a switch to hide Etherlink in the wallet.
 
 The Etherlink work was done with about 30 minutes of Thomas's wisdom, a bit of thought on my part to design it and then Claude reading source code and documentation.
 
@@ -110,17 +110,21 @@ There were several other releases that week. Features included:
 - Helper links to Coinbase, Kraken and Transak to buy tez
 - Another audit and tidy up by Codex
 
-Unfortunately I had to use links to Coinbase, Kraken and Transak for buying. Transak offer a widget that can be embedded into Signet, like the Mt Pellerin one, but I have to get a developer API key and I want to avoid too much administration at the moment.
+Unfortunately I had to use links to Coinbase, Kraken and Transak for buying. Transak offer a widget that can be embedded into Signet, like the Mt Pelerin one, but I have to get a developer API key and I want to avoid too much administration at the moment.
 
-On Thursday 15th, I was talking with some colleagues about other Tezos features under development. One big feature is the [Tezos Encrypted Ledger (TzEL)](https://tzel.tezos.com). On the Thursday, I had a quick conversation with Arthur about it and on Friday, had a 30 minute meeting with Devon, who had set up the infrastructure on *Shadownet.* TzEL is a rollup and you move tez into it, much like you do with Etherlink. On TzEL you can make private transactions using quantum keys and signing. Having had these conversations, I asked Claude to start researching. I decided that I needed three new functions: 1. Shield tez (where you bridge tez into the rollup), Unshield tez (where you bridge tez from the rollup) and 3. Send shield transaction (where you can send tez to another participant using a shielded transaction).
+On Thursday 15th, I was talking with some colleagues about other Tezos features under development. One big feature is the [Tezos Encrypted Ledger (TzEL)](https://tzel.tezos.com). On the Thursday, I had a quick conversation with Arthur about it and on Friday, had a 30 minute meeting with Devon, who had set up the infrastructure on *Shadownet.* TzEL is a rollup and you move tez into it, much like you do with Etherlink. On TzEL you can make private transactions using quantum keys and signing. Having had these conversations, I asked Claude to start researching. I decided that I needed three new functions:
 
-It wasn't until the following week, that I really got started. The Shield transaction took a day of Claude researching and me approving operations. Originally it wanted to use the command-line wallet that comes as part of the TzEL software. But I told it that it could not do this and that it must implement the feature itself. By the end of the day, I could move tez into the TzEL rollup. By Wednesday 21st, I'd released v0.9.6 with TzEL support. You can turn it on and off in Signet, and by default it is off, but it is there. As far as I now, no other graphical Tezos wallet supports TzEL.
+1. Shield tez (where you bridge tez into the rollup).
+2. Unshield tez (where you bridge tez from the rollup).
+3. Send a shielded transaction (where you can send tez to another participant using a shielded transaction).
+
+It wasn't until the following week, that I really got started. The Shield transaction took a day of Claude researching and me approving operations. Originally it wanted to use the command-line wallet that comes as part of the TzEL software. But I told it that it could not do this and that it must implement the feature itself. By the end of the day, I could move tez into the TzEL rollup. By Wednesday 21st, I'd released v0.9.6 with TzEL support. You can turn it on and off in Signet, and by default it is off, but it is there. As far as I know, no other graphical Tezos wallet supports TzEL.
 
 Skipping back a bit in the timeline, I decided that Signet should have a manual. On the 12th October, I added a manuscript folder to the Signet source code and two special branches for the book. I then added a book to Leanpub. If you are reading this, you are reading that book in some form. Since 21st October, I have focused on writing up the Signet application in this book. 
 
 It's been a good exercise for me and also for Signet, because I've found a few bugs along the way. When I found a bug, I've stopped and asked Claude to fix it. Then continued with the writeup. 
 
-Signet will continue to develop. Etherlink is very much a second-class citizen in Signet. I need to add features to it and maybe the ability to use 0x addresses directly. There is relay service that allows a Tezos wallet to use EVM dApps on Etherlink, and this will probably be my next project. I suspect the TzEL implementation will change over time and so Signet will need to change with it. There will be new features as Tezos develops. 
+Signet will continue to develop. Etherlink is very much a second-class citizen in Signet. I need to add features to it and maybe the ability to use 0x addresses directly. There is a relay service that allows a Tezos wallet to use EVM dApps on Etherlink, and this will probably be my next project. I suspect the TzEL implementation will change over time and so Signet will need to change with it. There will be new features as Tezos develops. 
 
 It has, of course, been developed solely by AI and the source code hasn't been reviewed by humans. Does this matter? Maybe. I might get an audit done in the future. 
 

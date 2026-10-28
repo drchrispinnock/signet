@@ -1,7 +1,7 @@
 {#id: 170-dapps_1_Distribute}
 # Distributed Apps
 
-*Distributed Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come as across these as sites to buy digital artwork or at a *distributed exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Distributed Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *distributed exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {#id: 170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -15,7 +15,7 @@ In this case, Signet is in the list at the bottom right. You can click Signet an
 
 However, some dApps do not yet have Signet on their wallet lists. You can still connect to these sites if they will give you a QR code for the connection. Select `Show QR Code`, then `Octez Connect` if necessary, then there will be a barcode on the screen. You can copy the value to the clipboard.
 
-Then in Signet, choose `dApps..` from burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
+Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
 
 You will always be able to use this method to connect Signet to a dApp, but in the future, Signet will be on the list of wallets. You'll be able to choose it there and the Signet application will automatically receive the pairing code without you having to worry about it.
 
@@ -75,13 +75,13 @@ If I click the icon top-right on objkt.com, I can go to my Profile. Under the `O
 ![](170/verpera-properties.png)
 There are details about the image on the objkt site. The image is a PNG file. The royalty rate is 25% which goes to the artist in this case. You can see when the token was minted (i.e. created) and the smart contract used to record the ownership on chain. Additionally there are download links for the image from Objkt's asset server and the IPFS service (more on this below).
 
-You can do various other things here with the NFT. For example, you transfer it another account on the chain. You can even burn (i.e. destroy) the NFT if you want to - it's your property.
+You can do various other things here with the NFT. For example, you can transfer it to another account on the chain. You can even burn (i.e. destroy) the NFT if you want to - it's your property.
 
 Let's end the section with some terminology about NFTs.
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is one that represents a unique digital token that represents ownership of an item or asset. We will be purchasing a piece of art and we will receive an NFT to show our ownership. We can sell or transfer this NFT.
 
-Note that the artwork usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
+Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
 
 Although it may be possible to buy more than one copy of each artwork, each one has a unique record of ownership on the chain. So an NFT is unique in this sense.
 
@@ -170,13 +170,13 @@ One word of caution. You might want to live anonymously on a blockchain. It's di
 
 ![](170/quipuswap.png)
 
-To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the copy into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
+To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
 
 <!--
 ![](170/quipuswap-tokens.png)
 -->
 
-Click the burger icon on the right hand site and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about $0.30 USDtz in return.)
+Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about $0.30 USDtz in return.)
 
 ![](170/quipuswap-usdtzsend.png)
 
@@ -191,11 +191,11 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 {#id: 170-dapps_2_3Route}
 ## 3Route
 
-3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote with in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
+3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
 
 ![](170/3route.png)
 
-To use 3Route, go to [3route.io](https://3route.io) into your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)
