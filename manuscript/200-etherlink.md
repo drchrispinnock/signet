@@ -34,13 +34,9 @@ Choose the amount that you want to send and click `Bridge`.
 Then you can see that your 10tz has moved between the networks. The call to the bridge smart contract is also visible in the transaction list.
 
 ![](200/balances.png)
-Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. 
-
+Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. At the time of writing, it's early days for this bridge. It doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in 14 days. The 14 days is related to the refutation window in the smart rollup architecture. The Fast method returns your funds immediately but is subject to a fee.
 ![](200/bridgeback.png)
-XXX At the moment this bridge doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in 14 days. The 14 days is related to the refutation window in the smart rollup architecture XXX. The Fast method returns your funds immediately but is subject to a fee. XXX
-
 <!-- we need to understand how the bridge actually works here XXX -->
-
 {#id: 200-etherlink_2_Sending}
 ## Sending and receiving funds
 

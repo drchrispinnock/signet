@@ -96,12 +96,12 @@ Now go back to the `Baking...` menu and scroll to the bottom of it.
 ![](190/stakingparameters.png)
 Here you can set the two staking parameters. The Limit of staking over baking controls the amount of external stake you can accept from our accounts. If it is set to 0 (the default), you cannot accept staking requests. The maximum value is 9. The Edge of baking over staking is the amount of reward you take as a baker from the block reward. The rest goes to the external stakers in proportion to their stake. The default is 100%, so any staker would not get any rewards. If you are going to offer staking, it's up to you what you set these parameters too. There's probably no good reason not to set the limit to 9 if you are accepting staking. Then you need to choose a rate that is attractive enough to stakers, but good enough for you to make a fee.
 
-You can change these parameters at any time, but the changes take XXX cycles to take effect.
+You can change these parameters at any time, but the changes take <!-- MARKUPTAG paramchange-->5<!-- ENDMARKUPTAG --> cycles to take effect.
 
 {#id: 190-baking_2_Governance}
 ## Governance
 
-Signet also supports governance operations for baking keys. We discussed governance in the Introduction. The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers.
+Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
 
 Most of the time, a network is in the proposal period.  During the proposal period, bakers can propose new protocols and upvote other proposals. 
 A new protocol proposal is represented by a hash. For Ushuaianet, the hash is:
@@ -115,7 +115,7 @@ We can see this here in the governance window. Choose a key that is a baking key
 ![](gvn/propose.png)
 (Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network run the Tallinn protocol. We will vote for the Ushuaia protocol on the network.).
 
-To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal that has the most votes and has quorum XXX wins the round.
+To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal that has the most votes and has quorum wins the round. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
 ![](gvn/upvote.png)
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
@@ -126,7 +126,7 @@ Now it turns out that enough bakers upvoted the proposal. The next stage of the 
 And now there are voting buttons: `Yay`, `Nay` and `Pass`. We are going to vote `Yay` by clicking the button. Then `Confirm` in the next screen.
 
 ![](gvn/2-voting-yay.png)
-Coming back to the Governance screen, we see that we have 39.92% of the 55% quorum and the vote is currently 100% on `Yay`.
+Coming back to the Governance screen, we see that we have 39.92% of the 55% quorum and the vote is currently 100% on `Yay`. 
 ![](gvn/3-exploration.png)
 
 
