@@ -8,10 +8,12 @@
 
 Signet uses [Octez Connect](https://octez-connect.tezos.com) (formerly called Beacon) to connect to dApp websites. We will go through the full process with Objkt.com and 3Route, but here are some things to be aware of. On dApp websites, there will be a button to `Sign in`, `Connect Wallet` or `Sync`. If you click on this, a dialogue will appear. Sometimes it will ask you which style of connection to use - choose Beacon or Octez Connect. Then usually there will be a popup asking you which wallet you use.
 
-![](170/beacon.png)
+![](170/signet-in-beacon.png)
 
 <!-- Waiting -->
-At the writing, Signet is not on this list, but you can still connect to these sites if they will give you a QR code for the connection. Select `Show QR Code`, then `Octez Connect` if necessary, then there will be a barcode on the screen. You can copy the value to the clipboard.
+In this case, Signet is in the list at the bottom right. You can click Signet and it will communicate with the desktop app to log into the dApp.
+
+However, some dApps do not yet have Signet on their wallet lists. You can still connect to these sites if they will give you a QR code for the connection. Select `Show QR Code`, then `Octez Connect` if necessary, then there will be a barcode on the screen. You can copy the value to the clipboard.
 
 Then in Signet, choose `dApps..` from burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
 
@@ -92,9 +94,9 @@ People tend to refer to digital art whose purchases have been recorded on blockc
 
 [Teia](https://teia.art) is another art NFT site on the Tezos blockchain. It's based on the *hic et nunc* NFT marketplace that is no longer with us. You can buy and sell NFTs there. We are going to upload a piece of art and mint an NFT to represent the ownership on chain. You can do this at Objkt as well, but I want to show you an alternative site on Tezos. Using the terminology of making coins, we will *mint* the NFT. On blockchains, creating assets is called *minting.*
 
-First we go to the Teia site. Top right there is a button called `Sync`. Click this and connect the dApp to Signet. Do this in exactly the same way we did for Objkt. Choose `Show More`, then `Show QR Code`, then choose Beacon. Click Copy to clipboard and paste the value into the dApps menu in Signet.
+First we go to the Teia site. Top right there is a button called `Sync`. Our friends at Teia were the first to upgrade to a version of Octez Connect that includes Signet on the application list. So select Signet and then sign the operation to log in. 
 
-Now we are logged into Teia. I'm going to mint a piece of artwork of Ms BLS and Quantum Man, who have been spending a lot of time together recently. Here is the artwork:
+I'm going to mint a piece of artwork of Ms BLS and Quantum Man, who have been spending a lot of time together recently. Here is the artwork:
 
 ![](170/blsquantum.png)
 
@@ -210,7 +212,3 @@ And the calls to the various smart contracts are visible in the transaction view
 
 ![](170/3route-signet-tx.png)
 
-<!--
-## Swapping Tez for other cryptocurrencies
-XXX
--->

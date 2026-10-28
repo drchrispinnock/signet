@@ -17,7 +17,7 @@ Chris Pinnock
 {#id: 005-Preface_1_AI}
 # Developing Signet
 
-Before we start, I want to tell you a story about AI application development. I'm going to tell you how I developed Signet. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can be descriptive.
+Before we start, I want to tell you a story about AI application development. I'm typing this at the end of October 2026 and Signet has only been in development for 23 days. I'm going to tell you how I developed it. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can be descriptive.
 
 Recently, I've had urge to write an application using AI. Over the summer, I'd tried to use Claude Code to write a graphical Tezos wallet based on `octez-client`, the command-line wallet. I managed to get something usable but the user interface was not good. Most Tezos wallets use the library Octez.js (or Taquito). This library has many functions to interact with the Tezos blockchain. I asked Claude to replace the `octez-client` interface with the library but later abandoned the project and moved on to other things. The point here is that I didn't start off with a good enough design and I'd let Claude do the work. 
 
@@ -28,7 +28,7 @@ For some reason, I got the urge to pick up the project on Monday 5th October 202
 I wanted a "burger" menu for options, details about my account (an alias MyWallet, my address and my .tez name), buttons to Send, Receive, Buy and Sell, then my balances on Tezos and Etherlink. Also at the bottom would be my NFT collection. I wrote a very [simple specification](https://github.com/drchrispinnock/signet/blob/main/docs/spec/SPEC.md). You can find this in the source tree of Signet, but here it is:
 
 - I will ask Claude to write a simple Tezos Wallet.
-- It should run natively on the Mac and the source should be compilable by XCode. Swift is preferred.
+- It should run natively on the Mac and the source should be compilable by Xcode. Swift is preferred.
 - It needs to support multiple addresses and all Tezos address types tz1, 6
 - It should use the Taquito library where possible to talk to the chain
 - The default screen is in the file EXAMPLE.png *(the picture above)*
@@ -43,7 +43,7 @@ From the beginning I decided to use the same on-disk format as `octez-client`. O
 
 Also from the beginning, I got Claude to implement backups. Signet backs up the wallet files when it starts and keeps 10 generations by default. This is to avoid any catastrophes and key loss, which to be fair I haven't had yet.
 
-After some vibe-coding, I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the tzkt block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
+After some vibe-coding, I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
 
 Here is a screenshot from version 0.1 of Signet. The NFT view was done early on and has only had one refinement since. Also the balance lookup was there too. I removed the Etherlink balance to begin with - this would come later on.
 ![](005/signet-v0.1.png)
@@ -62,7 +62,7 @@ I had generated a tz5 key, used the *Quantumnet* faucet to get some coins and th
 
 According to the Github logs, I did 7 releases on that day - versions 0.3, 0.4, 0.4.1, 0.4.2, 0.5, 0.6 and 0.7. Features that I added:
 
-- Sync names with tzkt profiles service
+- Sync names with TzKT profiles service
 - Add a tab of deFi assets to the front screen
 - Apple package signing (to avoid errors for other users wanting to run Signet)
 - Ledger Support - using a key from the hardware wallet
@@ -102,7 +102,7 @@ The Etherlink work was done with about 30 minutes of Thomas's wisdom, a bit of t
 
 There were several other releases that week. Features included:
 
-- A network settings page, so that the node, block explorer, tzkt API, the faucet (on a test network) could be set for each network
+- A network settings page, so that the node, block explorer, TzKT API, the faucet (on a test network) could be set for each network
 - Signet attempts to check that the connected node is on the correct network (except for a custom network)
 - Etherlink account linking - to create the corresponding 0x address from a tz1, tz2 or tz3 address.
 - Helper links to Coinbase, Kraken and Transak to buy tez
@@ -124,11 +124,12 @@ It has, of course, been developed solely by AI and the source code hasn't been r
 
 Also, it is Mac only. Now I only know three people in my immediate circle of family and friends that don't use Macs. In fact a few years ago when I broke my arm and the X-rays were supplied in a Windows-only format, I asked my neighbours if I could borrow their Windows machine. No-one in my road has Windows. They use Macs. However, my road is not the world. I intend to ask Claude to port Signet to Windows. Maybe Claude will port it to Linux too. Let's see.
 
-I finished the first draft of this book on XXX. That's only XXX weeks after I started the Signet project. I wanted to tell you this story because it is an example of the new AI world we live in. You can build an application on your computer rapidly using Claude or Codex or other tools. You need to be as prescriptive as possible. Tell the AI tool what you want. Draw it pictures. Tell it what you don't like and tell it what you do like. Eventually you'll get the application you need. 
+I finished the first draft of this book (but without the introduction) on 28th October 2026 - less than 4 weeks after I started the project. I wanted to tell you this story because it is an example of the new AI world we live in. You can build an application on your computer rapidly using Claude or Codex or other tools. You need to be as prescriptive as possible. Tell the AI tool what you want. Draw it pictures. Tell it what you don't like and tell it what you do like. Eventually you'll get the application you need. 
 
-I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a Markdown editor that I got Claude to write. It has a formatted view and a markdown view - you can write in both. It handles images, formatting, hyperlinks, tables, citations and crosslinks. It is the editor I've always needed. And I wrote it in hours.
+I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a Markdown editor that I got Claude to write. It has a formatted view and a markdown view - you can write in both. It handles images, formatting, hyperlinks, tables, citations and crosslinks. It is the editor I've always needed. And I wrote it in hours. And it didn't exist 4 weeks ago either.
 
 But let's get back to the main topics. We are here to show you how to use the Tezos blockchain with the Signet wallet. I hope you enjoy reading this book, learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
 
 
-
+Chris Pinnock  
+28th October 2026
