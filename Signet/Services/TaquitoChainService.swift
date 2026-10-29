@@ -418,6 +418,78 @@ struct TaquitoChainService: ChainService {
         return hash
     }
 
+    // MARK: Etherlink governance (layer 1 contracts)
+
+    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address] {
+        try await verifyChain()
+        let r = try await bridge.call("etherlinkVotingRights", [network.rpcURL.absoluteString, contract.value, address.value], timeout: 60)
+        guard let list = r.arrayValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected voting rights payload: \(String(describing: r))") }
+        return try list.map {
+            guard let value = $0.stringValue, Address(value).isValidAccount else { throw TaquitoBridge.BridgeError.javaScript("unexpected voting rights payload: \(String(describing: r))") }
+            return Address(value)
+        }
+    }
+
+    func etherlinkGovernanceState(contract: Address, for address: Address) async throws -> EtherlinkGovernance.State {
+        try await verifyChain()
+        let r = try await bridge.call("getEtherlinkGovernanceState", [network.rpcURL.absoluteString, contract.value, address.value, network.tzktURL?.absoluteString ?? ""], timeout: 90)
+        return try Self.etherlinkGovernanceState(from: r, contract: contract)
+    }
+
+    /// Pure parser for the bridge's state payload (S20: every number is checked).
+    static func etherlinkGovernanceState(from r: JSONValue, contract: Address) throws -> EtherlinkGovernance.State {
+        func bad() -> TaquitoBridge.BridgeError { .javaScript("unexpected governance state payload: \(String(describing: r))") }
+        func power(_ v: JSONValue?) throws -> Decimal {
+            guard let text = v?.stringValue, Mutez.isValid(text), let value = Decimal(string: text) else { throw bad() }
+            return value
+        }
+        func count(_ v: JSONValue?) throws -> Int {
+            guard let n = v?.intValue, n >= 0 else { throw bad() }
+            return n
+        }
+        var state = EtherlinkGovernance.State(contract: contract)
+        state.periodIndex = try count(r["periodIndex"])
+        guard let kind = r["periodKind"]?.stringValue.flatMap(EtherlinkGovernance.PeriodKind.init(rawValue:)) else { throw bad() }
+        state.periodKind = kind
+        state.remainingBlocks = try count(r["remainingBlocks"])
+        let c = r["config"]
+        state.config = EtherlinkGovernance.Config(periodLength: try count(c?["periodLength"]), upvotingLimit: try count(c?["upvotingLimit"]), scale: try count(c?["scale"]),
+                                                  proposalQuorum: try count(c?["proposalQuorum"]), promotionQuorum: try count(c?["promotionQuorum"]), promotionSupermajority: try count(c?["promotionSupermajority"]))
+        state.totalVotingPower = try power(r["totalVotingPower"])
+        state.proposals = try (r["proposals"]?.arrayValue ?? []).map { p in
+            guard let hash = p["hash"]?.stringValue.flatMap(EtherlinkGovernance.kernelHash(from:)) else { throw bad() }
+            let proposers = (p["proposers"]?.arrayValue ?? []).compactMap { $0.stringValue }.map(Address.init)
+            return EtherlinkGovernance.Proposal(hash: hash, proposers: proposers, upvotes: try power(p["upvotes"]), upvoted: p["upvoted"]?.boolValue ?? false)
+        }
+        state.proposalsKnown = r["proposalsKnown"]?.boolValue ?? true
+        if let candidate = r["candidate"]?.stringValue {
+            guard let hash = EtherlinkGovernance.kernelHash(from: candidate) else { throw bad() }
+            state.candidate = hash
+        }
+        state.tallies = EtherlinkGovernance.Tallies(yea: try power(r["tallies"]?["yea"]), nay: try power(r["tallies"]?["nay"]), pass: try power(r["tallies"]?["pass"]))
+        state.votingPower = try power(r["votingPower"])
+        state.votesFor = (r["votesFor"]?.arrayValue ?? []).compactMap { $0.stringValue }.map(Address.init)
+        state.upvotesUsed = try count(r["upvotesUsed"])
+        state.myVote = r["myVote"]?.stringValue.flatMap(EtherlinkGovernance.Vote.init(rawValue:))
+        return state
+    }
+
+    func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate {
+        let publicKey = try Self.publicKeyArgument(for: wallet)
+        try await verifyChain()
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateEtherlinkGovernance", [network.rpcURL.absoluteString, wallet.address.value, publicKey, contract.value, operation.entrypoint, operation.payload], timeout: 120) }
+        return try Self.estimate(from: result)
+    }
+
+    func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendEtherlinkGovernance", [network.rpcURL.absoluteString, signer.bridgeSpec, contract.value, operation.entrypoint, operation.payload, limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected governance payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     func tokenBalances(for address: Address) async throws -> [AssetBalance] {
         guard let tzkt = network.tzktURL else { return [] }
         return try await TzKTService(baseURL: tzkt, session: session).fungibleTokens(for: address)
