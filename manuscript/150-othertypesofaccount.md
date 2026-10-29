@@ -12,7 +12,7 @@ When we started Signet, we created an account on Tezos and we created an account
 
 For most purposes, you can choose any key type. The `tz4` type was added recently and is good for baking, but it can still be used for normal accounts. The `tz5` type is new and is quantum resistant. It doesn't work on *Mainnet* yet but will soon.
 
-During account creation, you can choose the protect the key with a password. This encrypts the key before it is stored on disk. You need to supply the password every time you want to use the key. This adds a layer of protection on the key, but choose your password carefully. If someone gets hold the encrypted string, they could use a password cracker to decrypt the key. Using a complex password is best practice.
+During account creation, you can choose to protect the key with a password. This encrypts the key before it is stored on disk. You need to supply the password every time you want to use the key. This adds a layer of protection on the key, but choose your password carefully. If someone gets hold of the encrypted string, they could use a password cracker to decrypt the key. Using a complex password is best practice.
 
 Once the account is created, you can use it to receive funds straightaway. When you do your first operation on the network, for example to send tez or to delegate or stake, your public key will be *revealed*. This means that it is available on the network and can be used to verify your operations. 
 
@@ -29,25 +29,25 @@ The secret key is chosen at random out of all possible secret keys. The number o
 
 The secret key, as the name suggests, needs to be kept secret. If someone else gets the key, they have access to your funds and can sign operations with it.
 
-For three of the key types, the EcDSA signing scheme is used EcDSA stands for Elliptic Curve Digital Signature Algorithm. It uses [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - an abstract geometric mathematical object suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
+The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both use [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - an abstract geometric mathematical object suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
 
 | Key type | Type      | Notes                                                                                                                                                                                   | Networks                                                                                                            |
 | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| tz1      | Ed25519   | EcDSA signing scheme with the Curve25519 curve                                                                                                                                          | All                                                                                                                 |
-| tz2      | Secp256k1 | EcDSA signing scheme with the Secp256k1 curve. The public key can also be used on Bitcoin and Ethereum-style networks                                                                   | All                                                                                                                 |
-| tz3      | P-256     | EcDSA signing scheme with the P-256 curve (a.k.a. Secp256r1). This is a curve recommended by NIST. It is used in accredited hardware security modules.                                  | All                                                                                                                 |
+| tz1      | Ed25519   | EdDSA signing scheme with the Curve25519 curve                                                                                                                                          | All                                                                                                                 |
+| tz2      | Secp256k1 | ECDSA signing scheme with the Secp256k1 curve. The public key can also be used on Bitcoin and Ethereum-style networks                                                                   | All                                                                                                                 |
+| tz3      | P-256     | ECDSA signing scheme with the P-256 curve (a.k.a. Secp256r1). This is a curve recommended by NIST. It is used in accredited hardware security modules.                                  | All                                                                                                                 |
 | tz4      | BLS       | BLS signing scheme with the BLS12-381 curve. Can be used for consensus and companion keys on Mainnet to leverage the aggregation properties of BLS, improving consensus on the network. | All                                                                                                                 |
 | tz5      | ML-DSA-44 | Using the ML-DSA-44 signing scheme, these keys are secure against classical and quantum computer attacks.                                                                               | Shadownet, Quantumnet, Ushuaianet. Cannot be used for baking.                                                       |
 | tz6      | XMSS      | A stateful hash-based signing scheme. New to Tezos.                                                                                                                                     | Used as a consensus key for bakers on Quantumnet. The keys have a "finite budget" and need to be rotated regularly. |
 
 You can generate and use keys of all types in Signet, except for `tz6` which is a relative newcomer and only available on the *Quantumnet* test network. You can safely use `tz1`, `tz2`, `tz3` and `tz4` keys today for day to day work on the Tezos production network *Mainnet.* The Ledger hardware security key only supports `tz1`, `tz2` and `tz3` keys.
 
-Which key type you should use is up to you. It's expected that blockchains will shift to quantum resistant keys soon, so you may need to move our funds to a new address. This is another reason not to get attached to your address.
+Which key type you should use is up to you. It's expected that blockchains will shift to quantum resistant keys soon, so you may need to move your funds to a new address. This is another reason not to get attached to your address.
 
 {#id: 150-othertypesofaccount_2_Importing}
 ## Importing Secret Keys
 
-You can import secret keys that have been created in other Tezos wallets directly into Signet. You can paste them in into the import window. If the secret key is encrypted, then you will be asked for the password and you will have to use it each time.
+You can import secret keys that have been created in other Tezos wallets directly into Signet. You can paste them into the import window. If the secret key is encrypted, then you will be asked for the password and you will have to use it each time.
 
 ![](150/import.png)
 Choose the name for your key - this is for your address book. Then paste in the secret key. Signet will work out the address. You can encrypt an unencrypted secret key if you want. 
@@ -67,7 +67,7 @@ tuition blur they crop quantum dad pupil album season peanut possible lecture
 
 The words represent a secret number which can be used to derive many cryptographic keys. In the Signet import, you can choose which `tz` key type to pick. You can also pick an account number which we will cover in the next section. You'll need to know which key type you used with the passphrase, but other wallets such as Temple, Kukai and Umami usually use the `tz1` account 0.
 ![](150/recover.png)
-Similar to the secret key import, you can decide to keep the key just for the session in which case SIgnet will discard it when it exits. You can also encrypt the secret key with a password for storage.
+Similar to the secret key import, you can decide to keep the key just for the session in which case Signet will discard it when it exits. You can also encrypt the secret key with a password for storage.
 
 {#id: 150-othertypesofaccount_2_Importing_3}
 ## Importing using a Fundraiser Account
@@ -105,20 +105,20 @@ The ' means that the derivation is a hardened derivation and the parent private 
 
 A [Ledger](https://www.ledger.com) is a hardware security module that holds cryptographic keys for signing operations and plugs into your computer via USB. When you want to use your key, you attach it. When you have finished, you remove it and your key is safely offline. The Ledger supports many cryptocurrencies. It has a seed phrase and implements the key hierarchy above (without showing the detail to the user, unless they look of course). All the signing operations happen on the hardware device, so the keys never leave it.
 
-To use a Ledger with Tezos, you need to run through the installation process with [Ledger Wallet](https://shop.ledger.com/pages/ledger-wallet-download) (formerly Ledger Live) and installed the Tezos Wallet application for the Ledger app store. Once you have this, you can use the Ledger with Signet.
+To use a Ledger with Tezos, you need to run through the installation process with [Ledger Wallet](https://shop.ledger.com/pages/ledger-wallet-download) (formerly Ledger Live) and install the Tezos Wallet application from the Ledger app store. Once you have this, you can use the Ledger with Signet.
 
 Plug the Ledger into your computer, open Signet and choose `Connect Ledger`. Signet will complain if it cannot find a Ledger. If it is plugged in and Signet can't find it, it is likely that you are not running the Tezos Wallet application.
 
-![](150/ledger.png) XXX Need Picture - Ledger at home XXX
+![](150/ledger.png) 
 
-Choose a name for the key in the ledger, pick the key type and account number. If you have used Ledger Live and you a Tezos address on it, the `tz1` and `44'/1729'/0'/0'` path will match the same address. In Ledger Live, any additional accounts will be `tz1` and on path `44'/1729'/1'/0'`, `44'/1729'/2'/0'` and so on. You can also use `tz2` and `tz3` keys using the Ledger in Signet, but they will not be visible in the Ledger Live software.
+Choose a name for the key in the ledger, pick the key type and account number. If you have used Ledger Live and you have a Tezos address on it, the `tz1` and `44'/1729'/0'/0'` path will match the same address. In Ledger Live, any additional accounts will be `tz1` and on path `44'/1729'/1'/0'`, `44'/1729'/2'/0'` and so on. You can also use `tz2` and `tz3` keys using the Ledger in Signet, but they will not be visible in the Ledger Live software.
 
-Once the Ledger is connected, you can use the keys like any other keys in Signet. You'll need to connect the Ledger and open the Tezos Wallet application to use the key. When a transaction or operation is done, Signet will use the Ledger to sign it and you'll have to confirm it on the Ledger itself.
+Click `Add` and confirm the operation on your Ledger. Once the Ledger is connected, you can use the keys like any other keys in Signet. You'll need to connect the Ledger and open the Tezos Wallet application to use the key. When a transaction or operation is done, Signet will use the Ledger to sign it and you'll have to confirm it on the Ledger itself.
 
 {#id: 150-othertypesofaccount_2_Exporting}
 ## Exporting Keys
 
-You can export your secret keys from Signet at any time. Signet displays the key obstructed until you click the view button or the copy button. You need to be incredibly careful handling this key. If you do copy it, make sure you clear your copy and paste buffer by copying something else. Avoid storing the key online anywhere. If someone gets into you files, they get your keys and then they have your funds.
+You can export your secret keys from Signet at any time. Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. If you do copy it, make sure you clear your copy and paste buffer by copying something else. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds.
 
 ![](150/export.png)
 
@@ -130,7 +130,7 @@ The best way to store keys as a backup is to store them on paper. Write down the
 
 If you are worried further about offline security, you could shard the key. This is where you write down half of it on one piece of paper and the other half on another. Store one half in one location (e.g. a safe) and the other half in another (e.g. a vault somewhere else). This requires two safe locations. If you want a backup as well, you will need two additional safe locations. However, it's worth it if your key gives access to significant funds.
 
-If you Ledger, or another Hardware Security Module to generate the key, you should store the seed materials (such as recovery phrase) in a similar way. You can break it up into shards if you like and store it in multiple locations.
+If you use a Ledger or another hardware security module to generate the key, you should store the seed materials (such as recovery phrase) in a similar way. You can break it up into shards if you like and store it in multiple locations.
 
 {#id: 150-othertypesofaccount_2_Forgetting}
 ## Forgetting Keys

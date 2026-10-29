@@ -13,9 +13,9 @@ Tezos is no different. You can replace the basic banking functions of transferri
 Receiving tez in your Signet account is a passive operation. All you need to do is give the sender your address. You can either copy it from the top left of your Signet menu, or click the Receive button. 
 
 ![](140/receive.png)
-This screen gives you the possible to copy your address, but also a bar code. Some mobile wallets will read the bar code and use it as a sending address. This is useful if you are near to the person that wants to send you the funds.
+This screen gives you the option to copy your address, but also a bar code. Some mobile wallets will read the bar code and use it as a sending address. This is useful if you are near to the person that wants to send you the funds.
 
-In this case, someone has kindly send my wallet 1tz on *Shadownet.* You can see the transaction in the list, which is in most recent order. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Fawcet*). 
+In this case, someone has kindly sent my account 1tz on *Shadownet.* You can see the transaction in the list, which is in most recent order. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Fawcet*). 
 
 ![](140/tx.png)
 {#id: 140-transactions_2_Sending}
@@ -35,7 +35,7 @@ Now we can enter an address in several ways. We can:
 
 1. Enter a Tezos address, such as the one above.
 2. Use an address book entry (such as Captain Stake shown above).
-3. Use a .tez name. These are *Tezos Domains.* You can register a name such as drchris.tez or captstake.tez, and it can be used as an identifier your account. Note that these work on *Mainnet.*
+3. Use a .tez name. These are *Tezos Domains.* You can register a name such as drchris.tez or captstake.tez, and it can be used as an identifier for your account. Note that these work on *Mainnet.*
 
 In this case, we are going to use the address above, so I type that in:
 
@@ -50,7 +50,7 @@ There is a final confirmation window. We click `Confirm and Send`. And the trans
 
 ![](140/confirmed.png)
 
-It is possible sometimes that the transaction does not go through. Usually this is due to congested or busy node. We will should you have to change nodes later on. But you can try the transaction again in such circumstances.
+It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. But you can try the transaction again in such circumstances.
 
 Let's pop back to the address window again. Let's put in this address:
 
@@ -100,4 +100,4 @@ It's better to keep addresses in the address book so that we are sure who we are
 
 We have not implemented any interfaces to centralised exchanges to sell tez. If you want to sell tez, you'll need to use a centralised exchange like the ones in the previous chapter. You can transfer your tez in and then sell them at a market value.
 
-You can also swap your tez for other cryptocurrencies. You can do this at a centralised exchange as well, but you can also do it at a *decentralised exchange* (DEX). Also you can swap you tez using a *bridge*. The other side is on another blockchain. You'll need accounts on the other chains if you do this and this is out of scope of this book. We will show you some *on-chain DEXes* later on - these are DEXes for swapping assets that are solely on the Tezos chain.
+You can also swap your tez for other cryptocurrencies. You can do this at a centralised exchange as well, but you can also do it at a *decentralised exchange* (DEX). Also you can swap your tez using a *bridge*. The other side is on another blockchain. You'll need accounts on the other chains if you do this and this is out of scope of this book. We will show you some *on-chain DEXes* later on - these are DEXes for swapping assets that are solely on the Tezos chain.
