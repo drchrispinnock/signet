@@ -54,6 +54,10 @@ actor ImageLoader {
     /// candidates are a token's images best first, one URL per gateway for each (display
     /// render, then thumbnail, then artifact): when a gateway says the content is too large,
     /// every other gateway's copy of that content is skipped and the next image is tried.
+    /// The disk cache is consulted in that same order, candidate by candidate, so a cached
+    /// lesser image never stands in for a better one that was never fetched: marketplaces
+    /// give many tokens one generic thumbnail, and once it is on disk it must not become
+    /// every such token's tile.
     func image(for candidates: [URL], maxPixelSize: Int = 400) async -> NSImage? {
         guard let key = candidates.first?.absoluteString else { return nil }
         if let cached = cache.object(forKey: key as NSString) { return cached }
@@ -64,16 +68,12 @@ actor ImageLoader {
         let task = Task<NSImage?, Never> {
             await self.acquireSlot()
             defer { self.releaseSlot() }
-            // Anything already on disk, whichever image or gateway it came from, needs no request.
-            if let disk = self.disk {
-                for url in candidates where EndpointPolicy.isPublicHTTPS(url) {
-                    if let image = disk.image(for: url, maxPixelSize: maxPixelSize) { return image }
-                }
-            }
             var tooLarge: [IPFS.ContentPath] = []
             for url in candidates {
                 guard !Task.isCancelled else { return nil }
                 guard EndpointPolicy.isPublicHTTPS(url) else { continue }
+                // This image already on disk, from whichever gateway, needs no request.
+                if let disk = self.disk, let image = disk.image(for: url, maxPixelSize: maxPixelSize) { return image }
                 let content = IPFS.gatewayContentPath(of: url)
                 if let content, tooLarge.contains(content) { continue }
                 if let disk = self.disk, disk.isTooLarge(url) { continue }

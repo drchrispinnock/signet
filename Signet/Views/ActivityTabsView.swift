@@ -7,25 +7,77 @@ struct ActivityTabsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Activity", selection: $model.activityTab) {
-                ForEach(WalletViewModel.ActivityTab.allCases) { tab in
-                    Text(tab.rawValue).tag(tab)
+            HStack(spacing: 12) {
+                Picker("Activity", selection: $model.activityTab) {
+                    ForEach(WalletViewModel.ActivityTab.allCases) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 400)
+                Spacer(minLength: 0)
+                if model.filtersLayers {
+                    LayerToggles(shown: $model.shownLayers)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 400)
 
             switch model.activityTab {
             case .transactions:
                 TransactionListView(model: model)
             case .assets:
-                TokenListView(tokens: model.tokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network)
+                TokenListView(tokens: model.visibleTokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network,
+                              layerEmptyText: model.layerEmptyText(for: "tokens"))
             case .nfts:
-                NFTGridView(nfts: model.nfts, isLoading: model.isLoading, state: model.portfolioState)
+                NFTGridView(nfts: model.visibleNFTs, isLoading: model.isLoading, state: model.portfolioState,
+                            layerEmptyText: model.layerEmptyText(for: "NFTs"))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// Two logo buttons, Tezos and Etherlink, each lit while that layer's holdings and operations
+/// are shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
+struct LayerToggles: View {
+    @Binding var shown: Set<Int>
+
+    var body: some View {
+        HStack(spacing: 4) {
+            toggle(layer: 1, logo: "TezosToken", name: "Tezos")
+            toggle(layer: 2, logo: "EtherlinkLogo", name: "Etherlink")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Chains shown")
+    }
+
+    private func toggle(layer: Int, logo: String, name: String) -> some View {
+        Toggle(isOn: Binding(
+            get: { shown.contains(layer) },
+            set: { on in if on { shown.insert(layer) } else { shown.remove(layer) } }
+        )) {
+            Image(nsImage: ChainSidePicker.smallLogo(logo, points: 16))
+                .opacity(shown.contains(layer) ? 1 : 0.45)
+        }
+        .toggleStyle(.button)
+        .controlSize(.small)
+        .help(shown.contains(layer) ? "Showing \(name). Click to hide its transactions, tokens and NFTs." : "Show \(name)")
+        .accessibilityLabel(name)
+    }
+}
+
+/// A small Etherlink logo beside a layer 2 row's figure or on its tile: the same mark as the
+/// dashboard's Etherlink balance row, so a list reads "on Etherlink".
+struct EtherlinkMark: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Image("EtherlinkLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .help("On Etherlink")
+            .accessibilityHidden(true)
     }
 }
 
@@ -33,9 +85,14 @@ struct ActivityTabsView: View {
 struct TransactionListView: View {
     @Bindable var model: WalletViewModel
 
+    private var emptyText: String {
+        if model.isLoading { return "Loading…" }
+        return model.layerEmptyText(for: "transactions") ?? "No transactions yet."
+    }
+
     var body: some View {
-        if model.transactions.isEmpty {
-            Text(model.isLoading ? "Loading…" : "No transactions yet.")
+        if model.visibleTransactions.isEmpty {
+            Text(emptyText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -43,7 +100,7 @@ struct TransactionListView: View {
         } else {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
-                    ForEach(model.transactions) { tx in
+                    ForEach(model.visibleTransactions) { tx in
                         TransactionRowView(model: model, transaction: tx)
                         Divider().padding(.leading, 56)
                     }
@@ -58,7 +115,9 @@ struct TransactionRowView: View {
     let transaction: TezosTransaction
     @State private var isHovering = false
 
-    private var network: Network { model.network }
+    /// The network the row's explorer link belongs to: Etherlink's for a layer 2 row (none if
+    /// Layer 2 has since been turned off), else the one in use.
+    private var network: Network? { transaction.isLayer2 ? model.network.layer2 : model.network }
 
     private var party: (name: String, isOurs: Bool) {
         guard let address = transaction.counterparty else { return ("Unknown", false) }
@@ -105,19 +164,12 @@ struct TransactionRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                if transaction.amount > 0 {
-                    Text(signedAmount)
-                        .font(.body.monospacedDigit().weight(.medium))
-                        .foregroundStyle(transaction.direction == .incoming ? .green : .primary)
-                } else if transaction.kind == .delegation, let balance = transaction.delegatedBalance, balance > 0 {
-                    Text(AssetBalance.format(balance, symbol: "tz"))
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    if transaction.isLayer2 { etherlinkMark }
+                    figure
+                }
+                if showsDelegatedBalance {
                     Text("delegated balance").font(.caption2).foregroundStyle(.tertiary)
-                } else {
-                    Text(transaction.kind == .delegation ? "Delegation" : "Call")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
                 }
                 if transaction.direction != .incoming, transaction.fee > 0 {
                     Text("fee \(AssetBalance.format(transaction.fee, symbol: "tz"))")
@@ -134,10 +186,33 @@ struct TransactionRowView: View {
         .onTapGesture { openExplorer() }
         .help(helpText)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")")
+        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")\(transaction.isLayer2 ? ", on Etherlink" : "")")
     }
 
     // MARK: Pieces
+
+    private var showsDelegatedBalance: Bool {
+        transaction.amount == 0 && transaction.kind == .delegation && (transaction.delegatedBalance ?? 0) > 0
+    }
+
+    /// The amount, the delegator's balance, or the kind of call.
+    @ViewBuilder private var figure: some View {
+        if transaction.amount > 0 {
+            Text(signedAmount)
+                .font(.body.monospacedDigit().weight(.medium))
+                .foregroundStyle(transaction.direction == .incoming ? .green : .primary)
+        } else if showsDelegatedBalance, let balance = transaction.delegatedBalance {
+            Text(AssetBalance.format(balance, symbol: "tz"))
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+        } else {
+            Text(transaction.kind == .delegation ? "Delegation" : "Call")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var etherlinkMark: some View { EtherlinkMark() }
 
     private var role: TezosTransaction.DelegationRole? {
         model.selectedWallet.flatMap { transaction.delegationRole(for: $0.address) }
@@ -194,13 +269,14 @@ struct TransactionRowView: View {
 
     private var helpText: String {
         var lines = [transaction.hash, "Block \(transaction.level.formatted())", transaction.timestamp.formatted(date: .abbreviated, time: .shortened)]
+        if transaction.isLayer2 { lines.insert("On Etherlink", at: 0) }
         if let address = transaction.counterparty { lines.append(address.value) }
-        if network.explorerURL(operation: transaction.hash) != nil { lines.append("Click to view in the explorer") }
+        if network?.explorerURL(operation: transaction.hash) != nil { lines.append("Click to view in the explorer") }
         return lines.joined(separator: "\n")
     }
 
     private func openExplorer() {
-        guard let url = network.explorerURL(operation: transaction.hash) else { return }
+        guard let url = network?.explorerURL(operation: transaction.hash) else { return }
         NSWorkspace.shared.open(url)
     }
 

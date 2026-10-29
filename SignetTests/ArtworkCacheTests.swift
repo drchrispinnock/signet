@@ -136,4 +136,35 @@ struct ArtworkCacheTests {
         #expect(asked.count == 3)
         #expect(asked.last?.path.contains(Self.thumbCID) == true)
     }
+
+    /// Marketplaces give many tokens one generic thumbnail. Once another token has put it on
+    /// disk, a token whose own display render was never fetched must still get that render,
+    /// not the cached placeholder (seen live: hic et nunc's black disc on two objkt tiles).
+    @Test func aCachedSharedThumbnailDoesNotStandInForAnUnfetchedDisplayRender() async throws {
+        let cache = try temporaryCache()
+        defer { try? FileManager.default.removeItem(at: cache.directory) }
+        let display = try samplePNG(width: 60, height: 30)
+        let thumbnail = try samplePNG(width: 40, height: 20)
+        let thumbURLs = IPFS.candidateURLs(for: "ipfs://\(Self.thumbCID)")
+        actor Log { var urls: [URL] = []; func add(_ url: URL) { urls.append(url) } }
+        let log = Log()
+        func loader() -> ImageLoader {
+            ImageLoader(disk: cache, fetch: { url in
+                await log.add(url)
+                return .data(url.path.contains(Self.thumbCID) ? thumbnail : display)
+            })
+        }
+        // Some token's tile was the shared thumbnail alone, so it is now on disk.
+        #expect(await loader().image(for: thumbURLs, maxPixelSize: 100)?.size.width == 40)
+        #expect(await log.urls.count == 1)
+        // Another token: its own display render first, then that same thumbnail.
+        let urls = IPFS.candidateURLs(for: "ipfs://\(Self.cid)") + thumbURLs
+        let tile = await loader().image(for: urls, maxPixelSize: 100)
+        #expect(tile?.size.width == 60, "the display render, fetched now, not the cached placeholder")
+        let asked = await log.urls
+        #expect(asked.count == 2 && asked.last?.path.contains(Self.cid) == true)
+        // From then on the render is on disk and nothing is asked.
+        #expect(await loader().image(for: urls, maxPixelSize: 100)?.size.width == 60)
+        #expect(await log.urls.count == 2)
+    }
 }

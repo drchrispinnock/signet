@@ -5,6 +5,8 @@ struct NFTGridView: View {
     let nfts: [NFT]
     let isLoading: Bool
     var state: Portfolio.State = .complete
+    /// What to say instead of "No NFTs" when the layer toggles leave the tab empty.
+    var layerEmptyText: String? = nil
 
     private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 12)]
 
@@ -12,7 +14,7 @@ struct NFTGridView: View {
         VStack(alignment: .leading, spacing: 10) {
             PortfolioStateNote(state: state)
             if nfts.isEmpty {
-                Text(isLoading ? "Loading…" : (state.isUnavailable ? "NFT data is unavailable." : "No NFTs in this account."))
+                Text(isLoading ? "Loading…" : (state.isUnavailable ? "NFT data is unavailable." : layerEmptyText ?? "No NFTs in this account."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -45,6 +47,14 @@ struct NFTTileView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .contentShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.secondary.opacity(0.25)))
+                .overlay(alignment: .topLeading) {
+                    if nft.isLayer2 {
+                        EtherlinkMark(size: 16)
+                            .padding(3)
+                            .background(Circle().fill(.black.opacity(0.6)))
+                            .padding(6)
+                    }
+                }
                 .overlay(alignment: .topTrailing) {
                     if nft.balance > 1 {
                         Text("×\(nft.balance)")
@@ -62,9 +72,9 @@ struct NFTTileView: View {
                 .truncationMode(.tail)
                 .foregroundStyle(.secondary)
         }
-        .help("\(nft.name)\n\(nft.contract) #\(nft.tokenId)")
+        .help((nft.isLayer2 ? "On Etherlink\n" : "") + "\(nft.name)\n\(nft.contract) #\(nft.tokenId)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(nft.name)
+        .accessibilityLabel(nft.name + (nft.isLayer2 ? ", on Etherlink" : ""))
     }
 
     @ViewBuilder

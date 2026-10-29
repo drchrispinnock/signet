@@ -44,6 +44,33 @@ final class WalletViewModel {
         }
     }
 
+    /// Etherlink's side of the account's history, for the Recent transactions list: the same
+    /// TzKT shape read from Etherlink's indexer through the Layer 2 service, each row tagged as
+    /// layer 2. Nothing without Layer 2 on, for a key the rollup refuses, or when Etherlink's
+    /// indexer cannot be read, in which case the layer 1 list stands alone.
+    private nonisolated static func etherlinkHistory(for address: Address, on network: Network, chain: (any ChainService)?, limit: Int) async -> [TezosTransaction] {
+        guard network.hasL2, address.isUsableOnEtherlink, let chain else { return [] }
+        let rows = (try? await chain.recentTransactions(for: address, limit: limit)) ?? []
+        return rows.map { $0.onLayer2() }
+    }
+
+    /// Etherlink's side of the account's holdings, for the Assets and NFTs tabs: the same TzKT
+    /// token listing read from Etherlink's indexer through the Layer 2 service, each tagged as
+    /// layer 2. Empty without Layer 2 on, for a key the rollup refuses, or when Etherlink's
+    /// indexer cannot be read, in which case layer 1's holdings stand alone.
+    private nonisolated static func etherlinkPortfolio(for address: Address, on network: Network, chain: (any ChainService)?) async -> Portfolio {
+        guard network.hasL2, address.isUsableOnEtherlink, let chain else { return .empty }
+        guard let portfolio = try? await chain.portfolio(for: address) else { return .empty }
+        if case .unavailable = portfolio.state { return .empty }
+        return portfolio.onLayer2()
+    }
+
+    /// Both layers' histories as one list, newest first, cut to `limit`. Rows of the same moment
+    /// keep their order, layer 1 before layer 2.
+    nonisolated static func mergedHistory(_ lists: [TezosTransaction]..., limit: Int) -> [TezosTransaction] {
+        Array(lists.flatMap { $0 }.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
+    }
+
     /// The Shielded row of the dashboard, under Etherlink (or tez), while the network has
     /// shielded transactions on: the wallet's unspent notes, found by scanning the rollup's
     /// commitment tree with its viewing keys (`WalletViewModel+Shielded.swift`). A network
@@ -170,6 +197,40 @@ final class WalletViewModel {
         var id: String { rawValue }
     }
     var activityTab: ActivityTab = .transactions
+
+    /// Which layers the activity tabs show while Layer 2 is on: the Tezos and Etherlink
+    /// toggles beside the activity picker, both on to begin with. Ignored without Layer 2,
+    /// when everything loaded is layer 1's anyway.
+    var shownLayers: Set<Int> = [1, 2]
+
+    /// Whether the layer toggles apply: Layer 2 is on for the network in use.
+    var filtersLayers: Bool { network.hasL2 }
+
+    /// The rows the Recent transactions list shows: everything loaded, cut to the chosen layers
+    /// while Layer 2 is on.
+    var visibleTransactions: [TezosTransaction] { visible(transactions, by: \.layer) }
+    /// The Assets tab's tokens, cut the same way.
+    var visibleTokens: [AssetBalance] { visible(tokens, by: \.layer) }
+    /// The NFTs tab's tokens, cut the same way.
+    var visibleNFTs: [NFT] { visible(nfts, by: \.layer) }
+
+    private func visible<T>(_ items: [T], by layer: KeyPath<T, Int>) -> [T] {
+        guard filtersLayers else { return items }
+        return items.filter { shownLayers.contains($0[keyPath: layer]) }
+    }
+
+    /// What an activity tab says when the toggles leave it empty: nothing on the chosen chain,
+    /// or no chain chosen. `nil` when the toggles are off or both are on, so the tab's own
+    /// wording stands.
+    func layerEmptyText(for noun: String) -> String? {
+        guard filtersLayers else { return nil }
+        switch shownLayers {
+        case []: return "Select Tezos or Etherlink to show \(noun)."
+        case [1]: return "No \(noun) on Tezos in this account."
+        case [2]: return "No \(noun) on Etherlink in this account."
+        default: return nil
+        }
+    }
     private(set) var isLoading = false
     /// True when the node has no record of the selected address (never funded on this network).
     private(set) var accountNotOnChain = false
@@ -672,6 +733,7 @@ final class WalletViewModel {
             return
         }
         let chain = self.chain
+        let layer2 = self.layer2Chain
         let address = mine.address
         let network = self.network
         if network.canShield { await adoptLegacyShieldedWallet() }
@@ -699,6 +761,8 @@ final class WalletViewModel {
             async let holdings = chain.portfolio(for: address)
             async let names = chain.domains(for: address)
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
+            async let etherlinkHistory = Self.etherlinkHistory(for: address, on: network, chain: layer2, limit: Self.recentTransactionLimit)
+            async let etherlinkHoldings = Self.etherlinkPortfolio(for: address, on: network, chain: layer2)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
             async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
@@ -709,9 +773,9 @@ final class WalletViewModel {
             if let shielded = await shielded { list.append(shielded.row); snapshot.shielded = shielded }
             snapshot.tezBalance = tezBalance
             snapshot.assets = list
-            snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
+            snapshot.portfolio = ((try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))).adding(await etherlinkHoldings)
             snapshot.domains = try await names
-            snapshot.transactions = try await history
+            snapshot.transactions = Self.mergedHistory(try await history, await etherlinkHistory, limit: Self.recentTransactionLimit)
             snapshot.delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
             // Not on layer 1: no balance rows at all, the Etherlink one included.
