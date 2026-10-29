@@ -62,6 +62,7 @@
 		4EC9E16CA50BB4796AE325A2 /* AddMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */; };
 		4F54FA31553D267CCB65ED14 /* TezBalanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */; };
 		51D8E8DE8DC6F580C62DBABA /* BridgeCallGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */; };
+		537E3E8FC9A4C84599B3378A /* EtherlinkGovernanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */; };
 		549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */; };
 		54B0069FB7DCE84D174D9DAD /* Multisig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D40B17B45C19919EA6F806 /* Multisig.swift */; };
 		557958E2DA023D11DAECD05E /* LedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A0D0255843FAE3AF79D460 /* LedgerTests.swift */; };
@@ -73,6 +74,7 @@
 		603EA65D5F475993CF91B710 /* BuyProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C97CB8F610E2FEBAE942B50 /* BuyProvider.swift */; };
 		61427263DE2738E1B8AE3743 /* MtPelerinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */; };
 		6147C62CC2E4DC757507FDA2 /* RefreshContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5AB0D4CA449EBD13FE53D7 /* RefreshContextTests.swift */; };
+		6320E3CC63FE30C4B1530340 /* EtherlinkGovernanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70530070E025918D4F81C03D /* EtherlinkGovernanceView.swift */; };
 		65F83E81496B528EBEA756D9 /* EtherlinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F326EFF5948C06B4E3F0080 /* EtherlinkTests.swift */; };
 		6A22F2F98B16A73EDE913B76 /* WalletLockMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA311716161FC9F3CDA4E11 /* WalletLockMeasurementTests.swift */; };
 		6A4C2F1D4DD5E2B07A0B1896 /* ConfirmationWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5669132EA4D561AD15D4B9CE /* ConfirmationWatcherTests.swift */; };
@@ -160,6 +162,7 @@
 		DE6242C7123257F1E4BFA919 /* FaucetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED1010B47F417371C6C455 /* FaucetService.swift */; };
 		DF7BCF4269CA7D56B03497B0 /* ArtworkCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */; };
 		E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7070B3A5754283DA58F7D /* SettingsView.swift */; };
+		E1C4EBCEFA107012455E7B76 /* EtherlinkGovernance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */; };
 		E39FD7B69DFF8447FA398A56 /* SendViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A977FC2E863E73A21EF39F /* SendViewModel.swift */; };
 		E428724605E404E9B227878E /* DAppRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = F940745F8842D7E206AB1B3D /* DAppRequest.swift */; };
 		E58D4BECB119DAFCC02AB600 /* ShieldedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B608852FCC414F389A5B28DD /* ShieldedTests.swift */; };
@@ -209,6 +212,7 @@
 		19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofOfPossessionSheet.swift; sourceTree = "<group>"; };
 		1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTests.swift; sourceTree = "<group>"; };
 		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
+		1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernance.swift; sourceTree = "<group>"; };
 		201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectEndToEnd.swift; sourceTree = "<group>"; };
 		2480FCA7277757AFED969B9B /* EndpointPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointPolicy.swift; sourceTree = "<group>"; };
 		26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCache.swift; sourceTree = "<group>"; };
@@ -269,6 +273,7 @@
 		6DE66BABF3B38C10ECC20F5F /* MtPelerin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerin.swift; sourceTree = "<group>"; };
 		6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyImporter.swift; sourceTree = "<group>"; };
 		6F326EFF5948C06B4E3F0080 /* EtherlinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkTests.swift; sourceTree = "<group>"; };
+		70530070E025918D4F81C03D /* EtherlinkGovernanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernanceView.swift; sourceTree = "<group>"; };
 		728CF120E10F18FF3D27E655 /* TaquitoBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoBridgeTests.swift; sourceTree = "<group>"; };
 		72DF728B51BB3C7777C824C7 /* MtPelerinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerinTests.swift; sourceTree = "<group>"; };
 		73AC1D8BDD38FBB6CE11BEF5 /* KeccakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeccakTests.swift; sourceTree = "<group>"; };
@@ -351,6 +356,7 @@
 		E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegateRowView.swift; sourceTree = "<group>"; };
 		E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgetAccountSheet.swift; sourceTree = "<group>"; };
 		E4D40B17B45C19919EA6F806 /* Multisig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Multisig.swift; sourceTree = "<group>"; };
+		E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernanceTests.swift; sourceTree = "<group>"; };
 		E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHeaderView.swift; sourceTree = "<group>"; };
 		E70E02FF7663B97A85CBD8A8 /* DAppConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppConnectionManager.swift; sourceTree = "<group>"; };
 		EEF0AB14B65D2F2992D0B4B3 /* BuyWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyWebView.swift; sourceTree = "<group>"; };
@@ -403,6 +409,7 @@
 				9B7333B6F53BDA303AE19D83 /* DAppRequestSheet.swift */,
 				E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */,
 				53428EA9C303EAE3CB47CCF7 /* DisclaimerAlert.swift */,
+				70530070E025918D4F81C03D /* EtherlinkGovernanceView.swift */,
 				ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */,
 				FC918EF9B0EDD54D21EB48C3 /* FaucetSheet.swift */,
 				E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */,
@@ -445,6 +452,7 @@
 				A8F7142388FBD9770414F6F0 /* Base58.swift */,
 				4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */,
 				F940745F8842D7E206AB1B3D /* DAppRequest.swift */,
+				1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */,
 				42FFEDDCB3BE24F2E5C54DE0 /* Governance.swift */,
 				954497D4B4D19FB45CC12B96 /* KeyMaterial.swift */,
 				3C28E33024C38536C06397DB /* LedgerKey.swift */,
@@ -489,6 +497,7 @@
 				4FC5EC72CF05A4295B4E4DA2 /* DAppStartupTests.swift */,
 				3E46F73256A892AA7016BC04 /* DAppTests.swift */,
 				766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */,
+				E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */,
 				6F326EFF5948C06B4E3F0080 /* EtherlinkTests.swift */,
 				05930E7B824730A8A1C63579 /* FaucetTests.swift */,
 				D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */,
@@ -786,6 +795,8 @@
 				5B59E3914CCAB9F3D6BB5E21 /* DeveloperSettings.swift in Sources */,
 				37A603F12FFBF751DCE054D2 /* DisclaimerAlert.swift in Sources */,
 				1989A008D2B48218806C9BF3 /* EndpointPolicy.swift in Sources */,
+				E1C4EBCEFA107012455E7B76 /* EtherlinkGovernance.swift in Sources */,
+				6320E3CC63FE30C4B1530340 /* EtherlinkGovernanceView.swift in Sources */,
 				57A60E498D042D8AF11CD26B /* ExportKeySheet.swift in Sources */,
 				DE6242C7123257F1E4BFA919 /* FaucetService.swift in Sources */,
 				9515CEF511EC5DEA4872F494 /* FaucetSheet.swift in Sources */,
@@ -890,6 +901,7 @@
 				F8A1236DC9F093F43745C925 /* DAppStartupTests.swift in Sources */,
 				D773B43372E1FBDED1176B97 /* DAppTests.swift in Sources */,
 				0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */,
+				537E3E8FC9A4C84599B3378A /* EtherlinkGovernanceTests.swift in Sources */,
 				65F83E81496B528EBEA756D9 /* EtherlinkTests.swift in Sources */,
 				A5A2409814B37E05C0876756 /* FaucetTests.swift in Sources */,
 				DD55FDBEC099D83C97895445 /* GovernanceTests.swift in Sources */,

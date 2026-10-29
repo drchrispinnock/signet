@@ -343,6 +343,47 @@ automatic download is off by default. The updater is not started under the test 
   in exploration/promotion it offers Yay / Nay / Pass; cooldown/adoption, no listing, or an
   already-cast ballot just say so. `sendGovernanceOperation` uses Taquito `contract.proposals` /
   `contract.ballot`; voting operations carry no fee, so there is no estimate step.
+  **Etherlink governance (0.9.8).** With Layer 2 on, the Governance sheet gains a Tezos /
+  Etherlink picker; the Etherlink tab is Etherlink's kernel-upgrade governance, which lives in
+  layer 1 contracts written by Baking Bad (github.com/baking-bad/etherlink-governance), one for
+  slow upgrades and one for fast. `Network.etherlinkGovernance` / `defaultEtherlinkGovernance`
+  (`[EtherlinkGovernance.Process: Address]`) ship mainnet's Ganesha contracts (slow
+  `KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb`, fast `KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo`; the
+  pre-Ganesha ones still answer but count for nothing) and nothing on the testnets; the Networks
+  sheet has a "Slow governance" and "Fast governance" field under the Layer 2 node (saved in
+  `AppState.etherlinkGovernance` only where they differ, "" for a process turned off), and
+  `Network.canGovernEtherlink` is Layer 2 on with at least one contract. The item shows
+  (`WalletViewModel.canGovern` / `canGovernEtherlink`) for a baker, or for an account the
+  delegation contract (named in each governance contract's storage) lists as some baker's
+  voting key: `refresh` asks the bridge's `etherlinkVotingRights` (what the delegation
+  contract's `list_voters(address, Some contract)` view answers, read from its
+  `voting_delegations` big map: `votersFrom`) and keeps the bakers in `etherlinkVotesFor`; a
+  voting key that is not a baker opens on the Etherlink tab and the Tezos tab says so.
+  **No views are run**: public nodes such as rpc.tzbeta.net refuse `run_script_view` and
+  `pack_data` (401), so `getEtherlinkGovernanceState` (`src/etherlink-governance.js`) computes
+  the period from the storage's `config` and the head level exactly as the contract does
+  (`periodAt`: `started_at_level`, `period_length`), reads big maps through Taquito with the
+  `MichelCodecPacker` (keys packed locally), and takes the rest from the storage: its
+  `voting_context` only moves when someone calls an entrypoint, so `deriveState` applies the
+  contract's own rule (a context for the same period is current; a Promotion whose context is
+  the previous Proposal with a quorate winner takes that `winner_candidate` with nothing voted
+  yet; anything else is an empty fresh period). Taquito hands an option of a record over as
+  `{ Some: record }` (`unwrapSome`). Our voting power is our listing plus the bakers we vote
+  for, as the contract sums it. The proposal list comes from TzKT's big-map listing
+  (`proposalsKnown` is false without an indexer, and then only a pasted hash can be upvoted);
+  our own upvote count, upvotes and vote are big-map lookups over RPC.
+  `EtherlinkGovernance.Operation` is `newProposal(hash)` / `upvote(hash)` (a kernel root hash,
+  `0x` and 66 hex digits, 33 bytes, which the contract checks) or `vote(yea|nay|pass)` (the
+  contract's spelling; layer 1 ballots say `yay`); the Micheline is built locally
+  (`governanceParams`) and sent through the approved-limits path (`estimateEtherlinkGovernance`
+  / `sendEtherlinkGovernance`, a signing call), so the confirm step shows the fee.
+  `WalletViewModel.estimateEtherlinkGovernance` returns an `EtherlinkGovernanceEstimate` bound
+  to the operation, contract and `BridgeContext` (S31) and `performEtherlinkGovernance` refuses
+  any other. `EtherlinkGovernanceTests` covers the settings, parsing, menu rule and the mock
+  round trip, plus a live mainnet read (`.network`) of the fast contract and a known voting
+  key; `test/etherlink-governance.cjs` checks the parameters and `deriveState` offline. Sending
+  has not been exercised live: there is no testnet deployment, so the first real vote is the
+  check.
 - **dApps (Octez Connect / TZIP-10).** The Beacon-fork wallet SDK runs inside the bridge
   (`TaquitoBridge/src/octezconnect.js`) with a `NativeStorage` backed by `OctezConnectStorage`
   (`<wallet dir>/octez-connect.json`) and events pushed to Swift via `__signet.octezConnectEvent`.
