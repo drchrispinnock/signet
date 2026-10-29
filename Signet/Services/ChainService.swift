@@ -91,10 +91,22 @@ struct Portfolio: Equatable, Sendable {
         Portfolio(tokens: tokens.map { $0.onLayer2() }, nfts: nfts.map { $0.onLayer2() }, state: state)
     }
 
-    /// This (layer 1) portfolio with Etherlink's holdings appended. The state stays layer 1's:
-    /// an unavailable layer 1 indexer keeps the last known lists, Etherlink's included.
+    /// This (layer 1) portfolio with Etherlink's holdings added: tokens appended, NFTs of both
+    /// layers newest first so they intermingle. The state stays layer 1's: an unavailable
+    /// layer 1 indexer keeps the last known lists, Etherlink's included.
     func adding(_ other: Portfolio) -> Portfolio {
-        Portfolio(tokens: tokens + other.tokens, nfts: nfts + other.nfts, state: state)
+        Portfolio(tokens: tokens + other.tokens, nfts: Self.newestFirst(nfts + other.nfts), state: state)
+    }
+
+    /// `nfts` by date, newest first; undated ones keep their place after the dated (the sort is stable).
+    static func newestFirst(_ nfts: [NFT]) -> [NFT] {
+        nfts.sorted { a, b in
+            switch (a.date, b.date) {
+            case (let x?, let y?): x > y
+            case (.some, nil): true
+            default: false
+            }
+        }
     }
 }
 
