@@ -516,3 +516,74 @@ struct ShieldedRowTests {
         #expect(model.accountNotOnChain && model.assets.isEmpty)
     }
 }
+
+/// Etherlink's operations join the Recent transactions list, tagged as layer 2, while Layer 2
+/// is on and the key is usable there; the layer 1 list stands alone otherwise.
+@MainActor
+struct EtherlinkHistoryTests {
+    static let me = WalletViewModel.sampleWallets[0]
+    static let tz4 = Wallet(alias: "bls", address: Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm"), keyKind: .unencrypted)
+    nonisolated static let epoch = Date(timeIntervalSince1970: 1_790_000_000)
+
+    nonisolated static func row(_ hash: String, id: String, minutesAgo: Int) -> TezosTransaction {
+        TezosTransaction(id: id, hash: hash, level: 100, timestamp: epoch.addingTimeInterval(-Double(minutesAgo) * 60), kind: .transaction, direction: .incoming,
+                         counterparty: MockChainService.captainStake, counterpartyAlias: nil, amount: 1, fee: 0, entrypoint: nil, isApplied: true)
+    }
+
+    /// Answers each layer with its own rows; TzKT ids are per indexer, so both use "1".
+    struct TwoLayers: TestChainService {
+        let network: Network
+        var layer2Fails = false
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 12) }
+        func etherlinkBalance(for address: Address) async throws -> Decimal { 3 }
+        func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] {
+            if network.layerNumber == 2 {
+                if layer2Fails { throw URLError(.cannotConnectToHost) }
+                return [EtherlinkHistoryTests.row("ooL2new", id: "1", minutesAgo: 5), EtherlinkHistoryTests.row("ooL2old", id: "2", minutesAgo: 60)]
+            }
+            return [EtherlinkHistoryTests.row("ooL1", id: "1", minutesAgo: 30)]
+        }
+    }
+
+    @Test func taggingKeepsTheRowAndMakesTheIdDistinct() {
+        let tagged = Self.row("ooX", id: "7", minutesAgo: 1).onLayer2()
+        #expect(tagged.isLayer2 && tagged.layer == 2 && tagged.id == "l2:7" && tagged.hash == "ooX")
+        #expect(!Self.row("ooX", id: "7", minutesAgo: 1).isLayer2)
+    }
+
+    @Test func mergedHistoryIsNewestFirstAndCut() {
+        let merged = WalletViewModel.mergedHistory([Self.row("a", id: "1", minutesAgo: 30)],
+                                                   [Self.row("b", id: "1", minutesAgo: 5).onLayer2(), Self.row("c", id: "2", minutesAgo: 60).onLayer2()], limit: 2)
+        #expect(merged.map(\.hash) == ["b", "a"])
+        #expect(Set(merged.map(\.id)).count == 2)
+    }
+
+    @Test func etherlinkRowsJoinTheListOnlyWhileLayer2IsOn() async {
+        let model = WalletViewModel(wallets: [Self.me, Self.tz4], chainFactory: { TwoLayers(network: $0) })
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL2new", "ooL1", "ooL2old"])
+        #expect(model.transactions.map(\.isLayer2) == [true, false, true])
+        #expect(Set(model.transactions.map(\.id)).count == 3)
+
+        // A key the rollup refuses has no Etherlink history.
+        model.select(Self.tz4)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+
+        model.select(Self.me)
+        model.setL2Enabled(false, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+    }
+
+    @Test func anUnreachableEtherlinkIndexerLeavesTheLayer1List() async {
+        let model = WalletViewModel(wallets: [Self.me], chainFactory: { TwoLayers(network: $0, layer2Fails: true) })
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"] && model.errorMessage == nil)
+    }
+}

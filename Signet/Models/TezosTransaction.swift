@@ -5,7 +5,7 @@ struct TezosTransaction: Identifiable, Hashable, Sendable {
     enum Kind: String, Sendable { case transaction, delegation, origination, other }
     enum Direction: Sendable { case incoming, outgoing, selfTransfer }
 
-    let id: String
+    var id: String
     let hash: String
     let level: Int
     let timestamp: Date
@@ -48,4 +48,18 @@ struct TezosTransaction: Identifiable, Hashable, Sendable {
     var delegationTarget: Address? = nil
 
     var isContractCall: Bool { counterparty?.isContract == true }
+
+    /// Where it happened: 1 on Tezos, 2 on Etherlink's Michelson interface (the same shape of
+    /// row, read from Etherlink's TzKT). Rows from both layers share one list.
+    var layer = 1
+    var isLayer2: Bool { layer == 2 }
+
+    /// The same row tagged as Etherlink's. Indexer ids are only unique within one indexer, so
+    /// the id is prefixed to keep it distinct from a layer 1 row with the same number.
+    func onLayer2() -> TezosTransaction {
+        var copy = self
+        copy.layer = 2
+        copy.id = "l2:" + id
+        return copy
+    }
 }
