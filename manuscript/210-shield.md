@@ -2,3 +2,4 @@
 # Shielded Transactions
 
 *This section only works on shadownet.*
+

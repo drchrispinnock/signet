@@ -1,8 +1,9 @@
+{#id: 180-multisig_1_Multisig}
 # Multisig accounts
 
 A *multisig account* is one where more than one person or entity needs to sign the transaction. The set of signatories is called a *committee*. The whole *committee* doesn't need to sign the transactions necessarily. When one sets up the multisig account, one can choose how many of the committee sign.
 
-On Tezos, there is a native multisig account feature. It's available in the command-line wallet `octez-client`. It works by deploying a smart contract holding the balance of the account, with the code implementing the signing committee. Signet implements the feature in exactly the same way, but provides a graphical user interface.
+On Tezos, there are two multisig account features. The first works by deploying a smart contract holding the balance of the account, with the code implementing the signing committee. Signet uses the same multisig contract scheme as `octez-client`, with a graphical user interface. There is a native multisig account using `tz4` keys. Currently, Signet doesn't implement this.
 
 The functions available in Signet are:
 
@@ -11,8 +12,9 @@ The functions available in Signet are:
 - Sign a multisig transaction
 - Submit a multisig transaction
 
-Signet will remember any multisig transactions signed in the wallet and they will be available to submit later on. You will just need the signatures from the other parties to complete the transaction. In this section, we will create a multisig wallet containing 10tz and with five signatories: Alice, Bob, Christopher, Diana and Edward. We will required 3 of their signatures to sign a transaction. We'll do it on Shadownet as well.
+Signet will remember any multisig transactions signed in the wallet and they will be available to submit later on. You will just need the signatures from the other parties to complete the transaction. In this section, we will create a multisig wallet containing 10tz and with five signatories: Alice, Bob, Christopher, Diana and Edward. We will require 3 of their signatures to sign a transaction. We'll do it on Shadownet as well.
 
+{#id: 180-multisig_2_Creating}
 ## Creating a multisig account
 
 Creating a multisig account is straightforward. You need to have the addresses of the other signatories to hand, or better add them to your address book. Select the account you want to originate the multisig. In my case, I will use the account Alice. Then in the burger menu choose `Create multisig...`
@@ -29,14 +31,16 @@ Then I increase the number of signatories to 3 with the arrows. This means that 
 
 Finally I fund the account with 10tz and press the `Create` button. This creates the account, in this case the address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10tz and code to enforce the rules of the committee. The multisig account is created.
 
+{#id: 180-multisig_2_Add}
 ## Add an existing multisig account
 
-Now our friend Bob, who also uses Signet, wants to sign transactions on the multisig account. He needs to add it to Signet. On Bob's Signet, he chooses `Add multisig...` and pastes the address of the mulitsig account. He also gives it a name.
+Now our friend Bob, who also uses Signet, wants to sign transactions on the multisig account. He needs to add it to Signet. On Bob's Signet, he chooses `Add multisig...` and pastes the address of the multisig account. He also gives it a name.
 
 ![](180/bobmultisig.png)
 
 Now Bob's wallet is aware of the multisig account.
 
+{#id: 180-multisig_2_Sign}
 ## Sign a multisig transaction
 
 We want to send an account `tz1etTUnFd6cYsmrZuS9awPSppFPwH1G3e9Q` 5tz, but we want to do it from the multisig account. Any of the signatories can start the process, but the signing is not done on-chain - it has to be submitted later. In this case, Alice, Bob and Edward are going to sign the transaction. Alice and Bob are using Signet, and Edward is using `octez-client`. Alice will submit the transaction to the chain. Let's start with Alice.
@@ -71,13 +75,14 @@ edsigty...PjoHdBb6qPiFi
 
 Edward sends the signature string to Alice.
 
+{#id: 180-multisig_2_Submit}
 ## Submit a multisig transaction
 
 Once all the necessary parties have signed the transaction, it can be submitted to the blockchain. Alice is going to do this. She takes the signature strings from Bob and Edward. Then in Signet she chooses `Submit multisig transaction...`.
 
 ![](180/submit.png)
 
-Alice chose the transaction that Signet has remember for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Sign`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
+Alice chooses the transaction that Signet has remembered for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Sign`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
 
 Note also that Alice can `Discard proposal`. This is used to delete the record of the multisig transaction if it is no longer needed.
 
@@ -85,6 +90,7 @@ We can see the transaction, in this case in Bob's Signet view:
 
 ![](180/transaction.png)
 
+{#id: 180-multisig_2_Delegating}
 ## Delegating
 
 You can delegate smart contracts to bakers on Tezos. The `Sign multisig transaction` feature can be used to sign the transactions to set the delegate (i.e. the baker) or remove it. As with delegating from normal accounts, you need to have an agreement directly with the baker to receive any rewards for your delegation. To set the delegate, choose the tab in the dialogue `Set delegate`, paste in a baker address and click `Sign`. You will get a signature string as with a transfer transaction.

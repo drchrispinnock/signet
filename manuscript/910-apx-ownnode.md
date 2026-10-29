@@ -18,9 +18,9 @@ By default, Signet will try to use the node on the local machine. Alternatively,
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to use Docker. Install Docker Desktop from the [Docker site](https://www.docker.com/products/docker-desktop/) and run it. 
 
-Docker Desktop reserves half of the system memory for Docker. If you have 16GB of RAM, it will limit memory usage 8GB which might not be enough. You can change this by clicking the settings cog top right, going into `Resources` and changing the Memory Limit to 16GB.
+Docker Desktop reserves half of the system memory for Docker. If you have 16GB of RAM, it will limit memory usage to 8GB which might not be enough. You can change this by clicking the settings cog top right, going into `Resources` and changing the Memory Limit to 16GB.
 
-Then run the `Terminal` application (you can search for it in Spotlight Search). Get the latest release of Octez:
+Then run the `Terminal` application (you can search for it in Spotlight Search). In the commands below, `$` represents the shell prompt; do not type it. Get the latest release of Octez:
 
 ```
 $ docker pull tezos/tezos:latest
@@ -53,7 +53,7 @@ $ rm rolling
 Now run the node:
 
 ```
-$docker run -d -v ${HOME}/node:/home/tezos/.tezos-node \
+$ docker run -d -v ${HOME}/node:/home/tezos/.tezos-node \
    	--entrypoint /usr/local/bin/octez-node \
 	--name node -p 8732:8732 -P \
 	tezos/tezos run
@@ -67,7 +67,7 @@ docker logs -f node
 
 You can now connect to the node from Signet with `http://localhost:8732`.
 
-The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[4]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
+The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[??]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
 
 ```
 $ octez-node config init --network=mainnet \
@@ -101,7 +101,7 @@ You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez softw
 {#id: 910-apx-ownnode_2_Running_3}
 ## Running on a Linux Server
 
-If you have a Linux machine on your home network, you can set it up to be a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications -
+If you have a Linux machine on your home network, you can set it up to be a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications.
 
 For Debian Linux 13, you can install the release version of `octez-node`, the node, as follows:
 
@@ -125,7 +125,7 @@ $ octez-node config init --network=mainnet \
 	--allow-all-rpc="0.0.0.0"
 ```
 
-This will set up a node that you can do everything with. This is fine if you are running a node on a private home network, but if it will be directly on the internet, should should protect it with a firewall or consider removing the `--allow-all-rpc` which allows operations that might cause your node to use a lot of resources.
+This will set up a node that you can do everything with. This is fine if you are running a node on a private home network, but if it will be directly on the internet, you should protect it with a firewall or consider removing the `--allow-all-rpc` which allows operations that might cause your node to use a lot of resources.
 
 As with the method for the Mac above, you can import a backup called a snapshot.
 
@@ -136,7 +136,7 @@ $ rm -f rolling
 $ exit
 ```
 
-Now you can set up the node to run at boot and now:
+Now you can set up the node to start now and run at boot:
 
 ```
 $ sudo systemctl enable octez-node
@@ -160,11 +160,18 @@ eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 If you want to run a node on a different network to *Mainnet*, replace `mainnet` with the values below. For the snapshot, use the link below instead of the one above. For some test networks such as *Weeklynet* and *Quantumnet*, you may need development versions of the software instead of the release.
 
-| Network      | --network                                                   | Snapshot                                                                |
-| ------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| *Shadownet*  | https://teztnets.com/shadownet                              | https://snapshots.tzinit.org/shadownet/rolling                          |
-| *Bakingnet*  | https://teztnets.com/bakingnet                              | https://snapshots.tzinit.org/bakingnet/rolling                          |
-| *Ushuaianet* | https://teztnets.com/ushuaianet                             | https://snapshots.tzinit.org/ushuaianet/rolling                         |
-| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/network.json | https://quantumnet.pqpark.dal.nomadic-labs.com/snapshots/latest.rolling |
+| Network      | --network=                                                  |
+| ------------ | ----------------------------------------------------------- |
+| *Shadownet*  | https://teztnets.com/shadownet                              |
+| *Bakingnet*  | https://teztnets.com/bakingnet                              |
+| *Ushuaianet* | https://teztnets.com/ushuaianet                             |
+| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/network.json |
+
+| Network      | Snapshot                                                                |
+| ------------ | ----------------------------------------------------------------------- |
+| *Shadownet*  | https://snapshots.tzinit.org/shadownet/rolling                          |
+| *Bakingnet*  | https://snapshots.tzinit.org/bakingnet/rolling                          |
+| *Ushuaianet* | https://snapshots.tzinit.org/ushuaianet/rolling                         |
+| *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/snapshots/latest.rolling |
 
 For *Weeklynet*, refer to the instructions at the [Teztnets site](https://teztnets.com), as it reboots every week. 

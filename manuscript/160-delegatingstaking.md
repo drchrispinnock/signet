@@ -1,13 +1,13 @@
 {#id: delegating}
 # Delegating and Staking
 
-From its inception, a Tezos account holder has been able to *delegate* their tez to a baker. By doing this, the extra coins contribute to the baker's power on the network. They get more baking opportunities and more power in the governance process. Sometimes a baker will pay a small reward to the account holder in return for delegating their tez. A baker that does this is called a *public baker*. All of reward payment is handled off chain and by good will.
+From its inception, a Tezos account holder has been able to *delegate* their tez to a baker. By doing this, the extra coins contribute to the baker's power on the network. They get more baking opportunities and more power in the governance process. Sometimes a baker will pay a small reward to the account holder in return for delegating their tez. A baker that does this is called a *public baker*. All delegation reward payments are handled off chain and at the baker's discretion.
 
-In 2023, account *staking* was added as a feature to Tezos. A baker has always had a stake on the network, usually 10% of the total balance including the delegators. But after this change, a baker can stake more than 10% and normal account holders can stake too. Their stake contributes to the baker's security bond. The baker sets a fee as a parameter and the account holders automatically receive rewards on the network.
+In 2024, account *staking* was added as a feature to Tezos in the Paris protocol update. A baker has always had a stake on the network, usually 10% of the total balance including the delegators. But after this change, a baker can stake more than 10% and normal account holders can stake too. Their stake contributes to the baker's security bond. The baker sets a fee as a parameter and the account holders automatically receive rewards on the network.
 
-Delegated funds are liquid in that they can be spent at any time. Staked funds cannot be spent. They need to be unstaked and finalised before they become liquid again. At the moment this takes <!-- MARKUPTAG unstake-->4<!-- ENDMARKUPTAG --> cycles (roughly <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days). Delegated funds at not at risk. Staked funds are part of the baker's security bond. If the baker misbehaves, you might lose your staked funds. We will talk about this at the end of the chapter.
+Delegated funds are liquid in that they can be spent at any time. Staked funds cannot be spent. They need to be unstaked and finalised before they become liquid again. At the moment this takes <!-- MARKUPTAG unstake-->4<!-- ENDMARKUPTAG --> cycles (roughly <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days). Delegated funds are not at risk. Staked funds are part of the baker's security bond. If the baker misbehaves, you might lose your staked funds. We will talk about this at the end of the chapter.
 
-The account has a spendable fund balance and a staked fund balance. You can see the seperate balances in the main Signet screen if you click the arrow at the end of the Tezos balance line.
+The account has a spendable fund balance and a staked fund balance. You can see the separate balances in the main Signet screen if you click the arrow at the end of the Tezos balance line.
 
 The network effectively creates tez when a block is baked and gives it to the baker and related stakers. This means that tez is subject to inflation. By delegating and staking, and subsequently receiving rewards you are keeping up with inflation to some degree.
 
@@ -23,9 +23,9 @@ In this chapter we look at choosing a baker, delegating with them and staking wi
 Choosing a baker is a matter of personal preference. We've tried to make the process easier with Signet, but you need to do a bit of research to choose a baker. There are at least two places to go to find possible bakers. Firstly, TzKT maintains a list of [public bakers](https://tzkt.io/bakers/).
 
 ![](160/tzktbakers.png)
-This is information regarding delegation is information that the bakers have submitted themselves. Bakers set their staking parameters on-chain, so the staking information is read from there. 
+The delegation information shown here is information that the bakers have submitted themselves. Bakers set their staking parameters on-chain, so the staking information is read from there. 
 
-A public baker is a baker that has declared itself public by telling tzkt. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you want delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to grow by 2.21% APY if you delegate with them. 
+A public baker is a baker that has declared itself public by telling tzkt. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to grow by 2.21% APY if you delegate with them. 
 
 Clicking on the TezOasis link takes me to their account page in tzkt, where there are details to contact them. They have 965k tz capacity, so they are a possibility to delegate to. Also, if you click the `SCHEDULE` tab you will be able to see their performance. On the day I wrote this, TezOasis's performance was very good - it had a few network misses but this is perfectly normal.
 
@@ -37,12 +37,12 @@ There are some bakers, such as the Tezos Foundation, that accept staking for the
 
 When choosing a baker you should be looking for a baker that is:
 
-- performing well on the network (see it's `SCHEDULE` in TzKT)
+- performing well on the network (see its `SCHEDULE` in TzKT)
 - offering delegation rewards if you want to just delegate
 - offering staking if you want to stake
-- responds to you with questions and queries about delegating with them
+- responsive to your questions and queries about delegating with them
 
-With staking there is a further consideration because your funds are at risk. You want a baker that is trustworthy and has well setup infrastructure. The key problem here is if the baker double-bakes (produces two blocks at the same level), the staked funds are at risk. 
+With staking there is a further consideration because your funds are at risk. You want a baker that is trustworthy and has well-configured infrastructure. The key problem here is if the baker double-bakes (produces two blocks at the same level), the staked funds are at risk. 
 
 
 {#id: 160-delegatingstaking_2_Delegating}
@@ -50,7 +50,7 @@ With staking there is a further consideration because your funds are at risk. Yo
 
 Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the last days researching and decided to delegate them to Capt Stake. 
 ![](160/notdelegated.png)
-To delegate, I can either click on Not delegated . If you click Stake you will also go to the delegation workflow, because you need to delegate before you stake.
+To delegate, I can click on `Not delegated`. If you click Stake you will also go to the delegation workflow, because you need to delegate before you stake.
 
 ![](160/stakingmenu.png)
 
@@ -104,6 +104,6 @@ Choose `Confirm` and the funds will be finalised and returned to the spendable b
 
 Staked funds form part of the baker's security bond on the network. The worst thing that a baker can do is double sign a block at the same level. This could be producing two blocks (double baking) or attesting two blocks at the same level (double attestation). It has happened very often on the Tezos network. A full list of [double baking incidents can be found on TzKT](https://tzkt.io/double_baking). Usually it has happened because of a misconfiguration of infrastructure. The provider has run two separate bakers with the same key and the systems injected blocks into the network at the same time.
 
-The problem for you as a wallet holder is if you baker double bakes or attests, your funds are also at risk. If you are concerned about this, you should try to contact your baker to discuss what protection they have in place. Ideally they will have a remote signer to protect their key. Remote signers are able to prevent signing twice, so if two baking instances try to sign from the same remote signer, double baking will be prevented. You can usually rely on the reputation of the baker in question and you can check their performance on the block explorer.
+The problem for you as a wallet holder is if your baker double bakes or attests, your funds are also at risk. If you are concerned about this, you should try to contact your baker to discuss what protection they have in place. Ideally they will have a remote signer to protect their key. Remote signers are able to prevent signing twice, so if two baking instances try to sign from the same remote signer, double baking will be prevented. You can usually rely on the reputation of the baker in question and you can check their performance on the block explorer.
 
 If you are unsure about your current baker, you can always unstake. If they pay delegation rewards, you will continue to receive those and delegated funds are not at risk. But staking is essential to the security of the network and consequently pays better rewards, so it is best to find a baker that you are comfortable with.

@@ -1,37 +1,32 @@
 {#id: 920-bibliography_1_Further}
-# Further reading
-
-
-
+# Further Resources and Reading
 
 <!-- MARKUPBIBLIOGRAPHY -->
 {begin-hanging-paragraphs}
 
 **Tezos**
 
-[1] Tezos — a self-amending crypto-ledger White paper, L. M. Goodman, 2014, https://tezos.com/whitepaper.pdf
+[1] [Tezos — A Self-Amending Crypto-Ledger](https://tezos.com/whitepaper.pdf), White Paper, 2024, L. M. Goodman.
 
-[2] Tezos, Wikipedia entry, https://en.wikipedia.org/wiki/Tezos
+[2] [Tezos, Wikipedia entry](https://en.wikipedia.org/wiki/Tezos)
 
-[3] Tezos - Getting Started, https://tezos.com/learn/getting-started/
+[3] [Running Tezos Infrastructure](https://leanpub.com/tezosinfra), Chris Pinnock, In Preparation.
 
-[4] Running Tezos Infrastructure, Chris Pinnock, https://leanpub.com/tezosinfra, In Preparation.
+[4] [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/), Chris Pinnock.
 
-[5] Quick Start Guide for Impatient Tezos Bakers, Chris Pinnock, https://chrispinnock.com/tezos/quickstart/
-
-[6] Running Octez at boot on Macs, Chris Pinnock, https://chrispinnock.com/2026/07/03/launchctl.html
+[5] [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html), Chris Pinnock.
 
 **Other chains**
 
-[7] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
+[6] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
 
-[8] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango
+[7] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango.
 
-[9] Mastering Bitcoin
+[8] Mastering Bitcoin, Andreas M Antonopoulos and David A Harding, 2023, O'Reilly Media.
 
-[10] Mastering Ethereum
+[9] Mastering Ethereum, Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza, Niccolo Pozzolini, 2025, O'Reilly Media.
 
-[11] Ethereum for dummies
+[10] Ethereum for Dummies, Michael G. Solomon, 2019, For Dummies.
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->

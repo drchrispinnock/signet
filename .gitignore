@@ -24,3 +24,5 @@ dist/
 # Local notes and scratch files
 scratch/
 .claude/
+
+book-output

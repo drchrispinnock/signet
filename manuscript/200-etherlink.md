@@ -1,7 +1,7 @@
 {#id: 200-etherlink_1_Etherlink}
 # Etherlink and Tezos X
 
-In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
+In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to the main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
 
 Etherlink is the first official rollup on Tezos and it brings an Ethereum compatible virtual machine to Tezos. This means that you can deploy an Ethereum smart contract on the Etherlink rollup without modification. Now Tezos smart contracts (written in a language called Michelson) can be deployed in the rollup and they can interact with the EVM contracts.
 
@@ -25,7 +25,7 @@ Once you've done this, when you return to the main screen, you will have a balan
 {#id: 200-etherlink_2_Bridging}
 ## Bridging funds between Tezos and Etherlink
 
-To move some funds between Tezos and Etherlink is easy and there is a bridge for it. To make it convenient, Signet knows about the bridges on *Mainnet* and *Shadownet.* To bridge funds, choose the account you want to work in and choose `Bridge... `from the burger menu. 
+To move some funds between Tezos and Etherlink is easy and there is a bridge for it. To make it convenient, Signet knows about the bridges on *Mainnet* and *Shadownet.* To bridge funds, choose the account you want to work in and choose `Bridge...` from the burger menu. 
 
 ![](200/bridge.png)
 Choose the amount that you want to send and click `Bridge`.
@@ -34,17 +34,13 @@ Choose the amount that you want to send and click `Bridge`.
 Then you can see that your 10tz has moved between the networks. The call to the bridge smart contract is also visible in the transaction list.
 
 ![](200/balances.png)
-Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. 
-
+Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. At the time of writing, it's early days for this bridge. It doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in 14 days. The 14 days is related to the refutation window in the smart rollup architecture. The Fast method returns your funds immediately but is subject to a fee.
 ![](200/bridgeback.png)
-XXX At the moment this bridge doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in 14 days. The 14 days is related to the refutation window in the smart rollup architecture XXX. The Fast method returns your funds immediately but is subject to a fee. XXX
-
 <!-- we need to understand how the bridge actually works here XXX -->
-
 {#id: 200-etherlink_2_Sending}
 ## Sending and receiving funds
 
-Send and receiving funds on the Etherlink network with Tezos addresses is done in Signet in exactly the same way as for the normal Tezos network. Now that we have enabled layer 2, the Send and Receive dialogues have another option to pick the network. You can select Tezos or Etherlink.
+Sending and receiving funds on the Etherlink network with Tezos addresses is done in Signet in exactly the same way as for the normal Tezos network. Now that we have enabled layer 2, the Send and Receive dialogues have another option to pick the network. You can select Tezos or Etherlink.
 
 ![](200/send.png)
 To send on Etherlink, simply pick Etherlink in the drop down and send in exactly the same way you did for the Tezos network.
@@ -62,7 +58,7 @@ The first time you do this, you will need to pay a small fee to link your Ethere
 ![](200/eth.png)
 Now users on the Etherlink rollup with 0x addresses can send tez to your account using your 0x address. 
 
-At the moment, this is all that Signet can do with Etherlink. More features will be coming soon, including dApp support. This will use a relay service so that Tezos account can use its Ethereum-style address for dApps. Also, the transactions, assets and NFTs tabs will be populated with items from the Etherlink network.
+At the moment, this is all that Signet can do with Etherlink. More features will be coming soon, including dApp support. This will use a relay service so that a Tezos account can use its Ethereum-style address for dApps. Also, the transactions, assets and NFTs tabs will be populated with items from the Etherlink network.
 
 The original Etherlink users had 0x addresses from the start and used Ethereum-compatible wallets. I'm undecided whether to add support for this to Signet.
 

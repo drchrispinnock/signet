@@ -1,6 +1,8 @@
 {#id: 008-acknowledgements_1_Acknowledg}
 # Acknowledgements
 
+*To follow.*
+
 <!--
 I would like to start by thanking Simon Keusen, who got me into the vibe coding mood.
 Fabrice Trutmann tested things, reviewed texts and made suggestions for which I'm thankful.
