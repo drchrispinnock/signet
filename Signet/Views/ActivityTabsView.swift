@@ -58,7 +58,9 @@ struct TransactionRowView: View {
     let transaction: TezosTransaction
     @State private var isHovering = false
 
-    private var network: Network { model.network }
+    /// The network the row's explorer link belongs to: Etherlink's for a layer 2 row (none if
+    /// Layer 2 has since been turned off), else the one in use.
+    private var network: Network? { transaction.isLayer2 ? model.network.layer2 : model.network }
 
     private var party: (name: String, isOurs: Bool) {
         guard let address = transaction.counterparty else { return ("Unknown", false) }
@@ -105,19 +107,12 @@ struct TransactionRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                if transaction.amount > 0 {
-                    Text(signedAmount)
-                        .font(.body.monospacedDigit().weight(.medium))
-                        .foregroundStyle(transaction.direction == .incoming ? .green : .primary)
-                } else if transaction.kind == .delegation, let balance = transaction.delegatedBalance, balance > 0 {
-                    Text(AssetBalance.format(balance, symbol: "tz"))
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    if transaction.isLayer2 { etherlinkMark }
+                    figure
+                }
+                if showsDelegatedBalance {
                     Text("delegated balance").font(.caption2).foregroundStyle(.tertiary)
-                } else {
-                    Text(transaction.kind == .delegation ? "Delegation" : "Call")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
                 }
                 if transaction.direction != .incoming, transaction.fee > 0 {
                     Text("fee \(AssetBalance.format(transaction.fee, symbol: "tz"))")
@@ -134,10 +129,42 @@ struct TransactionRowView: View {
         .onTapGesture { openExplorer() }
         .help(helpText)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")")
+        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")\(transaction.isLayer2 ? ", on Etherlink" : "")")
     }
 
     // MARK: Pieces
+
+    private var showsDelegatedBalance: Bool {
+        transaction.amount == 0 && transaction.kind == .delegation && (transaction.delegatedBalance ?? 0) > 0
+    }
+
+    /// The amount, the delegator's balance, or the kind of call.
+    @ViewBuilder private var figure: some View {
+        if transaction.amount > 0 {
+            Text(signedAmount)
+                .font(.body.monospacedDigit().weight(.medium))
+                .foregroundStyle(transaction.direction == .incoming ? .green : .primary)
+        } else if showsDelegatedBalance, let balance = transaction.delegatedBalance {
+            Text(AssetBalance.format(balance, symbol: "tz"))
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+        } else {
+            Text(transaction.kind == .delegation ? "Delegation" : "Call")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// A small Etherlink logo beside the figure of a layer 2 row: the same mark as the
+    /// dashboard's Etherlink balance row, so the list reads "tez on Etherlink".
+    private var etherlinkMark: some View {
+        Image("EtherlinkLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 14, height: 14)
+            .help("On Etherlink")
+            .accessibilityHidden(true)
+    }
 
     private var role: TezosTransaction.DelegationRole? {
         model.selectedWallet.flatMap { transaction.delegationRole(for: $0.address) }
@@ -194,13 +221,14 @@ struct TransactionRowView: View {
 
     private var helpText: String {
         var lines = [transaction.hash, "Block \(transaction.level.formatted())", transaction.timestamp.formatted(date: .abbreviated, time: .shortened)]
+        if transaction.isLayer2 { lines.insert("On Etherlink", at: 0) }
         if let address = transaction.counterparty { lines.append(address.value) }
-        if network.explorerURL(operation: transaction.hash) != nil { lines.append("Click to view in the explorer") }
+        if network?.explorerURL(operation: transaction.hash) != nil { lines.append("Click to view in the explorer") }
         return lines.joined(separator: "\n")
     }
 
     private func openExplorer() {
-        guard let url = network.explorerURL(operation: transaction.hash) else { return }
+        guard let url = network?.explorerURL(operation: transaction.hash) else { return }
         NSWorkspace.shared.open(url)
     }
 

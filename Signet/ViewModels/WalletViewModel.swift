@@ -44,6 +44,22 @@ final class WalletViewModel {
         }
     }
 
+    /// Etherlink's side of the account's history, for the Recent transactions list: the same
+    /// TzKT shape read from Etherlink's indexer through the Layer 2 service, each row tagged as
+    /// layer 2. Nothing without Layer 2 on, for a key the rollup refuses, or when Etherlink's
+    /// indexer cannot be read, in which case the layer 1 list stands alone.
+    private nonisolated static func etherlinkHistory(for address: Address, on network: Network, chain: (any ChainService)?, limit: Int) async -> [TezosTransaction] {
+        guard network.hasL2, address.isUsableOnEtherlink, let chain else { return [] }
+        let rows = (try? await chain.recentTransactions(for: address, limit: limit)) ?? []
+        return rows.map { $0.onLayer2() }
+    }
+
+    /// Both layers' histories as one list, newest first, cut to `limit`. Rows of the same moment
+    /// keep their order, layer 1 before layer 2.
+    nonisolated static func mergedHistory(_ lists: [TezosTransaction]..., limit: Int) -> [TezosTransaction] {
+        Array(lists.flatMap { $0 }.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
+    }
+
     /// The Shielded row of the dashboard, under Etherlink (or tez), while the network has
     /// shielded transactions on: the wallet's unspent notes, found by scanning the rollup's
     /// commitment tree with its viewing keys (`WalletViewModel+Shielded.swift`). A network
@@ -672,6 +688,7 @@ final class WalletViewModel {
             return
         }
         let chain = self.chain
+        let layer2 = self.layer2Chain
         let address = mine.address
         let network = self.network
         if network.canShield { await adoptLegacyShieldedWallet() }
@@ -699,6 +716,7 @@ final class WalletViewModel {
             async let holdings = chain.portfolio(for: address)
             async let names = chain.domains(for: address)
             async let history = chain.recentTransactions(for: address, limit: Self.recentTransactionLimit)
+            async let etherlinkHistory = Self.etherlinkHistory(for: address, on: network, chain: layer2, limit: Self.recentTransactionLimit)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
             async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
@@ -711,7 +729,7 @@ final class WalletViewModel {
             snapshot.assets = list
             snapshot.portfolio = (try? await holdings) ?? Portfolio(tokens: [], nfts: [], state: .unavailable("Could not read the account's tokens."))
             snapshot.domains = try await names
-            snapshot.transactions = try await history
+            snapshot.transactions = Self.mergedHistory(try await history, await etherlinkHistory, limit: Self.recentTransactionLimit)
             snapshot.delegateInfo = (try? await delegation) ?? nil
         } catch ChainError.accountNotOnChain {
             // Not on layer 1: no balance rows at all, the Etherlink one included.
