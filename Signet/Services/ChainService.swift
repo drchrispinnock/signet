@@ -85,6 +85,17 @@ struct Portfolio: Equatable, Sendable {
     var state: State
 
     static let empty = Portfolio(tokens: [], nfts: [], state: .complete)
+
+    /// Every holding tagged as Etherlink's.
+    func onLayer2() -> Portfolio {
+        Portfolio(tokens: tokens.map { $0.onLayer2() }, nfts: nfts.map { $0.onLayer2() }, state: state)
+    }
+
+    /// This (layer 1) portfolio with Etherlink's holdings appended. The state stays layer 1's:
+    /// an unavailable layer 1 indexer keeps the last known lists, Etherlink's included.
+    func adding(_ other: Portfolio) -> Portfolio {
+        Portfolio(tokens: tokens + other.tokens, nfts: nfts + other.nfts, state: state)
+    }
 }
 
 extension ChainService {
