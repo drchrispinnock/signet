@@ -156,6 +156,7 @@
 		DC590F952233EC9207BF20E7 /* StakingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */; };
 		DD55FDBEC099D83C97895445 /* GovernanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */; };
 		DD999C456935284E5FC4DDFF /* NodeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD76C823B36485828A3E50A5 /* NodeMonitor.swift */; };
+		DE5D3C7C410E55183127DCFA /* TokenMetadataResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644382AC5E9CC556B6203074 /* TokenMetadataResolver.swift */; };
 		DE6242C7123257F1E4BFA919 /* FaucetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED1010B47F417371C6C455 /* FaucetService.swift */; };
 		DF7BCF4269CA7D56B03497B0 /* ArtworkCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */; };
 		E0B4B740BCA28FECAB150A25 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7070B3A5754283DA58F7D /* SettingsView.swift */; };
@@ -262,6 +263,7 @@
 		5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezosDomainsService.swift; sourceTree = "<group>"; };
 		615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezBalanceTests.swift; sourceTree = "<group>"; };
 		6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeCallGate.swift; sourceTree = "<group>"; };
+		644382AC5E9CC556B6203074 /* TokenMetadataResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenMetadataResolver.swift; sourceTree = "<group>"; };
 		68A977FC2E863E73A21EF39F /* SendViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendViewModel.swift; sourceTree = "<group>"; };
 		6B5AB0D4CA449EBD13FE53D7 /* RefreshContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshContextTests.swift; sourceTree = "<group>"; };
 		6DE66BABF3B38C10ECC20F5F /* MtPelerin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MtPelerin.swift; sourceTree = "<group>"; };
@@ -593,6 +595,7 @@
 				1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */,
 				741349B359248E0F53BDF375 /* TezosClientStore.swift */,
 				5FDC0BA7147DF838014CACF0 /* TezosDomainsService.swift */,
+				644382AC5E9CC556B6203074 /* TokenMetadataResolver.swift */,
 				5481C59429754E514430580E /* tzel_blake2s.c */,
 				8D4B5438B2EFD57764827C1D /* tzel_blake2s.h */,
 				26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */,
@@ -849,6 +852,7 @@
 				A4C2D6AE665CA6309C22E732 /* TezosTransaction.swift in Sources */,
 				B5BE1D0DD354B4A0DE1911F9 /* Theme.swift in Sources */,
 				EAEF01D7B57BA984CCB2B996 /* TokenListView.swift in Sources */,
+				DE5D3C7C410E55183127DCFA /* TokenMetadataResolver.swift in Sources */,
 				C4D72615EE6CDE9929FCAEA6 /* Transfer.swift in Sources */,
 				07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */,
 				08CCFB1467F8E3B1DB2040BA /* UnshieldSheet.swift in Sources */,
