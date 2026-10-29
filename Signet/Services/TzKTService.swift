@@ -73,6 +73,9 @@ struct TzKTService: Sendable {
         }
         let balance: String
         var token: Token
+        /// When this balance last changed and when it first appeared (ISO 8601), for ordering.
+        let lastTime: String?
+        let firstTime: String?
     }
 
     static let pageSize = 200
@@ -191,11 +194,12 @@ struct TzKTService: Sendable {
     }
 
     static func nfts(from balances: [TokenBalance]) -> [NFT] {
-        balances.compactMap { row in
+        let iso = ISO8601DateFormatter()
+        return balances.compactMap { row in
             guard let metadata = row.token.metadata, metadata.decimalPlaces == 0 else { return nil }
             let images = bestImageURLs(in: metadata)
             guard !images.isEmpty else { return nil }
-            return NFT(
+            var nft = NFT(
                 id: "\(row.token.contract.address):\(row.token.tokenId)",
                 contract: row.token.contract.address,
                 tokenId: row.token.tokenId,
@@ -203,7 +207,18 @@ struct TzKTService: Sendable {
                 balance: Decimal(string: row.balance) ?? 1,
                 imageURLs: images
             )
+            nft.date = (row.lastTime ?? row.firstTime).flatMap(iso.date(from:))
+            nft.artifactMime = artifactMime(in: metadata)
+            return nft
         }
+    }
+
+    /// The MIME type of the token's artifact: the format naming `artifactUri`, else the first
+    /// format listed. `nil` when the metadata says nothing.
+    static func artifactMime(in metadata: TokenBalance.Token.Metadata) -> String? {
+        let formats = metadata.formats ?? []
+        let format = metadata.artifactUri.flatMap { uri in formats.first { $0.uri == uri } } ?? formats.first
+        return format?.mimeType?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nonEmpty
     }
 
     /// Every URL worth trying for the tile, best first: displayUri is a sized-down render meant

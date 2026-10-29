@@ -49,7 +49,7 @@ struct IPFSTests {
 struct NFTClassificationTests {
     static let fixture = """
     [
-      { "balance": "1", "token": { "contract": { "address": "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" }, "tokenId": "634799", "standard": "fa2",
+      { "balance": "1", "lastTime": "2026-10-21T16:48:10Z", "token": { "contract": { "address": "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" }, "tokenId": "634799", "standard": "fa2",
         "metadata": { "name": "United in Baking", "symbol": "OBJKT", "decimals": "0",
                       "thumbnailUri": "ipfs://QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP", "displayUri": "ipfs://QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc", "artifactUri": "ipfs://Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9",
                       "formats": [ { "uri": "ipfs://Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9", "mimeType": "image/jpeg" } ] } } },
@@ -62,16 +62,23 @@ struct NFTClassificationTests {
         "metadata": { "name": "Aubergine", "decimals": "6", "symbol": "GINE", "thumbnailUri": "https://gateway.pinata.cloud/ipfs/Qmaf8m2vtegsvoWybB2AL1wJ4Q79SwornWx8T7DbkYRhv9" } } },
       { "balance": "1", "token": { "contract": { "address": "KT1video" }, "tokenId": "7", "standard": "fa2",
         "metadata": { "name": "Clip", "decimals": "0", "artifactUri": "ipfs://Qmb9QUXYn1PW8e7E2CwpBMgEur7gFAPPpq2Zh7H2D7eQcT",
-                      "formats": [ { "uri": "ipfs://Qmb9QUXYn1PW8e7E2CwpBMgEur7gFAPPpq2Zh7H2D7eQcT", "mimeType": "video/mp4" } ] } } }
+                      "formats": [ { "uri": "ipfs://Qmb9QUXYn1PW8e7E2CwpBMgEur7gFAPPpq2Zh7H2D7eQcT", "mimeType": "video/mp4" } ] } } },
+      { "balance": "1", "firstTime": "2026-10-21T16:00:00Z", "token": { "contract": { "address": "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton" }, "tokenId": "44684", "standard": "fa2",
+        "metadata": { "name": "NFT", "decimals": "0", "thumbnailUri": "ipfs://QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc", "artifactUri": "ipfs://QmNNgpMfD227yefhGREQHHYAdB62hrTihUWJJnKuSHNxxx",
+                      "formats": [ { "uri": "ipfs://QmNNgpMfD227yefhGREQHHYAdB62hrTihUWJJnKuSHNxxx", "mimeType": "video/mp4" } ] } } }
     ]
     """.data(using: .utf8)!
 
     @Test func picksNFTsAndBestImages() throws {
         let rows = try TzKTService.decode(Self.fixture)
-        #expect(rows.count == 5)
+        #expect(rows.count == 6)
         let nfts = TzKTService.nfts(from: rows)
 
-        #expect(nfts.map(\.name) == ["United in Baking", "Captain Stake"])
+        #expect(nfts.map(\.name) == ["United in Baking", "Captain Stake", "NFT"])
+        #expect(nfts[0].date == ISO8601DateFormatter().date(from: "2026-10-21T16:48:10Z") && nfts[0].artifactMime == "image/jpeg" && !nfts[0].isMoving)
+        #expect(nfts[1].date == nil && nfts[1].artifactMime == "image/png")
+        // A video with only a marketplace's placeholder still is shown as that still, marked as a video.
+        #expect(nfts[2].date == ISO8601DateFormatter().date(from: "2026-10-21T16:00:00Z") && nfts[2].isMoving && nfts[2].imageURLs.count == IPFS.gateways.count)
         #expect(nfts[0].id == "KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton:634799")
         // displayUri comes first, then thumbnailUri and the image artifact as fallbacks, one URL per gateway each.
         #expect(nfts[0].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc")
@@ -81,6 +88,21 @@ struct NFTClassificationTests {
         #expect(nfts[1].thumbnailURL?.absoluteString == "https://ipfs.filebase.io/ipfs/QmSowixsFjPYXBbZecwPvgEw7TrV4bm6DN7nfJQmNS1ccv")
         #expect(nfts[1].balance == 20)
         // Fungible tokens, image-less tokens and video-only artifacts are not shown.
+    }
+
+    /// Both layers' NFTs intermingle newest first; undated ones follow in their own order.
+    @Test func mergedNFTsAreNewestFirstAcrossLayers() {
+        func nft(_ name: String, daysAgo: Int?) -> NFT {
+            var nft = NFT(id: name, contract: "KT1x", tokenId: name, name: name, balance: 1, thumbnailURL: nil)
+            nft.date = daysAgo.map { Date(timeIntervalSince1970: 1_790_000_000 - Double($0) * 86_400) }
+            return nft
+        }
+        let layer1 = Portfolio(tokens: [], nfts: [nft("a", daysAgo: 1), nft("c", daysAgo: 10), nft("u1", daysAgo: nil)], state: .complete)
+        let layer2 = Portfolio(tokens: [], nfts: [nft("b", daysAgo: 0), nft("d", daysAgo: 5), nft("u2", daysAgo: nil)], state: .complete).onLayer2()
+        let merged = layer1.adding(layer2)
+        #expect(merged.nfts.map(\.name) == ["b", "a", "d", "c", "u1", "u2"])
+        #expect(merged.nfts.map(\.isLayer2) == [true, false, true, false, false, true])
+        #expect(merged.state == .complete)
     }
 
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))

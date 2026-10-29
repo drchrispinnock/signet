@@ -55,6 +55,18 @@ struct NFTTileView: View {
                             .padding(6)
                     }
                 }
+                .overlay(alignment: .bottomTrailing) {
+                    if nft.isMoving {
+                        Image(systemName: nft.artifactMime?.hasPrefix("audio/") == true ? "speaker.wave.2.fill" : "play.fill")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(.black.opacity(0.6)))
+                            .foregroundStyle(.white)
+                            .padding(6)
+                            .help(nft.artifactMime?.hasPrefix("audio/") == true ? "A sound: the tile shows its cover image" : "A video: the tile shows its still image")
+                    }
+                }
                 .overlay(alignment: .topTrailing) {
                     if nft.balance > 1 {
                         Text("×\(nft.balance)")
@@ -74,7 +86,7 @@ struct NFTTileView: View {
         }
         .help((nft.isLayer2 ? "On Etherlink\n" : "") + "\(nft.name)\n\(nft.contract) #\(nft.tokenId)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(nft.name + (nft.isLayer2 ? ", on Etherlink" : ""))
+        .accessibilityLabel(nft.name + (nft.isMoving ? ", video or sound" : "") + (nft.isLayer2 ? ", on Etherlink" : ""))
     }
 
     @ViewBuilder
