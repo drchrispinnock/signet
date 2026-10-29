@@ -14,6 +14,17 @@ struct NFT: Identifiable, Hashable, Sendable {
 
     var thumbnailURL: URL? { imageURLs.first }
 
+    /// When the holding last changed, as the indexer reports it; the grid is newest first.
+    var date: Date? = nil
+    /// The artifact's MIME type, when the metadata gives one (`video/mp4`, `image/png`, …).
+    var artifactMime: String? = nil
+    /// The artifact is a video or a sound, so the tile shows a still, often a marketplace's
+    /// placeholder, and wears a play badge to say so.
+    var isMoving: Bool {
+        guard let artifactMime else { return false }
+        return artifactMime.hasPrefix("video/") || artifactMime.hasPrefix("audio/")
+    }
+
     /// Where the token lives: 1 on Tezos, 2 on Etherlink's Michelson interface.
     var layer = 1
     var isLayer2: Bool { layer == 2 }
