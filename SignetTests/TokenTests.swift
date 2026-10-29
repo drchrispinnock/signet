@@ -80,3 +80,98 @@ struct PortfolioStateTests {
         #expect(model.portfolioState == .unavailable("HTTP 503"))
     }
 }
+
+/// Metadata Signet reads for itself when the indexer has none: the `token_metadata` big map
+/// entry and the TZIP-21 document it names (seen live: Etherlink Shadownet's TzKT resolved
+/// nothing for a fresh FA2, so its NFT was neither an asset nor an NFT).
+struct TokenMetadataFallbackTests {
+    typealias Metadata = TzKTService.TokenBalance.Token.Metadata
+    static let contract = "KT1MJPVfyTqycX13mGq8Adpays8yxJrNPjXp"
+    static let uri = "ipfs://bafkreib5alq3q4zsqokoohi6nrp23uzqnolto67aomapucnr5yk3tj3olu"
+    static let image = "ipfs://bafybeigqpjyhcy2kkb4f5rpdgs7al6pgaqcpfum2344ttekzxbm7i4qxku"
+    static let document = Data("""
+    {"name":"Layer 2 Elvis","description":"My dog has always wanted to visit Etherlink","decimals":0,"isBooleanAmount":true,"symbol":"NFT",
+     "artifactUri":"\(image)","displayUri":"\(image)","thumbnailUri":"\(image)","creators":["tz3Rb5RVucLc6ani23jVdZM4Qm6c4oQ74zhh"],
+     "formats":[{"uri":"\(image)","mimeType":"image/jpeg"}],"tags":[]}
+    """.utf8)
+    /// TzKT's reply for `/v1/contracts/<KT1>/bigmaps/token_metadata/keys/0`, the URI as hex bytes.
+    static let keyReply = Data("""
+    {"id":81,"active":true,"key":"0","value":{"token_id":"0","token_info":{"":"\(uri.utf8.map { String(format: "%02x", $0) }.joined())","symbol":"4e4654","odd":"zz"}}}
+    """.utf8)
+
+    @Test func theBigMapEntryIsHexDecoded() throws {
+        let info = try #require(TzKTService.parseTokenInfo(Self.keyReply))
+        #expect(info[""] == Self.uri && info["symbol"] == "NFT" && info["odd"] == nil)
+        #expect(TzKTService.parseTokenInfo(Data("[]".utf8)) == nil)
+    }
+
+    @Test func aDocumentWithNumericDecimalsReadsAsTheIndexerWouldReportIt() throws {
+        let metadata = try #require(TokenMetadataResolver.decodeDocument(Self.document))
+        #expect(metadata.name == "Layer 2 Elvis" && metadata.decimals == "0" && metadata.decimalPlaces == 0 && metadata.symbol == "NFT")
+        #expect(metadata.displayUri == Self.image && metadata.formats?.first?.mimeType == "image/jpeg")
+        // Odd types are missing fields, not a failure; a non-object is nothing.
+        let odd = try #require(TokenMetadataResolver.decodeDocument(Data(#"{"name":7,"decimals":"6","symbol":"X","formats":"no"}"#.utf8)))
+        #expect(odd.name == nil && odd.decimals == "6" && odd.symbol == "X" && odd.formats == nil)
+        #expect(TokenMetadataResolver.decodeDocument(Data("[1,2]".utf8)) == nil)
+        #expect(TokenMetadataResolver.decodeDocument(Data("{}".utf8))?.isEmpty == true)
+    }
+
+    @Test func directEntriesOverrideTheDocumentAndNothingUsableIsNil() {
+        let merged = TokenMetadataResolver.metadata(from: ["": Self.uri, "name": "Elvis on chain", "decimals": "0"], document: Self.document)
+        #expect(merged?.name == "Elvis on chain" && merged?.symbol == "NFT" && merged?.displayUri == Self.image)
+        // No document: the direct entries alone still describe a token.
+        let direct = TokenMetadataResolver.metadata(from: ["name": "Plain", "symbol": "PLN", "decimals": "6"], document: nil)
+        #expect(direct?.name == "Plain" && direct?.decimalPlaces == 6)
+        #expect(TokenMetadataResolver.metadata(from: ["": "tezos-storage:content"], document: nil) == nil)
+        #expect(TokenMetadataResolver.metadata(from: [:], document: Data("{}".utf8)) == nil)
+    }
+
+    @Test func documentsAreFetchedOnlyFromGatewaysOrPublicHTTPS() {
+        #expect(TokenMetadataResolver.documentURLs(for: Self.uri).count == IPFS.gateways.count)
+        #expect(TokenMetadataResolver.documentURLs(for: "https://example.com/meta/0.json").map(\.absoluteString) == ["https://example.com/meta/0.json"])
+        #expect(TokenMetadataResolver.documentURLs(for: "http://example.com/meta.json").isEmpty)
+        #expect(TokenMetadataResolver.documentURLs(for: "https://localhost/meta.json").isEmpty)
+        #expect(TokenMetadataResolver.documentURLs(for: "tezos-storage:content").isEmpty)
+        #expect(TokenMetadataResolver.documentURLs(for: "ipfs://not a cid").isEmpty)
+    }
+
+    @Test func rowsWithoutMetadataAreFilledAndThenClassified() async throws {
+        let rows = try TzKTService.decode(Data("""
+        [
+          {"balance":"1","token":{"contract":{"address":"\(Self.contract)"},"tokenId":"0","standard":"fa2","metadata":null}},
+          {"balance":"1","token":{"contract":{"address":"KT1BPGyFqmGQqsU4oEL8NUXQpHQGwuFdyjd1"},"tokenId":"0","standard":"fa2","metadata":{"name":"Known","decimals":"0","displayUri":"\(Self.image)"}}},
+          {"balance":"5","token":{"contract":{"address":"KT1VaEsVNiBoA56eToEK6n6BcPgh1tdx9eXi"},"tokenId":"3","standard":"fa2","metadata":null}}
+        ]
+        """.utf8))
+        actor Log { var asked: [String] = []; func add(_ s: String) { asked.append(s) } }
+        let log = Log()
+        let resolver = TokenMetadataResolver(scope: UUID().uuidString, tokenInfo: { contract, tokenId in
+            await log.add("info \(contract):\(tokenId)")
+            return contract == Self.contract ? TzKTService.parseTokenInfo(Self.keyReply) : nil
+        }, document: { url in
+            await log.add("doc \(url.host() ?? "")")
+            return url.absoluteString.contains("bafkreib5alq3q4z") ? Self.document : nil
+        })
+        let filled = await resolver.fill(rows)
+        #expect(filled[0].token.metadata?.name == "Layer 2 Elvis" && filled[1].token.metadata?.name == "Known" && filled[2].token.metadata == nil)
+        #expect(TzKTService.nfts(from: filled).map(\.name) == ["Layer 2 Elvis", "Known"])
+        #expect(TzKTService.fungibleTokens(from: filled).isEmpty)
+        var asked = await log.asked
+        #expect(asked == ["info \(Self.contract):0", "doc ipfs.filebase.io", "info KT1VaEsVNiBoA56eToEK6n6BcPgh1tdx9eXi:3"])
+
+        // The next load answers both from the cache, the hit and the miss alike.
+        let again = await resolver.fill(rows)
+        #expect(again[0].token.metadata?.name == "Layer 2 Elvis" && again[2].token.metadata == nil)
+        asked = await log.asked
+        #expect(asked.count == 3)
+    }
+
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(1)))
+    func liveEtherlinkShadownetTokenMetadata() async throws {
+        let tzkt = TzKTService(baseURL: try #require(Network.shadownet.l2TzKTURL))
+        let info = try #require(try await tzkt.tokenInfo(contract: Self.contract, tokenId: "0"))
+        #expect(info[""] == Self.uri)
+        let metadata = await TokenMetadataResolver.live(tzkt: tzkt).resolve(contract: Self.contract, tokenId: "0")
+        #expect(metadata?.name == "Layer 2 Elvis" && metadata?.decimalPlaces == 0)
+    }
+}
