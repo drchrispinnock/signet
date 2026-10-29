@@ -76,7 +76,7 @@ struct DelegateRowView: View {
         }
         if info.delegate != nil {
             switch info.delegateAcceptsStaking {
-            case .some(true): return "This baker accepts staked tez"
+            case .some(true): return "This baker accepts staking"
             case .some(false): return "This baker does not accept staking"
             case .none: return "Tap to stake or change delegate"
             }
