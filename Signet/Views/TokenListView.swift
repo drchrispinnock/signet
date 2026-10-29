@@ -6,11 +6,13 @@ struct TokenListView: View {
     let isLoading: Bool
     var state: Portfolio.State = .complete
     let network: Network
+    /// What to say instead of "No tokens" when the layer toggles leave the tab empty.
+    var layerEmptyText: String? = nil
 
     var body: some View {
         VStack(spacing: 0) {
             if tokens.isEmpty {
-                Text(isLoading ? "Loading…" : (state.isUnavailable ? "Token data is unavailable." : "No tokens in this account."))
+                Text(isLoading ? "Loading…" : (state.isUnavailable ? "Token data is unavailable." : layerEmptyText ?? "No tokens in this account."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -61,6 +63,9 @@ struct TokenRowView: View {
         return nil
     }
 
+    /// The explorer the token's contract is on: Etherlink's for a layer 2 token.
+    private var explorer: Network? { token.isLayer2 ? network.layer2 : network }
+
     var body: some View {
         HStack(spacing: 12) {
             logo
@@ -84,25 +89,28 @@ struct TokenRowView: View {
                 }
             }
             Spacer()
-            Text(token.formattedAmount)
-                .font(.body.monospacedDigit())
-                .lineLimit(1)
+            HStack(spacing: 5) {
+                if token.isLayer2 { EtherlinkMark() }
+                Text(token.formattedAmount)
+                    .font(.body.monospacedDigit())
+                    .lineLimit(1)
+            }
         }
         .padding(.vertical, 8)
-        .help(contract.map { "\(token.name)\n\($0)" } ?? token.name)
+        .help((token.isLayer2 ? "On Etherlink\n" : "") + (contract.map { "\(token.name)\n\($0)" } ?? token.name))
         .contextMenu {
             if let contract {
                 Button("Copy contract address") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(contract, forType: .string)
                 }
-                if let url = network.explorerURL(contract: contract) {
+                if let url = explorer?.explorerURL(contract: contract) {
                     Link("View in explorer", destination: url)
                 }
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(token.name) \(token.formattedAmount)")
+        .accessibilityLabel("\(token.name) \(token.formattedAmount)\(token.isLayer2 ? ", on Etherlink" : "")")
     }
 
     @ViewBuilder

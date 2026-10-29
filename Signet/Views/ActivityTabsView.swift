@@ -17,8 +17,8 @@ struct ActivityTabsView: View {
                 .labelsHidden()
                 .frame(maxWidth: 400)
                 Spacer(minLength: 0)
-                if model.activityTab == .transactions, model.filtersTransactionLayers {
-                    TransactionLayerToggles(shown: $model.shownTransactionLayers)
+                if model.filtersLayers {
+                    LayerToggles(shown: $model.shownLayers)
                 }
             }
 
@@ -26,18 +26,20 @@ struct ActivityTabsView: View {
             case .transactions:
                 TransactionListView(model: model)
             case .assets:
-                TokenListView(tokens: model.tokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network)
+                TokenListView(tokens: model.visibleTokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network,
+                              layerEmptyText: model.layerEmptyText(for: "tokens"))
             case .nfts:
-                NFTGridView(nfts: model.nfts, isLoading: model.isLoading, state: model.portfolioState)
+                NFTGridView(nfts: model.visibleNFTs, isLoading: model.isLoading, state: model.portfolioState,
+                            layerEmptyText: model.layerEmptyText(for: "NFTs"))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-/// Two logo buttons, Tezos and Etherlink, each lit while that layer's rows are shown. Beside
-/// the activity picker while Layer 2 is on, so the merged list can be cut to one chain.
-struct TransactionLayerToggles: View {
+/// Two logo buttons, Tezos and Etherlink, each lit while that layer's holdings and operations
+/// are shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
+struct LayerToggles: View {
     @Binding var shown: Set<Int>
 
     var body: some View {
@@ -59,8 +61,23 @@ struct TransactionLayerToggles: View {
         }
         .toggleStyle(.button)
         .controlSize(.small)
-        .help(shown.contains(layer) ? "Showing \(name) transactions. Click to hide them." : "Show \(name) transactions")
-        .accessibilityLabel("\(name) transactions")
+        .help(shown.contains(layer) ? "Showing \(name). Click to hide its transactions, tokens and NFTs." : "Show \(name)")
+        .accessibilityLabel(name)
+    }
+}
+
+/// A small Etherlink logo beside a layer 2 row's figure or on its tile: the same mark as the
+/// dashboard's Etherlink balance row, so a list reads "on Etherlink".
+struct EtherlinkMark: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Image("EtherlinkLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .help("On Etherlink")
+            .accessibilityHidden(true)
     }
 }
 
@@ -70,9 +87,7 @@ struct TransactionListView: View {
 
     private var emptyText: String {
         if model.isLoading { return "Loading…" }
-        if model.transactions.isEmpty { return "No transactions yet." }
-        if model.shownTransactionLayers.isEmpty { return "Select Tezos or Etherlink to show transactions." }
-        return model.shownTransactionLayers.contains(2) ? "No transactions on Etherlink yet." : "No transactions on Tezos yet."
+        return model.layerEmptyText(for: "transactions") ?? "No transactions yet."
     }
 
     var body: some View {
@@ -197,16 +212,7 @@ struct TransactionRowView: View {
         }
     }
 
-    /// A small Etherlink logo beside the figure of a layer 2 row: the same mark as the
-    /// dashboard's Etherlink balance row, so the list reads "tez on Etherlink".
-    private var etherlinkMark: some View {
-        Image("EtherlinkLogo")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 14, height: 14)
-            .help("On Etherlink")
-            .accessibilityHidden(true)
-    }
+    private var etherlinkMark: some View { EtherlinkMark() }
 
     private var role: TezosTransaction.DelegationRole? {
         model.selectedWallet.flatMap { transaction.delegationRole(for: $0.address) }
