@@ -516,3 +516,131 @@ struct ShieldedRowTests {
         #expect(model.accountNotOnChain && model.assets.isEmpty)
     }
 }
+
+/// Etherlink's operations join the Recent transactions list, tagged as layer 2, while Layer 2
+/// is on and the key is usable there; the layer 1 list stands alone otherwise.
+@MainActor
+struct EtherlinkHistoryTests {
+    static let me = WalletViewModel.sampleWallets[0]
+    static let tz4 = Wallet(alias: "bls", address: Address("tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm"), keyKind: .unencrypted)
+    nonisolated static let epoch = Date(timeIntervalSince1970: 1_790_000_000)
+
+    nonisolated static func row(_ hash: String, id: String, minutesAgo: Int) -> TezosTransaction {
+        TezosTransaction(id: id, hash: hash, level: 100, timestamp: epoch.addingTimeInterval(-Double(minutesAgo) * 60), kind: .transaction, direction: .incoming,
+                         counterparty: MockChainService.captainStake, counterpartyAlias: nil, amount: 1, fee: 0, entrypoint: nil, isApplied: true)
+    }
+
+    /// Answers each layer with its own rows; TzKT ids are per indexer, so both use "1".
+    struct TwoLayers: TestChainService {
+        let network: Network
+        var layer2Fails = false
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 12) }
+        func etherlinkBalance(for address: Address) async throws -> Decimal { 3 }
+        func tokenBalances(for address: Address) async throws -> [AssetBalance] {
+            if network.layerNumber == 2 {
+                if layer2Fails { throw URLError(.cannotConnectToHost) }
+                return [AssetBalance(id: "KT1l2:0", kind: .token(contract: "KT1l2", tokenId: "0"), name: "Rollup Coin", symbol: "ROLL", amount: 2)]
+            }
+            return [AssetBalance(id: "KT1l1:0", kind: .token(contract: "KT1l1", tokenId: "0"), name: "Base Coin", symbol: "BASE", amount: 1)]
+        }
+        func nfts(for address: Address) async throws -> [NFT] {
+            if network.layerNumber == 2 {
+                if layer2Fails { throw URLError(.cannotConnectToHost) }
+                return [NFT(id: "KT1l2:1", contract: "KT1l2", tokenId: "1", name: "Rollup Art", balance: 1, thumbnailURL: nil)]
+            }
+            return [NFT(id: "KT1l1:1", contract: "KT1l1", tokenId: "1", name: "Base Art", balance: 1, thumbnailURL: nil)]
+        }
+        func recentTransactions(for address: Address, limit: Int) async throws -> [TezosTransaction] {
+            if network.layerNumber == 2 {
+                if layer2Fails { throw URLError(.cannotConnectToHost) }
+                return [EtherlinkHistoryTests.row("ooL2new", id: "1", minutesAgo: 5), EtherlinkHistoryTests.row("ooL2old", id: "2", minutesAgo: 60)]
+            }
+            return [EtherlinkHistoryTests.row("ooL1", id: "1", minutesAgo: 30)]
+        }
+    }
+
+    @Test func taggingKeepsTheRowAndMakesTheIdDistinct() {
+        let tagged = Self.row("ooX", id: "7", minutesAgo: 1).onLayer2()
+        #expect(tagged.isLayer2 && tagged.layer == 2 && tagged.id == "l2:7" && tagged.hash == "ooX")
+        #expect(!Self.row("ooX", id: "7", minutesAgo: 1).isLayer2)
+    }
+
+    @Test func mergedHistoryIsNewestFirstAndCut() {
+        let merged = WalletViewModel.mergedHistory([Self.row("a", id: "1", minutesAgo: 30)],
+                                                   [Self.row("b", id: "1", minutesAgo: 5).onLayer2(), Self.row("c", id: "2", minutesAgo: 60).onLayer2()], limit: 2)
+        #expect(merged.map(\.hash) == ["b", "a"])
+        #expect(Set(merged.map(\.id)).count == 2)
+    }
+
+    @Test func etherlinkRowsJoinTheListOnlyWhileLayer2IsOn() async {
+        let model = WalletViewModel(wallets: [Self.me, Self.tz4], chainFactory: { TwoLayers(network: $0) })
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL2new", "ooL1", "ooL2old"])
+        #expect(model.transactions.map(\.isLayer2) == [true, false, true])
+        #expect(Set(model.transactions.map(\.id)).count == 3)
+
+        // A key the rollup refuses has no Etherlink history.
+        model.select(Self.tz4)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+
+        model.select(Self.me)
+        model.setL2Enabled(false, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"])
+    }
+
+    @Test func theLayerTogglesCutTheListOnlyWhileLayer2IsOn() async {
+        let model = WalletViewModel(wallets: [Self.me], chainFactory: { TwoLayers(network: $0) })
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.filtersLayers && model.shownLayers == [1, 2])
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL2new", "ooL1", "ooL2old"])
+        #expect(model.visibleTokens.map(\.symbol) == ["BASE", "ROLL"] && model.visibleNFTs.map(\.name) == ["Base Art", "Rollup Art"])
+        #expect(model.layerEmptyText(for: "tokens") == nil)
+        model.shownLayers = [2]
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL2new", "ooL2old"])
+        #expect(model.visibleTokens.map(\.symbol) == ["ROLL"] && model.visibleNFTs.map(\.name) == ["Rollup Art"])
+        #expect(model.layerEmptyText(for: "tokens") == "No tokens on Etherlink in this account.")
+        model.shownLayers = [1]
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL1"])
+        #expect(model.visibleTokens.map(\.symbol) == ["BASE"] && model.visibleNFTs.map(\.name) == ["Base Art"])
+        model.shownLayers = []
+        #expect(model.visibleTransactions.isEmpty && model.transactions.count == 3)
+        #expect(model.visibleTokens.isEmpty && model.visibleNFTs.isEmpty && model.tokens.count == 2 && model.nfts.count == 2)
+        #expect(model.layerEmptyText(for: "NFTs") == "Select Tezos or Etherlink to show NFTs.")
+
+        // Without Layer 2 the toggles are gone and the choice does not apply.
+        model.setL2Enabled(false, for: .mainnet)
+        await model.refresh()
+        #expect(!model.filtersLayers && model.visibleTransactions.map(\.hash) == ["ooL1"])
+        #expect(model.visibleTokens.map(\.symbol) == ["BASE"] && model.visibleNFTs.map(\.name) == ["Base Art"])
+        #expect(model.layerEmptyText(for: "tokens") == nil)
+    }
+
+    @Test func etherlinkHoldingsJoinTheTabsTaggedAndDistinct() async {
+        let model = WalletViewModel(wallets: [Self.me, Self.tz4], chainFactory: { TwoLayers(network: $0) })
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.tokens.map(\.id) == ["KT1l1:0", "l2:KT1l2:0"] && model.tokens.map(\.isLayer2) == [false, true])
+        #expect(model.nfts.map(\.id) == ["KT1l1:1", "l2:KT1l2:1"] && model.nfts.map(\.isLayer2) == [false, true])
+        #expect(model.portfolioState == .complete)
+
+        // A key the rollup refuses has nothing on Etherlink.
+        model.select(Self.tz4)
+        await model.refresh()
+        #expect(model.tokens.map(\.id) == ["KT1l1:0"] && model.nfts.map(\.id) == ["KT1l1:1"])
+    }
+
+    @Test func anUnreachableEtherlinkIndexerLeavesTheLayer1List() async {
+        let model = WalletViewModel(wallets: [Self.me], chainFactory: { TwoLayers(network: $0, layer2Fails: true) })
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.transactions.map(\.hash) == ["ooL1"] && model.errorMessage == nil)
+        #expect(model.tokens.map(\.id) == ["KT1l1:0"] && model.nfts.map(\.id) == ["KT1l1:1"] && model.portfolioState == .complete)
+    }
+}
