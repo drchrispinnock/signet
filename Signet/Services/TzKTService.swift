@@ -14,20 +14,47 @@ struct TzKTService: Sendable {
     struct TokenBalance: Decodable, Sendable {
         struct Token: Decodable, Sendable {
             struct Contract: Decodable, Sendable { let address: String }
-            struct Metadata: Decodable, Sendable {
-                let name: String?
-                let symbol: String?
-                let decimals: String?
-                let thumbnailUri: String?
-                let displayUri: String?
-                let artifactUri: String?
+            /// TZIP-21 fields, as TzKT reports them or as a document Signet read itself states
+            /// them (`TokenMetadataResolver`). Every field is read leniently: a value of the
+            /// wrong type is missing, never a decoding failure, so one odd field cannot hide
+            /// a token. `decimals` is a string from TzKT and usually a number in a document.
+            struct Metadata: Decodable, Sendable, Equatable {
+                var name: String?
+                var symbol: String?
+                var decimals: String?
+                var thumbnailUri: String?
+                var displayUri: String?
+                var artifactUri: String?
                 /// Fungible tokens often put their logo here instead of thumbnailUri.
-                let icon: String?
-                let formats: [Format]?
+                var icon: String?
+                var formats: [Format]?
 
-                struct Format: Decodable, Sendable {
+                struct Format: Decodable, Sendable, Equatable {
                     let uri: String?
                     let mimeType: String?
+                }
+
+                init() {}
+
+                private enum CodingKeys: String, CodingKey { case name, symbol, decimals, thumbnailUri, displayUri, artifactUri, icon, formats }
+
+                init(from decoder: Decoder) throws {
+                    let container = try decoder.container(keyedBy: CodingKeys.self)
+                    func string(_ key: CodingKeys) -> String? { (try? container.decodeIfPresent(String.self, forKey: key)) ?? nil }
+                    name = string(.name)
+                    symbol = string(.symbol)
+                    if let number = (try? container.decodeIfPresent(Int.self, forKey: .decimals)) ?? nil { decimals = String(number) }
+                    else { decimals = string(.decimals) }
+                    thumbnailUri = string(.thumbnailUri)
+                    displayUri = string(.displayUri)
+                    artifactUri = string(.artifactUri)
+                    icon = string(.icon)
+                    formats = (try? container.decodeIfPresent([Format].self, forKey: .formats)) ?? nil
+                }
+
+                /// Nothing here describes a token.
+                var isEmpty: Bool {
+                    [name, symbol, decimals, thumbnailUri, displayUri, artifactUri, icon].allSatisfy { $0 == nil } && (formats ?? []).isEmpty
                 }
 
                 /// Decimals come back as a string in TZIP-21 metadata. Only a whole number in
@@ -42,10 +69,10 @@ struct TzKTService: Sendable {
             let contract: Contract
             let tokenId: String
             let standard: String?
-            let metadata: Metadata?
+            var metadata: Metadata?
         }
         let balance: String
-        let token: Token
+        var token: Token
     }
 
     static let pageSize = 200
@@ -91,10 +118,39 @@ struct TzKTService: Sendable {
         return (rows, false)
     }
 
-    /// Tokens and NFTs from one snapshot, marked partial when the account holds more than was fetched.
+    /// Tokens and NFTs from one snapshot, marked partial when the account holds more than was
+    /// fetched. Rows the indexer has no metadata for are resolved by Signet itself first.
     func portfolio(for address: Address) async throws -> Portfolio {
-        let (rows, complete) = try await allTokenBalances(for: address)
+        let (fetched, complete) = try await allTokenBalances(for: address)
+        let rows = await TokenMetadataResolver.live(tzkt: self).fill(fetched)
         return Portfolio(tokens: Self.fungibleTokens(from: rows), nfts: Self.nfts(from: rows), state: complete ? .complete : .partial(fetched: rows.count))
+    }
+
+    /// The hex-decoded `token_info` of the contract's `token_metadata` big map entry for
+    /// `tokenId` (TZIP-12), read through the indexer; `nil` when the contract has no such entry.
+    /// Values that are not UTF-8 are left out.
+    func tokenInfo(contract: String, tokenId: String) async throws -> [String: String]? {
+        guard TokenMetadataResolver.isContract(contract), TokenMetadataResolver.isTokenID(tokenId) else { return nil }
+        var request = URLRequest(url: baseURL.appendingPathComponent("v1/contracts/\(contract)/bigmaps/token_metadata/keys/\(tokenId)"))
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.recordBytes, json: .record)
+        guard reply.isSuccess, !reply.data.isEmpty else { return nil }
+        return Self.parseTokenInfo(reply.data)
+    }
+
+    /// Pure parser for a `token_metadata` key reply: `value.token_info`, each hex value decoded.
+    static func parseTokenInfo(_ data: Data) -> [String: String]? {
+        guard let entry = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = entry["value"] as? [String: Any],
+              let info = value["token_info"] as? [String: Any] else { return nil }
+        var decoded: [String: String] = [:]
+        for (key, hex) in info {
+            guard let hex = hex as? String, let bytes = Hex.bytes(fromHex: hex), let text = String(data: Data(bytes), encoding: .utf8) else { continue }
+            decoded[key] = text
+        }
+        return decoded
     }
 
     /// NFTs are tokens with no decimal places and some image to show.
