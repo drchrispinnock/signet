@@ -7,14 +7,20 @@ struct ActivityTabsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Activity", selection: $model.activityTab) {
-                ForEach(WalletViewModel.ActivityTab.allCases) { tab in
-                    Text(tab.rawValue).tag(tab)
+            HStack(spacing: 12) {
+                Picker("Activity", selection: $model.activityTab) {
+                    ForEach(WalletViewModel.ActivityTab.allCases) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 400)
+                Spacer(minLength: 0)
+                if model.activityTab == .transactions, model.filtersTransactionLayers {
+                    TransactionLayerToggles(shown: $model.shownTransactionLayers)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 400)
 
             switch model.activityTab {
             case .transactions:
@@ -29,13 +35,49 @@ struct ActivityTabsView: View {
     }
 }
 
+/// Two logo buttons, Tezos and Etherlink, each lit while that layer's rows are shown. Beside
+/// the activity picker while Layer 2 is on, so the merged list can be cut to one chain.
+struct TransactionLayerToggles: View {
+    @Binding var shown: Set<Int>
+
+    var body: some View {
+        HStack(spacing: 4) {
+            toggle(layer: 1, logo: "TezosToken", name: "Tezos")
+            toggle(layer: 2, logo: "EtherlinkLogo", name: "Etherlink")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Chains shown")
+    }
+
+    private func toggle(layer: Int, logo: String, name: String) -> some View {
+        Toggle(isOn: Binding(
+            get: { shown.contains(layer) },
+            set: { on in if on { shown.insert(layer) } else { shown.remove(layer) } }
+        )) {
+            Image(nsImage: ChainSidePicker.smallLogo(logo, points: 16))
+                .opacity(shown.contains(layer) ? 1 : 0.45)
+        }
+        .toggleStyle(.button)
+        .controlSize(.small)
+        .help(shown.contains(layer) ? "Showing \(name) transactions. Click to hide them." : "Show \(name) transactions")
+        .accessibilityLabel("\(name) transactions")
+    }
+}
+
 /// The last few operations, each with the counterparty's avatar and best-known name.
 struct TransactionListView: View {
     @Bindable var model: WalletViewModel
 
+    private var emptyText: String {
+        if model.isLoading { return "Loading…" }
+        if model.transactions.isEmpty { return "No transactions yet." }
+        if model.shownTransactionLayers.isEmpty { return "Select Tezos or Etherlink to show transactions." }
+        return model.shownTransactionLayers.contains(2) ? "No transactions on Etherlink yet." : "No transactions on Tezos yet."
+    }
+
     var body: some View {
-        if model.transactions.isEmpty {
-            Text(model.isLoading ? "Loading…" : "No transactions yet.")
+        if model.visibleTransactions.isEmpty {
+            Text(emptyText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -43,7 +85,7 @@ struct TransactionListView: View {
         } else {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
-                    ForEach(model.transactions) { tx in
+                    ForEach(model.visibleTransactions) { tx in
                         TransactionRowView(model: model, transaction: tx)
                         Divider().padding(.leading, 56)
                     }

@@ -580,6 +580,25 @@ struct EtherlinkHistoryTests {
         #expect(model.transactions.map(\.hash) == ["ooL1"])
     }
 
+    @Test func theLayerTogglesCutTheListOnlyWhileLayer2IsOn() async {
+        let model = WalletViewModel(wallets: [Self.me], chainFactory: { TwoLayers(network: $0) })
+        model.setL2Enabled(true, for: .mainnet)
+        await model.refresh()
+        #expect(model.filtersTransactionLayers && model.shownTransactionLayers == [1, 2])
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL2new", "ooL1", "ooL2old"])
+        model.shownTransactionLayers = [2]
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL2new", "ooL2old"])
+        model.shownTransactionLayers = [1]
+        #expect(model.visibleTransactions.map(\.hash) == ["ooL1"])
+        model.shownTransactionLayers = []
+        #expect(model.visibleTransactions.isEmpty && model.transactions.count == 3)
+
+        // Without Layer 2 the toggles are gone and the choice does not apply.
+        model.setL2Enabled(false, for: .mainnet)
+        await model.refresh()
+        #expect(!model.filtersTransactionLayers && model.visibleTransactions.map(\.hash) == ["ooL1"])
+    }
+
     @Test func anUnreachableEtherlinkIndexerLeavesTheLayer1List() async {
         let model = WalletViewModel(wallets: [Self.me], chainFactory: { TwoLayers(network: $0, layer2Fails: true) })
         model.setL2Enabled(true, for: .mainnet)
