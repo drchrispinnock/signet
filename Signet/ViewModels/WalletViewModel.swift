@@ -186,6 +186,21 @@ final class WalletViewModel {
         var id: String { rawValue }
     }
     var activityTab: ActivityTab = .transactions
+
+    /// Which layers' rows the Recent transactions list shows while Layer 2 is on: the Tezos and
+    /// Etherlink toggles beside the activity picker, both on to begin with. Ignored without
+    /// Layer 2, when every row is a layer 1 row anyway.
+    var shownTransactionLayers: Set<Int> = [1, 2]
+
+    /// Whether the layer toggles apply: Layer 2 is on for the network in use.
+    var filtersTransactionLayers: Bool { network.hasL2 }
+
+    /// The rows the Recent transactions list shows: everything loaded, cut to the chosen layers
+    /// while Layer 2 is on.
+    var visibleTransactions: [TezosTransaction] {
+        guard filtersTransactionLayers else { return transactions }
+        return transactions.filter { shownTransactionLayers.contains($0.layer) }
+    }
     private(set) var isLoading = false
     /// True when the node has no record of the selected address (never funded on this network).
     private(set) var accountNotOnChain = false
