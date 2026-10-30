@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Untrusted URLs use the system TLS client with a pinned, validated DNS answer. URLSession
 /// resolves hosts again after a preflight check; --resolve keeps the connection on the checked

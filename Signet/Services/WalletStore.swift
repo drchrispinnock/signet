@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 
 /// Captures the exact account entries whose removal is being approved. Kept only for the flow;
 /// the secret (encrypted when applicable) is needed to verify that same entry's password.

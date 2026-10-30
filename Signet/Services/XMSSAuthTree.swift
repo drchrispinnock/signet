@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(os)
 import os
+#else
+import Synchronization
+#endif
 
 /// The XMSS-style authentication tree of a TzEL address (spec § Authentication): 65536 WOTS+
 /// keys (w = 4, 133 chains), each compressed by an L-tree into a leaf, the leaves hashed up
@@ -73,7 +77,11 @@ enum XMSSAuthTree {
         let ask = UnsafeSlot(copying: askJ), seed = UnsafeSlot(copying: pubSeed)
         defer { ask.buffer.deallocate(); seed.buffer.deallocate() }
         let workers = max(1, min(ProcessInfo.processInfo.activeProcessorCount, 32))
+        #if canImport(os)
         let done = OSAllocatedUnfairLock(initialState: 0)
+        #else
+        let done = Mutex(0)
+        #endif
         let reportEvery = 512
         DispatchQueue.concurrentPerform(iterations: workers) { worker in
             var sinceReport = 0

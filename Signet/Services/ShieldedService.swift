@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Where a network's shielded transactions (TzEL) live: the rollup node whose durable state
 /// holds the notes and deposit pools, the rollup itself, the layer 1 bridge ticketer that
@@ -157,7 +160,12 @@ struct ShieldedConfig: Hashable, Sendable {
         case .json(let fields):
             return fields
         case .resource(let name):
-            guard let url = Bundle.main.url(forResource: name, withExtension: "json"),
+            #if SWIFT_PACKAGE
+            let bundle = Bundle.module   // the GTK build's resources
+            #else
+            let bundle = Bundle.main
+            #endif
+            guard let url = bundle.url(forResource: name, withExtension: "json"),
                   let data = try? Data(contentsOf: url),
                   let fields = try JSONSerialization.jsonObject(with: data) as? [String: String]
             else { throw ShieldedError.badReply("the producer fee address \(name).json is missing from the app") }

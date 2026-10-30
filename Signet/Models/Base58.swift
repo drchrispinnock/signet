@@ -1,4 +1,8 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// Base58Check as used by Tezos: `base58(prefix + payload + sha256(sha256(prefix + payload))[0..<4])`.

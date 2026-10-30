@@ -16,8 +16,7 @@ enum JSONValue: Sendable, Equatable {
         case nil, is NSNull:
             self = .null
         case let number as NSNumber:
-            // CFBoolean is an NSNumber subclass; tell the two apart by type ID.
-            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+            if number.isJSONBoolean {
                 self = .bool(number.boolValue)
             } else {
                 self = .number(number.doubleValue)
@@ -53,4 +52,33 @@ enum JSONValue: Sendable, Equatable {
     var arrayValue: [JSONValue]? { if case .array(let a) = self { return a } else { return nil } }
 
     subscript(key: String) -> JSONValue? { objectValue?[key] }
+}
+
+extension NSNumber {
+    /// Whether this number is a boolean rather than a count. On the Mac CFBoolean is an NSNumber
+    /// subclass, told apart by type ID; elsewhere a boolean NSNumber reports Objective-C type `c`
+    /// (signed char), which no JSON number decodes as.
+    var isJSONBoolean: Bool {
+        #if canImport(Darwin)
+        CFGetTypeID(self) == CFBooleanGetTypeID()
+        #else
+        String(cString: objCType) == "c"
+        #endif
+    }
+
+    /// The number as a `Decimal`. On the Mac this is `decimalValue`; swift-corelibs-foundation's
+    /// `decimalValue` goes through binary floating point even for whole numbers (24666552157412
+    /// reads back as 24666552157411.99872), so elsewhere whole numbers convert from their integer
+    /// value and fractions from their shortest decimal text.
+    var exactDecimal: Decimal {
+        #if canImport(Darwin)
+        decimalValue
+        #else
+        switch String(cString: objCType) {
+        case "c", "s", "i", "l", "q": Decimal(int64Value)
+        case "C", "S", "I", "L", "Q": Decimal(uint64Value)
+        default: Decimal(string: stringValue, locale: Locale(identifier: "en_US_POSIX")) ?? decimalValue
+        }
+        #endif
+    }
 }
