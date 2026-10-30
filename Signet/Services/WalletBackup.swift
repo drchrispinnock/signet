@@ -19,7 +19,7 @@ struct BackupSettings: @unchecked Sendable {
     }
 
     var defaultDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".signet_backups", isDirectory: true)
+        FileManager.default.userHome.appendingPathComponent(".signet_backups", isDirectory: true)
     }
 
     var directory: URL {
