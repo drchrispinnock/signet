@@ -175,8 +175,14 @@ struct ShieldedWallet: Codable, Equatable, Sendable {
     /// A wallet with a fresh random master key.
     static func make(chain: String) -> ShieldedWallet {
         var bytes = [UInt8](repeating: 0, count: 32)
+        #if canImport(Security)
         let status = bytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 32, $0.baseAddress!) }
         precondition(status == errSecSuccess, "no randomness for the shielded master key")
+        #else
+        // The system CSPRNG (getrandom / arc4random), which SystemRandomNumberGenerator wraps.
+        var generator = SystemRandomNumberGenerator()
+        for i in bytes.indices { bytes[i] = generator.next() }
+        #endif
         bytes[31] &= 0x07
         return ShieldedWallet(chain: chain, masterSk: Hex.encode(bytes))
     }

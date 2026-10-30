@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Reverse lookups against the Tezos Domains GraphQL API. An address maps to at most one
 /// reverse record (the name its owner chose to publish), so this returns zero or one name.

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Token metadata Signet reads for itself when the indexer has none. TzKT normally resolves a
 /// token's TZIP-21 document within minutes of its mint, but an indexer without a metadata
