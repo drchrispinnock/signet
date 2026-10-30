@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// The one way native code reads an HTTP reply from a node, an indexer, a faucet or a name
 /// service (S19). The body is taken as a stream and dropped the moment it passes the caller's
@@ -73,6 +76,9 @@ enum BoundedHTTP {
             guard http.expectedContentLength <= Int64(limit) else {
                 finish(.failure(Failure.tooLarge(limit: limit)))
                 completionHandler(.cancel)
+                #if canImport(FoundationNetworking)
+                dataTask.cancel()   // swift-corelibs-foundation does not stop the transfer for .cancel
+                #endif
                 return
             }
             completionHandler(.allow)
@@ -98,6 +104,52 @@ enum BoundedHTTP {
             finish(.success(Reply(data: body, status: http.statusCode)))
         }
     }
+
+    #if canImport(FoundationNetworking)
+    /// swift-corelibs-foundation never calls a task's own delegate, and frees a short-lived
+    /// session unsafely, so each caller's session gets one long-lived companion made from its
+    /// configuration (protocol classes included) whose delegate passes every task's events to
+    /// that task's collector.
+    private final class Router: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        private let lock = NSLock()
+        private var collectors: [Int: Collector] = [:]
+
+        private static let lock = NSLock()
+        /// Keyed by the caller's session, which is kept too so its identifier is never reused.
+        nonisolated(unsafe) private static var companions: [ObjectIdentifier: (original: URLSession, routed: URLSession, router: Router)] = [:]
+
+        static func companion(for session: URLSession) -> (URLSession, Router) {
+            lock.withLock {
+                if let found = companions[ObjectIdentifier(session)] { return (found.routed, found.router) }
+                let router = Router()
+                let routed = URLSession(configuration: session.configuration, delegate: router, delegateQueue: nil)
+                companions[ObjectIdentifier(session)] = (session, routed, router)
+                return (routed, router)
+            }
+        }
+
+        func register(_ collector: Collector, for task: URLSessionTask) {
+            lock.withLock { collectors[task.taskIdentifier] = collector }
+        }
+
+        private func collector(for task: URLSessionTask) -> Collector? { lock.withLock { collectors[task.taskIdentifier] } }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                        completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
+            guard let collector = collector(for: dataTask) else { completionHandler(.cancel); return }
+            collector.urlSession(session, dataTask: dataTask, didReceive: response, completionHandler: completionHandler)
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+            collector(for: dataTask)?.urlSession(session, dataTask: dataTask, didReceive: chunk)
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            let collector = lock.withLock { collectors.removeValue(forKey: task.taskIdentifier) }
+            collector?.urlSession(session, task: task, didCompleteWithError: error)
+        }
+    }
+    #endif
 
     private final class Cancellation: @unchecked Sendable {
         private let lock = NSLock()
@@ -133,8 +185,14 @@ enum BoundedHTTP {
         let reply: Reply = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 let collector = Collector(limit: limit, continuation: continuation)
+                #if canImport(FoundationNetworking)
+                let (routed, router) = Router.companion(for: session)
+                let task = routed.dataTask(with: request)
+                router.register(collector, for: task)
+                #else
                 let task = session.dataTask(with: request)
                 task.delegate = collector
+                #endif
                 cancellation.start(task, collector: collector)
             }
         } onCancel: { cancellation.cancel() }

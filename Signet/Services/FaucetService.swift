@@ -1,5 +1,12 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Client for the teztnets faucets (github.com/tacoinfra/tezos-faucet), the same HTTP API the
 /// `get-tez` command line uses: request a proof-of-work challenge, solve it, verify, repeat until
@@ -228,7 +235,7 @@ struct FaucetService: Sendable {
 
     /// JSON numbers that are whole and in range; booleans and fractions are not counters.
     private static func exactInt(_ number: NSNumber) -> Int? {
-        if CFGetTypeID(number) == CFBooleanGetTypeID() { return nil }
+        if number.isJSONBoolean { return nil }
         let double = number.doubleValue
         guard double.isFinite, double == double.rounded(), abs(double) < 1e15 else { return nil }
         return Int(double)

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 
 /// Reads and writes a wallet directory in octez-client's format. Signet's own directory is
 /// `~/.signet`; `~/.tezos-client` is read only when the user imports from it.

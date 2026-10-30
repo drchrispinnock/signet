@@ -43,7 +43,11 @@ enum EndpointPolicy {
     static func publicAddresses(_ host: String) -> [String] {
         if isLocalOrPrivateHost(host) { return [] }
         var hints = addrinfo()
+        #if os(Linux)
+        hints.ai_socktype = Int32(SOCK_STREAM.rawValue)   // an enum in glibc's headers
+        #else
         hints.ai_socktype = SOCK_STREAM
+        #endif
         var result: UnsafeMutablePointer<addrinfo>?
         guard getaddrinfo(host, nil, &hints, &result) == 0, let first = result else { return [] }
         defer { freeaddrinfo(first) }

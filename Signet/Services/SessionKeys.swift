@@ -24,7 +24,11 @@ final class SessionSecret: @unchecked Sendable {
 
     /// Overwrites the secret with zeros; `value` is empty of meaning afterwards.
     func wipe() {
+        #if canImport(Darwin)
         _ = memset_s(buffer.baseAddress, buffer.count, 0, buffer.count)
+        #else
+        explicit_bzero(buffer.baseAddress!, buffer.count)   // glibc and the BSDs; never optimised away
+        #endif
     }
 
     deinit {
