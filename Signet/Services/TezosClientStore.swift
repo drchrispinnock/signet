@@ -61,12 +61,12 @@ struct TezosClientStore: WalletStore {
 
     /// Signet's own wallet directory.
     static var defaultDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".signet", isDirectory: true)
+        FileManager.default.userHome.appendingPathComponent(".signet", isDirectory: true)
     }
 
     /// Where octez-client keeps its wallet.
     static var octezClientDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".tezos-client", isDirectory: true)
+        FileManager.default.userHome.appendingPathComponent(".tezos-client", isDirectory: true)
     }
 
     static let walletFiles = [publicKeyHashesFile, publicKeysFile, secretKeysFile]
@@ -472,5 +472,23 @@ struct TezosClientStore: WalletStore {
         }
         defer { _ = lockf(fd, F_ULOCK, 0) }
         return try body()
+    }
+}
+
+extension FileManager {
+    /// The user's home directory, where `~/.signet`, `~/.signet_backups` and octez-client's
+    /// `~/.tezos-client` live. On the Mac this is `homeDirectoryForCurrentUser`.
+    /// swift-corelibs-foundation's version ignores `$HOME`, which octez-client and Unix convention
+    /// honour, so elsewhere an absolute `$HOME` wins.
+    var userHome: URL {
+        #if canImport(Darwin)
+        homeDirectoryForCurrentUser
+        #else
+        if let home = ProcessInfo.processInfo.environment["HOME"], home.hasPrefix("/") {
+            URL(fileURLWithPath: home, isDirectory: true)
+        } else {
+            homeDirectoryForCurrentUser
+        }
+        #endif
     }
 }
