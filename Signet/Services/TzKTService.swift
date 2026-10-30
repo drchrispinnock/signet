@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Token balances from the TzKT indexer, and the NFTs picked out of them.
 struct TzKTService: Sendable {
@@ -330,8 +333,8 @@ extension TzKTService {
                 ? ((other?["address"] as? String) == address.value ? .selfTransfer : .outgoing)
                 : .incoming
             let counterpartyObject = outgoing ? other : sender
-            let mutez = (row["amount"] as? NSNumber)?.decimalValue ?? 0
-            let feeMutez = (row["bakerFee"] as? NSNumber)?.decimalValue ?? 0
+            let mutez = (row["amount"] as? NSNumber)?.exactDecimal ?? 0
+            let feeMutez = (row["bakerFee"] as? NSNumber)?.exactDecimal ?? 0
             let entrypoint = (row["parameter"] as? [String: Any])?["entrypoint"] as? String ?? row["entrypoint"] as? String
             let idValue = (row["id"] as? NSNumber).map { "\($0)" } ?? hash
             // On a delegation `amount` is the delegator's balance, not a transfer.
@@ -387,7 +390,7 @@ extension TzKTService {
             let limit = row["limitOfStakingOverBaking"] as? NSNumber
             return BakerCandidate(
                 address: Address(address), alias: row["alias"] as? String,
-                stakingBalance: ((row["stakingBalance"] as? NSNumber)?.decimalValue ?? 0) / Mutez.perTez,
+                stakingBalance: ((row["stakingBalance"] as? NSNumber)?.exactDecimal ?? 0) / Mutez.perTez,
                 delegators: (row["numDelegators"] as? NSNumber)?.intValue ?? 0,
                 stakers: (row["stakersCount"] as? NSNumber)?.intValue ?? 0,
                 acceptsStaking: limit.map { $0.intValue > 0 }

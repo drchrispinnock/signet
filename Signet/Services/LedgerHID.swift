@@ -1,6 +1,8 @@
 import Foundation
+#if canImport(IOKit)
 import IOKit
 import IOKit.hid
+#endif
 
 /// Ledger's USB HID framing: an APDU is cut into 64-byte reports, each headed by the channel
 /// (0x0101), a tag (0x05) and a sequence number; the first report also carries the total length.
@@ -146,6 +148,7 @@ struct LedgerDevice: Identifiable, Hashable, Sendable, Codable {
     }
 }
 
+#if canImport(IOKit)
 /// Talks to Ledger devices over USB HID with IOKit. One exchange at a time per device; the
 /// device's input reports arrive on a private run-loop thread, which is also where all state
 /// lives. Callers get their answer on `completionQueue`.
@@ -352,3 +355,4 @@ final class LedgerHID: @unchecked Sendable {
         }
     }
 }
+#endif

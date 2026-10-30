@@ -53,7 +53,11 @@ enum PrivateFile {
             try data.withUnsafeBytes { buffer in
                 var offset = 0
                 while offset < buffer.count {
+                    #if canImport(Darwin)
                     let written = Darwin.write(fd, buffer.baseAddress! + offset, buffer.count - offset)
+                    #else
+                    let written = Glibc.write(fd, buffer.baseAddress! + offset, buffer.count - offset)
+                    #endif
                     guard written > 0 else { throw FileError.cannotCreate(temporary.path, errno) }
                     offset += written
                 }

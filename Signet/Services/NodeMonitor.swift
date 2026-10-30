@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Observation
 
 /// Health of the configured node, as seen from `GET /chains/main/blocks/head/header`.

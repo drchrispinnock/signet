@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Live chain access through the Taquito bridge.
 struct TaquitoChainService: ChainService {
