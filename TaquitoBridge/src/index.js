@@ -282,6 +282,7 @@ export {
 import { signerFor, readOnlySigner } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
 export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
+export { tokenTransferParams, estimateTokenTransfer, sendTokenTransfer, BURN_ADDRESS, MAX_TOKENS_PER_TRANSFER } from "./tokens.js";
 export { governanceParams, estimateEtherlinkGovernance, sendEtherlinkGovernance, etherlinkVotingRights, getEtherlinkGovernanceState, periodAt, votersFrom, deriveState } from "./etherlink-governance.js";
 
 // ---- Shielded tez (TzEL) ---------------------------------------------------------------------
@@ -465,7 +466,7 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 import { RpcClient } from "@taquito/rpc";
 import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
 import { approvedEstimate, sendApproved, parseLimits, injectSigned, checkedLimit, assertNoPending, forgetOperation, signAndInject, operationRecord, recordCheckedLevel } from "./operations.js";
-export { assertChain, injectSignedBytes, checkApproved, parseLimits, pendingOperation, forgetOperation, originatedAddress } from "./operations.js";
+export { assertChain, injectSignedBytes, checkApproved, parseLimits, checkApprovedBatch, parseBatchLimits, pendingOperation, forgetOperation, originatedAddress } from "./operations.js";
 
 const MINIMAL_FEE = 100, FEE_PER_BYTE = 1, NANOTEZ_PER_GAS = 100, SIGNATURE_BYTES = 64;
 const HARD_GAS_LIMIT = 1040000, HARD_STORAGE_LIMIT = 60000;

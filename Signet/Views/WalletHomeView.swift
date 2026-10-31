@@ -67,6 +67,7 @@ struct WalletHomeView: View {
             ConnectDAppSheet(model: model)
         }
         .sheet(isPresented: $model.isPresentingBridge) { BridgeSheet(model: model) }
+        .sheet(item: $model.nftOperation) { operation in TransferNFTSheet(model: model, operation: operation) }
         .sheet(isPresented: $model.isPresentingShield) { ShieldSheet(model: model) }
         .sheet(isPresented: $model.isPresentingUnshield) { UnshieldSheet(model: model) }
         .sheet(isPresented: $model.isPresentingSendShielded) { SendShieldedSheet(model: model) }

@@ -25,6 +25,12 @@ struct NFT: Identifiable, Hashable, Sendable {
         return artifactMime.hasPrefix("video/") || artifactMime.hasPrefix("audio/")
     }
 
+    /// HTTPS URLs for the full artifact (one per IPFS gateway), for "View artwork"; empty when unknown.
+    var artifactURLs: [URL] = []
+    /// TZIP-21 `isTransferable` (true unless the metadata says otherwise): a soulbound badge or
+    /// a proof of attendance cannot be transferred or burnt, so the menu offers neither.
+    var isTransferable = true
+
     /// Where the token lives: 1 on Tezos, 2 on Etherlink's Michelson interface.
     var layer = 1
     var isLayer2: Bool { layer == 2 }
