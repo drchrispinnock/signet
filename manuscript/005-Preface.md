@@ -137,5 +137,4 @@ I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a 
 But let's get back to the main topics. We are here to show you how to use the Tezos blockchain with the Signet wallet. I hope you enjoy reading this book, learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
 
 
-Chris Pinnock  
-28th October 2026
+

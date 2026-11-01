@@ -67,7 +67,7 @@ docker logs -f node
 
 You can now connect to the node from Signet with `http://localhost:8732`.
 
-The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[??]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
+The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node
 
 ```
 $ octez-node config init --network=mainnet \

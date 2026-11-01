@@ -1,13 +1,16 @@
 SEC|Tezos
-[Tezos — A Self-Amending Crypto-Ledger](https://tezos.com/whitepaper.pdf), White Paper, 2024, L. M. Goodman.
+L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger White Paper*, https://tezos.com/whitepaper.pdf, September 2014
+L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger Position Paper*, https://tezos.com/position-paper.pdf, August 2014
+[Tezos website](https://tezos.com)
 [Tezos, Wikipedia entry](https://en.wikipedia.org/wiki/Tezos)
-[Running Tezos Infrastructure](https://leanpub.com/tezosinfra), Chris Pinnock, In Preparation.
-[Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/), Chris Pinnock. 
-[Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html), Chris Pinnock.
+[Octez](https://octez.tezos.com), the reference implementation of the Tezos blockchain.
+4efd851c|Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, In Preparation.
+9ac4bf2d|Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
+Chris Pinnock, [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html).
 
 SEC|Other chains
-Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
-The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango.
-Mastering Bitcoin, Andreas M Antonopoulos and David A Harding, 2023, O'Reilly Media.
-Mastering Ethereum, Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza, Niccolo Pozzolini, 2025, O'Reilly Media.
-Ethereum for Dummies, Michael G. Solomon, 2019, For Dummies.
+Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
+Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
+Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.

@@ -1,5 +1,5 @@
 {#id: 190-baking_1_Operations}
-#  Operations for Bakers
+# Operations for Bakers
 
 If you are not going to bake on Tezos, you can safely skip this chapter.
 
@@ -28,7 +28,7 @@ Click `Register as Baker`.
 
 There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You'll need to stake at least 6000tz or 10% of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. Go to the `Staking` button and stake whatever you would like.
 
-You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure  <!-- MARKUPBIBTAG ad263967 -->[3]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 7a121253 -->[4]<!-- ENDMARKUPBIBTAG -->. If you are going to hold your baking key
+You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 9ac4bf2d -->[7]<!-- ENDMARKUPBIBTAG -->.
 
 {#id: 190-baking_2_Consensus}
 ## Consensus and Companion keys
@@ -51,7 +51,7 @@ Bonnie: tz4TiyX6pedf2vpy9SACczNiPxoFv7YBNGWY (unencrypted sk known)
 
 I can get their public keys by typing these commands:
 
-````
+```
 $ octez-client show address Bonnie
 Hash: tz4TiyX6pedf2vpy9SACczNiPxoFv7YBNGWY
 Public Key: BLpk1nd7xWibPCo63auH1twvib6ubfT6ZqQe6u5wYpKBCdGcZw7L4xTmaqLxCsbjxrkaXpxF7Snz
@@ -59,7 +59,6 @@ $ octez-client show address Clyde
 Hash: tz4FZUa4chtuSFyUyf1N9VedayHbqST29kUW
 Public Key: BLpk1zRVPqHjeXjsfyv82oPbNgYs97BHEaYa5BHEBmudNmAUMqJGT5BF677Xd5bTfxjbfwrVSjwP
 ```
-````
 
 
 To use the keys Bonnie and Clyde, I'll need to generate a proof of possession signature. To do this `octez-client` must be connected to a node.

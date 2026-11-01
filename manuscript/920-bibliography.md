@@ -6,27 +6,33 @@
 
 **Tezos**
 
-[1] [Tezos — A Self-Amending Crypto-Ledger](https://tezos.com/whitepaper.pdf), White Paper, 2024, L. M. Goodman.
+[1] L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger White Paper*, https://tezos.com/whitepaper.pdf, September 2014
 
-[2] [Tezos, Wikipedia entry](https://en.wikipedia.org/wiki/Tezos)
+[2] L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger Position Paper*, https://tezos.com/position-paper.pdf, August 2014
 
-[3] [Running Tezos Infrastructure](https://leanpub.com/tezosinfra), Chris Pinnock, In Preparation.
+[3] [Tezos website](https://tezos.com)
 
-[4] [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/), Chris Pinnock.
+[4] [Tezos, Wikipedia entry](https://en.wikipedia.org/wiki/Tezos)
 
-[5] [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html), Chris Pinnock.
+[5] [Octez](https://octez.tezos.com), the reference implementation of the Tezos blockchain.
+
+[6] Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, In Preparation.
+
+[7] Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
+
+[8] Chris Pinnock, [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html).
 
 **Other chains**
 
-[6] Bitcoin: The Future of Money, Dominic Frisby, 2014, Unbound.
+[9] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
 
-[7] The Basics of Bitcoins and Blockchains, Antony Lewis, 2018, Mango.
+[10] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
-[8] Mastering Bitcoin, Andreas M Antonopoulos and David A Harding, 2023, O'Reilly Media.
+[11] Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
-[9] Mastering Ethereum, Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza, Niccolo Pozzolini, 2025, O'Reilly Media.
+[12] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 
-[10] Ethereum for Dummies, Michael G. Solomon, 2019, For Dummies.
+[13] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->
