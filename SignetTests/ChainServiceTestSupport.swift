@@ -38,4 +38,8 @@ extension TestChainService {
     func etherlinkGovernanceState(contract: Address, for address: Address) async throws -> EtherlinkGovernance.State { EtherlinkGovernance.State(contract: contract) }
     func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate { TransferEstimate(fee: 0.001, burn: 0, total: 0.001, gasLimit: 0, storageLimit: 0, limits: OperationLimits(feeMutez: "1000", gasLimit: 0, storageLimit: 0)) }
     func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
+    func estimateTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet) async throws -> TokenTransferEstimate {
+        TokenTransferEstimate(fee: 0.001, burn: 0, limits: BatchLimits(operations: request.contracts.map { _ in BatchLimits.Operation(feeMutez: "1000", gasLimit: 0, storageLimit: 0) }))
+    }
+    func sendTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet, signer: SigningKey, limits: BatchLimits) async throws -> SentOperation { SentOperation(hash: "ooTest") }
 }

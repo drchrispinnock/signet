@@ -31,6 +31,8 @@ struct TzKTService: Sendable {
                 /// Fungible tokens often put their logo here instead of thumbnailUri.
                 var icon: String?
                 var formats: [Format]?
+                /// TZIP-21: false for tokens the contract will not move (soulbound); absent means true.
+                var isTransferable: Bool?
 
                 struct Format: Decodable, Sendable, Equatable {
                     let uri: String?
@@ -39,7 +41,7 @@ struct TzKTService: Sendable {
 
                 init() {}
 
-                private enum CodingKeys: String, CodingKey { case name, symbol, decimals, thumbnailUri, displayUri, artifactUri, icon, formats }
+                private enum CodingKeys: String, CodingKey { case name, symbol, decimals, thumbnailUri, displayUri, artifactUri, icon, formats, isTransferable }
 
                 init(from decoder: Decoder) throws {
                     let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -53,6 +55,9 @@ struct TzKTService: Sendable {
                     artifactUri = string(.artifactUri)
                     icon = string(.icon)
                     formats = (try? container.decodeIfPresent([Format].self, forKey: .formats)) ?? nil
+                    // A boolean in the standard; some minters write the words.
+                    if let flag = (try? container.decodeIfPresent(Bool.self, forKey: .isTransferable)) ?? nil { isTransferable = flag }
+                    else if let word = string(.isTransferable)?.trimmingCharacters(in: .whitespaces).lowercased(), ["true", "false"].contains(word) { isTransferable = word == "true" }
                 }
 
                 /// Nothing here describes a token.
@@ -212,6 +217,8 @@ struct TzKTService: Sendable {
             )
             nft.date = (row.lastTime ?? row.firstTime).flatMap(iso.date(from:))
             nft.artifactMime = artifactMime(in: metadata)
+            nft.artifactURLs = metadata.artifactUri.map(IPFS.candidateURLs(for:)) ?? []
+            nft.isTransferable = metadata.isTransferable ?? true
             return nft
         }
     }

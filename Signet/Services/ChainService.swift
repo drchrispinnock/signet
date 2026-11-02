@@ -77,6 +77,12 @@ protocol ChainService: Sendable {
     func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate
     /// Signs and injects the call with exactly the approved `limits` (S14).
     func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation
+
+    // FA2 tokens (NFT Transfer and Burn, 0.9.13): one `transfer` call per contract in one
+    // operation group, estimated with a read-only signer and sent with exactly the approved
+    // per-operation limits (S14).
+    func estimateTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet) async throws -> TokenTransferEstimate
+    func sendTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet, signer: SigningKey, limits: BatchLimits) async throws -> SentOperation
 }
 
 /// Everything the indexer knows the account holds, and how much of it was fetched (S26): a
@@ -156,6 +162,8 @@ enum ChainError: LocalizedError, Equatable {
     case noEtherlinkBridge
     /// Asked of a layer 1 service: alias status and linking live on the Layer 2 node.
     case notALayer2Service
+    /// A token transfer with no tokens, a bad contract, token id or amount, or an amount of 0.
+    case invalidTokenTransfer
     /// A node answered with another chain's id than the one pinned for it (S12).
     case wrongChain(expected: String, found: String)
     /// Estimating an unrevealed tz4 account's operation: the reveal needs the key's BLS proof of
@@ -171,6 +179,7 @@ enum ChainError: LocalizedError, Equatable {
         case .noEtherlinkNode: "Etherlink is not enabled for this network."
         case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
         case .notALayer2Service: "This needs the Layer 2 node."
+        case .invalidTokenTransfer: "Choose at least one token and a whole number of editions, up to \(TokenTransferRequest.maxTokens) tokens at once."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .proofOfPossessionRequired: "This account's first operation reveals its key with a proof of possession, which needs the secret key."
         case .cannotPayFee: "This account holds no tez on this network, or too little to pay the fee."

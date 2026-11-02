@@ -144,6 +144,10 @@ final class WalletViewModel {
     var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && canExportSelectedKey }
     var isPresentingGovernance = false
     var isPresentingBridge = false
+    /// The NFTs a Transfer or Burn was started on from the grid's context menu; the sheet shows while set.
+    var nftOperation: NFTOperation? = nil
+    /// The tokens whose artwork is being downloaded, while the Download sheet is up.
+    var nftDownload: NFTDownload? = nil
     var isPresentingShield = false
     var isPresentingUnshield = false
     var isPresentingSendShielded = false

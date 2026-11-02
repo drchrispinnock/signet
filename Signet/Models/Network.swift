@@ -233,6 +233,21 @@ struct Network: Hashable, Identifiable, Sendable {
         return Self.isTzKTFrontEnd(explorerURL) ? explorerURL.appendingPathComponent(address) : URL(string: "\(explorerURL.absoluteString)/#contract/\(address)")
     }
 
+    /// Where to look a token up, if this network has an explorer: tzkt.io front ends have a
+    /// token page; others get the contract.
+    func explorerURL(token contract: String, id: String) -> URL? {
+        guard let explorerURL else { return nil }
+        guard Self.isTzKTFrontEnd(explorerURL) else { return self.explorerURL(contract: contract) }
+        return explorerURL.appendingPathComponent(contract).appendingPathComponent("tokens").appendingPathComponent(id)
+    }
+
+    /// The token's page on objkt.com, the marketplace that lists every mainnet token; `nil`
+    /// elsewhere (testnets have no marketplace, and Etherlink's Michelson side is not indexed there).
+    func objktURL(token contract: String, id: String) -> URL? {
+        guard isMainnet, layerNumber == 1 else { return nil }
+        return URL(string: "https://objkt.com/tokens/\(contract)/\(id)")
+    }
+
     private static func isTzKTFrontEnd(_ url: URL) -> Bool {
         let host = url.host()?.lowercased() ?? ""
         return host == "tzkt.io" || host.hasSuffix(".tzkt.io")
