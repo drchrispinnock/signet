@@ -6,9 +6,9 @@
 
 **Tezos**
 
-[1] L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger White Paper*, https://tezos.com/whitepaper.pdf, 2014.
+[1] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger White Paper](https://tezos.com/whitepaper.pdf)*, 2014.
 
-[2] L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger Position Paper*, https://tezos.com/position-paper.pdf, 2014.
+[2] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://tezos.com/position-paper.pdf)*, 2014.
 
 [3] [Tezos website](https://tezos.com)
 
