@@ -56,3 +56,9 @@ struct NFT: Identifiable, Hashable, Sendable {
         self.init(id: id, contract: contract, tokenId: tokenId, name: name, balance: balance, imageURLs: thumbnailURL.map { [$0] } ?? [])
     }
 }
+
+/// Tokens whose artwork is being saved to disk, shown by the Download sheet.
+struct NFTDownload: Identifiable, Hashable, Sendable {
+    let nfts: [NFT]
+    var id: String { nfts.map(\.id).joined(separator: ",") }
+}
