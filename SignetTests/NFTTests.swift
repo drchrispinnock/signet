@@ -1,4 +1,6 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import Foundation
 import Testing
 @testable import Signet
@@ -118,11 +120,15 @@ struct NFTClassificationTests {
 struct ImageLoaderTests {
     @Test func downsamplesToRequestedSize() throws {
         // A 1000x500 red PNG made in memory.
+        #if canImport(AppKit)
         let image = NSImage(size: NSSize(width: 1000, height: 500), flipped: false) { rect in
             NSColor.red.setFill(); rect.fill(); return true
         }
         let tiff = try #require(image.tiffRepresentation)
         let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        #else
+        let png = try #require(solidPNG(width: 1000, height: 500, rgba: 0xFF0000FF))
+        #endif
 
         let small = try #require(ImageLoader.downsample(png, maxPixelSize: 200))
         #expect(small.size.width == 200)
@@ -133,9 +139,13 @@ struct ImageLoaderTests {
     /// A display render over the size cap is over it on every gateway: the loader asks one
     /// gateway, skips the others for that content and goes on to the thumbnail.
     @Test func skipsEveryGatewayForContentTooLargeAndFallsBackToTheThumbnail() async throws {
+        #if canImport(AppKit)
         let image = NSImage(size: NSSize(width: 40, height: 20), flipped: false) { rect in NSColor.blue.setFill(); rect.fill(); return true }
         let tiff = try #require(image.tiffRepresentation)
         let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        #else
+        let png = try #require(solidPNG(width: 40, height: 20, rgba: 0x0000FFFF))
+        #endif
         let large = "QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc"
         let small = "QmXxvrULyrWH18e6kUinPNXt5PAwv6h7MPcmWbSw4DwDuP"
         let urls = IPFS.candidateURLs(for: "ipfs://\(large)") + IPFS.candidateURLs(for: "ipfs://\(small)")
@@ -180,3 +190,16 @@ struct ImageLoaderTests {
         #expect((image?.size.width ?? 0) <= 100)
     }
 }
+
+#if !canImport(AppKit)
+import CAdwaita
+
+/// A PNG of one colour, made with gdk-pixbuf where AppKit is missing.
+private func solidPNG(width: Int, height: Int, rgba: UInt32) -> Data? {
+    guard let pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, 1, 8, Int32(width), Int32(height)) else { return nil }
+    defer { g_object_unref(UnsafeMutableRawPointer(pixbuf)) }
+    gdk_pixbuf_fill(pixbuf, rgba)
+    guard let texture = gdk_texture_new_for_pixbuf(pixbuf) else { return nil }
+    return ArtworkCache.png(PlatformImage(texture: texture))
+}
+#endif
