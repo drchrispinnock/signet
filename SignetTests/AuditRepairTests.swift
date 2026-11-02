@@ -3,7 +3,9 @@ import Foundation
 import FoundationNetworking
 #endif
 import Testing
+#if canImport(WebKit)
 import WebKit
+#endif
 @testable import Signet
 
 struct AuditRepairTests {
