@@ -31,7 +31,8 @@ struct ActivityTabsView: View {
             case .nfts:
                 NFTGridView(nfts: model.visibleNFTs, isLoading: model.isLoading, state: model.portfolioState,
                             layerEmptyText: model.layerEmptyText(for: "NFTs"),
-                            actions: NFTActions(network: { model.tokenNetwork(on: $0) }, canOperate: { model.canTransferTokens(on: $0) }, start: { model.nftOperation = $0 }))
+                            actions: NFTActions(network: { model.tokenNetwork(on: $0) }, canOperate: { model.canTransferTokens(on: $0) }, start: { model.nftOperation = $0 },
+                                                download: { model.nftDownload = $0 }))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

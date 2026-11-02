@@ -10,6 +10,8 @@ struct NFTActions {
     let canOperate: (Int) -> Bool
     /// Opens the Transfer or Burn sheet on the tokens.
     let start: (NFTOperation) -> Void
+    /// Saves the tokens' artwork to disk.
+    let download: (NFTDownload) -> Void
 }
 
 /// Grid of NFT thumbnails at the bottom of the default screen. Tiles select like files in the
@@ -82,7 +84,7 @@ struct NFTGridView: View {
 
 /// The right-click menu of one tile or of the selection: Transfer and Burn when the account
 /// can sign for its tokens (never for a selection spanning Tezos and Etherlink, or a soulbound
-/// token), then the links and copies of a single token, then selection.
+/// token), Download for the artwork, then the links and copies of a single token, then selection.
 struct NFTContextMenu: View {
     let targets: [NFT]
     let actions: NFTActions?
@@ -104,8 +106,10 @@ struct NFTContextMenu: View {
         if let reason {
             Text(reason)
         }
+        Divider()
+        Button("Download\(plural)…") { actions?.download(NFTDownload(nfts: targets)) }
+            .disabled(actions == nil || !targets.allSatisfy { !$0.artifactURLs.isEmpty || !$0.imageURLs.isEmpty })
         if targets.count == 1, let nft = targets.first {
-            Divider()
             if let actions {
                 let network = actions.network(nft.layer)
                 if let url = network.explorerURL(token: nft.contract, id: nft.tokenId) {
