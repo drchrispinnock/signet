@@ -1,6 +1,6 @@
 SEC|Tezos
-L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger White Paper*, https://tezos.com/whitepaper.pdf, September 2014
-L. M. Goodman, *Tezos: A Self-Amending Crypto-Ledger Position Paper*, https://tezos.com/position-paper.pdf, August 2014
+L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger White Paper](https://tezos.com/whitepaper.pdf)*, 2014.
+L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://tezos.com/position-paper.pdf)*, 2014.
 [Tezos website](https://tezos.com)
 [Tezos, Wikipedia entry](https://en.wikipedia.org/wiki/Tezos)
 [Octez](https://octez.tezos.com), the reference implementation of the Tezos blockchain.

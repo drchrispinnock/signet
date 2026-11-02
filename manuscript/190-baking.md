@@ -26,7 +26,9 @@ Click `Register as Baker`.
 
 ![](190/delegate2.png)
 
-There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You'll need to stake at least 6000tz or 10% of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. Go to the `Staking` button and stake whatever you would like.
+There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz staked including external stakers. Also, you'll need to stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, this means you'll need to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
+
+Go to the `Staking` button and stake whatever you would like.
 
 You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 9ac4bf2d -->[7]<!-- ENDMARKUPBIBTAG -->.
 
@@ -119,13 +121,13 @@ To propose it, paste the protocol hash into the proposal dialogue and upvote it.
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
 ![](gvn/2-proposal-162togo.png)
-Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for, against or simply pass for the proposal. There needs to be a quorum for the vote to go through. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Here we are in the Exploration period:
+Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for, against or simply pass for the proposal. There needs to be a quorum and a supermajority of 80% of yea/nay votes for the vote to go through. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Here we are in the Exploration period:
 
 ![](gvn/3-exploration-before-vote.png)
 And now there are voting buttons: `Yay`, `Nay` and `Pass`. We are going to vote `Yay` by clicking the button. Then `Confirm` in the next screen.
 
 ![](gvn/2-voting-yay.png)
-Coming back to the Governance screen, we see that we have 39.92% of the 55% quorum and the vote is currently 100% on `Yay`. 
+Coming back to the Governance screen, we see that we have 39.92% and the required quorum is 55%. The vote is currently 100% on `Yay`. 
 ![](gvn/3-exploration.png)
 
 
@@ -135,7 +137,7 @@ The next phase of the governance process is Cooldown. During this period, blockc
 The next phase is the Promotion period. By this stage, the bakers are confident that the protocol proposal is fit for purpose. If they are not, this is their chance to vote against it. Again, they can vote for, against or pass. Here we are in the Promotion period:
 
 ![](gvn/promotion.png)
-We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol.
+We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol. Similar to Exploration, a 80% supermajority is needed during Promotion.
 
 The last phase is Adoption. There is nothing to do from a governance process. It's time to make sure all of our applications are up to date. If we are running a baker, we'll need to update it to the latest Octez. Essentially the governance process is complete. The Adoption period gives the blockchain participants time to update their applications and systems.
 
@@ -143,7 +145,7 @@ The last phase is Adoption. There is nothing to do from a governance process. It
 
 After this period, the network switches to the new protocol and returns to the Proposal stage.
 
-If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the quorum and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there are not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
+If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the participation and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there are not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
 
 
 {#id: 190-baking_2_Baking}

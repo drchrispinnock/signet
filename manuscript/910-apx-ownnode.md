@@ -79,7 +79,7 @@ $ octez-node config init --network=mainnet \
 Import a snapshot (as with the docker method).
 
 ```
-$ wget https://snapshots.tzinit.org/mainnet/rolling
+$ curl -o rolling https://snapshots.tzinit.org/mainnet/rolling
 $ octez-node snapshot import rolling
 $ rm -f rolling
 ```
@@ -143,7 +143,7 @@ $ sudo systemctl enable octez-node
 $ sudo systemctl start octez-node
 ```
 
-Connect Signet to the node as per the first section in this Appendix. You'll need the IP address of your Linux machine and you can get this on Debian Linux 13 using `ifconfig` - for example, in this case 192.168.1.140.
+Connect Signet to the node as per the first section in this Appendix. You'll need the IP address of your Linux machine and you can get this on Debian Linux 13 using `ip -br addr` - for example, in this case 192.168.1.140.
 
 
 ```
