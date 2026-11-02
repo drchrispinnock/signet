@@ -484,6 +484,27 @@ struct TaquitoChainService: ChainService {
         return try Self.estimate(from: result)
     }
 
+    func estimateTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet) async throws -> TokenTransferEstimate {
+        guard request.isValid else { throw ChainError.invalidTokenTransfer }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
+        try await verifyChain()
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateTokenTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, request.to.value, request.transfersJSON], timeout: 120) }
+        guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue), let burn = Mutez.toTez(result["burnMutez"]?.stringValue), let limits = BatchLimits(result["limits"]),
+              limits.operations.count == request.contracts.count
+        else { throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: result))") }
+        return TokenTransferEstimate(fee: fee, burn: burn, limits: limits)
+    }
+
+    func sendTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet, signer: SigningKey, limits: BatchLimits) async throws -> SentOperation {
+        guard request.isValid else { throw ChainError.invalidTokenTransfer }
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendTokenTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, request.to.value, request.transfersJSON, limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected token transfer payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     func sendEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation {
         try await verifyChain()
         let result = try await signing { try await bridge.sign("sendEtherlinkGovernance", [network.rpcURL.absoluteString, signer.bridgeSpec, contract.value, operation.entrypoint, operation.payload, limits.json]) }

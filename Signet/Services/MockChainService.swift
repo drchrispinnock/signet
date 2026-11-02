@@ -187,4 +187,16 @@ struct MockChainService: ChainService {
         if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
         return SentOperation(hash: "ooMockEtherlink\(operation.entrypoint)")
     }
+
+    func estimateTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet) async throws -> TokenTransferEstimate {
+        guard request.isValid else { throw ChainError.invalidTokenTransfer }
+        let operations = request.contracts.map { _ in BatchLimits.Operation(feeMutez: "1500", gasLimit: 3000, storageLimit: 50) }
+        return TokenTransferEstimate(fee: Decimal(operations.count) * Decimal(string: "0.0015")!, burn: Decimal(operations.count) * Decimal(string: "0.0125")!, limits: BatchLimits(operations: operations))
+    }
+
+    func sendTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet, signer: SigningKey, limits: BatchLimits) async throws -> SentOperation {
+        if wallet.keyKind == .encrypted, case .secret(_, let passphrase, _) = signer, passphrase != "correct horse" { throw ChainError.wrongPassphrase }
+        guard limits.operations.count == request.contracts.count else { throw ChainError.invalidTokenTransfer }
+        return SentOperation(hash: "ooMockTokens\(request.count)")
+    }
 }
