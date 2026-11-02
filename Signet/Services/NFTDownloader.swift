@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Saves an NFT's artwork to disk: the full artifact (the video, sound or full-size image the
 /// token points at), or the display image when the metadata names no artifact. Content comes
