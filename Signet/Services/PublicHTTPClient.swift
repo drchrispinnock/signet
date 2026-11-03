@@ -98,7 +98,12 @@ enum PublicHTTPClient {
         let file = directory.appendingPathComponent("request")
         try PrivateFile.write(Data(config.utf8), to: file)
         let process = Process()
+        #if os(FreeBSD)
+        // Packages install under /usr/local on FreeBSD; the base system has no curl.
+        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/curl")
+        #else
         process.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
+        #endif
         process.arguments = ["-q", "--config", file.path]
         // No proxy/env overrides, credential helpers or user configuration are inherited.
         process.environment = ["PATH": "/usr/bin:/bin"]
