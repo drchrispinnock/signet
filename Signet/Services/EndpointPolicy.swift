@@ -63,7 +63,12 @@ enum EndpointPolicy {
 
     private static func numericAddress(_ info: UnsafeMutablePointer<addrinfo>) -> String? {
         var buffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        #if os(FreeBSD)
+        // FreeBSD's getnameinfo takes the buffer lengths as size_t.
+        guard getnameinfo(info.pointee.ai_addr, info.pointee.ai_addrlen, &buffer, buffer.count, nil, 0, NI_NUMERICHOST) == 0 else { return nil }
+        #else
         guard getnameinfo(info.pointee.ai_addr, info.pointee.ai_addrlen, &buffer, socklen_t(buffer.count), nil, 0, NI_NUMERICHOST) == 0 else { return nil }
+        #endif
         return String(cString: buffer)
     }
 
