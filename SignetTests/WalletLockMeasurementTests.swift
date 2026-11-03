@@ -41,7 +41,11 @@ struct WalletLockMeasurementTests {
                 for index in 0..<10 {
                     let process = Process(), release = Pipe(), ready = Pipe()
                     if seconds > 0 {
+                        #if os(FreeBSD)
+                        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
+                        #else
                         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+                        #endif
                         process.arguments = ["-c", "import fcntl,select,sys\nf=open(sys.argv[1],'a+')\nfcntl.lockf(f,fcntl.LOCK_EX)\nprint('locked',flush=True)\nselect.select([sys.stdin],[],[],float(sys.argv[2]))\n", directory.appendingPathComponent(TezosClientStore.lockFile).path, String(seconds)]
                         process.standardOutput = ready; process.standardInput = release
                         try process.run()
