@@ -1,6 +1,8 @@
 import Foundation
 import Testing
+#if canImport(WebKit)
 import WebKit
+#endif
 @testable import Signet
 
 /// S23: the embedded purchase page has no address bar, so the navigation and media policy
