@@ -486,7 +486,11 @@ struct TezosClientStoreIntegrityTests {
         // The lock is advisory per process; hold it from a child process with a short timeout.
         let script = "import fcntl,time,sys\nf=open(sys.argv[1],'a+')\nfcntl.lockf(f,fcntl.LOCK_EX)\nprint('locked',flush=True)\ntime.sleep(2.5)\n"
         let process = Process()
+        #if os(FreeBSD)
+        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/python3")
+        #else
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        #endif
         process.arguments = ["-c", script, dir.appendingPathComponent(TezosClientStore.lockFile).path]
         let pipe = Pipe()
         process.standardOutput = pipe
