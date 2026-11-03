@@ -1,4 +1,6 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import Foundation
 import Testing
 @testable import Signet
@@ -15,9 +17,13 @@ struct ArtworkCacheTests {
     }
 
     private func samplePNG(width: Int = 40, height: Int = 20) throws -> Data {
+        #if canImport(AppKit)
         let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in NSColor.green.setFill(); rect.fill(); return true }
         let tiff = try #require(image.tiffRepresentation)
         return try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        #else
+        return try #require(solidPNG(width: width, height: height, rgba: 0x00FF00FF))
+        #endif
     }
 
     @Test func keysIPFSContentByPathAndOtherURLsByURL() {
@@ -168,3 +174,16 @@ struct ArtworkCacheTests {
         #expect(await log.urls.count == 2)
     }
 }
+
+#if !canImport(AppKit)
+import CAdwaita
+
+/// A PNG of one colour, made with gdk-pixbuf where AppKit is missing.
+private func solidPNG(width: Int, height: Int, rgba: UInt32) -> Data? {
+    guard let pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, 1, 8, Int32(width), Int32(height)) else { return nil }
+    defer { g_object_unref(UnsafeMutableRawPointer(pixbuf)) }
+    gdk_pixbuf_fill(pixbuf, rgba)
+    guard let texture = gdk_texture_new_for_pixbuf(pixbuf) else { return nil }
+    return ArtworkCache.png(PlatformImage(texture: texture))
+}
+#endif
