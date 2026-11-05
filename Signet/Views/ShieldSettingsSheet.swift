@@ -49,6 +49,9 @@ struct ShieldSettingsSheet: View {
                             )
                             .id("\(base.name)/shielded/\(setting.rawValue)")
                         }
+                        if let plain = Self.plainHTTP(model.shieldedSetting(.operatorURL, in: base), model.shieldedSetting(.rollupNode, in: base)) {
+                            Label(plain, systemImage: "lock.open").font(.callout).foregroundStyle(.orange)
+                        }
                     } header: {
                         SectionHeader(title: "TzEL services", help: servicesHelp)
                     }
@@ -111,6 +114,15 @@ struct ShieldSettingsSheet: View {
     }
 
     /// Keeps the token in the network's shielded wallet file; the field empties once it is on file.
+    /// What to say when the operator or the rollup node is reached over plain HTTP: the
+    /// access token and every request travel unencrypted, and a network in between can
+    /// change the answers. The shipped Shadownet deployment offers nothing else (November 2026).
+    nonisolated static func plainHTTP(_ operatorURL: String, _ rollupNode: String) -> String? {
+        let plain = [("operator", operatorURL), ("rollup node", rollupNode)].filter { $0.1.lowercased().hasPrefix("http://") }.map(\.0)
+        guard !plain.isEmpty else { return nil }
+        return "The \(plain.joined(separator: " and ")) \(plain.count == 1 ? "is" : "are") reached over plain HTTP: the access token and every request travel unencrypted, and anything between you and the service can read or change them. Use https where the deployment offers it."
+    }
+
     private func applyOperatorToken() {
         guard let base = editingNetwork else { return }
         operatorTokenError = nil
