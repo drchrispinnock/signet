@@ -280,6 +280,12 @@ enum RollupState {
     static func indexed(_ prefix: String, _ index: Int) -> String { prefix + String(format: "%016llx", UInt64(index)) }
     static func depositBalance(_ pubkeyHash: String) -> String { depositBalancePrefix + pubkeyHash }
 
+    /// A rollup level as the kernel stores it: `nil` unless it fits a non-negative Int32.
+    static func level(_ value: Int) -> Int32? {
+        guard value >= 0, value <= Int(Int32.max) else { return nil }
+        return Int32(value)
+    }
+
     static func requiredTxFee(privateTxsInLevel count: UInt64) -> UInt64 {
         let step = min(count > basePrivateTxsPerLevel - 1 ? count - (basePrivateTxsPerLevel - 1) : 0, maxDynamicFeeStep)
         return minTxFee << step
@@ -317,7 +323,10 @@ extension ShieldedRollup {
 
     /// The fee the rollup will demand of the next inbox level, read at `head`.
     func requiredTxFee(at head: RollupHead) async throws -> UInt64 {
-        let nextInbox = Int32(clamping: head.level + 1)
+        // Levels are 32-bit on the rollup; a head outside that range is a bad reply, not a trap (S20).
+        guard head.level >= 0, head.level < Int(Int32.max), let nextInbox = RollupState.level(head.level + 1) else {
+            throw ShieldedError.badReply("rollup level \(head.level) is out of range")
+        }
         let lastInput = try await i32(at: head.hash, key: RollupState.lastInputLevel)
         let feeLevel = try await i32(at: head.hash, key: RollupState.privateTxFeeLevel)
         var count: UInt64 = 0
@@ -471,10 +480,18 @@ struct RollupNodeService: ShieldedRollup {
         return try JSONSerialization.jsonObject(with: reply.data, options: [.fragmentsAllowed])
     }
 
+    /// A 4xx is the service saying it did not take the request, except the ones that say
+    /// nothing about it: a request timeout, a conflict (a duplicate it may already hold),
+    /// too early and too many requests leave the outcome open, like a 5xx or no reply.
+    static func isRejection(_ status: Int) -> Bool {
+        (400..<500).contains(status) && ![408, 409, 425, 429].contains(status)
+    }
+
     private static func failure(_ reply: BoundedHTTP.Reply, url: URL) -> ShieldedError {
         let body = String(decoding: reply.data.prefix(300), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         let where_ = url.host() ?? url.absoluteString
         if reply.status == 401 || reply.status == 403 { return .operatorRefused("\(where_) did not accept the access token (HTTP \(reply.status))") }
+        if Self.isRejection(reply.status) { return .rejected(status: reply.status, "\(where_)\(body.isEmpty ? "" : ": \(body)")") }
         return .badReply("HTTP \(reply.status) from \(where_)\(body.isEmpty ? "" : ": \(body)")")
     }
 
@@ -486,6 +503,7 @@ struct RollupNodeService: ShieldedRollup {
         }
         let level = try await getJSON(url(config.rollupNode, "/global/block/\(hash)/level"), limit: Self.smallReply)
         guard let number = (level as? NSNumber)?.intValue ?? (level as? String).flatMap(Int.init) else { throw ShieldedError.badReply("no head level") }
+        guard RollupState.level(number) != nil else { throw ShieldedError.badReply("head level \(number) is out of range") }
         return RollupHead(hash: hash, level: number)
     }
 
@@ -577,7 +595,7 @@ struct RollupNodeService: ShieldedRollup {
 
     func cementedLevel() async throws -> Int {
         let level = try await getJSON(url(config.rollupNode, "/global/block/cemented/level"), limit: Self.smallReply)
-        guard let number = (level as? NSNumber)?.intValue ?? (level as? String).flatMap(Int.init) else { throw ShieldedError.badReply("no cemented level") }
+        guard let number = (level as? NSNumber)?.intValue ?? (level as? String).flatMap(Int.init), RollupState.level(number) != nil else { throw ShieldedError.badReply("no cemented level") }
         return number
     }
 

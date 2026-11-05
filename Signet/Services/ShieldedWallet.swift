@@ -65,7 +65,8 @@ struct ShieldedNote: Codable, Hashable, Sendable, Identifiable {
 /// it is cemented (about 14 days) the account can execute it on Tezos (`executedHash`).
 struct ShieldedWithdrawal: Codable, Hashable, Sendable, Identifiable {
     var id: String { submissionID }
-    let submissionID: String
+    /// The operator's id once it has answered; before that a `local:` id of our own.
+    var submissionID: String
     let recipient: String
     let amountMutez: String
     let rollupFeeMutez: String
@@ -84,17 +85,71 @@ struct ShieldedWithdrawal: Codable, Hashable, Sendable, Identifiable {
     var messageIndex: Int?
     /// The layer 1 operation that executed the outbox message.
     var executedHash: String?
+    /// The exact kernel message handed to the operator, kept from before it was contacted.
+    var payloadHex: String? = nil
+    /// The operator acknowledged the submission. `false` while its reply is unknown: the
+    /// request may still be applied, so the notes stay reserved until the scan sees them
+    /// spent or the user forgets the record.
+    var submitted = true
 
     var amount: UInt64 { UInt64(amountMutez) ?? 0 }
     var rollupFee: UInt64 { UInt64(rollupFeeMutez) ?? 0 }
     var producerFee: UInt64 { UInt64(producerFeeMutez) ?? 0 }
+
+    /// A `local:` id for a record written before the operator has answered.
+    static func localID() -> String { "local:" + UUID().uuidString }
+
+    private enum CodingKeys: String, CodingKey {
+        case submissionID, recipient, amountMutez, rollupFeeMutez, producerFeeMutez, nullifiers, changeCm, submittedLevel, created, operationHash, applied, outboxLevel, messageIndex, executedHash, payloadHex, submitted
+    }
+
+    init(submissionID: String, recipient: String, amountMutez: String, rollupFeeMutez: String, producerFeeMutez: String, nullifiers: [String], changeCm: String?, submittedLevel: Int, created: Date, operationHash: String? = nil, applied: Bool = false, outboxLevel: Int? = nil, messageIndex: Int? = nil, executedHash: String? = nil, payloadHex: String? = nil, submitted: Bool = true) {
+        self.submissionID = submissionID
+        self.recipient = recipient
+        self.amountMutez = amountMutez
+        self.rollupFeeMutez = rollupFeeMutez
+        self.producerFeeMutez = producerFeeMutez
+        self.nullifiers = nullifiers
+        self.changeCm = changeCm
+        self.submittedLevel = submittedLevel
+        self.created = created
+        self.operationHash = operationHash
+        self.applied = applied
+        self.outboxLevel = outboxLevel
+        self.messageIndex = messageIndex
+        self.executedHash = executedHash
+        self.payloadHex = payloadHex
+        self.submitted = submitted
+    }
+
+    /// Files written before the payload and acknowledgement were recorded read as submitted.
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        submissionID = try c.decode(String.self, forKey: .submissionID)
+        recipient = try c.decode(String.self, forKey: .recipient)
+        amountMutez = try c.decode(String.self, forKey: .amountMutez)
+        rollupFeeMutez = try c.decode(String.self, forKey: .rollupFeeMutez)
+        producerFeeMutez = try c.decode(String.self, forKey: .producerFeeMutez)
+        nullifiers = try c.decode([String].self, forKey: .nullifiers)
+        changeCm = try c.decodeIfPresent(String.self, forKey: .changeCm)
+        submittedLevel = try c.decode(Int.self, forKey: .submittedLevel)
+        created = try c.decode(Date.self, forKey: .created)
+        operationHash = try c.decodeIfPresent(String.self, forKey: .operationHash)
+        applied = try c.decodeIfPresent(Bool.self, forKey: .applied) ?? false
+        outboxLevel = try c.decodeIfPresent(Int.self, forKey: .outboxLevel)
+        messageIndex = try c.decodeIfPresent(Int.self, forKey: .messageIndex)
+        executedHash = try c.decodeIfPresent(String.self, forKey: .executedHash)
+        payloadHex = try c.decodeIfPresent(String.self, forKey: .payloadHex)
+        submitted = try c.decodeIfPresent(Bool.self, forKey: .submitted) ?? true
+    }
 }
 
 /// A shielded transfer handed to the operator: `amountMutez` to the payment address with
 /// `recipientFingerprint`. Its input notes stay reserved until the rollup spends them.
 struct ShieldedTransfer: Codable, Hashable, Sendable, Identifiable {
     var id: String { submissionID }
-    let submissionID: String
+    /// The operator's id once it has answered; before that a `local:` id of our own.
+    var submissionID: String
     let recipientFingerprint: String
     /// The address-book name it was sent to, if any.
     let recipientName: String?
@@ -109,8 +164,52 @@ struct ShieldedTransfer: Codable, Hashable, Sendable, Identifiable {
     var operationHash: String?
     /// The rollup has spent every input: the recipient has the note.
     var applied = false
+    /// The exact kernel message handed to the operator, kept from before it was contacted.
+    var payloadHex: String? = nil
+    /// The operator acknowledged the submission (see `ShieldedWithdrawal.submitted`).
+    var submitted = true
 
     var amount: UInt64 { UInt64(amountMutez) ?? 0 }
+
+    private enum CodingKeys: String, CodingKey {
+        case submissionID, recipientFingerprint, recipientName, amountMutez, rollupFeeMutez, producerFeeMutez, memo, nullifiers, recipientCm, changeCm, created, operationHash, applied, payloadHex, submitted
+    }
+
+    init(submissionID: String, recipientFingerprint: String, recipientName: String?, amountMutez: String, rollupFeeMutez: String, producerFeeMutez: String, memo: String, nullifiers: [String], recipientCm: String, changeCm: String, created: Date, operationHash: String? = nil, payloadHex: String? = nil, submitted: Bool = true) {
+        self.submissionID = submissionID
+        self.recipientFingerprint = recipientFingerprint
+        self.recipientName = recipientName
+        self.amountMutez = amountMutez
+        self.rollupFeeMutez = rollupFeeMutez
+        self.producerFeeMutez = producerFeeMutez
+        self.memo = memo
+        self.nullifiers = nullifiers
+        self.recipientCm = recipientCm
+        self.changeCm = changeCm
+        self.created = created
+        self.operationHash = operationHash
+        self.payloadHex = payloadHex
+        self.submitted = submitted
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        submissionID = try c.decode(String.self, forKey: .submissionID)
+        recipientFingerprint = try c.decode(String.self, forKey: .recipientFingerprint)
+        recipientName = try c.decodeIfPresent(String.self, forKey: .recipientName)
+        amountMutez = try c.decode(String.self, forKey: .amountMutez)
+        rollupFeeMutez = try c.decode(String.self, forKey: .rollupFeeMutez)
+        producerFeeMutez = try c.decode(String.self, forKey: .producerFeeMutez)
+        memo = try c.decode(String.self, forKey: .memo)
+        nullifiers = try c.decode([String].self, forKey: .nullifiers)
+        recipientCm = try c.decode(String.self, forKey: .recipientCm)
+        changeCm = try c.decode(String.self, forKey: .changeCm)
+        created = try c.decode(Date.self, forKey: .created)
+        operationHash = try c.decodeIfPresent(String.self, forKey: .operationHash)
+        applied = try c.decodeIfPresent(Bool.self, forKey: .applied) ?? false
+        payloadHex = try c.decodeIfPresent(String.self, forKey: .payloadHex)
+        submitted = try c.decodeIfPresent(Bool.self, forKey: .submitted) ?? true
+    }
 }
 
 /// A shielded address of someone else: the payment address as the reference JSON, under a
@@ -309,15 +408,30 @@ protocol ShieldedWalletStore: Sendable {
 struct FileShieldedWalletStore: ShieldedWalletStore {
     let directory: URL
     let chain: String
+    /// The most the wallet file may hold, read or written: a file is never replaced by one
+    /// Signet could not read back (the key file and the scanned commitments share it).
+    var maxBytes = defaultMaxBytes
+    /// How long to wait for another process holding the lock file.
+    var lockTimeout: TimeInterval = 5
+
+    /// One rule with every reader that takes the file by name (the backup's snapshot and
+    /// fingerprint), so a wallet the store accepts is one the backup saves.
+    static let defaultMaxBytes = PrivateFile.largeStateBytes
 
     /// One lock per wallet file in this process: the scan writes from its own task while the
-    /// main actor spends key indexes, and each must see the other's write.
+    /// main actor spends key indexes, and each must see the other's write. Beneath it the
+    /// lock *file* (`lockf`, like the wallet's `wallet_lock`) excludes other processes: a
+    /// second Signet, a port or a tool on the same directory would otherwise read the same
+    /// next key index and both spend it, and a WOTS+ key must never sign twice.
     private final class FileLocks: @unchecked Sendable {
         private let guardLock = NSLock()
         private var locks: [String: NSLock] = [:]
         func lock(for file: URL) -> NSLock {
             guardLock.withLock {
-                let key = file.standardizedFileURL.path
+                // The real path (symlinks resolved, as `TezosClientStore.LocalLocks` does): two
+                // stores reaching the same file through different paths share the one lock,
+                // since `lockf` is per process and would let both threads through.
+                let key = file.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL.appendingPathComponent(file.lastPathComponent).path
                 if let existing = locks[key] { return existing }
                 let fresh = NSLock()
                 locks[key] = fresh
@@ -326,9 +440,32 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         }
     }
     private static let fileLocks = FileLocks()
-    private func locked<T>(_ body: () throws -> T) rethrows -> T { try Self.fileLocks.lock(for: walletURL).withLock(body) }
+    private func locked<T>(_ body: () throws -> T) throws -> T {
+        try Self.fileLocks.lock(for: walletURL).withLock { try Self.withFileLock(at: lockURL, timeout: lockTimeout, body) }
+    }
+
+    /// Holds an advisory lock on `url` (created if need be) while `body` runs; another process
+    /// holding it is waited for up to `timeout`, then `ShieldedError.walletLocked`.
+    static func withFileLock<T>(at url: URL, timeout: TimeInterval, _ body: () throws -> T) throws -> T {
+        let directory = url.deletingLastPathComponent()
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        }
+        let fd = open(url.path, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(fd) }
+        let deadline = Date().addingTimeInterval(timeout)
+        while lockf(fd, F_TLOCK, 0) != 0 {
+            let busy = errno == EAGAIN || errno == EACCES
+            guard busy, Date() < deadline else { throw busy ? ShieldedError.walletLocked : POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+            usleep(50_000)
+        }
+        defer { _ = lockf(fd, F_ULOCK, 0) }
+        return try body()
+    }
 
     static func walletFile(chain: String) -> String { "tzel-\(chain).json" }
+    static func lockFile(chain: String) -> String { "tzel-\(chain).lock" }
     static func leavesFile(chain: String, account: Address, addressIndex: Int) -> String { "tzel-\(chain)-\(account.value)-auth\(addressIndex).bin" }
     /// Where a version 1 file kept its one address's leaves.
     static func legacyLeavesFile(chain: String, addressIndex: Int) -> String { "tzel-\(chain)-auth\(addressIndex).bin" }
@@ -356,8 +493,10 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         }
     }
 
+    private var lockURL: URL { directory.appendingPathComponent(Self.lockFile(chain: chain)) }
+
     private func read() throws -> ShieldedWalletFile? {
-        guard let data = try PrivateFile.read(walletURL) else { return nil }
+        guard let data = try PrivateFile.read(walletURL, limit: maxBytes) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let header = try JSONSerialization.jsonObject(with: data) as? [String: Any], let version = header["version"] as? Int else {
@@ -374,7 +513,10 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try PrivateFile.write(try encoder.encode(file), to: walletURL)
+        let data = try encoder.encode(file)
+        // Never replace a readable file with one the reader would refuse (S10).
+        guard data.count <= maxBytes else { throw ShieldedError.walletTooLarge(bytes: data.count, limit: maxBytes) }
+        try PrivateFile.write(data, to: walletURL)
     }
 
     func load(account: Address) throws -> ShieldedWallet? { try locked { try read()?.accounts[account.value] } }
@@ -518,6 +660,12 @@ enum ShieldedError: LocalizedError, Equatable {
     case badPaymentAddress(String)
     case contactExists(String)
     case memoTooLong
+    /// Another process holds the shielded wallet file's lock.
+    case walletLocked
+    /// The wallet file would be larger than Signet reads back; nothing was written.
+    case walletTooLarge(bytes: Int, limit: Int)
+    /// A service answered with a client error other than an access refusal: it did not take the request.
+    case rejected(status: Int, String)
     /// The operator still has it: not a failure, but not delivered within the wait either.
     case submissionPending(String)
 
@@ -548,6 +696,9 @@ enum ShieldedError: LocalizedError, Equatable {
         case .badPaymentAddress(let detail): "That is not a shielded payment address: \(detail)"
         case .contactExists(let name): "That shielded address is already in the address book as “\(name)”."
         case .memoTooLong: "The memo must be at most 1024 bytes."
+        case .walletLocked: "Another program is using the shielded wallet file. Try again in a moment."
+        case .walletTooLarge(let bytes, let limit): "The shielded wallet file would be \(bytes >> 20) MB, more than the \(limit >> 20) MB Signet reads back. Nothing was written."
+        case .rejected(let status, let detail): "The request was rejected (HTTP \(status)) by \(detail). Nothing was taken."
         case .submissionPending(let detail): "The operator has the request but has not delivered it to the rollup yet: \(detail). It stays listed; refresh later."
         }
     }

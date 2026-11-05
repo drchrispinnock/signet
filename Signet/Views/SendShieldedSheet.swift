@@ -24,6 +24,8 @@ struct SendShieldedSheet: View {
     @State private var estimate: SendShieldedEstimate?
     @State private var estimateError: String?
     @State private var errorMessage: String?
+    /// The unacknowledged transfer being handed to the operator again, while it is.
+    @State private var resubmitting: String?
     @State private var step: Step = .compose
     @State private var submitted: SendShieldedEstimate?
 
@@ -161,7 +163,15 @@ struct SendShieldedSheet: View {
                         Text(AssetBalance.format(Decimal(transfer.amount) / Mutez.perTez, symbol: "tz")).font(.callout.monospacedDigit())
                         Text("to \(transfer.recipientName ?? Self.short(transfer.recipientFingerprint))").font(.callout).foregroundStyle(.secondary)
                         Spacer()
-                        Text(transfer.applied ? "Applied by the rollup" : "With the operator").font(.caption).foregroundStyle(.secondary)
+                        Text(transfer.applied ? "Applied by the rollup" : transfer.submitted ? "With the operator" : "Handed to the operator, no acknowledgement received").font(.caption).foregroundStyle(.secondary)
+                        if !transfer.applied, !transfer.submitted {
+                            if resubmitting == transfer.id {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Button("Submit again") { Task { await resubmit(transfer.id) } }.controlSize(.small).disabled(resubmitting != nil || !model.canShield)
+                                    .help("Hands the same message to the operator again. The rollup cannot spend the notes twice, so a copy that landed after all is simply reported as a duplicate.")
+                            }
+                        }
                         if !transfer.applied, transfer.created < Date().addingTimeInterval(-1800) {
                             Button("Forget") { errorMessage = nil; do { try model.forgetTransfer(transfer.id) } catch { errorMessage = error.localizedDescription } }.controlSize(.small)
                                 .help("Drops the record and frees its notes. Only for a transfer the operator never delivered; if it lands after all, the notes show as spent on the next refresh.")
@@ -271,4 +281,12 @@ struct SendShieldedSheet: View {
             step = .compose
         }
     }
+
+    private func resubmit(_ id: String) async {
+        errorMessage = nil
+        resubmitting = id
+        defer { resubmitting = nil }
+        do { try await model.resubmitTransfer(id) } catch { errorMessage = error.localizedDescription }
+    }
+
 }

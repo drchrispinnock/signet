@@ -232,7 +232,7 @@ struct WalletBackup: Sendable {
 
     /// SHA-256 over each saved file's name and contents, so identical wallets compare equal.
     static func fingerprint(of directory: URL) throws -> Data {
-        fingerprint(of: try files.compactMap { file in try PrivateFile.read(directory.appendingPathComponent(file)).map { (file, $0) } })
+        fingerprint(of: try files.compactMap { file in try PrivateFile.read(directory.appendingPathComponent(file), limit: PrivateFile.readLimit(for: file)).map { (file, $0) } })
     }
 
     static func fingerprint(of snapshot: [(String, Data)]) -> Data {

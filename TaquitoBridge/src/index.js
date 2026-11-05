@@ -299,6 +299,14 @@ export function bridgeEcho(message) {
   return { echoed: message, consoleType: typeof console, logType: typeof console.log };
 }
 
+/** Diagnostic: logs the parsed object (and a byte view of its `bytes`), so the host's console scrubbing can be checked. */
+export function bridgeEchoObject(json) {
+  const value = JSON.parse(json);
+  if (Array.isArray(value?.bytes)) value.typed = new Uint8Array(value.bytes);
+  console.log("echo-object:", value);
+  return { ok: true };
+}
+
 // ---- Delegation, staking and baking -----------------------------------------------------------
 
 /** The account's delegate and, if it is a baker itself, its baker record. */

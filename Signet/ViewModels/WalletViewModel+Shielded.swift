@@ -65,6 +65,8 @@ struct ShieldedWithdrawalStatus: Hashable, Sendable, Identifiable {
     let cementedLevel: Int?
 
     enum State: Hashable, Sendable {
+        /// Handed to the operator, whose answer was lost: it may yet be applied.
+        case unconfirmed
         /// With the operator; the rollup has not spent the notes yet.
         case submitted
         /// Applied by the rollup; its outbox message has not been found yet.
@@ -78,13 +80,14 @@ struct ShieldedWithdrawalStatus: Hashable, Sendable, Identifiable {
 
     var state: State {
         if let hash = withdrawal.executedHash { return .executed(hash) }
-        guard withdrawal.applied else { return .submitted }
+        guard withdrawal.applied else { return withdrawal.submitted ? .submitted : .unconfirmed }
         guard let level = withdrawal.outboxLevel, let cemented = cementedLevel else { return .queued }
         return cemented >= level ? .ready : .waiting(blocksLeft: level - cemented)
     }
 
     var text: String {
         switch state {
+        case .unconfirmed: "Handed to the operator, no acknowledgement received; the notes stay reserved until the rollup applies it or you forget it"
         case .submitted: "With the operator"
         case .queued: "Applied by the rollup, outbox message not found yet"
         case .waiting(let blocks): "Waiting for the rollup commitment to be cemented (about \(ShieldedWithdrawalStatus.days(blocks)))"
@@ -257,7 +260,7 @@ extension WalletViewModel {
     nonisolated static func scanShielded(store: any ShieldedWalletStore, account: Address, rollup: any ShieldedRollup, bridge: TaquitoBridge) async -> ShieldedSnapshot {
         func row(_ wallet: ShieldedWallet?, pools: [ShieldedPoolStatus], unavailable: String? = nil) -> AssetBalance {
             var details: [AssetBalance.Detail] = []
-            let pooled = pools.compactMap(\.balanceMutez).reduce(0, +)
+            let pooled = pools.compactMap(\.balanceMutez).reduce(UInt64(0)) { let (sum, overflow) = $0.addingReportingOverflow($1); return overflow ? UInt64.max : sum }
             if pooled > 0 { details.append(AssetBalance.Detail(id: "pooled", label: "In deposit pools, not yet shielded", amount: Decimal(pooled) / Mutez.perTez)) }
             if let reserved = wallet?.reservedMutez, reserved > 0 { details.append(AssetBalance.Detail(id: "unshielding", label: "Leaving in an unshield or transfer, not yet applied", amount: Decimal(reserved) / Mutez.perTez)) }
             return AssetBalance(id: "shielded", kind: .shielded, name: "Shielded", symbol: "tz", amount: wallet?.balance ?? 0, details: details, unavailable: unavailable)
@@ -421,6 +424,8 @@ extension WalletViewModel {
             wallet = now
         }
         shieldedWallet = wallet
+        // A new master key or first address is backed up at once, not on the next launch.
+        if rounds > 0 { await backUp() }
         return wallet
     }
 
@@ -518,6 +523,7 @@ extension WalletViewModel {
         // The pool is on file before any tez go to it.
         guard let saved = try store.update(account: account, initial: nil, { $0.pools.append(pool) }) else { throw ShieldedError.treeMissing(0) }
         shieldedWallet = saved
+        await backUp()
         return pool
     }
 
@@ -564,7 +570,8 @@ extension WalletViewModel {
             if latest.pool(approved.pool.pubkeyHash) == nil { latest.pools.append(approved.pool) }
             guard let at = latest.pools.firstIndex(where: { $0.pubkeyHash == approved.pool.pubkeyHash }) else { return }
             latest.pools[at].operationHash = sent.hash
-            latest.pools[at].depositedMutez = String((UInt64(latest.pools[at].depositedMutez) ?? 0) + added)
+            let (deposited, overflow) = (UInt64(latest.pools[at].depositedMutez) ?? 0).addingReportingOverflow(added)
+            latest.pools[at].depositedMutez = String(overflow ? UInt64.max : deposited)
         }
         if let funded { shieldedWallet = funded }
         shieldProgress = .waitingForLayer1
@@ -701,8 +708,9 @@ extension WalletViewModel {
         let shielded = try shieldedStore(for: network.chain).load(account: wallet.address)
         let rollup = shieldedRollupFactory(config)
         let fee = try await rollup.requiredTxFee(at: rollup.head())
-        let (total, overflow) = amountMutez.addingReportingOverflow(fee + config.producerFeeMutez)
-        guard !overflow else { throw SendViewModel.SendError.invalidAmount }
+        let (fees, feeOverflow) = fee.addingReportingOverflow(config.producerFeeMutez)
+        let (total, overflow) = amountMutez.addingReportingOverflow(fees)
+        guard !feeOverflow, !overflow else { throw SendViewModel.SendError.invalidAmount }
         let inputs = try Self.selectNotes(shielded?.availableNotes ?? [], covering: total)
         guard bridgeContext == context else { throw WalletError.contextChanged }
         return UnshieldEstimate(context: context, amount: amount, amountMutez: amountMutez, recipient: to, rollupFeeMutez: fee, producerFeeMutez: config.producerFeeMutez, inputs: inputs)
@@ -757,10 +765,22 @@ extension WalletViewModel {
         }
 
         shieldProgress = .submittingUnshield
-        let submission = try await rollup.submit(kind: "unshield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
-        // On file as soon as the operator has it: the inputs are reserved from here.
-        var withdrawal = ShieldedWithdrawal(submissionID: submission.id, recipient: approved.recipient, amountMutez: String(approved.amountMutez), rollupFeeMutez: String(fee), producerFeeMutez: String(config.producerFeeMutez), nullifiers: nullifiers, changeCm: changeCm, submittedLevel: head.level, created: Date(), operationHash: submission.operationHash)
+        // On file, payload included, before the operator is contacted (S15 for shielded
+        // spends): the inputs are reserved from here, whatever the network does next.
+        let localID = ShieldedWithdrawal.localID()
+        var withdrawal = ShieldedWithdrawal(submissionID: localID, recipient: approved.recipient, amountMutez: String(approved.amountMutez), rollupFeeMutez: String(fee), producerFeeMutez: String(config.producerFeeMutez), nullifiers: nullifiers, changeCm: changeCm, submittedLevel: head.level, created: Date(), payloadHex: payload, submitted: false)
         try updateWithdrawals(account: account, store: store) { $0.append(withdrawal) }
+        await backUp()
+        let submission = try await Self.submitShielded(record: localID, drop: { try self.updateWithdrawals(account: account, store: store) { list in list.removeAll { $0.id == localID } } }) {
+            try await rollup.submit(kind: "unshield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        withdrawal.submissionID = submission.id
+        withdrawal.submitted = true
+        withdrawal.operationHash = submission.operationHash
+        let acknowledged = withdrawal
+        try updateWithdrawals(account: account, store: store) { list in
+            if let at = list.firstIndex(where: { $0.id == localID }) { list[at] = acknowledged }
+        }
         do {
             let delivered = try await rollup.awaitDelivery(of: submission, token: token)
             withdrawal.operationHash = delivered.operationHash
@@ -768,12 +788,13 @@ extension WalletViewModel {
             try updateWithdrawals(account: account, store: store) { list in
                 if let at = list.firstIndex(where: { $0.id == final.id }) { list[at].operationHash = final.operationHash }
             }
-        } catch ShieldedError.submissionPending {
-            // Still with the operator: the record stays, the scan will see it land.
-        } catch {
-            // The operator gave up on it: the notes are free again.
+        } catch ShieldedError.submissionFailed(let detail) {
+            // The operator says it gave up on it: the notes are free again.
             try? updateWithdrawals(account: account, store: store) { list in list.removeAll { $0.id == submission.id } }
-            throw error
+            throw ShieldedError.submissionFailed(detail)
+        } catch {
+            // Still with the operator, or its answer could not be read: the record stays and
+            // the notes stay reserved; the scan sees it land, or Forget frees them by hand.
         }
         await refreshAfterOperation()
         return UnshieldReceipt(withdrawal: withdrawal, changeMutez: change)
@@ -860,6 +881,27 @@ extension WalletViewModel {
         return SpendPreparation(wallet: wallet, head: head, root: root, authDomain: authDomain, fee: fee, inputs: inputs, changeMutez: change, changeAddress: changeAddress, inputRecords: inputRecords, seeds: seeds)
     }
 
+    /// Hands a kernel message to the operator. Only a first attempt may supply `drop`:
+    /// a definite refusal of that attempt releases its record. Retries omit it, because
+    /// refusing a retry says nothing about whether an earlier attempt was accepted.
+    /// Every uncertain outcome keeps the record and its note reservations.
+    static func submitShielded(record: String, drop: (() throws -> Void)? = nil, _ submit: () async throws -> OperatorSubmission) async throws -> OperatorSubmission {
+        do {
+            return try await submit()
+        } catch {
+            if let refusal = error as? ShieldedError, let drop {
+                switch refusal {
+                case .operatorRefused, .rejected:
+                    try? drop()
+                    throw refusal
+                default:
+                    break
+                }
+            }
+            throw ShieldedError.submissionPending("\(error.localizedDescription); the request \(record.dropFirst(6).prefix(8))… stays listed with its notes reserved until the rollup applies it or you forget it")
+        }
+    }
+
     private func updateWithdrawals(account: Address, store: any ShieldedWalletStore, _ change: (inout [ShieldedWithdrawal]) -> Void) throws {
         guard let latest = try store.update(account: account, initial: nil, { change(&$0.withdrawals) }) else { return }
         shieldedWallet = latest
@@ -939,6 +981,7 @@ extension WalletViewModel {
         // Onto the wallet as it is on file now; the same index made meanwhile is the same address.
         guard let saved = try store.update(account: account, initial: nil, { if $0.address(at: made.index) == nil { $0.addresses.append(made) } }) else { throw ShieldedError.treeMissing(index) }
         shieldedWallet = saved
+        await backUp()
         return try await receiveAddress(saved.address(at: index) ?? made)
     }
 
@@ -960,8 +1003,9 @@ extension WalletViewModel {
         let shielded = try shieldedStore(for: network.chain).load(account: wallet.address)
         let rollup = shieldedRollupFactory(config)
         let fee = try await rollup.requiredTxFee(at: rollup.head())
-        let (total, overflow) = amountMutez.addingReportingOverflow(fee + config.producerFeeMutez)
-        guard !overflow else { throw SendViewModel.SendError.invalidAmount }
+        let (fees, feeOverflow) = fee.addingReportingOverflow(config.producerFeeMutez)
+        let (total, overflow) = amountMutez.addingReportingOverflow(fees)
+        guard !feeOverflow, !overflow else { throw SendViewModel.SendError.invalidAmount }
         let inputs = try Self.selectNotes(shielded?.availableNotes ?? [], covering: total)
         guard bridgeContext == context else { throw WalletError.contextChanged }
         return SendShieldedEstimate(context: context, amount: amount, amountMutez: amountMutez, recipient: recipient, memo: memo, rollupFeeMutez: fee, producerFeeMutez: config.producerFeeMutez, inputs: inputs)
@@ -1011,9 +1055,20 @@ extension WalletViewModel {
         }
 
         shieldProgress = .submittingTransfer
-        let submission = try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
-        var transfer = ShieldedTransfer(submissionID: submission.id, recipientFingerprint: approved.recipient.fingerprint, recipientName: approved.recipient.name.isEmpty ? nil : approved.recipient.name, amountMutez: String(approved.amountMutez), rollupFeeMutez: String(fee), producerFeeMutez: String(config.producerFeeMutez), memo: approved.memo, nullifiers: nullifiers, recipientCm: cms[0], changeCm: cms[1], created: Date(), operationHash: submission.operationHash)
+        let localID = ShieldedWithdrawal.localID()
+        var transfer = ShieldedTransfer(submissionID: localID, recipientFingerprint: approved.recipient.fingerprint, recipientName: approved.recipient.name.isEmpty ? nil : approved.recipient.name, amountMutez: String(approved.amountMutez), rollupFeeMutez: String(fee), producerFeeMutez: String(config.producerFeeMutez), memo: approved.memo, nullifiers: nullifiers, recipientCm: cms[0], changeCm: cms[1], created: Date(), payloadHex: payload, submitted: false)
         try updateTransfers(account: account, store: store) { $0.append(transfer) }
+        await backUp()
+        let submission = try await Self.submitShielded(record: localID, drop: { try self.updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == localID } } }) {
+            try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        transfer.submissionID = submission.id
+        transfer.submitted = true
+        transfer.operationHash = submission.operationHash
+        let acknowledged = transfer
+        try updateTransfers(account: account, store: store) { list in
+            if let at = list.firstIndex(where: { $0.id == localID }) { list[at] = acknowledged }
+        }
         do {
             let delivered = try await rollup.awaitDelivery(of: submission, token: token)
             transfer.operationHash = delivered.operationHash
@@ -1021,14 +1076,64 @@ extension WalletViewModel {
             try updateTransfers(account: account, store: store) { list in
                 if let at = list.firstIndex(where: { $0.id == final.id }) { list[at].operationHash = final.operationHash }
             }
-        } catch ShieldedError.submissionPending {
-            // Still with the operator: the record stays, the scan will see it land.
-        } catch {
+        } catch ShieldedError.submissionFailed(let detail) {
             try? updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == submission.id } }
-            throw error
+            throw ShieldedError.submissionFailed(detail)
+        } catch {
+            // Still with the operator, or its answer could not be read: the record and its
+            // reservation stay (see the unshield).
         }
         await refreshAfterOperation()
         return SendShieldedReceipt(transfer: transfer)
+    }
+
+    /// Hands an unacknowledged unshield (a `local:` record whose first submission got no
+    /// answer) to the operator again, with the exact payload kept from the first attempt. The
+    /// same message cannot spend the notes twice: the rollup refuses a repeated nullifier, so
+    /// at worst the operator reports the duplicate as failed and the scan settles it.
+    func resubmitWithdrawal(_ id: String) async throws {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        guard let wallet = try store.load(account: account), let record = wallet.withdrawals.first(where: { $0.id == id }) else { throw ShieldedError.withdrawalUnknown(id) }
+        guard !record.submitted, let payload = record.payloadHex else { throw ShieldedError.withdrawalNotReady("the operator has acknowledged it already") }
+        guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
+        let rollup = shieldedRollupFactory(config)
+        shieldProgress = .submittingUnshield
+        defer { shieldProgress = nil }
+        let submission = try await Self.submitShielded(record: id) {
+            try await rollup.submit(kind: "unshield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        try updateWithdrawals(account: account, store: store) { list in
+            guard let at = list.firstIndex(where: { $0.id == id }) else { return }
+            list[at].submissionID = submission.id
+            list[at].submitted = true
+            list[at].operationHash = submission.operationHash
+        }
+        await refreshAfterOperation()
+    }
+
+    /// `resubmitWithdrawal` for a shielded transfer.
+    func resubmitTransfer(_ id: String) async throws {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        guard let wallet = try store.load(account: account), let record = wallet.transfers.first(where: { $0.id == id }) else { throw ShieldedError.withdrawalUnknown(id) }
+        guard !record.submitted, let payload = record.payloadHex else { throw ShieldedError.withdrawalNotReady("the operator has acknowledged it already") }
+        guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
+        let rollup = shieldedRollupFactory(config)
+        shieldProgress = .submittingTransfer
+        defer { shieldProgress = nil }
+        let submission = try await Self.submitShielded(record: id) {
+            try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        try updateTransfers(account: account, store: store) { list in
+            guard let at = list.firstIndex(where: { $0.id == id }) else { return }
+            list[at].submissionID = submission.id
+            list[at].submitted = true
+            list[at].operationHash = submission.operationHash
+        }
+        await refreshAfterOperation()
     }
 
     /// Drops a transfer the rollup has not applied, freeing its notes (see `forgetWithdrawal`).
