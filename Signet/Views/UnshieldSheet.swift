@@ -16,6 +16,8 @@ struct UnshieldSheet: View {
     @State private var estimate: UnshieldEstimate?
     @State private var estimateError: String?
     @State private var errorMessage: String?
+    /// The unacknowledged withdrawal being handed to the operator again, while it is.
+    @State private var resubmitting: String?
     @State private var step: Step = .compose
     @State private var submitted: UnshieldEstimate?
     @State private var execution: WithdrawalExecutionEstimate?
@@ -193,6 +195,17 @@ struct UnshieldSheet: View {
                     Button("Execute…") { Task { await prepareExecution(status.id) } }
                         .controlSize(.small).disabled(executing != nil || !model.canShield)
                 }
+            case .unconfirmed:
+                if resubmitting == status.id {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Submit again") { Task { await resubmit(status.id) } }.controlSize(.small).disabled(resubmitting != nil || !model.canShield)
+                        .help("Hands the same message to the operator again. The rollup cannot spend the notes twice, so a copy that landed after all is simply reported as a duplicate.")
+                }
+                if status.withdrawal.created < Date().addingTimeInterval(-1800) {
+                    Button("Forget") { forget(status.id) }.controlSize(.small)
+                        .help("Drops the record and frees its notes. Only for an unshield the operator never delivered; if it lands after all, the notes show as spent on the next refresh.")
+                }
             case .submitted where status.withdrawal.created < Date().addingTimeInterval(-1800):
                 Button("Forget") { forget(status.id) }.controlSize(.small)
                     .help("Drops the record and frees its notes. Only for an unshield the operator never delivered; if it lands after all, the notes show as spent on the next refresh.")
@@ -297,5 +310,12 @@ struct UnshieldSheet: View {
     private func forget(_ id: String) {
         errorMessage = nil
         do { try model.forgetWithdrawal(id) } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func resubmit(_ id: String) async {
+        errorMessage = nil
+        resubmitting = id
+        defer { resubmitting = nil }
+        do { try await model.resubmitWithdrawal(id) } catch { errorMessage = error.localizedDescription }
     }
 }

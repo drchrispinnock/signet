@@ -911,6 +911,14 @@ traces show the APDU header and length only.
   `TEST_RUNNER_SIGNET_LOCK_BENCHMARK_OUTPUT=/private/tmp/signet-lock-measurement.json` on the
   xcodebuild test command. It records 80 initialization measurements (1/1,000 aliases; no lock,
   250 ms, one second and timeout; ten repeats). It never reads real wallets.
+- The 5 November 2026 audit (`../signet-audit`, three repositories) and its fixes are recorded
+  in `audit/AUDIT_20261105.md`: the shielded wallet file's cross-process lock file and matching
+  read/write bound, records written before the operator is contacted and kept on an unknown
+  outcome (`WalletViewModel.submitShielded`, `ShieldedError.rejected`; `resubmitWithdrawal` /
+  `resubmitTransfer` send a kept payload again from the sheets' Submit again), backups after new
+  shielded keys, bounded rollup levels, the console boundary's object scrubbing and UUID/byte
+  redaction, the dApp reply retry that keeps its pending request, and the plaintext-key and
+  plain-HTTP notes in the sheets. `AuditFixTests` covers them.
 - `AuditRepairTests` and `BridgeBoundaryRepairTests` cover locking/recovery, current grants,
   persistence, connection pinning, response limits, exact origins, test isolation and native device
   leases. `MultisigContextRepairTests` exercises same-name endpoint and away/back switches.

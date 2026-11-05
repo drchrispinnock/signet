@@ -447,7 +447,7 @@ struct TezosClientStore: WalletStore {
         try withWalletLock(in: directory) {
             try TezosClientStore(directory: directory).recoverIfNeeded()
             return try files.compactMap { name in
-                try PrivateFile.read(directory.appendingPathComponent(name)).map { (name, $0) }
+                try PrivateFile.read(directory.appendingPathComponent(name), limit: PrivateFile.readLimit(for: name)).map { (name, $0) }
             }
         }
     }

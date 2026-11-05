@@ -174,7 +174,7 @@ struct FaucetService: Sendable {
                 if Date() >= deadline { throw FaucetError.timedOut }
             }
             let digest = SHA256.hash(data: Data("\(challenge.challenge):\(nonce)".utf8))
-            let hex = digest.map { String(format: "%02x", $0) }.joined()
+            let hex = Hex.encode([UInt8](digest))
             if hex.hasPrefix(prefix) { return (nonce, hex) }
             nonce += 1
         }

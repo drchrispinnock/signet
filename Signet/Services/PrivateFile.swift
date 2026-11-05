@@ -75,8 +75,22 @@ enum PrivateFile {
         try syncDirectory(directory)
     }
 
-    /// Reads a file, refusing symlinks, so a planted link cannot redirect a read elsewhere.
-    static func read(_ url: URL) throws -> Data? {
+    /// The most a secret or state file may hold unless a caller says otherwise.
+    static let maxBytes = 32 << 20
+    /// The bound for the shielded wallet files, which carry the scanned commitments beside the keys.
+    static let largeStateBytes = 128 << 20
+
+    /// The bound for a wallet-directory file taken by name: the shielded wallet files
+    /// (`tzel-<chain>.json`) get `largeStateBytes`, everything else `maxBytes`. The shielded
+    /// store, the backup's snapshot and its fingerprint all read through this, so no file the
+    /// store writes is one the backup refuses.
+    static func readLimit(for name: String) -> Int {
+        name.hasPrefix("tzel-") && name.hasSuffix(".json") ? largeStateBytes : maxBytes
+    }
+
+    /// Reads a file, refusing symlinks, so a planted link cannot redirect a read elsewhere,
+    /// and anything over `limit` bytes.
+    static func read(_ url: URL, limit: Int = maxBytes) throws -> Data? {
         let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else {
             if errno == ENOENT { return nil }
@@ -84,13 +98,13 @@ enum PrivateFile {
         }
         defer { close(fd) }
         var info = stat()
-        guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= 32 << 20 else {
+        guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= limit else {
             throw CocoaError(.fileReadTooLarge)
         }
         let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
         var bytes = Data()
         while let chunk = try handle.read(upToCount: 32 * 1024), !chunk.isEmpty {
-            guard bytes.count + chunk.count <= 32 << 20 else { throw CocoaError(.fileReadTooLarge) }
+            guard bytes.count + chunk.count <= limit else { throw CocoaError(.fileReadTooLarge) }
             bytes.append(chunk)
         }
         return bytes
