@@ -480,12 +480,18 @@ struct RollupNodeService: ShieldedRollup {
         return try JSONSerialization.jsonObject(with: reply.data, options: [.fragmentsAllowed])
     }
 
+    /// A 4xx is the service saying it did not take the request, except the ones that say
+    /// nothing about it: a request timeout, a conflict (a duplicate it may already hold),
+    /// too early and too many requests leave the outcome open, like a 5xx or no reply.
+    static func isRejection(_ status: Int) -> Bool {
+        (400..<500).contains(status) && ![408, 409, 425, 429].contains(status)
+    }
+
     private static func failure(_ reply: BoundedHTTP.Reply, url: URL) -> ShieldedError {
         let body = String(decoding: reply.data.prefix(300), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         let where_ = url.host() ?? url.absoluteString
         if reply.status == 401 || reply.status == 403 { return .operatorRefused("\(where_) did not accept the access token (HTTP \(reply.status))") }
-        // A 4xx is the service saying it did not take the request; anything else leaves the outcome open.
-        if (400..<500).contains(reply.status) { return .rejected(status: reply.status, "\(where_)\(body.isEmpty ? "" : ": \(body)")") }
+        if Self.isRejection(reply.status) { return .rejected(status: reply.status, "\(where_)\(body.isEmpty ? "" : ": \(body)")") }
         return .badReply("HTTP \(reply.status) from \(where_)\(body.isEmpty ? "" : ": \(body)")")
     }
 

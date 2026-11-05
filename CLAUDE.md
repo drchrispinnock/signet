@@ -914,7 +914,8 @@ traces show the APDU header and length only.
 - The 5 November 2026 audit (`../signet-audit`, three repositories) and its fixes are recorded
   in `audit/AUDIT_20261105.md`: the shielded wallet file's cross-process lock file and matching
   read/write bound, records written before the operator is contacted and kept on an unknown
-  outcome (`WalletViewModel.submitShielded`, `ShieldedError.rejected`), backups after new
+  outcome (`WalletViewModel.submitShielded`, `ShieldedError.rejected`; `resubmitWithdrawal` /
+  `resubmitTransfer` send a kept payload again from the sheets' Submit again), backups after new
   shielded keys, bounded rollup levels, the console boundary's object scrubbing and UUID/byte
   redaction, the dApp reply retry that keeps its pending request, and the plaintext-key and
   plain-HTTP notes in the sheets. `AuditFixTests` covers them.

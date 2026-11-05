@@ -77,6 +77,16 @@ enum PrivateFile {
 
     /// The most a secret or state file may hold unless a caller says otherwise.
     static let maxBytes = 32 << 20
+    /// The bound for the shielded wallet files, which carry the scanned commitments beside the keys.
+    static let largeStateBytes = 128 << 20
+
+    /// The bound for a wallet-directory file taken by name: the shielded wallet files
+    /// (`tzel-<chain>.json`) get `largeStateBytes`, everything else `maxBytes`. The shielded
+    /// store, the backup's snapshot and its fingerprint all read through this, so no file the
+    /// store writes is one the backup refuses.
+    static func readLimit(for name: String) -> Int {
+        name.hasPrefix("tzel-") && name.hasSuffix(".json") ? largeStateBytes : maxBytes
+    }
 
     /// Reads a file, refusing symlinks, so a planted link cannot redirect a read elsewhere,
     /// and anything over `limit` bytes.
