@@ -881,22 +881,23 @@ extension WalletViewModel {
         return SpendPreparation(wallet: wallet, head: head, root: root, authDomain: authDomain, fee: fee, inputs: inputs, changeMutez: change, changeAddress: changeAddress, inputRecords: inputRecords, seeds: seeds)
     }
 
-    /// Hands a kernel message to the operator. A refusal the operator itself made (the token,
-    /// or a 4xx) means it never took the request, so the record written beforehand is dropped;
-    /// any other failure (lost reply, timeout, cancellation, an unreadable answer) leaves the
-    /// record, with its notes reserved, because the operator may apply it all the same.
-    static func submitShielded(record: String, drop: () throws -> Void, _ submit: () async throws -> OperatorSubmission) async throws -> OperatorSubmission {
+    /// Hands a kernel message to the operator. Only a first attempt may supply `drop`:
+    /// a definite refusal of that attempt releases its record. Retries omit it, because
+    /// refusing a retry says nothing about whether an earlier attempt was accepted.
+    /// Every uncertain outcome keeps the record and its note reservations.
+    static func submitShielded(record: String, drop: (() throws -> Void)? = nil, _ submit: () async throws -> OperatorSubmission) async throws -> OperatorSubmission {
         do {
             return try await submit()
-        } catch let error as ShieldedError {
-            switch error {
-            case .operatorRefused, .rejected:
-                try? drop()
-                throw error
-            default:
-                throw ShieldedError.submissionPending("\(error.localizedDescription); the request \(record.dropFirst(6).prefix(8))… stays listed with its notes reserved until the rollup applies it or you forget it")
-            }
         } catch {
+            if let refusal = error as? ShieldedError, let drop {
+                switch refusal {
+                case .operatorRefused, .rejected:
+                    try? drop()
+                    throw refusal
+                default:
+                    break
+                }
+            }
             throw ShieldedError.submissionPending("\(error.localizedDescription); the request \(record.dropFirst(6).prefix(8))… stays listed with its notes reserved until the rollup applies it or you forget it")
         }
     }
@@ -1100,7 +1101,7 @@ extension WalletViewModel {
         let rollup = shieldedRollupFactory(config)
         shieldProgress = .submittingUnshield
         defer { shieldProgress = nil }
-        let submission = try await Self.submitShielded(record: id, drop: { try self.updateWithdrawals(account: account, store: store) { list in list.removeAll { $0.id == id } } }) {
+        let submission = try await Self.submitShielded(record: id) {
             try await rollup.submit(kind: "unshield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
         }
         try updateWithdrawals(account: account, store: store) { list in
@@ -1123,7 +1124,7 @@ extension WalletViewModel {
         let rollup = shieldedRollupFactory(config)
         shieldProgress = .submittingTransfer
         defer { shieldProgress = nil }
-        let submission = try await Self.submitShielded(record: id, drop: { try self.updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == id } } }) {
+        let submission = try await Self.submitShielded(record: id) {
             try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
         }
         try updateTransfers(account: account, store: store) { list in

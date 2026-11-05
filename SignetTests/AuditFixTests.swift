@@ -223,13 +223,81 @@ struct AuditFixTests {
         #expect(rollup.submitted.map { ($0.kind, $0.payload) }.elementsEqual([("unshield", "aa01"), ("transfer", "bb02")], by: ==))
         #expect(after.withdrawals.map(\.id) == ["sub-1"] && after.withdrawals[0].submitted && after.transfers.map(\.id) == ["sub-2"] && after.transfers[0].submitted)
         #expect(after.availableNotes.isEmpty, "still reserved until the rollup applies them")
-        // Acknowledged records are not sent twice; a refusal drops an unacknowledged one.
+        // Acknowledged records are not sent twice.
         await #expect(throws: ShieldedError.self) { try await model.resubmitWithdrawal("sub-1") }
-        let refusedID = ShieldedWithdrawal.localID()
-        _ = try store.update(account: me, initial: nil) { $0.withdrawals.append(ShieldedWithdrawal(submissionID: refusedID, recipient: me.value, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", nullifiers: ["n9"], changeCm: nil, submittedLevel: 7, created: Date(), payloadHex: "cc03", submitted: false)) }
+    }
+
+    @MainActor @Test func refusedRetriesPreserveEarlierUncertainSubmissions() async throws {
+        let store = InMemoryShieldedWalletStore()
+        let rollup = MockShieldedRollup()
+        let keys = InMemoryWalletStore()
+        try keys.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), walletStore: keys, shieldedStoreFactory: { _, _ in store }, shieldedRollupFactory: { _ in rollup })
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        try model.setShieldedOperatorToken("operator-secret", for: .shadownet)
+        let me = WalletViewModel.sampleWallets[0].address
+        var wallet = ShieldedWallet.make(chain: Network.shadownet.chain)
+        wallet.notes = [ShieldedNote(index: 0, cm: "c", rseed: "r", nullifier: "n1", valueMutez: "10", addressIndex: 0), ShieldedNote(index: 1, cm: "d", rseed: "r", nullifier: "n2", valueMutez: "10", addressIndex: 0)]
+        let withdrawalID = ShieldedWithdrawal.localID(), transferID = ShieldedWithdrawal.localID()
+        wallet.withdrawals = [ShieldedWithdrawal(submissionID: withdrawalID, recipient: me.value, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", nullifiers: ["n1"], changeCm: nil, submittedLevel: 7, created: Date(), payloadHex: "aa01", submitted: false)]
+        wallet.transfers = [ShieldedTransfer(submissionID: transferID, recipientFingerprint: "fp", recipientName: nil, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", memo: "", nullifiers: ["n2"], recipientCm: "c1", changeCm: "c2", created: Date(), payloadHex: "bb02", submitted: false)]
+        try store.save(wallet, account: me)
+
+        // Both first attempts are accepted by the operator, but their replies are lost.
+        for (kind, payload, id) in [("unshield", "aa01", withdrawalID), ("transfer", "bb02", transferID)] {
+            do {
+                _ = try await WalletViewModel.submitShielded(record: id, drop: {
+                    _ = try store.update(account: me, initial: nil) {
+                        $0.withdrawals.removeAll { $0.id == id }
+                        $0.transfers.removeAll { $0.id == id }
+                    }
+                }) {
+                    _ = try await rollup.submit(kind: kind, payloadHex: payload, rollupAddress: "synthetic-rollup", token: "operator-secret")
+                    throw URLError(.timedOut)
+                }
+                Issue.record("expected an uncertain submission")
+            } catch ShieldedError.submissionPending { }
+        }
+        #expect(rollup.submitted.count == 2)
+
+        // A new authentication failure cannot resolve either earlier attempt.
         try model.setShieldedOperatorToken("wrong", for: .shadownet)
-        await #expect(throws: ShieldedError.operatorRefused("missing Authorization header")) { try await model.resubmitWithdrawal(refusedID) }
-        #expect(try store.load(account: me)?.withdrawals.map(\.id) == ["sub-1"])
+        for id in [withdrawalID, transferID] {
+            do {
+                if id == withdrawalID { try await model.resubmitWithdrawal(id) }
+                else { try await model.resubmitTransfer(id) }
+                Issue.record("expected a refused retry")
+            } catch ShieldedError.submissionPending(let detail) {
+                #expect(detail.contains("reserved"))
+            }
+        }
+        let pending = try #require(try store.load(account: me))
+        #expect(pending.withdrawals.map(\.id) == [withdrawalID] && pending.withdrawals[0].payloadHex == "aa01" && !pending.withdrawals[0].submitted)
+        #expect(pending.transfers.map(\.id) == [transferID] && pending.transfers[0].payloadHex == "bb02" && !pending.transfers[0].submitted)
+        #expect(pending.reservedNullifiers == Set(["n1", "n2"]) && pending.availableNotes.isEmpty && pending.reservedMutez == 20)
+        #expect(rollup.submitted.count == 2)
+
+        // Correcting the token still permits replay of the same payloads, keeping reservations.
+        try model.setShieldedOperatorToken("operator-secret", for: .shadownet)
+        try await model.resubmitWithdrawal(withdrawalID)
+        try await model.resubmitTransfer(transferID)
+        let acknowledged = try #require(try store.load(account: me))
+        #expect(acknowledged.withdrawals.map(\.id) == ["sub-3"] && acknowledged.withdrawals[0].submitted)
+        #expect(acknowledged.transfers.map(\.id) == ["sub-4"] && acknowledged.transfers[0].submitted)
+        #expect(acknowledged.availableNotes.isEmpty)
+        #expect(rollup.submitted.map { ($0.kind, $0.payload) }.elementsEqual([("unshield", "aa01"), ("transfer", "bb02"), ("unshield", "aa01"), ("transfer", "bb02")], by: ==))
+    }
+
+    @Test func retryRefusalsRemainUncertain() async throws {
+        for refusal in [ShieldedError.operatorRefused("expired token"), ShieldedError.rejected(status: 400, "bad request"), ShieldedError.rejected(status: 403, "forbidden"), ShieldedError.rejected(status: 422, "invalid payload")] {
+            do {
+                _ = try await WalletViewModel.submitShielded(record: "local:abcdef0123") { throw refusal }
+                Issue.record("expected an uncertain submission")
+            } catch ShieldedError.submissionPending(let detail) {
+                #expect(detail.contains("abcdef01…") && detail.contains("reserved"))
+            }
+        }
     }
 
     @Test func onlyDefiniteClientErrorsCountAsRejections() {
