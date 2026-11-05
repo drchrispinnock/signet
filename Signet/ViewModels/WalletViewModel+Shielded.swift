@@ -1086,6 +1086,55 @@ extension WalletViewModel {
         return SendShieldedReceipt(transfer: transfer)
     }
 
+    /// Hands an unacknowledged unshield (a `local:` record whose first submission got no
+    /// answer) to the operator again, with the exact payload kept from the first attempt. The
+    /// same message cannot spend the notes twice: the rollup refuses a repeated nullifier, so
+    /// at worst the operator reports the duplicate as failed and the scan settles it.
+    func resubmitWithdrawal(_ id: String) async throws {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        guard let wallet = try store.load(account: account), let record = wallet.withdrawals.first(where: { $0.id == id }) else { throw ShieldedError.withdrawalUnknown(id) }
+        guard !record.submitted, let payload = record.payloadHex else { throw ShieldedError.withdrawalNotReady("the operator has acknowledged it already") }
+        guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
+        let rollup = shieldedRollupFactory(config)
+        shieldProgress = .submittingUnshield
+        defer { shieldProgress = nil }
+        let submission = try await Self.submitShielded(record: id, drop: { try self.updateWithdrawals(account: account, store: store) { list in list.removeAll { $0.id == id } } }) {
+            try await rollup.submit(kind: "unshield", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        try updateWithdrawals(account: account, store: store) { list in
+            guard let at = list.firstIndex(where: { $0.id == id }) else { return }
+            list[at].submissionID = submission.id
+            list[at].submitted = true
+            list[at].operationHash = submission.operationHash
+        }
+        await refreshAfterOperation()
+    }
+
+    /// `resubmitWithdrawal` for a shielded transfer.
+    func resubmitTransfer(_ id: String) async throws {
+        let config = try shieldedConfig
+        guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }
+        let store = shieldedStore(for: network.chain)
+        guard let wallet = try store.load(account: account), let record = wallet.transfers.first(where: { $0.id == id }) else { throw ShieldedError.withdrawalUnknown(id) }
+        guard !record.submitted, let payload = record.payloadHex else { throw ShieldedError.withdrawalNotReady("the operator has acknowledged it already") }
+        guard let token = try store.operatorToken(), !token.isEmpty else { throw ShieldedError.operatorTokenMissing }
+        let rollup = shieldedRollupFactory(config)
+        shieldProgress = .submittingTransfer
+        defer { shieldProgress = nil }
+        let submission = try await Self.submitShielded(record: id, drop: { try self.updateTransfers(account: account, store: store) { list in list.removeAll { $0.id == id } } }) {
+            try await rollup.submit(kind: "transfer", payloadHex: payload, rollupAddress: config.rollupAddress, token: token)
+        }
+        try updateTransfers(account: account, store: store) { list in
+            guard let at = list.firstIndex(where: { $0.id == id }) else { return }
+            list[at].submissionID = submission.id
+            list[at].submitted = true
+            list[at].operationHash = submission.operationHash
+        }
+        await refreshAfterOperation()
+    }
+
     /// Drops a transfer the rollup has not applied, freeing its notes (see `forgetWithdrawal`).
     func forgetTransfer(_ id: String) throws {
         guard let account = selectedWallet?.address else { throw WalletError.emptyAlias }

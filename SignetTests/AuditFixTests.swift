@@ -89,6 +89,52 @@ struct AuditFixTests {
         #expect(updated.depositNonce == 1)
     }
 
+    @Test func shieldedWalletFileLockIsSharedAcrossPathAliases() throws {
+        // A real parent directory and a symlink to it both lead to the same wallet file; two
+        // stores, one through each, must take the same lock (lockf alone is per process).
+        let parent = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let real = parent.appendingPathComponent("real", isDirectory: true)
+        try FileManager.default.createDirectory(at: real.appendingPathComponent("wallet"), withIntermediateDirectories: true)
+        let alias = parent.appendingPathComponent("alias")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: real)
+        let account = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        let a = FileShieldedWalletStore(directory: real.appendingPathComponent("wallet"), chain: "test")
+        let b = FileShieldedWalletStore(directory: alias.appendingPathComponent("wallet"), chain: "test")
+        try a.save(ShieldedWallet.make(chain: "test"), account: account)
+        let group = DispatchGroup()
+        for store in [a, b] {
+            group.enter()
+            DispatchQueue.global().async {
+                for _ in 0..<40 { _ = try? store.update(account: account, initial: nil) { $0.depositNonce += 1 } }
+                group.leave()
+            }
+        }
+        group.wait()
+        #expect(try a.load(account: account)?.depositNonce == 80 && b.load(account: account)?.depositNonce == 80)
+    }
+
+    @Test func backupsReadEveryWalletFileTheStoreAccepts() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let wallet = root.appendingPathComponent("wallet", isDirectory: true), backups = root.appendingPathComponent("backups", isDirectory: true)
+        try FileManager.default.createDirectory(at: wallet, withIntermediateDirectories: true)
+        try PrivateFile.write(Data("[]".utf8), to: wallet.appendingPathComponent("public_key_hashs"))
+        // A shielded wallet file larger than the ordinary 32 MB bound, as a long scan leaves it.
+        let name = FileShieldedWalletStore.walletFile(chain: Network.shadownet.chain)
+        var big = Data("{\"version\":2,\"chain\":\"x\",\"pad\":\"".utf8)
+        big.append(Data(repeating: 0x61, count: 40 << 20))
+        big.append(Data("\"}".utf8))
+        try PrivateFile.write(big, to: wallet.appendingPathComponent(name))
+        #expect(PrivateFile.readLimit(for: name) == PrivateFile.largeStateBytes && PrivateFile.readLimit(for: "secret_keys") == PrivateFile.maxBytes)
+        #expect(throws: (any Error).self) { try PrivateFile.read(wallet.appendingPathComponent(name)) }
+        let outcome = try WalletBackup(walletDirectory: wallet, backupDirectory: backups, generations: 2).run()
+        guard case .created(let generation) = outcome else { Issue.record("expected a generation, got \(outcome)"); return }
+        let saved = try #require(try PrivateFile.read(generation.appendingPathComponent(name), limit: PrivateFile.largeStateBytes))
+        #expect(saved == big)
+        #expect(try WalletBackup.fingerprint(of: wallet) == WalletBackup.fingerprint(of: generation))
+    }
+
     // MARK: G08: untrusted rollup numbers
 
     @Test func rollupLevelsOutOfRangeAreErrorsNotTraps() async throws {
@@ -151,6 +197,44 @@ struct AuditFixTests {
             }
         }
         #expect(dropped.count == 2)
+    }
+
+    @MainActor @Test func unacknowledgedRecordsCanBeHandedToTheOperatorAgain() async throws {
+        let store = InMemoryShieldedWalletStore()
+        let rollup = MockShieldedRollup()
+        let keys = InMemoryWalletStore()
+        try keys.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), walletStore: keys, shieldedStoreFactory: { _, _ in store }, shieldedRollupFactory: { _ in rollup })
+        model.setShieldedEnabled(true, for: .shadownet)
+        model.switchNetwork(to: .shadownet)
+        try model.setShieldedOperatorToken("operator-secret", for: .shadownet)
+        let me = WalletViewModel.sampleWallets[0].address
+        var wallet = ShieldedWallet.make(chain: Network.shadownet.chain)
+        wallet.notes = [ShieldedNote(index: 0, cm: "c", rseed: "r", nullifier: "n1", valueMutez: "10", addressIndex: 0), ShieldedNote(index: 1, cm: "d", rseed: "r", nullifier: "n2", valueMutez: "10", addressIndex: 0)]
+        let withdrawalID = ShieldedWithdrawal.localID(), transferID = ShieldedWithdrawal.localID()
+        wallet.withdrawals = [ShieldedWithdrawal(submissionID: withdrawalID, recipient: me.value, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", nullifiers: ["n1"], changeCm: nil, submittedLevel: 7, created: Date(), payloadHex: "aa01", submitted: false)]
+        wallet.transfers = [ShieldedTransfer(submissionID: transferID, recipientFingerprint: "fp", recipientName: nil, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", memo: "", nullifiers: ["n2"], recipientCm: "c1", changeCm: "c2", created: Date(), payloadHex: "bb02", submitted: false)]
+        try store.save(wallet, account: me)
+        #expect(try store.load(account: me)?.availableNotes.isEmpty == true)
+        // The kept payloads go out as they were; the records take the operator's ids.
+        try await model.resubmitWithdrawal(withdrawalID)
+        try await model.resubmitTransfer(transferID)
+        let after = try #require(try store.load(account: me))
+        #expect(rollup.submitted.map { ($0.kind, $0.payload) }.elementsEqual([("unshield", "aa01"), ("transfer", "bb02")], by: ==))
+        #expect(after.withdrawals.map(\.id) == ["sub-1"] && after.withdrawals[0].submitted && after.transfers.map(\.id) == ["sub-2"] && after.transfers[0].submitted)
+        #expect(after.availableNotes.isEmpty, "still reserved until the rollup applies them")
+        // Acknowledged records are not sent twice; a refusal drops an unacknowledged one.
+        await #expect(throws: ShieldedError.self) { try await model.resubmitWithdrawal("sub-1") }
+        let refusedID = ShieldedWithdrawal.localID()
+        _ = try store.update(account: me, initial: nil) { $0.withdrawals.append(ShieldedWithdrawal(submissionID: refusedID, recipient: me.value, amountMutez: "5", rollupFeeMutez: "1", producerFeeMutez: "1", nullifiers: ["n9"], changeCm: nil, submittedLevel: 7, created: Date(), payloadHex: "cc03", submitted: false)) }
+        try model.setShieldedOperatorToken("wrong", for: .shadownet)
+        await #expect(throws: ShieldedError.operatorRefused("missing Authorization header")) { try await model.resubmitWithdrawal(refusedID) }
+        #expect(try store.load(account: me)?.withdrawals.map(\.id) == ["sub-1"])
+    }
+
+    @Test func onlyDefiniteClientErrorsCountAsRejections() {
+        for status in [400, 401, 403, 404, 413, 422] { #expect(RollupNodeService.isRejection(status), Comment(rawValue: "\(status)")) }
+        for status in [408, 409, 425, 429, 500, 502, 503, 504, 200] { #expect(!RollupNodeService.isRejection(status), Comment(rawValue: "\(status)")) }
     }
 
     // MARK: G04

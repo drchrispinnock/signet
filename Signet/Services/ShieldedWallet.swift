@@ -414,7 +414,9 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
     /// How long to wait for another process holding the lock file.
     var lockTimeout: TimeInterval = 5
 
-    static let defaultMaxBytes = 128 << 20
+    /// One rule with every reader that takes the file by name (the backup's snapshot and
+    /// fingerprint), so a wallet the store accepts is one the backup saves.
+    static let defaultMaxBytes = PrivateFile.largeStateBytes
 
     /// One lock per wallet file in this process: the scan writes from its own task while the
     /// main actor spends key indexes, and each must see the other's write. Beneath it the
@@ -426,7 +428,10 @@ struct FileShieldedWalletStore: ShieldedWalletStore {
         private var locks: [String: NSLock] = [:]
         func lock(for file: URL) -> NSLock {
             guardLock.withLock {
-                let key = file.standardizedFileURL.path
+                // The real path (symlinks resolved, as `TezosClientStore.LocalLocks` does): two
+                // stores reaching the same file through different paths share the one lock,
+                // since `lockf` is per process and would let both threads through.
+                let key = file.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL.appendingPathComponent(file.lastPathComponent).path
                 if let existing = locks[key] { return existing }
                 let fresh = NSLock()
                 locks[key] = fresh
