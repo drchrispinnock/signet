@@ -224,14 +224,19 @@ final class NodeMonitor {
         }
     }
 
-    nonisolated static let urlSessionProbe: Probe = { url in
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 8
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        let started = Date()
-        // A block header is a few hundred bytes; anything bigger is not a node worth trusting (S19).
-        let reply = try await BoundedHTTP.data(for: request, session: .shared, limit: 16 << 10, json: nil)
-        return (reply.data, reply.status, Date().timeIntervalSince(started))
+    nonisolated static let urlSessionProbe: Probe = probe(session: .shared)
+
+    /// The probe over `session`, so a test can hand it a session that serves canned replies.
+    nonisolated static func probe(session: URLSession) -> Probe {
+        { url in
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 8
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            let started = Date()
+            // A block header is a few hundred bytes; anything bigger is not a node worth trusting (S19).
+            let reply = try await BoundedHTTP.data(for: request, session: session, limit: 16 << 10, json: nil)
+            return (reply.data, reply.status, Date().timeIntervalSince(started))
+        }
     }
 }
 

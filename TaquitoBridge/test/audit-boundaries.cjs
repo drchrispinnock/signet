@@ -18,9 +18,17 @@ async function load(file, substitutions, globals) {
 (async()=>{
   let releaseDisconnect, signalDisconnect, instances=0;
   class Wallet {
-    constructor(){this.number=++instances;}
+    constructor(){this.number=++instances;this.pendingRequests=[];this.failRespond=false;this.responded=[];Wallet.last=this;}
     async init(){}
     async connect(){}
+    // As octez.connect 5.0.4 does: the pending request is dropped before delivery is awaited.
+    async respond(message){
+      const request=this.pendingRequests.find((p)=>p[0].id===message.id);
+      if(!request)throw new Error('No matching request found!');
+      this.pendingRequests=this.pendingRequests.filter((p)=>p[0].id!==message.id);
+      if(this.failRespond)throw new Error('relay unreachable');
+      this.responded.push(message.id);
+    }
     get transport(){return Promise.resolve({disconnect:async()=>{signalDisconnect();await new Promise(r=>releaseDisconnect=r);}});}
     async getPermissions(){return [{number:this.number}];}
   }
@@ -34,6 +42,17 @@ async function load(file, substitutions, globals) {
   await new Promise(r=>setTimeout(r,10));assert.equal(started,false,'start must wait for stop');
   releaseDisconnect();await stopping;await starting;
   assert.equal((await life.API.octezConnectPermissions())[0].number,2);
+  // S17 / E03: a reply the relay did not take can be sent again with the same request id.
+  const wallet2=Wallet.last;
+  wallet2.pendingRequests=[[{id:'req-1',type:'operation_request'},{}]];
+  wallet2.failRespond=true;
+  await assert.rejects(life.API.octezConnectRespond(JSON.stringify({id:'req-1',type:'operation_response'})),/relay unreachable/);
+  assert.equal(wallet2.pendingRequests.length,1,'the pending request is put back after a failed delivery');
+  wallet2.failRespond=false;
+  assert.equal((await life.API.octezConnectRespond(JSON.stringify({id:'req-1',type:'operation_response'}))).ok,true);
+  assert.deepEqual(wallet2.responded,['req-1']);assert.equal(wallet2.pendingRequests.length,0);
+  await assert.rejects(life.API.octezConnectRespond(JSON.stringify({id:'req-1',type:'operation_response'})),/No matching request/);
+  console.log('PASS S17: an undelivered reply keeps its pending request, so the identical retry is delivered and a third attempt is refused');
   assert.throws(()=>life.API.boundedJSON('['.repeat(65)+'0'+']'.repeat(65)),/structure budget/);
   assert.throws(()=>life.API.boundedJSON('x'.repeat(256*1024+1)),/parsing budget/);
   assert.deepEqual(JSON.parse(JSON.stringify(life.API.boundedJSON('{"ok":true}'))),{ok:true});

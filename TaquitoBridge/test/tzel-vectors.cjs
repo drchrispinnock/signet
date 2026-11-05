@@ -22,6 +22,9 @@ async function load(file) {
 
 const vectorsPath = process.env.TZEL_VECTORS || path.resolve(__dirname, '../../../tzel/specs/ocaml_vectors/protocol_v1.json');
 if (!fs.existsSync(vectorsPath)) {
+  // Optional by default (the vectors are licensed and never copied here); a release gate
+  // sets TZEL_VECTORS_REQUIRED=1 so a missing checkout fails loudly instead of passing quietly.
+  if (process.env.TZEL_VECTORS_REQUIRED) { console.error(`tzel vectors: REQUIRED but no vector file at ${vectorsPath}`); process.exit(1); }
   console.log(`tzel vectors: skipped (no vector file at ${vectorsPath}; set TZEL_VECTORS)`);
   process.exit(0);
 }

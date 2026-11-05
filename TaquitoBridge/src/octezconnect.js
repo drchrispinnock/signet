@@ -301,7 +301,17 @@ export async function octezConnectPair(pairingCode) {
 export async function octezConnectRespond(responseJson) {
   if (!client) throw new Error("Octez Connect is not started");
   const response = JSON.parse(responseJson);
-  await client.respond(response);
+  // The SDK forgets the pending request before the reply has reached the relay
+  // (octez.connect 5.0.4, `WalletClient.respond`), so a reply the relay did not take could
+  // never be sent again: the retry failed with "No matching request found". The entry is
+  // kept here and put back when delivery fails, so "Send reply again" (S17) finds it.
+  const pending = Array.isArray(client.pendingRequests) ? client.pendingRequests.find((p) => p?.[0]?.id === response?.id) : undefined;
+  try {
+    await client.respond(response);
+  } catch (error) {
+    if (pending && Array.isArray(client.pendingRequests) && !client.pendingRequests.some((p) => p?.[0]?.id === response?.id)) client.pendingRequests.push(pending);
+    throw error;
+  }
   if (typeof response?.id === "string") inflight.delete(response.id);
   return { ok: true };
 }

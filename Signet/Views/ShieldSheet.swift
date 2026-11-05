@@ -145,6 +145,8 @@ struct ShieldSheet: View {
             }
             Text("The tez leave this account on Tezos into a deposit pool on the TzEL rollup that only this wallet can claim, and are then shielded into a note of yours. The rollup's fee is set at shield time; the shielded amount can differ slightly if it changes.")
                 .font(.callout).foregroundStyle(.secondary)
+            Text("The shielded spending key is a separate random key kept unencrypted in the wallet directory and its backups, even when this account's own key has a password. The proof of each shield, unshield and transfer is made by the proving service, which sees that transaction's private details.")
+                .font(.callout).foregroundStyle(.secondary)
             if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
             if !model.canShield {
                 Text("Shielding needs Shielded Transactions on for this network and an account Signet can sign for.").font(.callout).foregroundStyle(.orange)

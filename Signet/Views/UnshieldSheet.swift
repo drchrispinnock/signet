@@ -193,7 +193,8 @@ struct UnshieldSheet: View {
                     Button("Execute…") { Task { await prepareExecution(status.id) } }
                         .controlSize(.small).disabled(executing != nil || !model.canShield)
                 }
-            case .submitted where status.withdrawal.created < Date().addingTimeInterval(-1800):
+            case .submitted where status.withdrawal.created < Date().addingTimeInterval(-1800),
+                 .unconfirmed where status.withdrawal.created < Date().addingTimeInterval(-1800):
                 Button("Forget") { forget(status.id) }.controlSize(.small)
                     .help("Drops the record and frees its notes. Only for an unshield the operator never delivered; if it lands after all, the notes show as spent on the next refresh.")
             default:

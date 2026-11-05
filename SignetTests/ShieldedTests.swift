@@ -11,7 +11,12 @@ enum TzELVectors {
         let env = ProcessInfo.processInfo.environment["TZEL_VECTORS"]
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         let path = env ?? repo.deletingLastPathComponent().appendingPathComponent("tzel/specs/ocaml_vectors/protocol_v1.json").path
-        guard let data = FileManager.default.contents(atPath: path), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        guard let data = FileManager.default.contents(atPath: path), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            // Optional by default; a release gate sets SIGNET_TZEL_VECTORS_REQUIRED=1 so a
+            // missing or unreadable checkout fails the run instead of passing quietly.
+            if ProcessInfo.processInfo.environment["SIGNET_TZEL_VECTORS_REQUIRED"] != nil { Issue.record("tzel vectors required but not readable at \(path)") }
+            return nil
+        }
         return json
     }
 }

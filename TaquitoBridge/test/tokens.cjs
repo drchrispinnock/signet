@@ -70,4 +70,21 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
   assert.throws(() => ops.checkApprovedBatch([reveal, tx2(500, 1500, 0), tx2(700, 2500, 100)], ops.parseBatchLimits({ operations: limits.operations })), /reveal that was not part/);
   assert.throws(() => ops.checkApprovedBatch([], limits), /Nothing was prepared/);
   console.log('PASS S14 batch: every prepared operation must carry its own approved fee, gas and storage, in order, with the reveal inside its budget');
+
+  // The preapply predicate, written out: a vote is accepted when its kind comes back without a
+  // failed status or errors (an empty errors array counts as errors); anything else must be applied.
+  const applied = { metadata: { operation_result: { status: 'applied' } } };
+  const failed = { metadata: { operation_result: { status: 'failed' } } };
+  assert.equal(ops.preapplyAccepted({ kind: 'transaction' }, applied), true);
+  assert.equal(ops.preapplyAccepted({ kind: 'transaction' }, failed), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'transaction' }, { kind: 'transaction' }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'transaction' }, { metadata: {} }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'ballot' }), true);
+  assert.equal(ops.preapplyAccepted({ kind: 'proposals' }, { kind: 'proposals', metadata: {} }), true);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'transaction' }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'ballot', ...failed }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'ballot', errors: [] }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'ballot', errors: [{ id: 'x' }] }), false);
+  assert.equal(ops.preapplyAccepted({ kind: 'ballot' }, { kind: 'ballot', errors: null }), true);
+  console.log('PASS preapply: votes are accepted on an echoed kind without errors, everything else only when applied');
 })().catch((e) => { console.error(e); process.exitCode = 1; });

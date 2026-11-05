@@ -100,13 +100,17 @@ export function checkApproved(contents, limits) {
   if (checkedLimit(op.fee, "fee") !== limits.feeMutez || checkedLimit(op.gas_limit, "gas limit") !== limits.gasLimit || checkedLimit(op.storage_limit, "storage limit") !== limits.storageLimit) {
     throw new Error("The operation's fee, gas or storage are not what was approved; estimate it again");
   }
-  if (reveal) {
-    if (limits.revealFeeMutez == null) throw new Error("The account needs a reveal that was not part of the approved estimate; estimate it again");
-    if (checkedLimit(reveal.fee, "reveal fee") > limits.revealFeeMutez || checkedLimit(reveal.gas_limit, "reveal gas") > limits.revealGasLimit || checkedLimit(reveal.storage_limit, "reveal storage") > limits.revealStorageLimit) {
-      throw new Error("The reveal would cost more than approved; estimate it again");
-    }
-  }
+  checkApprovedReveal(reveal, limits);
   return { reveal, op };
+}
+
+/** A reveal prepended to an approved operation must stay within the approved reveal budget. */
+function checkApprovedReveal(reveal, limits) {
+  if (!reveal) return;
+  if (limits.revealFeeMutez == null) throw new Error("The account needs a reveal that was not part of the approved estimate; estimate it again");
+  if (checkedLimit(reveal.fee, "reveal fee") > limits.revealFeeMutez || checkedLimit(reveal.gas_limit, "reveal gas") > limits.revealGasLimit || checkedLimit(reveal.storage_limit, "reveal storage") > limits.revealStorageLimit) {
+    throw new Error("The reveal would cost more than approved; estimate it again");
+  }
 }
 
 /** Prepares `params` through `tk.prepare[method]` with the approved limits and checks the result. */
@@ -136,6 +140,21 @@ export async function approvedEstimate(tk, method, params, est) {
   return { feeMutez: String(fee), burnMutez: String(burn), totalCostMutez: String(fee + burn), gasLimit: est.gasLimit, storageLimit: est.storageLimit, limits };
 }
 
+/**
+ * Whether preapply accepted `content` as `result`. A vote (proposals, ballot) carries no
+ * operation result: it is accepted when the node echoes its kind without a failed status or
+ * errors (an empty `errors` array counts as errors, as the node writes it). Anything else
+ * must have been applied.
+ */
+export function preapplyAccepted(content, result) {
+  if (["proposals", "ballot"].includes(content.kind)) {
+    if (result.kind !== content.kind) return false;
+    if (result.metadata?.operation_result?.status === "failed") return false;
+    return !result.errors;
+  }
+  return result.metadata?.operation_result?.status === "applied";
+}
+
 function describeFailure(results) {
   const failed = results.find((r) => r.metadata?.operation_result?.status !== "applied");
   const errors = failed?.metadata?.operation_result?.errors;
@@ -151,7 +170,7 @@ export async function signAndInject(tk, rpcUrl, opOb) {
   const rpc = new RpcClient(rpcUrl);
   const replies = await rpc.preapplyOperations([{ branch, contents, protocol, signature: prefixSig }]);
   const results = replies.flatMap((r) => r.contents ?? []);
-  if (results.length !== contents.length || results.some((c, i) => ["proposals", "ballot"].includes(contents[i].kind) ? c.kind !== contents[i].kind || c.metadata?.operation_result?.status === "failed" || !!c.errors : c.metadata?.operation_result?.status !== "applied")) {
+  if (results.length !== contents.length || results.some((c, i) => !preapplyAccepted(contents[i], c))) {
     throw new Error(`The node did not apply the operation: ${describeFailure(results)}`);
   }
   return injectSigned(rpc, sbytes, { rpcURL: rpcUrl, source: contents[0].source, contents, chainID, branch });
@@ -171,14 +190,6 @@ export function parseBatchLimits(json) {
     limits.revealStorageLimit = checkedLimit(l.revealStorageLimit ?? 0, "reveal storage limit");
   }
   return limits;
-}
-
-function checkApprovedReveal(reveal, limits) {
-  if (!reveal) return;
-  if (limits.revealFeeMutez == null) throw new Error("The account needs a reveal that was not part of the approved estimate; estimate it again");
-  if (checkedLimit(reveal.fee, "reveal fee") > limits.revealFeeMutez || checkedLimit(reveal.gas_limit, "reveal gas") > limits.revealGasLimit || checkedLimit(reveal.storage_limit, "reveal storage") > limits.revealStorageLimit) {
-    throw new Error("The reveal would cost more than approved; estimate it again");
-  }
 }
 
 /**

@@ -384,10 +384,9 @@ struct BoundedHTTPTests {
         await #expect(throws: BoundedHTTP.Failure.tooLarge(limit: TzKTService.recordBytes)) {
             _ = try await TzKTService(baseURL: base, session: session).accountProfile(for: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"))
         }
-        // The node monitor's probe (on the shared session) refuses a block header that is anything but small.
-        URLProtocol.registerClass(BoundedHTTPProtocol.self)
-        defer { URLProtocol.unregisterClass(BoundedHTTPProtocol.self) }
-        await #expect(throws: BoundedHTTP.Failure.self) { _ = try await NodeMonitor.urlSessionProbe(base) }
+        // The node monitor's probe refuses a block header that is anything but small (the probe
+        // is built on this test's session, so the canned reply is what it reads).
+        await #expect(throws: BoundedHTTP.Failure.self) { _ = try await NodeMonitor.probe(session: session)(base) }
         // Rows beyond the requested page size are dropped even when the server sends more.
         let rowsBase = URL(string: "https://bounded.invalid/rows")!
         let rows = try await TzKTService(baseURL: rowsBase, session: session).recentOperations(for: Address("tz1a"), limit: 10)
