@@ -41,11 +41,41 @@ async function verifyRecoveryRecord(record) {
   if (!record.signedBytes.startsWith(forged) || record.signedBytes.length <= forged.length) throw new Error("The recovery record's displayed intent does not match its signed bytes");
 }
 
+/**
+ * Whether a recovery record's signed bytes can never be applied again, so it no longer guards
+ * anything: the account's counter has reached the operation's first one (it was included, or
+ * something else used that counter), or the head is further past the level recorded at
+ * injection than an operation lives, so its branch has expired. Such a record only blocks new
+ * signing; and it cannot be watched off, since a rolling node no longer holds its blocks (a
+ * record left from weeks before once reopened Send on every launch). Any doubt keeps it.
+ */
+async function isSettled(rpc, record) {
+  const counters = (record.contents ?? []).map(c => c.counter).filter(c => typeof c === "string" && /^\d+$/.test(c)).map(BigInt);
+  if (!record.source || !counters.length) return false;
+  try {
+    const { counter } = await rpc.getContract(record.source);
+    if (typeof counter === "string" && /^\d+$/.test(counter) && BigInt(counter) >= counters.reduce((a, b) => (a < b ? a : b))) return true;
+    if (!Number.isSafeInteger(record.headLevel)) return false;
+    const [header, metadata] = await Promise.all([rpc.getBlockHeader(), rpc.getBlockMetadata()]);
+    const ttl = metadata?.max_operations_ttl;
+    return Number.isSafeInteger(ttl) && ttl > 0 && Number.isSafeInteger(header?.level) && header.level - record.headLevel > ttl;
+  } catch {
+    return false;
+  }
+}
+
 export async function pendingOperation(rpcURL, source) {
-  const chainID = await new RpcClient(rpcURL).getChainId();
+  const rpc = new RpcClient(rpcURL);
+  const chainID = await rpc.getChainId();
   const record = records().find(r => r.source === source && (r.chainID == null || r.chainID === chainID));
-  if (record) await verifyRecoveryRecord(record);
-  return record ? { ...record, rpcURL } : null;
+  if (!record) return null;
+  await verifyRecoveryRecord(record);
+  if (await isSettled(rpc, record)) {
+    console.warn("recovery record can no longer be applied; forgetting it", record.hash);
+    forgetOperation(record.hash);
+    return null;
+  }
+  return { ...record, rpcURL };
 }
 export async function assertNoPending(rpcURL, source) {
   const pending = await pendingOperation(rpcURL, source);
