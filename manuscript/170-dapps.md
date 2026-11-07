@@ -1,7 +1,7 @@
 {#id: 170-dapps_1_Distribute}
-# Distributed Apps
+# Decentralised Apps
 
-*Distributed Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *distributed exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {#id: 170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -44,7 +44,7 @@ You'll see a connection request dialogue from Objkt. Choose `Connect`.
 
 ![](170/objkt-connect.png)
 
-Then choose `Sign` to sign the connection transaction.
+Then choose `Sign` to sign the connection operation. You are signing the authentication request and this is not necessarily an on-chain transaction.
 
 ![](170/objkt-sign.png)
 
@@ -94,7 +94,7 @@ People tend to refer to digital art whose purchases have been recorded on blockc
 
 [Teia](https://teia.art) is another art NFT site on the Tezos blockchain. It's based on the *hic et nunc* NFT marketplace that is no longer with us. You can buy and sell NFTs there. We are going to upload a piece of art and mint an NFT to represent the ownership on chain. You can do this at Objkt as well, but I want to show you an alternative site on Tezos. Using the terminology of making coins, we will *mint* the NFT. On blockchains, creating assets is called *minting.*
 
-First we go to the Teia site. Top right there is a button called `Sync`. Our friends at Teia were the first to upgrade to a version of Octez Connect that includes Signet on the application list. So select Signet and then sign the operation to log in. 
+First we go to the Teia site. Top right there is a button called `Sync`. Our friends at Teia were the first to upgrade to a version of Octez Connect that includes Signet on the application list. So select Signet and then sign the login request. 
 
 I'm going to mint a piece of artwork of Ms BLS and Quantum Man, who have been spending a lot of time together recently. Here is the artwork:
 
@@ -166,7 +166,7 @@ One word of caution. You might want to live anonymously on a blockchain. It's di
 
 *In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
 
-[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a full-reserve backed stablecoin pegged to the US dollar. This means for every 1 USDtz in existence there is a real US dollar in reserve.
+[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDTz is a wrapped token and represents the US dollar. Roughly speaking, a USDTz coin is roughly $1. It's backed by a diverse set of coins including USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
 
 ![](170/quipuswap.png)
 
