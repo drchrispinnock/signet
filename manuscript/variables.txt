@@ -1,6 +1,9 @@
 # Tags
 test|56
-date|5th November 2026
-unstake|4
+unstake|3
+unstakebound|4
 unstakedays|4
 paramchange|5
+minfrozen|6000
+minstake|600
+stakepercent|10%

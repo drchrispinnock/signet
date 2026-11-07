@@ -1,3 +1,4 @@
+{backmatter}
 {#id: 910-apx-ownnode_1_Running}
 # Appendix - Running your own node
 
@@ -67,7 +68,7 @@ docker logs -f node
 
 You can now connect to the node from Signet with `http://localhost:8732`.
 
-The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 63d75376 -->[??]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node:
+The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node
 
 ```
 $ octez-node config init --network=mainnet \
@@ -79,7 +80,7 @@ $ octez-node config init --network=mainnet \
 Import a snapshot (as with the docker method).
 
 ```
-$ wget https://snapshots.tzinit.org/mainnet/rolling
+$ curl -o rolling https://snapshots.tzinit.org/mainnet/rolling
 $ octez-node snapshot import rolling
 $ rm -f rolling
 ```
@@ -143,7 +144,7 @@ $ sudo systemctl enable octez-node
 $ sudo systemctl start octez-node
 ```
 
-Connect Signet to the node as per the first section in this Appendix. You'll need the IP address of your Linux machine and you can get this on Debian Linux 13 using `ifconfig` - for example, in this case 192.168.1.140.
+Connect Signet to the node as per the first section in this Appendix. You'll need the IP address of your Linux machine and you can get this on Debian Linux 13 using `ip -br addr` - for example, in this case 192.168.1.140.
 
 
 ```
