@@ -969,10 +969,18 @@ struct ShadownetShieldTests {
         #expect(try await rollup.programHash(named: "run_shield").count == 64)
         #expect(try await rollup.programHash(named: "run_unshield").count == 64)
         #expect(try await rollup.treeRoot(at: head.hash).count == 64)
-        #expect(try await rollup.cementedLevel() < head.level)
+        let cemented = try await rollup.cementedLevel()
+        #expect(cemented < head.level)
         let pending = try await rollup.pendingOutbox()
         #expect(pending.allSatisfy { $0.entrypoint == "burn" && $0.destination == ShieldedConfig.shadownet.ticketer.value && $0.receiver.count == 44 })
-        if let first = pending.first { await #expect(throws: ShieldedError.self) { _ = try await rollup.outboxProof(outboxLevel: first.outboxLevel, messageIndex: first.messageIndex) } }
+        // A withdrawal is provable once its outbox level is cemented (about 14 days on), not before.
+        if let ready = pending.first(where: { $0.outboxLevel <= cemented }) {
+            let proof = try await rollup.outboxProof(outboxLevel: ready.outboxLevel, messageIndex: ready.messageIndex)
+            #expect(proof.commitment.hasPrefix("src1") && !proof.proof.isEmpty)
+        }
+        if let waiting = pending.first(where: { $0.outboxLevel > cemented }) {
+            await #expect(throws: ShieldedError.self) { _ = try await rollup.outboxProof(outboxLevel: waiting.outboxLevel, messageIndex: waiting.messageIndex) }
+        }
         await #expect(throws: ShieldedError.self) { _ = try await rollup.submit(kind: "shield", payloadHex: "00", rollupAddress: ShieldedConfig.shadownet.rollupAddress, token: "not-the-token") }
     }
 }
