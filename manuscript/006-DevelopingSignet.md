@@ -7,7 +7,7 @@ Recently, I've had an urge to write an application using AI. Over the summer, I'
 
 For some reason, I got the urge to pick up the project on Monday 5th October 2026. It would be a wallet for Tezos, but this time it would be different. I started a blank Git repository, mulled over a few ideas, and picked up a pencil and drew a user interface. It was probably the least interesting user interface ever designed, but here it is:
 
-![](005/paper.png)
+![](006/paper.png)
 
 I wanted a "burger" menu for options, details about my account (an alias MyWallet, my address and my .tez name), buttons to Send, Receive, Buy and Sell, then my balances on Tezos and Etherlink. Also at the bottom would be my NFT collection. I wrote a very [simple specification](https://github.com/drchrispinnock/signet/blob/main/docs/spec/SPEC.md). You can find this in the source tree of Signet, but here it is:
 
@@ -21,16 +21,16 @@ I wanted a "burger" menu for options, details about my account (an alias MyWalle
 - Then the key assets: The Tezos balance, then the Etherlink balance (don't worry about the address at this stage), also other balances will appear here.
 - At the bottom we should drag in NFT thumbnails.
 
-I ran `claude init` and it read the specification. I set up Claude to use Fable. Claude asked a few questions, and then developed a layout resembling the diagram above. And from that point onwards, the rest was a conversation with AI about how I wanted a Tezos wallet to look. Once we had the layout, I quickly added menu items to Create a wallet and Rename it. 
+I ran `claude init` and it read the specification. I set up Claude to use Fable. Claude asked a few questions, and then developed a layout resembling the diagram above. And from that point onwards, the rest was a conversation with AI about how I wanted a Tezos wallet to look. Such conversations with AI for software development are called *vibe coding*. Once we had the layout, I quickly added menu items to Create a wallet and Rename it. 
 
 From the beginning I decided to use the same on-disk format as `octez-client`. On a cold start, Signet will offer to import the directory into its configuration, reusing the keys from the command-line wallet. In fact, originally I wanted Signet to share the directory with `octez-client`, but thought better of it. You can use the Signet wallet files with `octez-client` by running it with `-d ~/.signet`. 
 
 Also from the beginning, I got Claude to implement backups. Signet backs up the wallet files when it starts and keeps 10 generations by default. This is to avoid any catastrophes and key loss, which to be fair I haven't had yet.
 
-After some vibe coding ((XXX Explain), I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
+After some more vibe coding, I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
 
 Here is a screenshot from version 0.1 of Signet. The NFT view was done early on and has only had one refinement since. Also the balance lookup was there too. I removed the Etherlink balance to begin with - this would come later on.
-![](005/signet-v0.1.png)
+![](006/signet-v0.1.png)
 According to GitHub, I released v0.1 at 20:07 on the 5th October 2026, the same day I started the project. At 20:53 on the same day, I released v0.2 which included a basic address book and the capability to send tez. 
 
 When I started working for the Tezos Foundation in 2021, I used two desktop wallets on the Mac. One of my biggest frustrations with them was logging into dApps. A dApp is essentially a web site and the site needs a connection from the desktop wallet to sign operations. This is done with a system called Octez Connect (formerly Beacon). A session is established through the Octez Connect infrastructure so that the dApp can request operations from the wallet. This didn't work very well for me then, and I switched to the browser based wallet, Temple.
@@ -41,7 +41,7 @@ On Thursday 8th October 2026, I logged into X to see that Taquito had added tz5 
 
 I asked Claude to use the beta version of Taquito and at 13:35 on the same day, I [tweeted](https://x.com/chrispinnock/status/2108174370967368073):
 
-![](005/tweet.png)
+![](006/tweet.png)
 I had generated a tz5 key, used the *Quantumnet* faucet to get some coins and then sent them to another account. Also I'd added recent transactions to Signet as you can see in the tweet. 
 
 According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 0.4.1, 0.4.2, 0.5, 0.6 and 0.7. Features that I added:
@@ -108,9 +108,11 @@ It's been a good exercise for me and also for Signet, because I've found a few b
 
 Signet will continue to develop. Etherlink is very much a second-class citizen in Signet. I need to add features to it and maybe the ability to use 0x addresses directly. There is a relay service that allows a Tezos wallet to use EVM dApps on Etherlink, and this will probably be my next project. I suspect the TzEL implementation will change over time and so Signet will need to change with it. There will be new features as Tezos develops. 
 
-It has, of course, been developed solely by AI and the source code hasn't been reviewed by humans. Does this matter? Maybe. I might get an audit done in the future. 
+In the last weeks of October and into November, I asked Claude to port the application to Windows. It decided that C# was the best language and I agreed. It didn't take too long to have the basic functionality working. Then I decided to port it to Linux using GTK. Claude suggested that we used Swift. It also suggested Rust to cover the BSD operating systems, but given that Swift is available on FreeBSD, I decided that Swift was the right way forward. Claude refactored parts of the Mac code to make them portable and kept the GTK code seperate. I've been able to compile the result on FreeBSD as well as Llinux.
 
-Also, it is Mac only. Now I only know three people in my immediate circle of family and friends that don't use Macs. In fact a few years ago when I broke my arm and the X-rays were supplied in a Windows-only format, I asked my neighbours if I could borrow their Windows machine. No-one in my road has Windows. They use Macs. However, my road is not the world. I intend to ask Claude to port Signet to Windows. Maybe Claude will port it to Linux too. Let's see.
+Version 0.9.13 was the first version where the Mac, Windows and Linux versions had the same features. I ran a code audit using Codex and the fixes went into release 0.9.14.
+
+Signet has been developed solely by AI and the source code hasn't been reviewed by humans. Does this matter? Maybe. I might get a human audit done in the future. 
 
 I finished the first draft of this book (but without the introduction) on 28th October 2026 - less than 4 weeks after I started the project. I wanted to tell you this story because it is an example of the new AI world we live in. You can build an application on your computer rapidly using Claude or Codex or other tools. You need to be as prescriptive as possible. Tell the AI tool what you want. Draw it pictures. Tell it what you don't like and tell it what you do like. Eventually you'll get the application you need. 
 
