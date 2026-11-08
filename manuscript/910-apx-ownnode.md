@@ -5,17 +5,17 @@
 {#id: 910-apx-ownnode_2_Running}
 ## Running nodes
 
-You can connect to any Tezos node from Signet. We will cover running a node on your Mac and running it on a server on your home network. The Octez suite contains `octez-node`, the node and we will show you how to install that.
+You can connect to any Tezos node from Signet. We will cover running a node on your machine and running it on a server on your home network. The Octez suite contains `octez-node`, the node and we will show you how to install that. You'll need at least 16GB of RAM for it to be comfortable, so if it is something you think you'll need permanently, you should consider a dedicated machine for it.
 
 In the case of running the node on the same machine as Signet, the node address will be `http://localhost:8732`. For the server, on your home network, you'll need the IP address. For example, if it is 192.168.1.140, the node address will be `http://192.168.1.140:8732`.
 
 In Signet, go to the `Networks...` page and choose `Custom`. Fill out the node address in the dialogue:
 
 ![](910/custom.png)
-By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings there. 
+By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings for *Mainnet*.
 
 {#id: 910-apx-ownnode_2_Running_2}
-## Running directly on your Mac
+## Running directly on a Mac
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to use Docker. Install Docker Desktop from the [Docker site](https://www.docker.com/products/docker-desktop/) and run it. 
 
@@ -100,9 +100,9 @@ You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez softw
 
 
 {#id: 910-apx-ownnode_2_Running_3}
-## Running on a Linux Server
+## Running on a Linux Desktop or Server
 
-If you have a Linux machine on your home network, you can set it up to be a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications.
+If you are using Linux on the desktop or have a Linux machine on your home network, you can set up a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications.
 
 For Debian Linux 13, you can install the release version of `octez-node`, the node, as follows:
 
@@ -144,7 +144,7 @@ $ sudo systemctl enable octez-node
 $ sudo systemctl start octez-node
 ```
 
-Connect Signet to the node as per the first section in this Appendix. You'll need the IP address of your Linux machine and you can get this on Debian Linux 13 using `ip -br addr` - for example, in this case 192.168.1.140.
+Connect Signet to the node as per the first section in this Appendix. If the node is running on your local machine, you can use `http://localhost:8732`. For another machine, you'll need its IP address. You can get this on most Linux systems using `ip -br addr` - for example, in this case 192.168.1.140.
 
 
 ```
@@ -155,6 +155,11 @@ eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet6 fe80::7e3d:9ff:fec3:3661  prefixlen 64  scopeid 0x20<link>
 ...
 ```
+
+{#id: 910-apx-ownnode_2_Running_5}
+## Running on a Windows machine
+
+Running a node on a Windows system is possible using Window Subsystem for Linux. You can find details at <!-- MARKUPBIBTAG eaa71d7e -->[9]<!-- ENDMARKUPBIBTAG --> or in my infrastructure book <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Alternatively, I have vibe-coded a tool to help you called [OctezDesk](https://github.com/drchrispinnock/octezdesk). This will install the software and set up the node for you.
 
 {#id: 910-apx-ownnode_2_Running_4}
 ## Running nodes on test networks

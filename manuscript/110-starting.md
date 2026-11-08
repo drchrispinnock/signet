@@ -4,21 +4,104 @@
 {#id: 110-starting_2_Installati}
 ## Installation
 
-Signet is an open-source project and the source code is available from [GitHub](https://github.com/drchrispinnock/signet). At the moment it's for Apple Macs only. It is written in Swift and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store.
+[Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org). The repositories for each project are here:
 
-To install Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the application folder. Go to the release page and download the DMG file. Click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your applications folder. 
+| Platform                                                    | Repository                                       |
+| ----------------------------------------------------------- | ------------------------------------------------ |
+| [Mac](https://github.com/drchrispinnock/signet)             | https://github.com/drchrispinnock/signet         |
+| [Windows](https://github.com/drchrispinnock/signet-windows) | https://github.com/drchrispinnock/signet-windows |
+| [Linux](https://github.com/drchrispinnock/signet-gtk)       | https://github.com/drchrispinnock/signet-gtk     |
+      
+The first thing we need to do is install Signet. Let's look at each platform in turn, starting with the Mac.
+
+{#id: 110-starting_3_Mac}
+### Mac
+
+The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store.
+
+Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the application folder. Go to the release page and download the DMG file. Click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your applications folder. 
 
 ![](110/finder.png)
-
 On the first run, you will get this message because it is a stand-alone application from outside the App Store:
 ![](110/warning.png)
 <!-- XXX we need a way of providing some certainly on this XXX XXX GPG signing XXX -->
 Click Open and continue.
 
+{#id: 110-starting_3_Windows}
+### Windows
+
+<!-- XXX Windows download -->
+*At the time of writing the Windows distribution is not signed and so downloading it requires the user to "Keep" the download. This will hopefully be fixed in November 2026. Some screenshots will be added.*
+
+To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file and run it. Signet will install. It will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your dock when you run it.
+
+{#id: 110-starting_3_Linux}
+### Linux
+
+The easiest Linux platform to install Signet on is Debian Linux 13 on an Intel/AMD processor because there are prebuilt packages in an APT repository. However on the [release page](https://github.com/drchrispinnock/signet-gtk) there are other packages and more formats will be supported in the future. To use Signet on Debian Linux 13, you'll need to be running a graphical desktop environment. You can, of course, run the application and display it on another machine using X11 forwarding, but this is beyond the scope of the book. We'll assume that you are running on the desktop directory and that you have an account with enough access to install software. We will use `sudo` to do this.
+
+To install Signet on Linux, follow the instructions at [apt.signetwallet.org](https://apt.signetwallet.org). We will add the APT repository to our system and then install the packages from it. Open the Terminal application and type the commands below. On the default Debian Linux installation, the terminal application can be found in the dock at the bottom of the screen. It's the screen with the symbols `>_`.
+
+![](110/TerminalLinux.png)
+
+In the commands, `$` is the command prompt and the backslash shows a split line. 
+
+1. Import the signing key for the APT repository:
+
+```
+$ sudo install -d -m 0755 /etc/apt/keyrings
+$ curl -fsSL "https://apt.signetwallet.org/keys/signet.asc" | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/signet.gpg
+$ sudo chmod 0644 /etc/apt/keyrings/signet.gpg
+```
+
+If you are worried about the validity of the GPG key, you can verify it. The long hexadecimal number beginning `867D` should match the one below.
+
+```
+$ gpg /etc/apt/keyrings/signet.gpg
+gpg: WARNING: no command supplied.  Trying to guess what you mean ...
+pub   ed25519 2026-11-06 [SC] [expires: 2030-11-06]
+      867D46AE151D860DCA62F18739AF78B567D9A004
+uid           Signet Wallet <key@signetwallet.org>
+sub   cv25519 2026-11-06 [E] [expires: 2030-11-06]
+```
+
+
+2. Add the Debian Linux 13 repository:
+
+```
+$ echo "deb [signed-by=/etc/apt/keyrings/signet.gpg] https://apt.signetwallet.org/debian trixie main" \
+    | sudo tee /etc/apt/sources.list.d/signet.list
+```
+
+3. Install Signet and all its dependencies:
+
+```
+$ sudo apt install -y signet-gtk
+```
+
+You can then run Signet from the Application finder (the icon with the magnifying glass). Search for Signet and run it there:
+
+![](110/ApplicationFinder.png)
+
+You can also run Signet from the command line (but it is quite verbose with its logging):
+
+```
+$ signet-gtk
+```
+
+
 {#id: 110-starting_2_Running}
 ## Running Signet for the first time
 
-When you run Signet for the first time, you'll be presented with some options to set up an account for use on the Tezos network. Many wallets start from cold and assume you'll want to create a new wallet. When we designed Signet, we assumed that you might have a Tezos wallet already. If you have not used Tezos before, you'll need to `Create a new account`.
+Throughout the rest of the book, we will be using the Mac version of Signet. The screens are very similar on the Windows and Linux version.
+
+When you run Signet for the first time, you'll be presented with a disclaimer. Signet is very new software and you should be aware of this. It has not been audited by humans, but it has been code reviewed by AI. Also you need to take responsibility for protecting your keys. We will cover this later in the book. The disclaimer can be turned off in the Settings. 
+
+![](110/Disclaimer.png)
+
+
+Next you will be given some options to set up an account for use on the Tezos network. Many wallets start from cold and assume you'll want to create a new wallet. When we designed Signet, we assumed that you might have a Tezos wallet already. If you have not used Tezos before, you'll need to `Create a new account`.
 ![](110/coldstart.png)
 <!-- XXX options need reordering -->
 To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the tz1 key type for now - we'll cover the other types in a later chapter. Simply choose a name for your address book ("My Account" is the default) and supply a password. The password encrypts the keys on disc making it harder for someone to steal them. If this is your first time to a blockchain and cryptocurrency, welcome. You now have an account on the Tezos blockchain.
@@ -39,10 +122,9 @@ If you lose your keys, you lose your funds. If someone gets your keys, they have
 
 1\. Before you do anything, back up your account keys.
 
-Before you do anything, particularly anything involving monetary value, back up your keys. You may think: "Whatever, I'll do it later". No, please do it now. To do this in Signet is easy. Go to the Operations menu and choose `Export secret key...`.
+On the production network *Mainnet*, your tez coins are valuable. Back up your keys regularly. You may think: "Whatever, I'll do it later". No, please do it now. To do this in Signet is easy. Go to the Operations menu and choose `Export secret key...`.
 
 ![](110/export.png)
-
 You can press the view button to look at it and write it down. Or you can use the copy facility to copy and paste it somewhere. The best way to back this up is to write it down on paper. Keep two copies in two different safe places. We will go into more detail on key storage later on. But please do this step before you do anything involving real-world value. 
 
 2\. Don't get too attached to your account.
@@ -60,7 +142,7 @@ On the right is the network name *mainnet*. This is the production Tezos network
 
 
 ![](110/main.png)
-The burger menu on the top-right can also be found in the Mac menu bar. Click Operations and you will get the same options.
+On the Mac version, the burger menu on the top-right can also be found in the menu bar. It's called Operations.
 
 Before we cover the message in the middle, the three tabs in the second half of the dialogue show information about the account. Recent transactions will show your transactions including sends, receives and calls to smart contracts. Assets will show your DeFi assets and NFTs will show the NFTs that you have purchased. 
 
