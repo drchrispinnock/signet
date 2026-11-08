@@ -24,17 +24,23 @@
 
 [9] Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
 
+**Signet resources**
+
+[10] [Signet Wallet website](https://signetwallet.org), https://signetwallet.org
+
+[11] [Signet Videos](https://www.youtube.com/playlist?list=PLaeBlcwTd5PY), https://www.youtube.com/playlist?list=PLaeBlcwTd5PY
+
 **Other chains**
 
-[10] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
+[12] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
 
-[11] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
+[13] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
-[12] Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+[14] Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
-[13] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+[15] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 
-[14] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
+[16] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->
