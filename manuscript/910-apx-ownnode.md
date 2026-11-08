@@ -144,7 +144,7 @@ $ sudo systemctl enable octez-node
 $ sudo systemctl start octez-node
 ```
 
-Connect Signet to the node as per the first section in this Appendix. If the node is running on your local machine, you can use `http://localhost:8732`. For another machine, you'll need its IP address. You can get this on most Linux systems using `ip -br addr` - for example, in this case 192.168.1.140.
+Connect Signet to the node as per the first section in this Appendix. If the node is running on your local machine, you can use `http://localhost:8732`. For another machine, you'll need its IP address. You can get this on most Linux systems using `ip -br addr` - for example, in this case `192.168.1.140`.
 
 
 ```
@@ -159,7 +159,7 @@ eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 {#id: 910-apx-ownnode_2_Running_5}
 ## Running on a Windows machine
 
-Running a node on a Windows system is possible using Window Subsystem for Linux. You can find details at <!-- MARKUPBIBTAG eaa71d7e -->[9]<!-- ENDMARKUPBIBTAG --> or in my infrastructure book <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Alternatively, I have vibe-coded a tool to help you called [OctezDesk](https://github.com/drchrispinnock/octezdesk). This will install the software and set up the node for you.
+Running a node on a Windows system is possible using Windows Subsystem for Linux. You can find details at <!-- MARKUPBIBTAG eaa71d7e -->[9]<!-- ENDMARKUPBIBTAG --> or in my infrastructure book <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Alternatively, I have vibe coded a tool to help you called [OctezDesk](https://github.com/drchrispinnock/octezdesk). This will install the software and set up the node for you.
 
 {#id: 910-apx-ownnode_2_Running_4}
 ## Running nodes on test networks
