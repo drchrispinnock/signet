@@ -23,10 +23,6 @@ At the moment, we support `tz` addresses on the layer 2. These can be mapped to 
 
 Other wallets support swapping tokens at DEXs in the wallet. We might investigate this in a later release, but you can go to a DEX and connect it as a dApp, as we saw earlier.
 
-**Windows and Linux support**
-
-I am getting Claude to port the application to Windows 11 as a native application. This will take me some time. If there is enough demand, I may port to Linux as well. The problem will be one of maintenance - I will add a feature to the Mac version and then have to port it (or do it independently on the other platforms).
-
 **Mobile support**
 
 Claude tells me it would be easy to make an iOS application out of the current codebase. However, that means using an app store and we would be restricted by their rules. I suspect I would have to remove support for buying tez directly in the app.
