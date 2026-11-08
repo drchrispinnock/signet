@@ -27,7 +27,7 @@ From the beginning I decided to use the same on-disk format as `octez-client`. O
 
 Also from the beginning, I got Claude to implement backups. Signet backs up the wallet files when it starts and keeps 10 generations by default. This is to avoid any catastrophes and key loss, which to be fair I haven't had yet.
 
-After some vibe-coding, I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
+After some vibe coding ((XXX Explain), I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated to the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`. 
 
 Here is a screenshot from version 0.1 of Signet. The NFT view was done early on and has only had one refinement since. Also the balance lookup was there too. I removed the Etherlink balance to begin with - this would come later on.
 ![](005/signet-v0.1.png)
