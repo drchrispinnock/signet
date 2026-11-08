@@ -5,19 +5,19 @@ For the Signet project, I thank Simon Keusen, who got me into the vibe coding mo
 
 They are many people that have helped me whilst I've been working on the Tezos project but specifically I would like to thank:
 
-Arrigo Triulzi
-Arthur Breitman
-Dmitry Mirgaleev
-Germán Delbianco
-Luke Youngblood
-Marco Schurtenberger
-Pierre Boutillier
-Roland Dowdeswell
-Roman Schnider
-Ryan Tanaka
-Thomas Letan
-Yann Regis-Gianas
-Zaynah Dargaye
+Arrigo Triulzi   
+Arthur Breitman  
+Dmitry Mirgaleev  
+Germán Delbianco  
+Luke Youngblood  
+Marco Schurtenberger  
+Pierre Boutillier  
+Roland Dowdeswell 
+Roman Schnider  
+Ryan Tanaka  
+Thomas Letan  
+Yann Regis-Gianas  
+Zaynah Dargaye  
 
 Also thank you to the Tezos Foundation.
 
