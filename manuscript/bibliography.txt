@@ -7,6 +7,7 @@ L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://te
 4efd851c|Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, In Preparation.
 9ac4bf2d|Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
 Chris Pinnock, [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html).
+eaa71d7e|Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
 
 SEC|Other chains
 Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
