@@ -217,4 +217,16 @@ After a minute or two, you will have some tez in your account.
 ![](110/funds.png)
 Now that you have some tez coins, you can truly use the Tezos blockchain. You can work through the book on *Shadownet*, or with care on *Mainnet.* Remember that there is no central body to help you if you make a mistake, so double check everything before you make a transaction. Measure twice, cut once.
 
+{#id: 110-starting_2_Keeping}
+## Keeping up to date
+
+On the Mac and Windows platforms, Signet can check for updates and download them. On the Mac, go to the Signet menu and choose `Check for Updates...`. On Windows, you'll find it on the burger menu.
+
+On Debian Linux, you can keep up to date as with any software installed with APT. This will update your system packages as well:
+
+```
+$ sudo apt update
+$ sudo apt upgrade -y
+```
+
 
