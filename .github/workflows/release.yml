@@ -52,6 +52,7 @@ jobs:
         env:
           P12: ${{ secrets.DEVELOPER_ID_P12 }}
           P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          DEVELOPER_ID: ${{ secrets.DEVELOPER_ID }}
         run: |
           echo "$P12" | base64 --decode > cert.p12
           security create-keychain -p ci build.keychain
@@ -68,16 +69,24 @@ jobs:
           # it unlocked for the whole job (no lock on sleep, six-hour timeout).
           security set-keychain-settings -lut 21600 build.keychain
           rm cert.p12
-          echo "DEVELOPER_ID=${{ secrets.DEVELOPER_ID }}" >> "$GITHUB_ENV"
+          echo "DEVELOPER_ID=$DEVELOPER_ID" >> "$GITHUB_ENV"
 
       - name: Store notarisation credentials
         # Optional. NOTARY_APPLE_ID, NOTARY_TEAM_ID and NOTARY_PASSWORD (an app-specific password).
+        # Secrets reach the shell as environment variables, never spliced into the script
+        # text: an expression inside `run:` is expanded before the shell parses it, so a
+        # value holding a quote or a dollar would be interpreted, and it ends up in the
+        # rendered step text rather than only in an environment GitHub masks.
         if: env.HAS_DEVELOPER_ID == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: |
           xcrun notarytool store-credentials signet-notary \
-            --apple-id "${{ secrets.NOTARY_APPLE_ID }}" \
-            --team-id "${{ secrets.NOTARY_TEAM_ID }}" \
-            --password "${{ secrets.NOTARY_PASSWORD }}"
+            --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --password "$NOTARY_PASSWORD"
           echo "NOTARY_PROFILE=signet-notary" >> "$GITHUB_ENV"
 
       - name: Check the committed bridge bundle and run its offline regressions
