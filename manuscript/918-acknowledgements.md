@@ -11,6 +11,7 @@ Dmitry Mirgaleev
 Germán Delbianco  
 Luke Youngblood  
 Marco Schurtenberger  
+Nicolas Ochem  
 Pierre Boutillier  
 Roland Dowdeswell 
 Roman Schnider  
