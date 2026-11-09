@@ -10,6 +10,7 @@ xcuserdata/
 *.dSYM.zip
 *.dSYM
 .swiftpm/
+.build/
 Signet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # macOS
