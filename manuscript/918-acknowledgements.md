@@ -8,6 +8,7 @@ They are many people that have helped me whilst I've been working on the Tezos p
 Arrigo Triulzi   
 Arthur Breitman  
 Dmitry Mirgaleev  
+Emma Turner  
 Germán Delbianco  
 Luke Youngblood  
 Marco Schurtenberger  
