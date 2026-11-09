@@ -8,7 +8,7 @@ There are many people who have helped me whilst I've been working on the Tezos p
 Arrigo Triulzi  
 Arthur Breitman  
 Brandon Langston  
-Cory Soreff  
+Corey Soreff  
 Dmitry Mirgaleev  
 Emma Turner  
 Germán Delbianco  

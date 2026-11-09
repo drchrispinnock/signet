@@ -61,8 +61,9 @@ never flag or change them, even when an ID's prefix doesn't match the file name.
   Transak are links out to the browser.
 - The book says "vibe coding" (no hyphen) for the noun, and defines it in `006-DevelopingSignet.md`.
 
-## Review status (8th November 2026)
+## Review status (9th November 2026)
 
-Done: `005-Preface.md`, `006-DevelopingSignet.md`, `007-Disclaimer.md`, `915-colophon.md`.
+Done: `005-Preface.md`, `006-DevelopingSignet.md`, `007-Disclaimer.md`, `915-colophon.md`,
+`918-acknowledgements.md`.
 `110-starting.md` is done apart from the placeholders on lines 30, 36 and 37, a doubled "the the"
-on line 46 and one doubled blank line. Not yet reviewed: 100, 140–200, 250, 910, 918, 920.
+on line 46 and one doubled blank line. Not yet reviewed: 100, 140–200, 250, 910, 920.
