@@ -36,10 +36,14 @@ Click Open and continue.
 <!-- XXX Windows download -->
 *At the time of writing the Windows distribution is not signed and so downloading it requires the user to "Keep" the download. This will hopefully be fixed in November 2026. Some screenshots will be added.*
 
+The Windows version is written in C# and was ported from the Mac version by Claude.
+
 To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file and run it. Signet will install. It will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
 
 {#id: 110-starting_3_Linux}
 ### Linux
+
+The Linux version is written in [Swift](https://www.swift.org) using the code from the Mac version. The graphical library is GTK.
 
 The easiest Linux platform to install Signet on is Debian Linux 13 on an Intel/AMD processor because there are pre-built packages in an APT repository. However, on the [release page](https://github.com/drchrispinnock/signet-gtk) there are other packages and more formats will be supported in the future. To use Signet on Debian Linux 13, you'll need to be running a graphical desktop environment. You can, of course, run the application and display it on another machine using X11 forwarding, but this is beyond the scope of the book. We'll assume that you are running on the desktop directly and that you have an account with enough access to install software. We will use `sudo` to do this.
 
