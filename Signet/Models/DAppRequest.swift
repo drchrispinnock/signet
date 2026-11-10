@@ -83,28 +83,32 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
     /// node the user configured for one of our networks (scheme, host, port and path). A dApp
     /// cannot point the wallet at this machine or the local network, and a user-configured
     /// local node is never reachable through a dApp's request unless the dApp names it exactly.
-    static func network(forType type: String, rpcURL: URL?) -> Network? {
+    ///
+    /// `layer2` is the Layer 2 side of the networks whose Layer 2 the user has turned on
+    /// (`Network.layer2`, on the Layer 2 node in use, its chain id pinned). Nothing is served on
+    /// a Layer 2 that is off: a request naming one finds no network (`layer2Off` says which).
+    static func network(forType type: String, rpcURL: URL?, layer2: [Network] = []) -> Network? {
         let kind = type.lowercased()
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
         // Each network carries the name dApps use for it (`Network.dappType`), and so does its
-        // Layer 2 (Octez Connect's `tezosx-<network>`, Etherlink's Michelson interface): that is
-        // the Layer 2 node we ship, with its own pinned chain id. The dApp's `rpcUrl` is not
-        // used for a named network, and a name no network carries (tezosx-previewnet) is refused.
-        if kind != "custom", let match = (Network.all + layer2Networks).first(where: { $0.dappType == kind }) { return match }
+        // Layer 2 (Octez Connect's `tezosx-<network>`, Etherlink's Michelson interface). The
+        // dApp's `rpcUrl` is not used for a named network.
+        if kind != "custom", let match = (Network.all + layer2).first(where: { $0.dappType == kind }) { return match }
         if kind == "custom", let rpcURL {
             if let known = Network.all.first(where: { $0.chain != "custom" && sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
-            if let known = layer2Networks.first(where: { sameEndpoint($0.rpcURL, rpcURL) }) { return known }
+            if let known = layer2.first(where: { sameEndpoint($0.rpcURL, rpcURL) }) { return known }
             guard EndpointPolicy.isPublicHTTPS(rpcURL) else { return nil }
             return Network(name: "Custom (\(endpointDescription(rpcURL)))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
         }
         return nil
     }
 
-    /// The Layer 2 side of every network we ship a Layer 2 node for, on that default node.
-    /// A dApp's request stands on its own, so this does not depend on the Layer 2 switch in
-    /// the Networks sheet, which governs what the dashboard shows.
-    private static var layer2Networks: [Network] {
-        Network.all.compactMap { $0.usingL2(enabled: true, node: $0.l2DefaultRPCURL).layer2 }
+    /// The network whose Layer 2 a request names while that Layer 2 is off, so the refusal can
+    /// say what to turn on; `nil` when the type is not a Layer 2 name or its Layer 2 is on.
+    static func layer2Off(forType type: String, layer2: [Network]) -> Network? {
+        let kind = type.lowercased()
+        guard !layer2.contains(where: { $0.dappType == kind }) else { return nil }
+        return Network.all.first { $0.l2DAppType == kind }
     }
 
     /// Two endpoints are the same only when scheme, host, port and path all agree (S12).
