@@ -59,6 +59,10 @@ struct DAppRequestParsingTests {
         #expect(l2?.layerNumber == 2 && l2?.expectedChainID == "NetXtLrzvQDobza")
         let l2main = DAppRequest.network(forType: "tezosx-mainnet", rpcURL: nil)
         #expect(l2main?.rpcURL == Network.mainnet.l2DefaultRPCURL && l2main?.expectedChainID == "NetXohUVN5QWR4f")
+        #expect(l2?.dappType == "tezosx-shadownet" && Network.shadownet.dappType == "shadownet" && Network.custom.dappType == nil)
+        // Every identifier names exactly one network, on either layer.
+        let types = Network.all.flatMap { [$0.dappType, $0.l2DAppType] }.compactMap { $0 }
+        #expect(Set(types).count == types.count)
         #expect(DAppRequest.network(forType: "tezosx-previewnet", rpcURL: URL(string: "https://rpc.example.org")) == nil)
         #expect(DAppRequest.network(forType: "custom", rpcURL: Network.shadownet.l2DefaultRPCURL)?.expectedChainID == "NetXtLrzvQDobza")
     }

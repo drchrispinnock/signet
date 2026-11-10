@@ -427,12 +427,12 @@ automatic download is off by default. The updater is not started under the test 
   operation signature the dApp could inject. `DAppSignPayload.refusal` rejects anything else
   before it is queued (the dApp gets `SIGNATURE_TYPE_NOT_SUPPORTED`) and the bridge's
   `octezConnectSign` applies the same rule.
-  Wrong password or a Ledger that is not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`. Octez Connect's `tezosx-<network>` types (`tezosx-mainnet`, `tezosx-shadownet`) are that network's Layer 2: they map to its `layer2` network on the Layer 2 node Signet ships, with the Etherlink chain id pinned, whatever the Layer 2 switch in the Networks sheet says and whatever `rpcUrl` the dApp sent; `tezosx-previewnet` has no node here and is refused.
+  Wrong password or a Ledger that is not ready leaves the request up for a retry. dApp network types map to ours via `DAppRequest.network`, which looks the type up among the identifiers the networks themselves carry: `Network.dappType` (the chain name; `nil` for Custom) and `Network.l2DAppType` for its Layer 2, which is the `dappType` of `layer2`; a network that gains a Layer 2 needs only that identifier (and a Layer 2 node) in `Network.swift`. Octez Connect's `tezosx-<network>` types (`tezosx-mainnet`, `tezosx-shadownet`) are that network's Layer 2: they map to its `layer2` network on the Layer 2 node Signet ships, with the Etherlink chain id pinned, whatever the Layer 2 switch in the Networks sheet says and whatever `rpcUrl` the dApp sent; `tezosx-previewnet` has no node here and is refused.
   **Identity and grants (S04, S08).** The bridge forwards nothing the SDK hands it as is:
   `sanitizeIncomingRequest` (pure, tested offline by `test/dapp-identity.cjs`) rebuilds every
   request from authenticated state only: the peer whose session key decrypted the message
   (`context.id`), the sender id derived from that peer's public key, the app metadata the SDK
-  stored for that sender at permission time and the wallet's current permissions. A message
+  stored for that sender at permission time and the wallet's current permissions (every grant the sender holds for the account is tried, since a dApp can be connected on a network and on its Layer 2 at once). A message
   whose own `senderId` or `appMetadata.senderId` claims another sender is refused outright (the
   SDK records grants under the id the message claims, so correcting it would be unsafe);
   branding comes from the pairing record or the stored grant, never from the request; only

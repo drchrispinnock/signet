@@ -86,13 +86,11 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
     static func network(forType type: String, rpcURL: URL?) -> Network? {
         let kind = type.lowercased()
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
-        if let match = Network.all.first(where: { $0.chain == kind && $0.chain != "custom" }) { return match }
-        // Octez Connect's `tezosx-<network>` is that network's Layer 2 (Etherlink's Michelson
-        // interface): the Layer 2 node we ship for it, with its own pinned chain id. The dApp's
-        // `rpcUrl` is not used; a name we ship no Layer 2 node for (tezosx-previewnet) is refused.
-        if kind.hasPrefix(layer2Prefix) {
-            return layer2Networks.first { $0.chain == "etherlink-" + kind.dropFirst(layer2Prefix.count) }
-        }
+        // Each network carries the name dApps use for it (`Network.dappType`), and so does its
+        // Layer 2 (Octez Connect's `tezosx-<network>`, Etherlink's Michelson interface): that is
+        // the Layer 2 node we ship, with its own pinned chain id. The dApp's `rpcUrl` is not
+        // used for a named network, and a name no network carries (tezosx-previewnet) is refused.
+        if kind != "custom", let match = (Network.all + layer2Networks).first(where: { $0.dappType == kind }) { return match }
         if kind == "custom", let rpcURL {
             if let known = Network.all.first(where: { $0.chain != "custom" && sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
             if let known = layer2Networks.first(where: { sameEndpoint($0.rpcURL, rpcURL) }) { return known }
@@ -101,8 +99,6 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
         }
         return nil
     }
-
-    private static let layer2Prefix = "tezosx-"
 
     /// The Layer 2 side of every network we ship a Layer 2 node for, on that default node.
     /// A dApp's request stands on its own, so this does not depend on the Layer 2 switch in
