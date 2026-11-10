@@ -675,6 +675,8 @@ final class WalletViewModel {
                 let service = network == self.network ? self.chain : self.chainFactory(network)
                 return try await service.waitForConfirmation(of: hash)
             },
+            // Only a Layer 2 the user turned on in Networks is served, on the node in use there.
+            layer2: { [unowned self] in Network.all.compactMap { self.resolved($0).layer2 } },
             wallets: { [unowned self] in self.wallets },
             signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
         )

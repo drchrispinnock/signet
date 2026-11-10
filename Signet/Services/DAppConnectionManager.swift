@@ -16,6 +16,7 @@ final class DAppConnectionManager {
         case notOurWallet(Address)
         case noUsableKey(String)
         case unsupportedNetwork(String)
+        case layer2Off(type: String, network: String)
         case refusedPayload(String)
         case notGranted(String)
         case previousUnconfirmed(hash: String)
@@ -25,6 +26,7 @@ final class DAppConnectionManager {
             case .notOurWallet(let address): "The dApp asked for \(address.shortened()), which is not one of your accounts."
             case .noUsableKey(let alias): "Signet cannot sign with “\(alias)” (no key on disk or Ledger)."
             case .unsupportedNetwork(let type): "The dApp wants the “\(type)” network, which Signet does not have."
+            case .layer2Off(let type, let network): "The dApp wants “\(type)”, the Layer 2 of \(network), which is turned off. Turn on Enable Layer 2 for \(network) in Networks to use it."
             case .refusedPayload(let why): why
             case .notGranted(let why): why
             case .previousUnconfirmed(let hash): "The account's previous operation, \(hash.prefix(12))…, has not been seen in a block yet. Wait a moment and approve again, or open Send to watch or resend it."
@@ -74,6 +76,7 @@ final class DAppConnectionManager {
     private let permissionLoader: (@MainActor () async throws -> [DAppPermission])?
     private let signerProvider: @MainActor (Wallet, String?) throws -> SigningKey?
     private let confirmation: Confirmation?
+    private let layer2Provider: @MainActor () -> [Network]
     /// Running watchers by operation hash, so one operation is never watched twice.
     private var watchers: [String: Task<Int, Error>] = [:]
     private var startTask: Task<Void, Never>?
@@ -90,6 +93,7 @@ final class DAppConnectionManager {
          diagnostics: Bool = false,
          permissionLoader: (@MainActor () async throws -> [DAppPermission])? = nil,
          confirmation: Confirmation? = nil,
+         layer2: @escaping @MainActor () -> [Network] = { [] },
          wallets: @escaping @MainActor () -> [Wallet],
          signer: @escaping @MainActor (Wallet, String?) throws -> SigningKey?) {
         self.bridge = bridge
@@ -97,6 +101,7 @@ final class DAppConnectionManager {
         self.diagnostics = diagnostics
         self.permissionLoader = permissionLoader
         self.confirmation = confirmation
+        self.layer2Provider = layer2
         self.walletsProvider = wallets
         self.signerProvider = signer
     }
@@ -353,6 +358,23 @@ final class DAppConnectionManager {
         await reloadPermissions()
     }
 
+    /// Which of our networks a request names, as things stand now: the Layer 2 networks are
+    /// those the user has turned on, read afresh each time.
+    func network(forType type: String, rpcURL: URL?) -> Network? {
+        DAppRequest.network(forType: type, rpcURL: rpcURL, layer2: layer2Provider())
+    }
+
+    /// The network whose Layer 2 the request names while that Layer 2 is off.
+    func layer2Off(forType type: String) -> Network? {
+        DAppRequest.layer2Off(forType: type, layer2: layer2Provider())
+    }
+
+    private func requireNetwork(_ type: String, _ rpcURL: URL?) throws -> Network {
+        if let network = network(forType: type, rpcURL: rpcURL) { return network }
+        if let off = layer2Off(forType: type) { throw ConnectError.layer2Off(type: type, network: off.name) }
+        throw ConnectError.unsupportedNetwork(type)
+    }
+
     /// Simulates the request's batch from its source account so the sheet can show exact fees,
     /// burn, totals and effects. Nothing is signed; a read-only signer stands in for the account.
     func prepare(_ request: DAppRequest) async throws -> DAppPreparedBatch {
@@ -360,7 +382,7 @@ final class DAppConnectionManager {
         _ = try await grant(for: request)
         guard let wallet = wallet(for: source) else { throw ConnectError.notOurWallet(source) }
         guard let publicKey = wallet.publicKey else { throw ConnectError.noUsableKey(wallet.alias) }
-        guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
+        let network = try requireNetwork(networkType, rpcURL)
         let r = try await bridge.call("octezConnectPrepare", [network.rpcURL.absoluteString, source.value, publicKey, operationsJSON, network.expectedChainID ?? NSNull()], timeout: 120)
         guard let prepared = r["prepared"]?.stringValue, let list = r["operations"]?.arrayValue else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected prepare payload: \(String(describing: r))")
@@ -386,7 +408,7 @@ final class DAppConnectionManager {
             guard prepared.requestID == id else { throw ConnectError.refusedPayload("The prepared batch is not for this request.") }
             _ = try await grant(for: request)
             let (wallet, signer) = try signer(for: source, passphrase: passphrase)
-            guard let network = DAppRequest.network(forType: networkType, rpcURL: rpcURL) else { throw ConnectError.unsupportedNetwork(networkType) }
+            let network = try requireNetwork(networkType, rpcURL)
             try await settlePrevious(from: source, on: network)
             let result = try await bridge.sign("octezConnectExecute", [network.rpcURL.absoluteString, signer.bridgeSpec, prepared.preparedJSON, network.expectedChainID ?? NSNull()])
             guard let hash = result["hash"]?.stringValue, !hash.isEmpty else { throw TaquitoBridge.BridgeError.javaScript("no operation hash") }

@@ -53,18 +53,28 @@ struct DAppRequestParsingTests {
         #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")) == .shadownet)
         #expect(DAppRequest.network(forType: "custom", rpcURL: URL(string: "https://rpc.example.org"))?.chain == "custom")
         #expect(DAppRequest.network(forType: "ghostnet", rpcURL: nil) == nil)
-        // Octez Connect's tezosx networks are the Layer 2 side, on the Layer 2 node and chain id.
-        let l2 = DAppRequest.network(forType: "tezosx-shadownet", rpcURL: URL(string: "https://michelson.etherlink.shadownet.octez.io"))
+        // Octez Connect's tezosx networks are the Layer 2 side, on the Layer 2 node and chain id,
+        // and only for a network whose Layer 2 is turned on.
+        let l2URL = URL(string: "https://michelson.etherlink.shadownet.octez.io")
+        let on = [Network.mainnet, .shadownet].compactMap { $0.usingL2(enabled: true, node: $0.l2DefaultRPCURL).layer2 }
+        #expect(DAppRequest.network(forType: "tezosx-shadownet", rpcURL: l2URL) == nil)
+        #expect(DAppRequest.layer2Off(forType: "tezosx-shadownet", layer2: []) == .shadownet)
+        #expect(DAppRequest.layer2Off(forType: "tezosx-shadownet", layer2: on) == nil)
+        #expect(DAppRequest.layer2Off(forType: "shadownet", layer2: []) == nil)
+        #expect(DAppRequest.network(forType: "tezosx-mainnet", rpcURL: nil, layer2: [on[1]]) == nil)
+        // The Layer 2 node in use is the one asked, not the dApp's and not the shipped one.
+        let own = Network.shadownet.usingL2(enabled: true, node: URL(string: "https://l2.example.org")).layer2.map { [$0] } ?? []
+        #expect(DAppRequest.network(forType: "tezosx-shadownet", rpcURL: l2URL, layer2: own)?.rpcURL == URL(string: "https://l2.example.org"))
+        let l2 = DAppRequest.network(forType: "tezosx-shadownet", rpcURL: l2URL, layer2: on)
         #expect(l2?.rpcURL == Network.shadownet.l2DefaultRPCURL)
         #expect(l2?.layerNumber == 2 && l2?.expectedChainID == "NetXtLrzvQDobza")
-        let l2main = DAppRequest.network(forType: "tezosx-mainnet", rpcURL: nil)
+        let l2main = DAppRequest.network(forType: "tezosx-mainnet", rpcURL: nil, layer2: on)
         #expect(l2main?.rpcURL == Network.mainnet.l2DefaultRPCURL && l2main?.expectedChainID == "NetXohUVN5QWR4f")
         #expect(l2?.dappType == "tezosx-shadownet" && Network.shadownet.dappType == "shadownet" && Network.custom.dappType == nil)
         // Every identifier names exactly one network, on either layer.
         let types = Network.all.flatMap { [$0.dappType, $0.l2DAppType] }.compactMap { $0 }
         #expect(Set(types).count == types.count)
-        #expect(DAppRequest.network(forType: "tezosx-previewnet", rpcURL: URL(string: "https://rpc.example.org")) == nil)
-        #expect(DAppRequest.network(forType: "custom", rpcURL: Network.shadownet.l2DefaultRPCURL)?.expectedChainID == "NetXtLrzvQDobza")
+        #expect(DAppRequest.network(forType: "custom", rpcURL: Network.shadownet.l2DefaultRPCURL, layer2: on)?.expectedChainID == "NetXtLrzvQDobza")
     }
 
     /// S12: a dApp's custom endpoint must be public HTTPS; a name match is not enough, and the
