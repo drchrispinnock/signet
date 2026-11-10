@@ -163,12 +163,15 @@ export function sanitizeIncomingRequest(message, auth) {
   if (!sourceAddress) return refuse("no source address", "PARAMETERS_INVALID_ERROR");
   const scope = type === "operation_request" ? "operation_request" : "sign";
   const permissions = Array.isArray(auth.permissions) ? auth.permissions : [];
-  const grant = permissions.find((p) => p?.senderId === auth.senderId && p?.address === sourceAddress && Array.isArray(p?.scopes) && p.scopes.includes(scope));
+  // One dApp can hold several grants for an account, one per network (layer 1 and its
+  // tezosx Layer 2, say), so an operation is checked against all of them, not the first.
+  const grants = permissions.filter((p) => p?.senderId === auth.senderId && p?.address === sourceAddress && Array.isArray(p?.scopes) && p.scopes.includes(scope));
+  const grant = grants[0];
   if (!grant) return refuse(`${appMetadata.name} has no permission to ${scope === "sign" ? "sign messages" : "request operations"} for ${sourceAddress}`);
 
   if (type === "operation_request") {
     if (!network) return refuse("no network in the operation request", "PARAMETERS_INVALID_ERROR");
-    if (!sameNetwork(network, grant.network)) return refuse(`the permission is for ${grant.network?.type ?? "another network"}, not ${network.type}`);
+    if (!grants.some((p) => sameNetwork(network, p.network))) return refuse(`the permission is for ${grant.network?.type ?? "another network"}, not ${network.type}`);
     const ops = message.operationDetails;
     if (!Array.isArray(ops) || ops.length === 0) return refuse("no operations", "PARAMETERS_INVALID_ERROR");
     if (ops.length > REQUEST_LIMITS.operations) return refuse(`${ops.length} operations in one request`, "TOO_MANY_OPERATIONS");
