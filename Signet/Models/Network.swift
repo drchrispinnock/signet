@@ -40,6 +40,14 @@ struct Network: Hashable, Identifiable, Sendable {
     var l2DefaultRPCURL: URL? = nil
     var l2RPCURL: URL? = nil
     var l2Enabled = false
+    /// The names dApps use for this network in a TZIP-10 request's `network.type`
+    /// (Octez Connect's `NetworkType`): `dappType` for the network itself, `nil` when it has
+    /// no such name (Custom, which dApps identify by endpoint), and `l2DAppType` for its
+    /// Layer 2 (`tezosx-mainnet`, `tezosx-shadownet`), which becomes the `dappType` of
+    /// `layer2`. `DAppRequest.network` finds a request's network by these and nothing else, so
+    /// a network that gains a Layer 2 needs only its identifier here.
+    var dappType: String?
+    var l2DAppType: String? = nil
     /// The chain id the Etherlink RPC must report (`/chains/main/chain_id`), when pinned (S12).
     var expectedL2ChainID: String? = nil
     /// Shielded transactions (tzel) on or off for this network; off by default, switched in the
@@ -78,7 +86,7 @@ struct Network: Hashable, Identifiable, Sendable {
 
     init(name: String, chain: String, rpcURL: URL, tezosDomainsURL: URL?, tzktURL: URL?, faucetURL: URL? = nil,
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
-         l2RPCURL: URL? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
+         l2RPCURL: URL? = nil, l2DAppType: String? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
          l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, etherlinkGovernance: [EtherlinkGovernance.Process: String] = [:],
          shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
@@ -88,6 +96,8 @@ struct Network: Hashable, Identifiable, Sendable {
         self.shielded = shielded
         self.shieldedDefault = shielded
         self.chain = chain
+        self.dappType = chain == "custom" ? nil : chain
+        self.l2DAppType = l2DAppType
         self.rpcURL = rpcURL
         self.defaultRPCURL = rpcURL
         self.tezosDomainsURL = tezosDomainsURL
@@ -118,6 +128,7 @@ struct Network: Hashable, Identifiable, Sendable {
         var copy = Network(name: "\(name) · Etherlink", chain: "etherlink-\(chain)", rpcURL: node, tezosDomainsURL: nil,
                            tzktURL: l2TzKTURL, explorerURL: l2ExplorerURL, expectedChainID: expectedL2ChainID)
         copy.layerNumber = 2
+        copy.dappType = l2DAppType
         return copy
     }
 
@@ -303,6 +314,7 @@ struct Network: Hashable, Identifiable, Sendable {
         explorerURL: URL(string: "https://tzkt.io")!,
         expectedChainID: "NetXdQprcVkpaWU",
         l2RPCURL: URL(string: "https://michelson.etherlink.mainnet.octez.io")!,
+        l2DAppType: "tezosx-mainnet",
         expectedL2ChainID: "NetXohUVN5QWR4f",
         l2BridgeHelper: "KT1Wj8SUGmnEPFqyahHAcjcNQwe6YGhEXJb5",
         l2Rollup: "sr1Ghq66tYK9y3r8CC1Tf8i8m5nxh8nTvZEf",
@@ -321,6 +333,7 @@ struct Network: Hashable, Identifiable, Sendable {
         explorerURL: URL(string: "https://shadownet.tzkt.io")!,
         expectedChainID: "NetXsqzbfFenSTS",
         l2RPCURL: URL(string: "https://michelson.etherlink.shadownet.octez.io")!,
+        l2DAppType: "tezosx-shadownet",
         expectedL2ChainID: "NetXtLrzvQDobza",
         l2BridgeHelper: "KT19aBsSWvWtvEkbiqReJnD8UzQMWcD8SHUD",
         l2Rollup: "sr19fMYrr5C4qqvQqQrDSjtP31GcrWjodzvg",

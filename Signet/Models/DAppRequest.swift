@@ -86,13 +86,25 @@ enum DAppRequest: Identifiable, Hashable, Sendable {
     static func network(forType type: String, rpcURL: URL?) -> Network? {
         let kind = type.lowercased()
         // A dApp's "custom" network is identified by its RPC, never by our own Custom entry.
-        if let match = Network.all.first(where: { $0.chain == kind && $0.chain != "custom" }) { return match }
+        // Each network carries the name dApps use for it (`Network.dappType`), and so does its
+        // Layer 2 (Octez Connect's `tezosx-<network>`, Etherlink's Michelson interface): that is
+        // the Layer 2 node we ship, with its own pinned chain id. The dApp's `rpcUrl` is not
+        // used for a named network, and a name no network carries (tezosx-previewnet) is refused.
+        if kind != "custom", let match = (Network.all + layer2Networks).first(where: { $0.dappType == kind }) { return match }
         if kind == "custom", let rpcURL {
             if let known = Network.all.first(where: { $0.chain != "custom" && sameEndpoint($0.defaultRPCURL, rpcURL) }) { return known }
+            if let known = layer2Networks.first(where: { sameEndpoint($0.rpcURL, rpcURL) }) { return known }
             guard EndpointPolicy.isPublicHTTPS(rpcURL) else { return nil }
             return Network(name: "Custom (\(endpointDescription(rpcURL)))", chain: "custom", rpcURL: rpcURL, tezosDomainsURL: nil, tzktURL: nil)
         }
         return nil
+    }
+
+    /// The Layer 2 side of every network we ship a Layer 2 node for, on that default node.
+    /// A dApp's request stands on its own, so this does not depend on the Layer 2 switch in
+    /// the Networks sheet, which governs what the dashboard shows.
+    private static var layer2Networks: [Network] {
+        Network.all.compactMap { $0.usingL2(enabled: true, node: $0.l2DefaultRPCURL).layer2 }
     }
 
     /// Two endpoints are the same only when scheme, host, port and path all agree (S12).

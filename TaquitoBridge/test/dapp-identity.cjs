@@ -31,6 +31,11 @@ r=S(op,auth({permissions:[{...grant(['operation_request']),senderId:'other-peer'
 r=S(op,auth({permissions:[grant(['operation_request'],{type:'shadownet'})]}));assert.ok(r.refused,'other network');
 r=S({...op,network:{type:'custom',rpcUrl:'https://a.example'}},auth({permissions:[grant(['operation_request'],{type:'custom',rpcUrl:'https://b.example'})]}));assert.ok(r.refused,'other custom rpc');
 r=S({...op,network:{type:'custom',rpcUrl:'https://a.example'}},auth({permissions:[grant(['operation_request'],{type:'custom',rpcUrl:'https://a.example'})]}));assert.equal(r.refused,undefined);
+// Two grants for one account (Layer 2 first, layer 1 second): either network is served, a third is not.
+const both=[grant(['operation_request'],{type:'tezosx-shadownet'}),grant(['operation_request'],{type:'shadownet'})];
+r=S({...op,network:{type:'shadownet'}},auth({permissions:both}));assert.equal(r.refused,undefined,'second grant network');
+r=S({...op,network:{type:'tezosx-shadownet'}},auth({permissions:both}));assert.equal(r.refused,undefined,'first grant network');
+r=S({...op,network:{type:'mainnet'}},auth({permissions:both}));assert.ok(r.refused,'network of neither grant');
 const sign={type:'sign_payload_request',id:'s1',version:'2',senderId:me,sourceAddress:source,signingType:'micheline',payload:'0501000000076865792074657a'};
 r=S(sign,auth({permissions:[grant(['operation_request'])]}));assert.ok(r.refused,'sign needs sign scope');
 r=S(sign,auth());assert.equal(r.refused,undefined);assert.equal(r.request.signingType,'micheline');
