@@ -90,7 +90,7 @@ struct DAppRequestSheet: View {
                 LabeledContent("Network", value: networkType + (rpcURL.map { " (\($0.host() ?? ""))" } ?? ""))
                 LabeledContent("Permissions", value: scopes.map(scopeName).joined(separator: ", "))
                 if dapps.network(forType: networkType, rpcURL: rpcURL) == nil {
-                    Label(dapps.layer2Off(forType: networkType).map { "This is the Layer 2 of \($0.name), which is turned off. Operations from this dApp will fail until Enable Layer 2 is on for \($0.name) in Networks." }
+                    Label(dapps.layer2Off(forType: networkType).map { "This is the Layer 2 of \($0.name), which is turned off, so Signet cannot connect to this dApp. Turn on Enable Layer 2 for \($0.name) in Networks, then connect again from the dApp." }
                           ?? "Signet has no node for this network; operations from this dApp will fail.", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
@@ -263,6 +263,12 @@ struct DAppRequestSheet: View {
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(isWorking)
+            } else if layer2Off != nil {
+                // Nothing to connect to or approve while that Layer 2 is off: OK refuses the request.
+                Button("OK") { Task { await dapps.reject(request) } }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isWorking)
             } else {
                 Button("Reject", role: .cancel) { Task { await dapps.reject(request) } }
                     .keyboardShortcut(.cancelAction)
@@ -272,6 +278,14 @@ struct DAppRequestSheet: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(isWorking || (request.isPermission && chosenWallet == nil) || (needsPassphrase && passphrase.isEmpty) || (request.isOperation && prepared?.requestID != request.id))
             }
+        }
+    }
+
+    /// The network whose Layer 2 this request is for while that Layer 2 is turned off.
+    private var layer2Off: Network? {
+        switch request {
+        case .permission(_, _, let type, _, _), .operation(_, _, let type, _, _, _): dapps.layer2Off(forType: type)
+        default: nil
         }
     }
 

@@ -339,6 +339,13 @@ final class DAppConnectionManager {
     func approvePermission(_ request: DAppRequest, with wallet: Wallet) async {
         guard case .permission(let id, _, let networkType, let rpcURL, let scopes) = request else { return }
         if let reply = undelivered[id] { await redeliver(request, reply); return }
+        // No grant is made for a Layer 2 that is turned off, whatever the sheet offered.
+        if let off = layer2Off(forType: networkType) {
+            lastError = ConnectError.layer2Off(type: networkType, network: off.name).localizedDescription
+            await respondError(id: id, errorType: "NOT_GRANTED_ERROR")
+            finish(request)
+            return
+        }
         guard let publicKey = wallet.publicKey else {
             lastError = "“\(wallet.alias)” has no public key, so it cannot be shared with a dApp."
             await respondError(id: id, errorType: "NOT_GRANTED_ERROR")
