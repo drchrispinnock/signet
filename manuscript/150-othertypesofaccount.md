@@ -17,7 +17,7 @@ During account creation, you can choose to protect the key with a password. This
 Once the account is created, you can use it to receive funds straightaway. When you do your first operation on the network, for example to send tez or to delegate or stake, your public key will be *revealed*. This means that it is available on the network and can be used to verify your operations. 
 
 There are some things you cannot do if your public key is not revealed. These will not affect most users and we will see an example in the [Operations for Bakers](#190-baking_1_Operations) chapter.
-￼
+
 {#id: 150-othertypesofaccount_2_Key}
 ## Key Types
 
@@ -33,11 +33,11 @@ The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wi
 
 | Key type | Type      | Notes                                                                                                                                                                                   | Networks                                                                                                            |
 | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| tz1      | Ed25519   | EdDSA signing scheme with the Curve25519 curve                                                                                                                                          | All                                                                                                                 |
-| tz2      | Secp256k1 | ECDSA signing scheme with the Secp256k1 curve. The public key can also be used on Bitcoin and Ethereum-style networks                                                                   | All                                                                                                                 |
-| tz3      | P-256     | ECDSA signing scheme with the P-256 curve (a.k.a. Secp256r1). This is a curve recommended by NIST. It is used in accredited hardware security modules.                                  | All                                                                                                                 |
-| tz4      | BLS       | BLS signing scheme with the BLS12-381 curve. Can be used for consensus and companion keys on Mainnet to leverage the aggregation properties of BLS, improving consensus on the network. | All                                                                                                                 |
-| tz5      | ML-DSA-44 | Using the ML-DSA-44 signing scheme, these keys are secure against classical and quantum computer attacks.                                                                               | Shadownet, Quantumnet, Ushuaianet. Cannot be used for baking.                                                       |
+| `tz1`    | Ed25519   | EdDSA signing scheme with the Curve25519 curve                                                                                                                                          | All                                                                                                                 |
+| `tz2`    | Secp256k1 | ECDSA signing scheme with the Secp256k1 curve. The public key can also be used on Bitcoin and Ethereum-style networks                                                                   | All                                                                                                                 |
+| `tz3`    | P-256     | ECDSA signing scheme with the P-256 curve (a.k.a. Secp256r1). This is a curve recommended by NIST. It is used in accredited hardware security modules.                                  | All                                                                                                                 |
+| `tz4`    | BLS       | BLS signing scheme with the BLS12-381 curve. Can be used for consensus and companion keys on Mainnet to leverage the aggregation properties of BLS, improving consensus on the network. | All                                                                                                                 |
+| `tz5`    | ML-DSA-44 | Using the ML-DSA-44 signing scheme, these keys are designed to resist known classical and quantum attacks                                                                               | Shadownet, Quantumnet, Ushuaianet. Cannot be used for baking.                                                       |
 | tz6      | XMSS      | A stateful hash-based signing scheme. New to Tezos.                                                                                                                                     | Used as a consensus key for bakers on Quantumnet. The keys have a "finite budget" and need to be rotated regularly. |
 
 You can generate and use keys of all types in Signet, except for `tz6` which is a relative newcomer and only available on the *Quantumnet* test network. You can safely use `tz1`, `tz2`, `tz3` and `tz4` keys today for day to day work on the Tezos production network *Mainnet.* The Ledger hardware security key only supports `tz1`, `tz2` and `tz3` keys.
@@ -118,7 +118,7 @@ Click `Add` and confirm the operation on your Ledger. Once the Ledger is connect
 {#id: 150-othertypesofaccount_2_Exporting}
 ## Exporting Keys
 
-You can export your secret keys from Signet at any time. Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. If you do copy it, make sure you clear your copy and paste buffer by copying something else. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds.
+You can export your secret keys from Signet at any time. Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
 
 ![](150/export.png)
 

@@ -1,5 +1,5 @@
 {#id: REVIEW_1_Book}
-# Book review - updated 2 November 2026
+# Book review - updated 11 November 2026
 
 Reviewed the 213-page preview `book-output/preview/tezossignet-preview.pdf`, generated 28 October 2026 at 09:29:45 UTC, against the chapters included in `Book.txt`. Page references below use printed book numbers unless explicitly called PDF pages; printed p. 1 is PDF page 19. The cover and front matter account for the offset.
 
@@ -7,6 +7,8 @@ This is an editorial and factual review, not an application-code audit. The orig
 
 
 **2 November update.** Rechecked the current chapter sources and changes since the 28 October review (through commit `9952728`). Findings 6, 10, 12, 30 and 33 are now complete and have been moved to DONE at the end. Partially corrected findings below describe the remaining work. Finding 36 is new. Original finding numbers and anchors are retained. Legacy source line references and PDF page references describe the original reviewed draft; use the quoted phrases to locate passages after edits; no new PDF was generated or visually reviewed in this update. Octez baking/governance, USDtz reserve and Etherlink bridge documentation were selectively rechecked on 2 November; other external checks retain their original date.
+
+**11 November update.** Targeted source rechecks and author corrections completed findings 11, 16, 17, 21, 22, 24, 26, 27, 28, 29, 31, 32, 34, 36. These are moved to DONE below with dated completion notes and their original findings preserved. Finding 23 retains only version pinning; finding 25 retains only Debian 13 execution verification. This was not a new whole-book review or PDF build. Bob’s signing screenshot and the 15 tez send/confirmation screenshots were visually inspected. FCA, Docker and Octez Ushuaia documentation were selectively rechecked. Other active findings retain their earlier review status.
 
 {#id: REVIEW_2_Substantiv}
 ## Substantive corrections and inconsistencies
@@ -46,12 +48,6 @@ This is an editorial and factual review, not an application-code audit. The orig
 
 **Partially corrected.** The one-cash-dollar-per-token claim is gone and the paragraph now lists USDC, USDP and GUSD. Attribute that reserve description to the issuer; its public reports on this page stop at August 2023, so they do not establish current backing. Prefer “USDtz is a stablecoin intended to track the US dollar” to the newly introduced “wrapped token” unless the specific wrapping mechanism is explained. Use `USDtz` consistently (the revised paragraph switches to `USDTz`) and distinguish the target peg from a guaranteed price. [Issuer reserve description](https://usdtz.com/reserve). Original PDF p. 121.
 
-{#id: REVIEW_3_11}
-### 11. Finish the decentralised-app terminology correction
-
-[170-dapps.md:4](170-dapps.md#L4)
-
-**Partially corrected.** The chapter title, opening definition and DEX expansion now use “Decentralised”. The Preface still promises “distributed apps” and Getting Started still links to “[Distributed Apps]”. Update those visible names too; the existing `170-dapps_1_Distribute` anchor can remain to preserve links. Original PDF p. 91.
 
 {#id: REVIEW_3_13}
 ### 13. Qualify the NFT explanation
@@ -74,19 +70,7 @@ This is an editorial and factual review, not an application-code audit. The orig
 
 **Overgeneralisation.** Say the artwork in this example is stored through IPFS; not every NFT uses it. Briefly explain that IPFS availability depends on someone retaining/pinning the content. [IPFS persistence documentation](https://docs.ipfs.tech/concepts/persistence/). PDF p. 107.
 
-{#id: REVIEW_3_16}
-### 16. Do not describe every public-key scheme as immediately broken by any quantum computer
 
-[005-Preface.md:58](005-Preface.md#L58)
-
-**Factual precision.** Quantum computers already exist; the relevant threat is a sufficiently capable, fault-tolerant cryptographically relevant quantum computer. Replace the categorical timing statement. Similarly, describe ML-DSA as designed to resist known classical and quantum attacks rather than absolutely secure against all attacks. PDF pp. vii, 49.
-
-{#id: REVIEW_3_17}
-### 17. Clarify what account creation does
-
-[110-starting.md:24](110-starting.md#L24)
-
-**Internal conceptual inconsistency.** Key generation happens locally; the chapter later correctly says the address is not yet found on chain. Say the reader has a key pair and address ready to receive funds, and explain first funding separately from public-key revelation. “Name for your address book” should be “alias for this account.” PDF pp. 5, 12.
 
 {#id: REVIEW_3_18}
 ### 18. Correct the derivation-path explanation
@@ -109,89 +93,17 @@ This is an editorial and factual review, not an application-code audit. The orig
 
 **Procedure needs verification.** Identify whether the backup is a directory, archive or collection of files and the exact restore steps, including quitting Signet and preserving the current directory first. “Moved to ~/.signet” is ambiguous and could produce a nested directory or overwrite newer keys. Match the configured wallet path, not only the default. No real wallet files were inspected. PDF p. 79.
 
-{#id: REVIEW_3_21}
-### 21. Do not imply copying another item erases all clipboard copies
 
-[150-othertypesofaccount.md:121](150-othertypesofaccount.md#L121)
-
-**Technical limitation.** Copying another item replaces the current clipboard item; it does not necessarily clear clipboard histories, synchronization or other retained copies. Revise the claim, and clarify what backup material must be preserved for encrypted exported keys. PDF pp. 8–9, 56.
-
-{#id: REVIEW_3_22}
-### 22. Repair the macOS node command
-
-[910-apx-ownnode.md:74](910-apx-ownnode.md#L74)
-
-**Confirmed executable-example error.** Add a trailing backslash after `--history-mode=rolling`. As printed, the shell runs the first two lines and then treats `--net-addr=...` as a new command. PDF p. 190.
 
 {#id: REVIEW_3_23}
 ### 23. Keep the Docker history mode consistent with the snapshot
 
-[910-apx-ownnode.md:36](910-apx-ownnode.md#L36)
-
-**Procedure needs verification.** The Docker config command omits `--history-mode=rolling`, while the downloaded snapshot is rolling. Add an explicit matching history mode rather than relying on the image default or snapshot-import behavior. Pin the tested Octez image/version instead of a moving `latest` tutorial target. PDF pp. 189–190.
-
-{#id: REVIEW_3_24}
-### 24. Correct the Docker RAM recommendation
-
-[910-apx-ownnode.md:21](910-apx-ownnode.md#L21)
-
-**Resource guidance error.** The example begins with a 16GB Mac and then assigns all 16GB to Docker, leaving no sensible allowance for macOS and Signet. Give a hardware-dependent allocation and state the tested RAM/disk requirements. The 50% default is correct. [Docker resource settings](https://docs.docker.com/desktop/settings-and-maintenance/settings/). PDF p. 188.
+**Partially corrected — checked 11 November 2026.** The Docker configuration now explicitly selects rolling history and its line continuations are correct. The remaining recommendation is to pin the same tested image tag in the pull, configuration, snapshot-import and run commands; they still use latest explicitly or implicitly. No Docker/node execution was performed.
 
 {#id: REVIEW_3_25}
 ### 25. Finish the command-line prerequisite and example corrections
 
-[910-apx-ownnode.md:82](910-apx-ownnode.md#L82)
-
-**Partially corrected.** The Mac snapshot download now uses `curl`, the prose recommends `ip -br addr`, and the appendix already explicitly tells readers not to type the `$` prompt; that part of the original finding is resolved, as Chris noted. The displayed Linux example still runs `$ ifconfig -a` and shows its output: replace both with an `ip -br addr` example. The Linux snapshot instructions still use `wget`; either state its prerequisite or use `curl` with installation instructions where necessary. `extrepo` installation is already shown; verify the complete sequence on the stated Debian 13 installation. Original PDF pp. 191–192.
-
-{#id: REVIEW_3_26}
-### 26. Clarify local RPC binding in the Docker example
-
-[910-apx-ownnode.md:34](910-apx-ownnode.md#L34)
-
-**Scope mismatch in the instructions.** The same-Mac example publishes RPC on all host interfaces, alongside unrestricted RPC in the container. For a localhost-only example, publish `127.0.0.1:8732:8732`; explain the deliberate change needed for the separate home-server example. This is a concrete issue in the printed command, not a review of application code. PDF pp. 189–190.
-
-{#id: REVIEW_3_27}
-### 27. Distinguish regulatory cooling-off from provider delays
-
-[110-starting.md:103](110-starting.md#L103)
-
-**Factual precision.** The FCA rule concerns a minimum 24-hour pause in the qualifying first-time consumer promotion journey, not a blanket seven-day waiting period for crypto delivery or every purchase. Clearly separate the author’s seven-day provider experience from that rule. [FCA explanation](https://www.fca.org.uk/publications/good-and-poor-practice/assessing-compliance-back-end-cryptoasset-financial-promotions-rules). PDF pp. 20–23.
-
-{#id: REVIEW_3_28}
-### 28. Reconcile the send amount
-
-[140-transactions.md:24](140-transactions.md#L24)
-
-**Confirmed internal inconsistency.** The introduction says 5 tez; the subsequent instruction says 15 tez. Choose the amount matching the screenshots and make the whole example agree. PDF pp. 32, 35.
-
-{#id: REVIEW_3_29}
-### 29. Show the signing screenshot for Bob
-
-[180-multisig.md:52](180-multisig.md#L52)
-
-**Confirmed source mismatch.** After Bob signs, the manuscript reuses `180/bobmultisig.png`, which earlier illustrates adding a multisig. `180/bobsign.png` exists and appears intended; inspect it before replacing. PDF pp. 136–137.
-
-{#id: REVIEW_3_31}
-### 31. Finish removing missing references and stray characters
-
-[190-baking.md:54](190-baking.md#L54)
-
-**Partially corrected.** The baker public-key code fences now match and the appendix's `[??]` reference has been replaced by bibliography item [6]. Two U+FFFC object-replacement characters remain in the appendix sentence “For more details see … or …”; replace them with real references. A third U+FFFC remains in Key Management after the account-generation section. Source inspection confirms these three characters are still present; the revised PDF has not been checked. Original PDF pp. 152, 190–191.
-
-{#id: REVIEW_3_32}
-### 32. Reconcile direct wallet pairing status
-
-[250-whatscoming.md:12](250-whatscoming.md#L12)
-
-**Confirmed internal inconsistency.** The dApp chapter already says Teia lists Signet and shows the direct connection method. Say some dApps still need manual pairing; remove the blanket requirement. In the dApp chapter, “You will always be able” is also too absolute: it depends on the site exposing a compatible pairing code. PDF pp. 93, 109, 185.
-
-{#id: REVIEW_3_34}
-### 34. Make book-date and chronology choices explicit
-
-[005-Preface.md:17](005-Preface.md#L17)
-
-**Partially addressed; author decision remains.** The development story's closing 28 October signature has been removed and the unused `date` variable has been removed from `variables.txt`. The Preface remains signed 5 November, while the story explicitly says it was written at the end of October after 23 days of development. Those dates can be intentional. Confirm the publication-date Preface and retain a clear late-October frame for the historical story so the 23-day statement is not read as a claim about publication day. Original PDF pp. i–ii, xiii.
+**Text corrections complete; execution verification outstanding — checked 11 November 2026.** The Linux example and output use ip -br addr. The prerequisite command installs extrepo and wget, matching the Linux snapshot download; Mac downloads use curl. The prompt convention is explained. The complete sequence has not been tested on Debian 13 in this review; confirm that validation before closing this finding.
 
 {#id: REVIEW_3_35}
 ### 35. Supply the promised introduction
@@ -200,24 +112,20 @@ This is an editorial and factual review, not an application-code audit. The orig
 
 **Known unfinished content.** The introduction contains only a placeholder. The governance chapter explicitly says governance has already been discussed there. Use TERMS.md as a coverage checklist, prioritizing the basic mental model and deferring cryptographic details. Acknowledgements also still says “To follow.” PDF pp. xv, 1, 157.
 
-{#id: REVIEW_3_36}
-### 36. Qualify the fund-safety claim for consensus keys
-
-[190-baking.md:15](190-baking.md#L15)
-
-**Documentation conflict requiring protocol-specific correction.** The chapter recommends separate consensus/companion keys and says “The baking fund is safe”. Octez documents that both manager and consensus keys give control over the delegate's spendable balance. Explain the actual authority and exposure of each key for the demonstrated protocol; a Ledger-held manager key alone does not substantiate the blanket safety claim. Also state when a replacement consensus key activates, rather than implying confirmation immediately rotates it. [Octez consensus-key documentation](https://octez.tezos.com/docs/alpha/proof_of_stake.html#consensus-key).
 
 {#id: REVIEW_2_Consistenc}
 ## Consistency and presentation pass
 
 - Follow `STANDARDS.md`: italicized, initially capitalized network names; code formatting for menu items and `tz` addresses; TzKT and TzEL capitalization. Lowercase *mainnet*/*shadownet*, plain Shadownet, `tzkt`, and `defi`/`deFi` occur in the current text. Use DeFi consistently.
-- Preserve the book’s distinction between a wallet and an account. The first-run discussion uses “create a new wallet” for other wallets; Signet’s actual instruction correctly says “Create a new account”. The key-generation section still says “name for your address book”; several transfers say “wallet” where the intended object is an account. Historical quotations/specifications may deliberately retain earlier wording.
+- Preserve the book’s distinction between a wallet and an account. The first-run discussion uses “create a new wallet” for other wallets; Signet’s actual instruction correctly says “Create a new account”. The import-key section still says “name for your address book”; several transfers say “wallet” where the intended object is an account. Historical quotations/specifications may deliberately retain earlier wording.
 - Standardize Mt Pelerin, GitHub, Ledger, Mac App Store, WalletConnect, 3Route, Objkt/objkt.com and IPFS (InterPlanetary File System). Keep filenames unchanged unless their references are updated.
 - The receive chapter calls a QR code a “bar code” and a “sending address.” Prefer “QR code encoding the recipient address” so beginners do not confuse sender and recipient.
 - Consider writing amounts as “5 tez” rather than “5tz” throughout, and define tez / XTZ / the tez symbol once in the introduction. Distinguish Tezos, the network, from tez, its native asset.
 - The appendix command blocks switch between including `$` and omitting it; readers need a consistent convention. Wrapped keys and signatures in PDF p. 152 have continuation markers: explain that those markers are not part of values to paste.
-- In the original preview, sampled pages confirmed stray backticks (p. 152), missing references (pp. 190–191), and the split key-type table (pp. 48–49). The backticks and `[??]` have since been fixed in source; the three stray object-replacement characters remain (finding 31). The table is narrow and verbose; shorten the Notes column or move explanations into prose. Screenshot placement leaves substantial whitespace on some pages; this is a layout suggestion, not missing text.
-- In the original review, every active Markdown image reference resolved to an existing resource, and explicit internal anchor targets resolved. This does not verify that each screenshot depicts the described step; Bob’s repeated screenshot is a concrete mismatch.
+- In the original preview, sampled pages confirmed stray backticks (p. 152), missing references (pp. 190–191), and the split key-type table (pp. 48–49). The backticks and `[??]` have since been fixed in source; the three stray object-replacement characters are now removed (finding 31). The table is narrow and verbose; shorten the Notes column or move explanations into prose. Screenshot placement leaves substantial whitespace on some pages; this is a layout suggestion, not missing text.
+- In the original review, every active Markdown image reference resolved to an existing resource, and explicit internal anchor targets resolved. This does not verify that each screenshot depicts the described step; Bob’s screenshot mismatch is now fixed and visually checked (finding 29).
+
+- Remaining local wording from the 11 November rechecks: `110-starting.md:112` says “a key pair and an address are ready”; remove “are”. Two U+FFFC characters remain in the excluded draft `networks-material.md`, lines 6–7; they do not affect finding 31’s published chapters. The tz1–tz5 prose/table labels were formatted with backticks; code blocks were preserved.
 
 {#id: REVIEW_2_Claims}
 ## Claims still requiring author or release-specific verification
@@ -231,7 +139,7 @@ These are not asserted to be wrong. Recheck them against a named Signet release 
 - **Application behavior:** minimum macOS version and supported CPUs, current DMG installation, exact labels such as `Staking` versus `Stake`, temporary-key persistence, backup format, and whether a chain-ID mismatch merely warns or blocks operations. These were not checked against app source or real wallet data.
 - **Provider specifics:** distinguish brokers/on-ramp services from order-book exchanges; verify Mt Pelerin country exclusions and payment methods rather than implying every provider supports every credit card or jurisdiction.
 - **Historical claims:** release timestamps/version lists, first graphical-wallet transaction on Quantumnet, first graphical TzEL wallet, and Teia being first to list Signet. Preserve the first-person story but cite evidence or qualify priority claims.
-- **Development tooling:** confirm the intended name “Fable” and exact `claude init` command in the historical story. The excerpted specification’s “tz1, 6” should be clarified as “tz1 through tz6” if it is not being reproduced verbatim.
+- **Development tooling:** confirm the intended name “Fable”. The author has confirmed running `claude init`; do not reopen that wording. The excerpted specification’s “tz1, 6” should be clarified as “tz1 through tz6” if it is not being reproduced verbatim.
 - **Market and platform claims:** Objkt’s seven-million figure and largest-marketplace claim, quoted APYs/capacity/fees, “first official rollup,” Octez.js roadmap expectations and cross-VM Michelson deployment status all need dates or precise attribution. Screenshots demonstrate historical quotes, not current offers.
 - **NFT rights:** verify the actual license for each artwork; distinguish token ownership from any permission concerning the underlying image. If this is discussed legally, source the specific license and applicable legal guidance.
 - **Transaction retry:** replace “try the transaction again” with a check of its operation hash/status first. A timeout does not prove the first operation failed; a fresh send can duplicate the payment.
@@ -253,6 +161,8 @@ For the original 28 October review, the active manuscript chapters were read end
 ## DONE
 
 Findings 1–3 were recorded as complete in the previous review. Findings 6, 10, 12, 30 and 33 were checked against the current sources on 2 November 2026 and are also complete. Original numbering and review details are retained below for reference. The earlier spelling, grammar and local wording pass remains archived here; new wording issues introduced since that pass are listed with the active findings.
+
+The additional findings completed on 11 November are appended at the end of this DONE section. Their original descriptions are historical, not outstanding requests.
 
 {#id: REVIEW_3_1}
 ### 1. Correct the signing-scheme explanation
@@ -444,3 +354,157 @@ Each entry gives an exact searchable phrase and a suggested correction. Multiple
 | [910-apx-ownnode.md:104](910-apx-ownnode.md#L104)                 | A rolling node is suitable for most applications -                     | Complete this sentence or replace the trailing hyphen with a full stop                           |
 | [915-colophon.md:6](915-colophon.md#L6)                           | files are writing                                                      | files are written                                                                                |
 | [915-colophon.md:8](915-colophon.md#L8)                           | throughly                                                              | thoroughly                                                                                       |
+
+{#id: REVIEW_3_11}
+### 11. Finish the decentralised-app terminology correction
+
+**Done — checked 11 November 2026.** The Preface now says decentralised apps, and Getting Started links to Decentralised Apps. Existing anchors are preserved.
+
+Original finding (historical):
+
+[170-dapps.md:4](170-dapps.md#L4)
+
+**Partially corrected.** The chapter title, opening definition and DEX expansion now use “Decentralised”. The Preface still promises “distributed apps” and Getting Started still links to “[Distributed Apps]”. Update those visible names too; the existing `170-dapps_1_Distribute` anchor can remain to preserve links. Original PDF p. 91.
+
+{#id: REVIEW_3_16}
+### 16. Do not describe every public-key scheme as immediately broken by any quantum computer
+
+**Done — checked 11 November 2026.** The development story now qualifies the quantum-computer threat and describes ML-DSA as designed to resist attacks; the key-type table likewise says designed to resist known classical and quantum attacks.
+
+Original finding (historical):
+
+[005-Preface.md:58](005-Preface.md#L58)
+
+**Factual precision.** Quantum computers already exist; the relevant threat is a sufficiently capable, fault-tolerant cryptographically relevant quantum computer. Replace the categorical timing statement. Similarly, describe ML-DSA as designed to resist known classical and quantum attacks rather than absolutely secure against all attacks. PDF pp. vii, 49.
+
+{#id: REVIEW_3_17}
+### 17. Clarify what account creation does
+
+**Done — checked 11 November 2026.** The account-creation section now explains local key generation, funding separately from revelation, and a local account alias. The substantive issue is resolved; the remaining sentence-level typo is tracked in the consistency pass.
+
+Original finding (historical):
+
+[110-starting.md:24](110-starting.md#L24)
+
+**Internal conceptual inconsistency.** Key generation happens locally; the chapter later correctly says the address is not yet found on chain. Say the reader has a key pair and address ready to receive funds, and explain first funding separately from public-key revelation. “Name for your address book” should be “alias for this account.” PDF pp. 5, 12.
+
+{#id: REVIEW_3_21}
+### 21. Do not imply copying another item erases all clipboard copies
+
+**Done — checked 11 November 2026.** The clipboard-clearing claim has been removed. Export guidance now requires the complete encrypted key and its password, with a separate secure password backup.
+
+Original finding (historical):
+
+[150-othertypesofaccount.md:121](150-othertypesofaccount.md#L121)
+
+**Technical limitation.** Copying another item replaces the current clipboard item; it does not necessarily clear clipboard histories, synchronization or other retained copies. Revise the claim, and clarify what backup material must be preserved for encrypted exported keys. PDF pp. 8–9, 56.
+
+{#id: REVIEW_3_22}
+### 22. Repair the macOS node command
+
+**Done — checked 11 November 2026.** The native macOS configuration command now has the continuation backslash after --history-mode=rolling.
+
+Original finding (historical):
+
+[910-apx-ownnode.md:74](910-apx-ownnode.md#L74)
+
+**Confirmed executable-example error.** Add a trailing backslash after `--history-mode=rolling`. As printed, the shell runs the first two lines and then treats `--net-addr=...` as a new command. PDF p. 190.
+
+{#id: REVIEW_3_24}
+### 24. Correct the Docker RAM recommendation
+
+**Done — checked 11 November 2026.** The advice now describes a default memory limit, reports the author’s tested 16GB setting, and asks readers to choose according to their hardware and other applications. The original claim that this setup necessarily leaves no allowance was too categorical; this finding is resolved as a clarification, not a rejection of the tested setup.
+
+Original finding (historical):
+
+[910-apx-ownnode.md:21](910-apx-ownnode.md#L21)
+
+**Resource guidance error.** The example begins with a 16GB Mac and then assigns all 16GB to Docker, leaving no sensible allowance for macOS and Signet. Give a hardware-dependent allocation and state the tested RAM/disk requirements. The 50% default is correct. [Docker resource settings](https://docs.docker.com/desktop/settings-and-maintenance/settings/). PDF p. 188.
+
+{#id: REVIEW_3_26}
+### 26. Clarify local RPC binding in the Docker example
+
+**Done — checked 11 November 2026.** Both Docker port mappings now bind to 127.0.0.1:8732:8732, the unnecessary -P is removed, and the container retains --rpc-addr=0.0.0.0. The separate Linux home-server example deliberately listens on network interfaces.
+
+Original finding (historical):
+
+[910-apx-ownnode.md:34](910-apx-ownnode.md#L34)
+
+**Scope mismatch in the instructions.** The same-Mac example publishes RPC on all host interfaces, alongside unrestricted RPC in the container. For a localhost-only example, publish `127.0.0.1:8732:8732`; explain the deliberate change needed for the separate home-server example. This is a concrete issue in the printed command, not a review of application code. PDF pp. 189–190.
+
+{#id: REVIEW_3_27}
+### 27. Distinguish regulatory cooling-off from provider delays
+
+**Done — checked 11 November 2026.** Getting Started now describes the minimum 24-hour pause before a new consumer sees a direct-offer cryptoasset financial promotion. Seven days is explicitly the author’s Mt Pelerin experience; the development story calls it a wait, not a regulatory cooling-off period.
+
+Original finding (historical):
+
+[110-starting.md:103](110-starting.md#L103)
+
+**Factual precision.** The FCA rule concerns a minimum 24-hour pause in the qualifying first-time consumer promotion journey, not a blanket seven-day waiting period for crypto delivery or every purchase. Clearly separate the author’s seven-day provider experience from that rule. [FCA explanation](https://www.fca.org.uk/publications/good-and-poor-practice/assessing-compliance-back-end-cryptoasset-financial-promotions-rules). PDF pp. 20–23.
+
+{#id: REVIEW_3_28}
+### 28. Reconcile the send amount
+
+**Done — checked 11 November 2026.** Both prose amounts are 15 tez. The send and confirmation screenshots were visually inspected and also show 15 tez.
+
+Original finding (historical):
+
+[140-transactions.md:24](140-transactions.md#L24)
+
+**Confirmed internal inconsistency.** The introduction says 5 tez; the subsequent instruction says 15 tez. Choose the amount matching the screenshots and make the whole example agree. PDF pp. 32, 35.
+
+{#id: REVIEW_3_29}
+### 29. Show the signing screenshot for Bob
+
+**Done — checked 11 November 2026.** The signing section now references 180/bobsign.png. Visual inspection confirms Bob signing the described 5 tez transfer; bobmultisig.png remains in the add-account section.
+
+Original finding (historical):
+
+[180-multisig.md:52](180-multisig.md#L52)
+
+**Confirmed source mismatch.** After Bob signs, the manuscript reuses `180/bobmultisig.png`, which earlier illustrates adding a multisig. `180/bobsign.png` exists and appears intended; inspect it before replacing. PDF pp. 136–137.
+
+{#id: REVIEW_3_31}
+### 31. Finish removing missing references and stray characters
+
+**Done — checked 11 November 2026.** The two appendix references are now bibliography items [8] and [6]. All three U+FFFC characters identified in published chapters have been removed. The code fences and earlier [6] reference remain corrected. No regenerated PDF was inspected.
+
+Original finding (historical):
+
+[190-baking.md:54](190-baking.md#L54)
+
+**Partially corrected.** The baker public-key code fences now match and the appendix's `[??]` reference has been replaced by bibliography item [6]. Two U+FFFC object-replacement characters remain in the appendix sentence “For more details see … or …”; replace them with real references. A third U+FFFC remains in Key Management after the account-generation section. Source inspection confirms these three characters are still present; the revised PDF has not been checked. Original PDF pp. 152, 190–191.
+
+{#id: REVIEW_3_32}
+### 32. Reconcile direct wallet pairing status
+
+**Done — checked 11 November 2026.** The obsolete future-work limitation is removed. The dApp chapter describes direct connection in updated dApps and conditions manual pairing on a compatible Octez Connect code. The author confirms the Octez Connect team has patched support.
+
+Original finding (historical):
+
+[250-whatscoming.md:12](250-whatscoming.md#L12)
+
+**Confirmed internal inconsistency.** The dApp chapter already says Teia lists Signet and shows the direct connection method. Say some dApps still need manual pairing; remove the blanket requirement. In the dApp chapter, “You will always be able” is also too absolute: it depends on the site exposing a compatible pairing code. PDF pp. 93, 109, 185.
+
+{#id: REVIEW_3_34}
+### 34. Make book-date and chronology choices explicit
+
+**Done — checked 11 November 2026.** The Preface is dated 14 November 2026; the development story says just over a month since 5 October, includes November development, and dates completion of the first draft to November. The 23-day statement and old late-October framing are gone.
+
+Original finding (historical):
+
+[005-Preface.md:17](005-Preface.md#L17)
+
+**Partially addressed; author decision remains.** The development story's closing 28 October signature has been removed and the unused `date` variable has been removed from `variables.txt`. The Preface remains signed 5 November, while the story explicitly says it was written at the end of October after 23 days of development. Those dates can be intentional. Confirm the publication-date Preface and retain a clear late-October frame for the historical story so the 23-day statement is not read as a claim about publication day. Original PDF pp. i–ii, xiii.
+
+{#id: REVIEW_3_36}
+### 36. Qualify the fund-safety claim for consensus keys
+
+**Done — checked 11 November 2026.** The blanket safety claim is removed. The text states that the consensus key can manage the spendable balance, and gives activation as two cycles after the current cycle. Checked against the Ushuaia documentation during this review.
+
+Original finding (historical):
+
+[190-baking.md:15](190-baking.md#L15)
+
+**Documentation conflict requiring protocol-specific correction.** The chapter recommends separate consensus/companion keys and says “The baking fund is safe”. Octez documents that both manager and consensus keys give control over the delegate's spendable balance. Explain the actual authority and exposure of each key for the demonstrated protocol; a Ledger-held manager key alone does not substantiate the blanket safety claim. Also state when a replacement consensus key activates, rather than implying confirmation immediately rotates it. [Octez consensus-key documentation](https://octez.tezos.com/docs/alpha/proof_of_stake.html#consensus-key).

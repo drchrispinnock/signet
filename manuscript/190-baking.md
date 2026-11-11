@@ -11,7 +11,10 @@ The bakers also vote in the on-chain governance elections and this is done by si
 
 The good news is that you can do all of these operations with the Signet wallet. You just need to import the master key into the wallet or connect the ledger that the key is held on. This, of course, works particularly well if you want to use a separate key for consensus. 
 
-A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two tz4 keys. The baking fund is safe and the other keys do the work. Moreover, the Tezos X roadmap needs the baking community to use tz4 keys.
+A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two `tz4` keys. Also, the Tezos X roadmap needs the baking community to adopt `tz4` keys, so this is a good starting point.
+
+By using a consensus key, the baking key is not stored on the baking server and the other keys do the work. It allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
+
 
 {#id: 190-baking_2_Registerin}
 ## Registering as a baker
@@ -35,13 +38,13 @@ You now need to set up your baker if you haven't already, as soon as possible so
 {#id: 190-baking_2_Consensus}
 ## Consensus and Companion keys
 
-Now that you have a baking key, you can set your consensus and companion keys. If you are using tz4 for your consensus key and you are using DAL, then you'll need a tz4 companion key. We will assume that you are using tz4 keys because it is currently the best practice for the Tezos network.
+Now that you have a baking key, you can set your consensus and companion keys. If you are using `tz4` for your consensus key and you are using DAL, then you'll need a `tz4` companion key. We will assume that you are using `tz4` keys because it is currently the best practice for the Tezos network.
 
 Choose the `Baking...` menu again and you'll have more options:
 ![](190/parameters.png)
 Now the consensus and companion keys are usually generated on the baking machine. Typically they do not have any tez. And this usually means that their public keys have not been revealed on the network. There is no reason why you can't generate them in the Signet wallet, in which case you will already have their public keys - it's just you'll have to export them and move them to your baker. 
 
-For this demonstration, I will assume that the keys are being generated on the baking machine. I've created two tz4 keys on another machine using the command-line wallet `octez-client`:
+For this demonstration, I will assume that the keys are being generated on the baking machine. I've created two `tz4` keys on another machine using the command-line wallet `octez-client`:
 
 ```
 $ octez-client gen keys Bonnie --sig bls
@@ -78,13 +81,13 @@ Now we can set the Consensus and Companion keys by pasting the public addresses 
 
 Now click `Continue`, then `Confirm` the operation to set the key.
 
-If you have the keys in your wallet already, you can select them from the address book. Let's see what happens if we just use the tz4 key rather than the public key:
+If you have the keys in your wallet already, you can select them from the address book. Let's see what happens if we just use the `tz4` key rather than the public key:
 
 ![](190/notrevealed.png)
 
-Signet cannot get the public key from the tz4 address, which is a hash of the public key and it complains. This would have worked if the address was created in our wallet or if the key had been revealed on the network.
+Signet cannot get the public key from the `tz4` address, which is a hash of the public key and it complains. This would have worked if the address was created in our wallet or if the key had been revealed on the network.
 
-Anyway, now you have set the consensus and companion key for your baker and we can see all the operations on the block explorer. Now you need to finalise setting up your baker with the companion and consensus key.
+Anyway, now you have set the consensus and companion key for your baker and we can see all the operations on the block explorer. Now you need to finalise setting up your baker with the companion and consensus key. It takes 2 cycles after the current cycle for these to take effect, so you have plenty of time to do this.
 
 ![](190/blkexplorer.png)
 
@@ -156,4 +159,7 @@ Bakers need to be careful when setting up their infrastructure. The worst thing 
 It's unlikely a baker will do this with a sensible baking setup. Usually bakers run one instance of the software at a time and protect their keys with a piece of software called a remote signer. This checks to see if a baker has tried to sign a block at the same slot before and prevents the signing.
 
 There's far more to it than my explanation, but it's safe to say that all bakers want to protect their baking key, as someone else having access to it can cause serious problems. Another person could cause the baker to double-bake. So storing your key away from your baking environment where you can manage the balance, baking operations and parameters is a good thing. This is why the baking and governance menus were added to Signet.
+
+But please note that a consensus key still needs to be protected. If some else gets hold of it, they can start a baker with it and cause you to double bake. They can also drain the spendable balance from the master baking key.
+
 

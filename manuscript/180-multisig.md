@@ -59,7 +59,7 @@ Now Bob needs to sign the transaction as well. He does exactly the same as Alice
 
 and sends it to Alice.
 
-![](180/bobmultisig.png)
+![](180/bobsign.png)
 
 Christopher, Diana and Edward can provide the final signature. Edward does it. He could do it with Signet but he does it with `octez-client`. This is the command-line wallet provided with the Tezos blockchain software, [Octez](https://octez.tezos.com).
 

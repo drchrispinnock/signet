@@ -19,7 +19,7 @@ By default, Signet will try to use the node on the local machine. Alternatively,
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to use Docker. Install Docker Desktop from the [Docker site](https://www.docker.com/products/docker-desktop/) and run it. 
 
-Docker Desktop reserves half of the system memory for Docker. If you have 16GB of RAM, it will limit memory usage to 8GB which might not be enough. You can change this by clicking the settings cog top right, going into `Resources` and changing the Memory Limit to 16GB.
+Docker Desktop’s memory limit defaults to half the host’s RAM. If this is insufficient, you can increase it under Settings → Resources. I use a 16GB limit; choose a setting appropriate to your machine and the other applications you run.
 
 Then run the `Terminal` application (you can search for it in Spotlight Search). In the commands below, `$` represents the shell prompt; do not type it. Get the latest release of Octez:
 
@@ -27,14 +27,15 @@ Then run the `Terminal` application (you can search for it in Spotlight Search).
 $ docker pull tezos/tezos:latest
 ```
 
-Make a node directory and configure the node to use it. We've split the long lines with `\`.
+Make a node directory and configure the node to use it. We've split the long lines with `\`. The IP address configuration here allows the Mac to communicate with the docker container locally.
 
 ```
 $ mkdir ${HOME}/node
 $ docker run -v ${HOME}/node:/home/tezos/.tezos-node \
-	-p 8732:8732 \
+	-p 127.0.0.1:8732:8732 \
 	--entrypoint /usr/local/bin/octez-node \
 	tezos/tezos config init --network=mainnet \
+   --history-mode=rolling \
 	--rpc-addr=0.0.0.0 --allow-all-rpc=0.0.0.0 \
 	--net-addr=0.0.0.0
 ```
@@ -56,7 +57,7 @@ Now run the node:
 ```
 $ docker run -d -v ${HOME}/node:/home/tezos/.tezos-node \
    	--entrypoint /usr/local/bin/octez-node \
-	--name node -p 8732:8732 -P \
+	--name node -p 127.0.0.1:8732:8732 \
 	tezos/tezos run
 ```
 
@@ -72,7 +73,7 @@ The other way to do it is to build Octez from source. This is beyond the scope o
 
 ```
 $ octez-node config init --network=mainnet \
-	--history-mode=rolling 
+	--history-mode=rolling \
 	--net-addr="0.0.0.0" \
 	--rpc-addr="127.0.0.1"
 ```
@@ -96,8 +97,7 @@ Generating a new identity... (level: 26.00)
 ....
 ```
 
-You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez software and you can set it up to run at boot using launchctl. For more details see ￼ or ￼.
-
+You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez software and you can set it up to run at boot using launchctl. For more details see <!-- MARKUPBIBTAG 6d7f2a11 -->[8]<!-- ENDMARKUPBIBTAG --> or <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->.
 
 {#id: 910-apx-ownnode_2_Running_3}
 ## Running on a Linux Desktop or Server
@@ -109,7 +109,7 @@ For Debian Linux 13, you can install the release version of `octez-node`, the no
 As a user with `sudo` access:
 
 ```
-$ sudo apt install extrepo
+$ sudo apt install extrepo wget
 $ sudo extrepo enable tzinit
 $ sudo apt update
 $ sudo apt install -y octez-node
@@ -148,12 +148,9 @@ Connect Signet to the node as per the first section in this Appendix. If the nod
 
 
 ```
-$ ifconfig -a
-....
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 192.168.1.140  netmask 255.255.255.0  broadcast 192.168.1.255
-        inet6 fe80::7e3d:9ff:fec3:3661  prefixlen 64  scopeid 0x20<link>
-...
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+eno1             UP             192.168.1.140/24 
 ```
 
 {#id: 910-apx-ownnode_2_Running_5}
