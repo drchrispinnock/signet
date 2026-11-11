@@ -17,7 +17,7 @@ However, some dApps do not yet have Signet on their wallet lists. You can still 
 
 Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
 
-You will always be able to use this method to connect Signet to a dApp, but in the future, Signet will be on the list of wallets. You'll be able to choose it there and the Signet application will automatically receive the pairing code without you having to worry about it.
+Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection.
 
 {#id: 170-dapps_2_Buying}
 ## Buying an NFT from Objkt

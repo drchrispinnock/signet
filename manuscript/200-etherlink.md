@@ -7,7 +7,7 @@ Etherlink is the first official rollup on Tezos and it brings an Ethereum compat
 
 Tezos X is the strategic target architecture of Tezos and a potential outcome is a fast, but simple, layer 1 that does settling and staking, together with a rollup compatible with both EVM and Tezos. It's likely that dApps and day-to-day transactions will live on the rollup. The good news is Signet is capable of working with Etherlink and you don't have to understand much about rollups to use it.
 
-On Etherlink, you can have Ethereum-style addresses beginning with 0x and Tezos-style addresses tz1, tz2 and tz3. If you have one of these Tezos accounts already, you can use your address on the rollup. There are other ways of getting addresses on Etherlink, but for now this is the only method that Signet supports. One thing to be aware of is that to use your funds on Etherlink, you have to bridge them from the main Tezos chain.
+On Etherlink, you can have Ethereum-style addresses beginning with 0x and Tezos-style addresses `tz1`, `tz2` and `tz3`. If you have one of these Tezos accounts already, you can use your address on the rollup. There are other ways of getting addresses on Etherlink, but for now this is the only method that Signet supports. One thing to be aware of is that to use your funds on Etherlink, you have to bridge them from the main Tezos chain.
 
  At the moment, Signet doesn't support dApps on Etherlink, but it will in the future. It supports bridging funds to Etherlink and establishing your EVM address from your Tezos address.
 
@@ -45,7 +45,7 @@ Sending and receiving funds on the Etherlink network with Tezos addresses is don
 ![](200/send.png)
 To send on Etherlink, simply pick Etherlink in the drop down and send in exactly the same way you did for the Tezos network.
 
-To receive on Etherlink, you can use your tz1, tz2 or tz3 address.
+To receive on Etherlink, you can use your `tz1`, `tz2` or `tz3` address.
 
 {#id: 200-etherlink_2_EVM}
 ## EVM address and receiving funds
