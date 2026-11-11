@@ -12,6 +12,7 @@ Corey Soreff
 Dmitry Mirgaleev  
 Emma Turner  
 Germán Delbianco  
+John Newby  
 Kyriakos Triantafyllidis  
 Luke Youngblood  
 Marco Schurtenberger  
