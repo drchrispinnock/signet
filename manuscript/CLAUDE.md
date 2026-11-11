@@ -61,10 +61,43 @@ never flag or change them, even when an ID's prefix doesn't match the file name.
   Transak are links out to the browser.
 - The book says "vibe coding" (no hyphen) for the noun, and defines it in `006-DevelopingSignet.md`.
 
-## Review status (9th November 2026)
+## Review status (11th November 2026)
 
-Done: `005-Preface.md`, `006-DevelopingSignet.md`, `007-Disclaimer.md`, `915-colophon.md`,
-`918-acknowledgements.md`.
-`110-starting.md` is done apart from the placeholders on lines 30, 36 and 37, a doubled "the the"
-on line 46 and one doubled blank line. Not yet reviewed: 100, 140–200, 250, 910, 920.
+`REVIEW.md` is the authoritative numbered progress tracker. Preserve its finding numbers,
+anchors and original findings; move completed items into DONE with dated completion notes.
+Do not interpret original findings archived under DONE as active requests.
 
+Completed numbered findings: 1, 2, 3, 6, 10, 11, 12, 16, 17, 21, 22, 24, 26, 27, 28,
+29, 30, 31, 32, 33, 34, 36. Finding 23 has only Docker version pinning outstanding.
+Finding 25's text is corrected; complete Debian 13 execution validation remains unverified.
+Other active findings have not been resolved by this targeted session.
+
+The 11 November work was a series of targeted source checks, not a fresh whole-book or PDF
+review. The Bob signing and 15 tez send/confirmation screenshots were visually verified.
+No nodes, wallet operations or Debian installs were run. No new PDF was generated.
+
+Earlier prose reviews covered 005, 006, 007, 915 and 918. Do not call entire other chapters
+finished merely because individual findings are done. Installation placeholders in 110 remain;
+the earlier doubled “the the” is fixed. Remaining small typo: 110 line 112 says “a key pair
+and an address are ready”; remove “are”. Two stray U+FFFC characters remain only in the unused
+`networks-material.md` draft, not the published passages covered by finding 31.
+
+## Decisions and details from the 11 November review
+
+- The author runs Docker with a 16GB memory limit successfully. Accept this tested setting;
+  the text now makes readers' choice hardware-dependent. Do not reopen finding 24 as a claim
+  that the configuration cannot work.
+- Docker RPC must listen on 0.0.0.0 inside the container; the same-Mac example publishes it
+  on host 127.0.0.1:8732:8732. The unnecessary -P is removed. Do not confuse these bindings.
+- The author confirms Octez Connect support was patched. Updated dApps can offer direct
+  Signet pairing; manual pairing depends on a compatible code being available.
+- The Preface is dated 14 November 2026. The development story now covers just over a month
+  from 5 October and completion of the first draft in November; the old 23-day frame is gone.
+- The seven-day Mt Pelerin wait is the author's experience, separate from the FCA minimum
+  24-hour promotion pause. The current Getting Started wording makes this distinction.
+- The consensus-key passage now names the spendable-balance exposure and activation two
+  cycles after the current cycle, checked against Ushuaia documentation. Keep version scope
+  in mind when revisiting protocol claims.
+- Backticks were added to bare tz1–tz5 labels in chapters and networks-material.md, preserving
+  code blocks and unrelated author changes. The two final published U+FFFC characters were
+  removed without altering Markup citation tags.

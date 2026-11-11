@@ -36,4 +36,4 @@ At the time of writing there are at least five test networks, each with a differ
 
 As a general user of Tezos, the best place for you to try things out is on *shadownet*. 
 
-Signet will work on all of the test networks and of course mainnet. Your accounts will work on all networks, except that some of the new key types like tz5 will not work on *mainnet* yet. To change the network, you simply click the network name in the top-left of the Signet window. What this really does under the hood is change the network node XXX
+Signet will work on all of the test networks and of course mainnet. Your accounts will work on all networks, except that some of the new key types like `tz5` will not work on *mainnet* yet. To change the network, you simply click the network name in the top-left of the Signet window. What this really does under the hood is change the network node XXX

@@ -7,13 +7,9 @@ Signet is still under development and I will continue to add features for the fo
 
 The user interface is too wordy and isn't necessarily the best. Over time I will refine it to give the user the best experience.
 
-**Better Octez Connect support**
-
-Octez Connect (formerly Beacon) is the library and infrastructure used to connect wallets to dApp web sites. To connect to a dApp in the current version you have to copy and paste codes to pair Signet with the dApp. I've put in a request to the Octez Connect team to include Signet in the list of applications to make this automatic. Unfortunately we will have to wait for dApp sites to upgrade Octez Connect before we see Signet in the list.
-
 **Octez.js vs Taquito**
 
-Taquito is the library that does most of the magic behind the scenes. I started with Taquito because it added tz5 addresses early and I wanted to get Signet on Quantumnet. Octez.js is a fork of Taquito and is likely to have more features to use Tezos X in the future. Therefore I shall probably switch to Octez.js.
+Taquito is the library that does most of the magic behind the scenes. I started with Taquito because it added `tz5` addresses early and I wanted to get Signet on Quantumnet. Octez.js is a fork of Taquito and is likely to have more features to use Tezos X in the future. Therefore I shall probably switch to Octez.js.
 
 **Better Etherlink/Tezos X support**
 

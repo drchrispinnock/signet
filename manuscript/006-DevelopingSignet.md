@@ -13,10 +13,10 @@ I wanted a "burger" menu for options, details about my account (an alias MyWalle
 
 - I will ask Claude to write a simple Tezos Wallet.
 - It should run natively on the Mac and the source should be compilable by Xcode. Swift is preferred.
-- It needs to support multiple addresses and all Tezos address types tz1 to 6
+- It needs to support multiple addresses and all Tezos address types `tz1` to 6
 - It should use the Taquito library where possible to talk to the chain
 - The default screen is in the file EXAMPLE.png *(the picture above)*
-- Top left is the wallet alias (set by the user when the wallet is created) and the wallet tz address shortened (e.g. tz132...4N). There should be a copy button next to the address. On the right, should be any Tezos Domain aliases.
+- Top left is the wallet alias (set by the user when the wallet is created) and the wallet tz address shortened (e.g. `tz132...4N`). There should be a copy button next to the address. On the right, should be any Tezos Domain aliases.
 - Then four buttons: Send, Receive, Buy, Sell
 - Then the key assets: The Tezos balance, then the Etherlink balance (don't worry about the address at this stage), also other balances will appear here.
 - At the bottom we should drag in NFT thumbnails.
@@ -39,13 +39,15 @@ When I started working on the Tezos chain in 2021, I used two desktop wallets on
 
 I decided that Signet must have good dApp support, or there was little point in continuing with it. On Tuesday 6th October, I asked Claude to implement dApp support. Claude started work on it, but we didn't finish it. In fact, there was an obstacle getting it to work. On Wednesday, I had other things to do.
 
-On Thursday 8th October 2026, I logged into X to see that Taquito had added tz5 key support. This is significant because they are quantum-resistant keys and quantum computing is a current topic. Once we have a quantum computer available, our traditional crypto keys will not be safe. Recently, the development team launched *Quantumnet*, an experimental post-quantum test network for Tezos. On that Thursday morning over coffee, I realised that I could make the first transaction on *Quantumnet* with a graphical wallet.
+On Thursday 8th October 2026, I logged into X to see that Taquito had added `tz5` key support. These keys are based on the ML-DSA-44 signing scheme and are designed to resist classical and quantum attacks. Once we have a sufficiently capable quantum computer available, our traditional crypto keys will not be safe. This is a current topic of discussion in the tech world.
+
+Recently, the development team launched *Quantumnet*, an experimental post-quantum test network for Tezos. On that Thursday morning over coffee, I realised that I could make the first transaction on *Quantumnet* with a graphical wallet.
 
 I asked Claude to use the beta version of Taquito and at 13:35 on the same day, I [tweeted](https://x.com/chrispinnock/status/2108174370967368073):
 
 ![](006/tweet.png)
 
-I had generated a tz5 key, used the *Quantumnet* faucet to get some coins and then sent them to another account. Also I'd added recent transactions to Signet as you can see in the tweet.
+I had generated a `tz5` key, used the *Quantumnet* faucet to get some coins and then sent them to another account. Also I'd added recent transactions to Signet as you can see in the tweet.
 
 According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 0.4.1, 0.4.2, 0.5, 0.6 and 0.7. Features that I added:
 
@@ -63,7 +65,7 @@ According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 
 
 Not bad for a day's work. Essentially the wallet was fully functional on the 8th October. And it had operations to make life for a baker easier. You can keep your master baking key in Signet (or on a Ledger of course), delegate consensus and companion keys to ones on your baker, and handle all your baking parameters in Signet.
 
-Buying tez worked via a widget with Mt Pelerin. The only disadvantage that I could see was the cooling-off period. It took me 7 days to receive the tez. On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks' faucets into Signet so that users can easily get tez on accounts.
+Buying tez worked via a widget with Mt Pelerin. The only disadvantage that I could see was the wait to receive my tez. It took me 7 days to receive the tez. On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks' faucets into Signet so that users can easily get tez on accounts.
 
 Then I took a day off.
 
@@ -79,7 +81,7 @@ I took a break on the Sunday and resumed on Monday 12th. The good thing about us
 
 On the same day, I did some further audit with Codex (v0.8.2), added support for session-only keys (which Signet forgets when it quits), added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet worked on the production network *Mainnet* and all the test networks for Tezos.
 
-Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's tz2 addresses and so you can use your tz2 key pair on Ethereum (and on Bitcoin, and on other EVM-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use tz1, tz2 and tz3 Tezos addresses on the Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
+Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Ethereum (and on Bitcoin, and on other EVM-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on the Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
 
 I cannot remember in the timeline when I did this, but I had a call with Thomas Letan to talk about this interface. As a result of that call, I decided this style of address was the right one to start with on Signet. There would be no need to create new addresses and the Taquito library should be able to use the Michelson interface on Etherlink as it uses a similar remote procedure call scheme (RPC) to the Tezos layer 1 RPC.
 
@@ -91,7 +93,7 @@ There were several other releases that week. Features included:
 
 - A network settings page, so that the node, block explorer, TzKT API, the faucet (on a test network) could be set for each network
 - Signet attempts to check that the connected node is on the correct network (except for a custom network)
-- Etherlink account linking - to create the corresponding 0x address from a tz1, tz2 or tz3 address.
+- Etherlink account linking - to create the corresponding 0x address from a `tz1`, `tz2` or `tz3` address.
 - Helper links to Coinbase, Kraken and Transak to buy tez
 - Another audit and tidy up by Codex
 

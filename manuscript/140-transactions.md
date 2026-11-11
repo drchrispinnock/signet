@@ -21,7 +21,7 @@ In this case, someone has kindly sent my account 1tz on *Shadownet.* You can see
 {#id: 140-transactions_2_Sending}
 ## Sending
 
-Sending is where we need to be a bit more careful, as we cannot fix mistakes. To send tez, you need the address of the recipient. In this example, we will send 5tz on *Shadownet* to another account that we know the address for:
+Sending is where we need to be a bit more careful, as we cannot fix mistakes. To send tez, you need the address of the recipient. In this example, we will send 15tz on *Shadownet* to another account that we know the address for:
 
 ```
 tz1ULZN2uHvhcnbkyfBnvJhGf3n5gRs3QbN4

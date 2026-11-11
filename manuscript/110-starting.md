@@ -109,9 +109,11 @@ Next you will be given some options to set up an account for use on the Tezos ne
 
 ![](110/coldstart.png)
 
-To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the tz1 key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have an account on the Tezos blockchain.
-
+To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address are ready to receive funds.
 ![](110/create.png)
+The key you have made is generated on your machine and stored there too. We haven't introduced it to the network yet. Later we will fund the account, either from an exchange on *Mainnet* or from a *faucet* on a test network. When we start to do things on the blockchain, we will *reveal* our public key to it. At no point will our secret key be stored on the blockchain.
+
+The name "My Account" is local and is your alias for the account. No-one else will know this name, unless you tell them of course. It isn't stored on the blockchain. 
 
 There are three other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The import account option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
 
@@ -177,7 +179,7 @@ You can see the same screens. Go to the little burger menu top-right and choose 
 tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N
 ```
 
-This should resolve as Captain Stake. Signet looks up addresses on the block explorer and suggests names for them for your address book. You'll then be able to see the same screens as above by switching to the account. Note that this is just an address book entry - you don't have his secret key.
+This should resolve as Captain Stake. Signet looks up addresses on the block explorer and suggests names for them for your address book. You'll then be able to see the same screens as above by switching to the account. Note that this is just an address book entry - you have his public key hash but you don't have his secret key.
 
 {#id: 110-starting_2_Getting}
 ## Getting your first tez
@@ -189,17 +191,23 @@ In the first days of cryptocurrencies, you would have to find someone else who h
 3. You will have to provide details about yourself when you buy cryptocurrency. It is increasingly difficult to buy cryptocurrencies anonymously.
 4. There may be some waiting times between signing up to a centralised exchange and being able to trade. There may even be waiting times between purchasing and receiving the coins.
 
-For example, in the UK there is a legally required cooling-off period when signing up at a centralised exchange. Such exchanges are required to show a disclaimer such as [this one](https://www.kraken.com/legal/uk/disclaimer):
+For example, UK rules require a cooling-off period of at least 24 hours before a new consumer can be shown a direct-offer cryptoasset financial promotion. Such exchanges are required to show a disclaimer such as [this one](https://www.kraken.com/legal/uk/disclaimer):
 
 ![](110/kraken.png)
 
 Make sure you read and understand the disclaimer. The key thing is that the UK government wants its citizens to understand that there are risks involved in crypto investments and that there is no central bank to help with mistakes. Similarly cryptoassets are not protected in the UK in the same way that some savings accounts are.
 
+Additionally, some providers have further delay periods before sending you your cryptocurrency. When I first used Mt Pelerin, it took
+seven days to receive my tez. It depends on where you live and how much information you provide about yourself. But you will need some patience at the beginning of your crypto journey.
+
+
 To get tez in your new Signet account, you can use the `Buy` button. Click the button and you will be presented with some options:
 
 ![](110/buy.png)
 
-The provider is selectable and so is the currency. In my case I'm using British pounds sterling (GBP) and Mt Pelerin. Clicking `Continue` takes us to a dialogue where we can choose how much tez we want to buy. Clicking `Buy` takes us to an account signup process. If you are sure you want to buy tez, you can follow this process and use your credit card to get some tez. Note that you might have to wait up to seven days to receive your tez - it depends on where you live and how much information you provide about yourself. If you'd rather not use the widget, you can click the `Open in browser instead` button and use your web browser.
+The provider is selectable and so is the currency. In my case I'm using British pounds sterling (GBP) and Mt Pelerin. Clicking `Continue` takes us to a dialogue where we can choose how much tez we want to buy. Clicking `Buy` takes us to an account signup process. If you are sure you want to buy tez, you can follow this process and use your credit card to get some tez. 
+
+If you'd rather not use the widget, you can click the `Open in browser instead` button and use your web browser.
 
 ![](110/mtpellerin.png)
 
