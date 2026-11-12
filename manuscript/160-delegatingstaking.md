@@ -25,9 +25,9 @@ Choosing a baker is a matter of personal preference. We've tried to make the pro
 ![](160/tzktbakers.png)
 The delegation information shown here is information that the bakers have submitted themselves. Bakers set their staking parameters on-chain, so the staking information is read from there. 
 
-A public baker is a baker that has declared itself public by telling tzkt. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to grow by 2.21% APY if you delegate with them. 
+A public baker is a baker that has declared itself public by telling TzKT. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to grow by 2.21% APY if you delegate with them. 
 
-Clicking on the TezOasis link takes me to their account page in tzkt, where there are details to contact them. They have 965k tz capacity, so they are a possibility to delegate to. Also, if you click the `SCHEDULE` tab you will be able to see their performance. On the day I wrote this, TezOasis's performance was very good - it had a few network misses but this is perfectly normal.
+Clicking on the TezOasis link takes me to their account page in TzKT where there are details to contact them. They have 965k tz capacity, so they are a possibility to delegate to. Also, if you click the `SCHEDULE` tab you will be able to see their performance. On the day I wrote this, TezOasis's performance was very good - it had a few network misses but this is perfectly normal.
 
 TezOasis is also offering staking and passes on all of the reward to the staker (it has a 0% fee). You can expect your staked funds to grow at 6.9% APY. They have less staking capacity at 126k tz but still enough for us to consider them.
 
@@ -48,7 +48,7 @@ With staking there is a further consideration because your funds are at risk. Yo
 {#id: 160-delegatingstaking_2_Delegating}
 ## Delegating
 
-Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the last days researching and decided to delegate them to Capt Stake. 
+Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the last days researching and decided to delegate them to Captain Stake. 
 ![](160/notdelegated.png)
 To delegate, I can click on `Not delegated`. If you click Stake you will also go to the delegation workflow, because you need to delegate before you stake.
 
@@ -57,20 +57,20 @@ To delegate, I can click on `Not delegated`. If you click Stake you will also go
 Now click `Delegate...` and choose your baker either from the list or type in the address:
 
 ![](160/bakers.png)
-Signet lists the public bakers, some detail about them and whether they accept staking. If you want to stake later, you'll need a baker that accepts staking. It doesn't list all the bakers and Capt Stake is not on the list. His address is:
+Signet lists the public bakers, some detail about them and whether they accept staking. If you want to stake later, you'll need a baker that accepts staking. It doesn't list all the bakers and Captain Stake is not on the list. His address is:
 
 ```
 tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N
 
 ```
 
-Let's paste that in and click use. Then there is a small fee to pay for the delegate operation which can be confirmed. Now my 2tz is delegated to Capt Stake. Whether Capt Stake pays me rewards for my delegated tez is between him and me. I need to discuss it off chain directly if there is any ambiguity.
+Let's paste that in and click use. Then there is a small fee to pay for the delegate operation which can be confirmed. Now my 2tz is delegated to Captain Stake. Whether Captain Stake pays me rewards for my delegated tez is between him and me. I need to discuss it off chain directly if there is any ambiguity.
 ![](160/captstake.png)
 
 {#id: 160-delegatingstaking_2_Staking}
 ## Staking
 
-To stake tez uses the same dialogue as for delegating. You can get there either by clicking the `Delegated to` section or the `Stake` button. Capt Stake accepts staking. One thing to be aware of is that you cannot stake all of your tez. You need to have a small amount spare for the fee of the staking operation. We are going to stake 1tz with Capt Stake.
+To stake tez uses the same dialogue as for delegating. You can get there either by clicking the `Delegated to` section or the `Stake` button. Captain Stake accepts staking. One thing to be aware of is that you cannot stake all of your tez. You need to have a small amount spare for the fee of the staking operation. We are going to stake 1tz with Captain Stake.
 
 On the Staking menu, click `Stake` then put in your amount and click `Continue`.
 
@@ -85,13 +85,13 @@ If you want to stake more, you can go back at any time and stake the extra tez.
 {#id: 160-delegatingstaking_2_Unstaking}
 ## Unstaking and finalising
 
-If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles (<!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days) before you can get them. I'm going to unstake everything that I have with Capt Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
+If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles (<!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
 
 
 ![](160/unstake.png)
 
 
-I've unstaked the funds and now I have to wait for them to unlock. Once they are unlocked, I can come back to Signet and finalise the unstake. Since 2026, there has been a bot on Tezos called Finn. This bot automatically finalises unstaked fund once they are eligilbe, so you should have them back in your spendable balance as within approximately <!-- MARKUPTAG unstakebound-->4<!-- ENDMARKUPTAG --> cycles (within <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> on *Mainnet*). Finn is only present on *Mainnet*. On the test networks, you'll have to finalise yourself.
+I've unstaked the funds and now I have to wait for them to unlock. Once they are unlocked, I can come back to Signet and finalise the unstake. Since 2026, there has been a bot on Tezos called Finn. This bot automatically finalises unstaked funds once they are eligible, so you should have them back in your spendable balance as within approximately <!-- MARKUPTAG unstakebound-->4<!-- ENDMARKUPTAG --> cycles (within <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> on *Mainnet*). Finn is only present on *Mainnet*. On the test networks, you'll have to finalise yourself.
 
 When there are funds available to finalise, you use the `Finalize` button on the Staking menu (Tezos has adopted American spellings and so we have used them in Signet too).
 

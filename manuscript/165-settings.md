@@ -26,7 +26,7 @@ Finally, Signet uses the Sparkle framework and can update itself. You can choose
 
 The network settings are for advanced users. They are accessed from the burger menu from `Networks...`. You can drop down the network and change it. The networks available are *Shadownet, Bakingnet, Ushuaianet, Weeklynet, Quantumnet* and *Custom.* Custom allows you to connect to any nodes. This is the page for *Mainnet*:
 ![](165/networks.png)
-It shows that the network is the one we are using at the moment next to the network name. We can do several things here. We can change the node we use to communicate with the Tezos network. By default, Signet uses https://rpc.tzbeta.net which is provided by the Tezos Foundation. There are other public nodes. At the time of writing:
+It shows that the network is the one we are using at the moment next to the network name. We can do several things here. We can change the node we use to communicate with the Tezos network. By default, Signet uses [rpc.tzbeta.net](https://rpc.tzbeta.net) which is provided by the Tezos Foundation. There are other public nodes. At the time of writing:
 
 | Mainnet node                   | Provider                                     |
 | ------------------------------ | -------------------------------------------- |

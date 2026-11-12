@@ -65,7 +65,7 @@ According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 
 
 Not bad for a day's work. Essentially the wallet was fully functional on the 8th October. And it had operations to make life for a baker easier. You can keep your master baking key in Signet (or on a Ledger of course), delegate consensus and companion keys to ones on your baker, and handle all your baking parameters in Signet.
 
-Buying tez worked via a widget with Mt Pelerin. The only disadvantage that I could see was the wait to receive my tez. It took me 7 days to receive the tez. On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks' faucets into Signet so that users can easily get tez on accounts.
+Buying tez worked via a widget with Mt Pelerin. The only disadvantage that I could see was the wait to receive my tez. It took me 7 days due to their processes. On a test network, you don't buy tez, but why not make it easy to get tez? I integrated the test networks' faucets into Signet so that users can easily get tez on accounts.
 
 Then I took a day off.
 

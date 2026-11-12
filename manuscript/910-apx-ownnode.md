@@ -19,7 +19,7 @@ By default, Signet will try to use the node on the local machine. Alternatively,
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to use Docker. Install Docker Desktop from the [Docker site](https://www.docker.com/products/docker-desktop/) and run it. 
 
-Docker Desktop’s memory limit defaults to half the host’s RAM. If this is insufficient, you can increase it under Settings → Resources. I use a 16GB limit; choose a setting appropriate to your machine and the other applications you run.
+Docker Desktop’s memory limit defaults to half the host’s RAM. If this is insufficient, you can increase it under `Settings > Resources`. I use a 16GB limit; choose a setting appropriate to your machine and the other applications you run.
 
 Then run the `Terminal` application (you can search for it in Spotlight Search). In the commands below, `$` represents the shell prompt; do not type it. Get the latest release of Octez:
 
@@ -35,7 +35,7 @@ $ docker run -v ${HOME}/node:/home/tezos/.tezos-node \
 	-p 127.0.0.1:8732:8732 \
 	--entrypoint /usr/local/bin/octez-node \
 	tezos/tezos config init --network=mainnet \
-   --history-mode=rolling \
+	--history-mode=rolling \
 	--rpc-addr=0.0.0.0 --allow-all-rpc=0.0.0.0 \
 	--net-addr=0.0.0.0
 ```

@@ -13,7 +13,7 @@ The good news is that you can do all of these operations with the Signet wallet.
 
 A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two `tz4` keys. Also, the Tezos X roadmap needs the baking community to adopt `tz4` keys, so this is a good starting point.
 
-By using a consensus key, the baking key is not stored on the baking server and the other keys do the work. It allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
+Using a consensus key allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
 
 
 {#id: 190-baking_2_Registerin}
@@ -160,6 +160,6 @@ It's unlikely a baker will do this with a sensible baking setup. Usually bakers 
 
 There's far more to it than my explanation, but it's safe to say that all bakers want to protect their baking key, as someone else having access to it can cause serious problems. Another person could cause the baker to double-bake. So storing your key away from your baking environment where you can manage the balance, baking operations and parameters is a good thing. This is why the baking and governance menus were added to Signet.
 
-But please note that a consensus key still needs to be protected. If some else gets hold of it, they can start a baker with it and cause you to double bake. They can also drain the spendable balance from the master baking key.
+But please note that a consensus key still needs to be protected. If someone else gets hold of it, they can start a baker with it and cause you to double bake. They can also drain the spendable balance from the master baking key.
 
 

@@ -109,7 +109,7 @@ Next you will be given some options to set up an account for use on the Tezos ne
 
 ![](110/coldstart.png)
 
-To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address are ready to receive funds.
+To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
 ![](110/create.png)
 The key you have made is generated on your machine and stored there too. We haven't introduced it to the network yet. Later we will fund the account, either from an exchange on *Mainnet* or from a *faucet* on a test network. When we start to do things on the blockchain, we will *reveal* our public key to it. At no point will our secret key be stored on the blockchain.
 
@@ -197,8 +197,7 @@ For example, UK rules require a cooling-off period of at least 24 hours before a
 
 Make sure you read and understand the disclaimer. The key thing is that the UK government wants its citizens to understand that there are risks involved in crypto investments and that there is no central bank to help with mistakes. Similarly cryptoassets are not protected in the UK in the same way that some savings accounts are.
 
-Additionally, some providers have further delay periods before sending you your cryptocurrency. When I first used Mt Pelerin, it took
-seven days to receive my tez. It depends on where you live and how much information you provide about yourself. But you will need some patience at the beginning of your crypto journey.
+Additionally, some providers have further delay periods before sending you your cryptocurrency. When I first used Mt Pelerin, it took seven days to receive my tez. It depends on where you live and how much information you provide about yourself. But you will need some patience at the beginning of your crypto journey.
 
 
 To get tez in your new Signet account, you can use the `Buy` button. Click the button and you will be presented with some options:
