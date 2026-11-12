@@ -72,10 +72,10 @@ Similar to the secret key import, you can decide to keep the key just for the se
 {#id: 150-othertypesofaccount_2_Importing_3}
 ## Importing using a Fundraiser Account
 
-Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original fundraiser. Flip the switch for Legacy fundraiser derivation:
+Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original Tezos fundraiser. Flip the switch for Legacy fundraiser derivation:
 
 ![](150/fundraiser.png)
-In addition to a recovery phrase, a fundraiser account has an email address and a fundraiser password. Supply all of these and then click `Import`.
+In addition to a recovery phrase, a fundraiser account has an email address and a password. Supply all of these and then click `Import`.
 
 {#id: 150-othertypesofaccount_2_The}
 ## The Key Hierarchy

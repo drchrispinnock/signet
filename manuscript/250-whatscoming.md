@@ -19,10 +19,6 @@ At the moment, we support `tz` addresses on the layer 2. These can be mapped to 
 
 Other wallets support swapping tokens at DEXs in the wallet. We might investigate this in a later release, but you can go to a DEX and connect it as a dApp, as we saw earlier.
 
-**Mobile support**
-
-Claude tells me it would be easy to make an iOS application out of the current codebase. However, that means using an app store and we would be restricted by their rules. I suspect I would have to remove support for buying tez directly in the app.
-
 **Post-quantum support**
 
 Once Taquito supports tz6 addresses, I will add support for them. They will likely only be used for consensus, but for completeness we will need to use them on the chains.
@@ -30,3 +26,7 @@ Once Taquito supports tz6 addresses, I will add support for them. They will like
 **TzEL shielded transactions**
 
 TzEL is a smart-rollup for private post-quantum transactions. You can move your tez into the rollup (called "shielding" them), then transfer them to other accounts. You can withdraw them (that is "unshield" them) from the rollup. TzEL is available on Shadownet and it will soon be available on Quantumnet. Signet is able to use the TzEL rollup on Shadownet today but it is an early implementation. You can enable Shielded Transactions in the menu.
+
+**Mobile support**
+
+Signet Go is under development and is a port to the iPhone and iPad. There are considerations to get the applications into the app stores. The iOS version will not have Buy. It will not have TzEL shielded transactions.

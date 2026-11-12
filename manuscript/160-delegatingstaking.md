@@ -100,7 +100,7 @@ Choose `Confirm` and the funds will be finalised and returned to the spendable b
 
 
 {#id: 160-delegatingstaking_2_The}
-## The risks of staking
+## The Risks of Staking
 
 Staked funds form part of the baker's security bond on the network. The worst thing that a baker can do is double sign a block at the same level. This could be producing two blocks (double baking) or attesting two blocks at the same level (double attestation). It has happened very often on the Tezos network. A full list of [double baking incidents can be found on TzKT](https://tzkt.io/double_baking). Usually it has happened because of a misconfiguration of infrastructure. The provider has run two separate bakers with the same key and the systems injected blocks into the network at the same time.
 
