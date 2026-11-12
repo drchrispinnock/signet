@@ -481,6 +481,7 @@ struct TezosClientStoreIntegrityTests {
         #expect(one.load().map(\.counter) == [1])
     }
 
+    #if !os(iOS) // needs Process to hold the lock from another process
     @Test func aHeldLockMakesCallersWaitThenFail() throws {
         let dir = try makeDirectory()
         // The lock is advisory per process; hold it from a child process with a short timeout.
@@ -504,4 +505,5 @@ struct TezosClientStoreIntegrityTests {
         process.waitUntilExit()
         #expect(process.terminationStatus == 0)
     }
+    #endif
 }
