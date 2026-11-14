@@ -840,7 +840,7 @@ automatic download is off by default. The updater is not started under the test 
 
 ## Taquito bridge
 
-**The library is octez.js, not Taquito (November 2026).** `@tezos-x/octez.js` 25.0.1 is
+**The library is octez.js, not Taquito (November 2026).** `@tezos-x/octez.js` 25.1.0-rc.1 (a release candidate, pinned exactly; move to 25.1.0 when it ships) is
 Trilitech's fork of Taquito with the same API under other package names (`@taquito/taquito` →
 `@tezos-x/octez.js`, `@taquito/<x>` → `@tezos-x/octez.js-<x>`); where this file says Taquito,
 read octez.js. The Swift names (`TaquitoBridge`, `TaquitoChainService`, `taquito-bridge.js`)
