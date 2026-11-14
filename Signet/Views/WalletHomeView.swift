@@ -90,7 +90,7 @@ struct WalletHomeView: View {
         }
         .sheet(isPresented: $model.isPresentingReceive) {
             if let wallet = model.selectedWallet {
-                ReceiveSheet(wallet: wallet, domains: model.domains, showsEtherlink: model.network.hasL2 && wallet.address.isUsableOnEtherlink, model: model)
+                ReceiveSheet(wallet: wallet, domains: model.domains, showsEtherlink: EtherlinkAlias.isOffered && model.network.hasL2 && wallet.address.isUsableOnEtherlink, model: model)
             }
         }
         .overlay(alignment: .bottom) {

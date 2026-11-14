@@ -567,7 +567,7 @@ automatic download is off by default. The updater is not started under the test 
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy/Get, Stake; Receive opens `ReceiveSheet` with a Core Image QR
-  code of the address, and with Layer 2 on the logo at its top left is a menu that switches to
+  code of the address, and with Layer 2 on (and `EtherlinkAlias.isOffered`, which is off until Etherlink 8.0's new alias is implemented) the logo at its top left is a menu that switches to
   the account's address on Etherlink's EVM side, `EtherlinkAlias.address(for:)`: the first 20
   bytes of Keccak-256 over the base58 address string, as the EVM node's
   `tez_getTezosEthereumAddress` answers, computed by `Keccak.swift` since CryptoKit has none; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
@@ -663,7 +663,12 @@ automatic download is off by default. The updater is not started under the test 
   context and amount are still the same; `BridgeSheet` re-estimates whenever they change and
   retains the submitted account/network/amount for the result and explorer link.
   `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
-  **EVM alias (0.9.3).** The account's EVM-side address is a pure function of the tz address, but
+  **EVM alias (0.9.3; switched off November 2026).** `EtherlinkAlias.isOffered` is `false`, so
+  Receive shows the Tezos address only, with no chain picker and no "Link to Etherlink":
+  Etherlink 8.0 replaces the alias derivation below with a new, recoverable one (RFC-26051),
+  and an address shown or linked today would not be the account's after the upgrade. The
+  model, bridge and tests for it remain; turn it back on only with the new derivation.
+  What follows describes the feature as built. The account's EVM-side address is a pure function of the tz address, but
   the rollup only creates the account behind it (EIP-7702 delegation to the shared
   AliasForwarder, which passes tez on to the tz account) when the account makes its first
   cross-interface call; before that, tez sent to the alias sit at an address nobody controls,
