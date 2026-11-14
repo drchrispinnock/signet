@@ -195,7 +195,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ![](170/3route.png)
 
-To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)

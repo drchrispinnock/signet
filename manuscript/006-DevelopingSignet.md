@@ -27,7 +27,7 @@ From the beginning I decided to use the same on-disk format as `octez-client`. O
 
 Also from the beginning, I got Claude to implement backups. Signet backs up the wallet files when it starts and keeps 10 generations by default. This is to avoid any catastrophes and key loss, which to be fair I haven't had yet.
 
-After some more vibe coding, I had the first version of Signet. It was based on the Taquito library. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated with the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`.
+After some more vibe coding, I had the first version of Signet. It could connect to both *Mainnet* and *Shadownet*, but not do very much else. It was integrated with the TzKT block explorer's profile service, so icons and names were taken from there if relevant. The first button I implemented was `Receive`.
 
 Here is a screenshot from version 0.1 of Signet. The NFT view was done early on and has only had one refinement since. The live balance lookup was there too. I removed the Etherlink balance to begin with - this would come later on.
 
@@ -81,7 +81,7 @@ I took a break on the Sunday and resumed on Monday 12th. The good thing about us
 
 On the same day, I did some further audit with Codex (v0.8.2), added support for session-only keys (which Signet forgets when it quits), added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet worked on the production network *Mainnet* and all the test networks for Tezos.
 
-Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Ethereum (and on Bitcoin, and on other EVM-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on the Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
+Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Ethereum (and on Bitcoin, and on other EVM-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
 
 I cannot remember in the timeline when I did this, but I had a call with Thomas Letan to talk about this interface. As a result of that call, I decided this style of address was the right one to start with on Signet. There would be no need to create new addresses and the Taquito library should be able to use the Michelson interface on Etherlink as it uses a similar remote procedure call scheme (RPC) to the Tezos layer 1 RPC.
 

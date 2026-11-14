@@ -13,9 +13,9 @@ Tezos is no different. You can replace the basic banking functions of transferri
 Receiving tez in your Signet account is a passive operation. All you need to do is give the sender your address. You can either copy it from the top left of your Signet menu, or click the Receive button. 
 
 ![](140/receive.png)
-This screen gives you the option to copy your address, but also a bar code. Some mobile wallets will read the bar code and use it as a sending address. This is useful if you are near to the person that wants to send you the funds.
+This screen lets you copy your address and also displays a bar code. Some mobile wallets will read the bar code and use it as the recipient address. This is useful if you are near to the person that wants to send you the funds.
 
-In this case, someone has kindly sent my account 1tz on *Shadownet.* You can see the transaction in the list, which is in most recent order. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Faucet*). 
+In this case, someone has kindly sent my account 1tz on *Shadownet.* You can see the transaction in the list, with the most recent transaction first. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Faucet*). 
 
 ![](140/tx.png)
 {#id: 140-transactions_2_Sending}
