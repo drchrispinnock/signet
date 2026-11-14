@@ -14,6 +14,12 @@ struct KeccakTests {
         #expect(hex(Keccak.hash256(long)) == "96ea54061def936c4be90b518992fdc6f12f535068a256229aca54267b4d084d")
     }
 
+    /// Etherlink 8.0 changes the alias derivation: until Signet has the new one, Receive must
+    /// not show or link the old address.
+    @Test func theEvmAliasIsNotOfferedBeforeEtherlink8() {
+        #expect(EtherlinkAlias.isOffered == false)
+    }
+
     @Test func etherlinkAliasMatchesTheNode() {
         // What node.mainnet.etherlink.com's tez_getTezosEthereumAddress returns for this address.
         #expect(EtherlinkAlias.address(for: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")) == "0x16142132dd616dd8f61b8972ae4b9fcf8a22a450")

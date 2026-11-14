@@ -74,6 +74,12 @@ enum Keccak {
 /// which is what the EVM node's `tez_getTezosEthereumAddress` answers. Tez sent to it on the EVM
 /// side are forwarded to the account on the Michelson interface.
 enum EtherlinkAlias {
+    /// Whether Receive offers the EVM-side address and "Link to Etherlink". **Off:** Etherlink
+    /// 8.0 replaces this derivation with a new, recoverable alias (RFC-26051), so an address
+    /// shown or linked today would not be the account's address after the upgrade, and tez sent
+    /// to it could be stranded. Turn it back on only with the new derivation in place.
+    static let isOffered = false
+
     static func address(for account: Address) -> String {
         "0x" + Keccak.hash256(Data(account.value.utf8)).prefix(20).map { String(format: "%02x", $0) }.joined()
     }
