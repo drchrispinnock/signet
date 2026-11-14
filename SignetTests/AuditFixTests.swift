@@ -62,6 +62,7 @@ struct AuditFixTests {
         #expect(throws: (any Error).self) { try store.load(account: account) }
     }
 
+    #if !os(iOS) // needs Process to hold the lock from another process
     @Test func shieldedWalletFileIsLockedAgainstOtherProcesses() async throws {
         let python = URL(fileURLWithPath: "/usr/bin/python3")
         guard FileManager.default.isExecutableFile(atPath: python.path) else { return }
@@ -88,6 +89,7 @@ struct AuditFixTests {
         let updated = try #require(try store.update(account: account, initial: nil) { $0.depositNonce += 1 })
         #expect(updated.depositNonce == 1)
     }
+    #endif
 
     @Test func shieldedWalletFileLockIsSharedAcrossPathAliases() throws {
         // A real parent directory and a symlink to it both lead to the same wallet file; two
@@ -307,12 +309,14 @@ struct AuditFixTests {
 
     // MARK: G04
 
+    #if !SIGNET_NO_SHIELDED // Signet Go never builds the shielded sheets
     @Test func plainHTTPServicesAreNamed() {
         #expect(ShieldSettingsSheet.plainHTTP("https://operator.example", "https://rollup.example") == nil)
         #expect(ShieldSettingsSheet.plainHTTP("http://operator.example:8787", "https://rollup.example")?.hasPrefix("The operator is reached over plain HTTP") == true)
         #expect(ShieldSettingsSheet.plainHTTP("HTTP://operator.example", "http://rollup.example")?.hasPrefix("The operator and rollup node are reached") == true)
         #expect(ShieldSettingsSheet.plainHTTP("", "") == nil)
     }
+    #endif
 }
 
 private extension FileHandle {
