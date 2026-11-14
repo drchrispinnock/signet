@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const {load} = require('./source-fixture.cjs');
-const {b58Encode,PrefixV2} = require('@taquito/utils');
+const {b58Encode,PrefixV2} = require('@tezos-x/octez.js-utils');
 (async()=>{
   const source='tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb', publicKey='fixture-public-key';
   async function contract(signer) {
@@ -39,7 +39,7 @@ const {b58Encode,PrefixV2} = require('@taquito/utils');
       }
       setSignerProvider(signer){this.signer=signer;}
     }
-    const api=await load(file, [['import { TezosToolkit } from "@taquito/taquito";','const TezosToolkit=globalThis.FixtureToolkit;']],{
+    const api=await load(file, [['import { TezosToolkit } from "@tezos-x/octez.js";','const TezosToolkit=globalThis.FixtureToolkit;']],{
       FixtureToolkit:Toolkit,fetch:async()=>{throw Error('network prohibited');},__signet:{},
     });
     const result=await api[method](...args);

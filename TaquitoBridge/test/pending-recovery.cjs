@@ -2,9 +2,9 @@
 // used, or branch expired) is forgotten instead of holding Send and every new signature forever.
 const deadline=setTimeout(()=>{console.error('pending recovery fixture deadline exceeded');process.exit(1);},10000);
 const assert = require('node:assert/strict');
-const {localForger} = require('@taquito/local-forging');
-const {b58Encode, PrefixV2, encodeOpHash} = require('@taquito/utils');
-const {InMemorySigner} = require('@taquito/signer');
+const {localForger} = require('@tezos-x/octez.js-local-forging');
+const {b58Encode, PrefixV2, encodeOpHash} = require('@tezos-x/octez.js-utils');
+const {InMemorySigner} = require('@tezos-x/octez.js-signer');
 const {load} = require('./source-fixture.cjs');
 const source = 'tz1gUCWWwmwEpc7eVd4NHy3UhL28K4j9L6jy';
 let publicKey;
@@ -25,7 +25,7 @@ async function fixture(record, {counter = '40', head = 1000, ttl = 450, failure 
     async getBlockHeader() { calls.push('header'); return {level:head}; }
     async getBlockMetadata() { calls.push('metadata'); return {max_operations_ttl:ttl}; }
   }
-  const api = await load('operations.js', [['import { RpcClient } from "@taquito/rpc";', 'const RpcClient = globalThis.FixtureRPC;']], {
+  const api = await load('operations.js', [['import { RpcClient } from "@tezos-x/octez.js-rpc";', 'const RpcClient = globalThis.FixtureRPC;']], {
     FixtureRPC:RPC,
     fetch:async()=>{throw Error('fixture must never contact a network');},
     __signet:{operationRead:()=>JSON.stringify([...journal.values()]),operationSave:json=>{const r=JSON.parse(json);journal.set(r.hash,r);return '';},operationRemove:hash=>{journal.delete(hash);return '';}},

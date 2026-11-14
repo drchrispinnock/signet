@@ -15,7 +15,7 @@
 // signing seeds (`ask_j`, or `ask_base` for an unshield's several addresses) and `outgoing_seed`
 // come in for a shield or unshield alone.
 
-import { TezosToolkit } from "@taquito/taquito";
+import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { approvedEstimate, sendApproved, parseLimits } from "./operations.js";
 import {

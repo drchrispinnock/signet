@@ -2,7 +2,7 @@
 // and a lost injection reply is reported as an unknown outcome with the operation hash, never
 // as a failure to retry with a fresh operation.
 const fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict');
-const {encodeOpHash}=require('@taquito/utils');
+const {encodeOpHash}=require('@tezos-x/octez.js-utils');
 let mode='ok',injections=0,failSave=false;const journal=new Map();
 const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),operationRead(){return JSON.stringify([...journal.values()]);},operationSave(json){if(failSave)return "synthetic disk failure";const record=JSON.parse(json);journal.set(record.hash,record);return "";},operationRemove(hash){journal.delete(hash);return "";},setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
  Promise.resolve().then(()=>{if(url.endsWith('/chain_id'))return ctx.__signet_fetchDone(id,200,'OK','{}','"NetFixture"',null);if(url.endsWith('/blocks/head/header'))return ctx.__signet_fetchDone(id,200,'OK','{}','{"level":100,"timestamp":"2026-10-12T00:00:00Z"}',null);assert.ok(url.includes('/injection/operation'),url);injections++;assert.ok(journal.has(encodeOpHash(JSON.parse(body))),"signed bytes must be durably recorded before injection");
@@ -31,6 +31,8 @@ assert.throws(()=>api.checkApproved([],limits));
 console.log('PASS S14: prepared contents must carry exactly the approved fee, gas and storage, with the reveal inside its approved budget');
 
 // S15: injection outcomes.
+// A promise that never settles ends the process quietly with status 0; make that a failure.
+let finished=false;process.on('exit',()=>{if(!finished){console.error('FAIL S15: an injection call never settled');process.exitCode=1;}});
 (async()=>{
 const sbytes='ab'.repeat(32+40+64);
 const ok=await api.injectSignedBytes('https://offline.invalid',sbytes);assert.equal(journal.get(ok.hash).headLevel,100,"the head level at injection is recorded so a watcher can scan by level");
@@ -43,5 +45,5 @@ mode='gateway';const gateway=await api.injectSignedBytes('https://offline.invali
 mode='wrongHash';const wrong=await api.injectSignedBytes('https://offline.invalid',sbytes);assert.equal(wrong.injected,false);assert.equal(wrong.hash,encodeOpHash(sbytes));
 failSave=true;const before=injections;await assert.rejects(api.injectSignedBytes('https://offline.invalid',sbytes),/disk failure/);assert.equal(injections,before);
 assert.equal(injections,5);
-console.log('PASS S15: a lost reply yields the hash with injected:false; a post-injection error remains uncertain; rebroadcast resends the same bytes');
+console.log('PASS S15: a lost reply yields the hash with injected:false; a post-injection error remains uncertain; rebroadcast resends the same bytes');finished=true;
 })().catch(e=>{console.error(e);process.exitCode=1});

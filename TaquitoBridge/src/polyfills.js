@@ -14,6 +14,16 @@ if (!native) {
 
 if (typeof g.Buffer === "undefined") g.Buffer = Buffer;
 
+// ---- process.env -----------------------------------------------------------------------------
+// octez.js's HTTP client retries a failed request on its own (transport errors and
+// 429/502/503/504), operation injection included, and reads how often from the environment
+// when it loads. Signet decides for itself what a lost reply means: the signed bytes are on
+// file and the outcome is "unknown" until the chain says otherwise (S15), and nothing is sent
+// twice behind its back. There is no `process` in JavaScriptCore, so this is the only setting.
+if (typeof g.process === "undefined") g.process = { env: {} };
+if (!g.process.env) g.process.env = {};
+g.process.env.OCTEZJS_HTTP_RETRY_COUNT = "0";
+
 // ---- localStorage ----------------------------------------------------------------------------
 // The Octez Connect SDK peeks at localStorage (e.g. updateRelayServer checks for a dApp peer
 // list) even when it was given its own storage. Without this, that access throws a

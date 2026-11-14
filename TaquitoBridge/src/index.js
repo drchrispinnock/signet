@@ -6,8 +6,8 @@
 // InMemorySigner); Ledger keys never leave the device. Everything else is RPC, encoding and forging.
 
 import "./polyfills.js";
-import { TezosToolkit } from "@taquito/taquito";
-import { validateAddress, ValidationResult } from "@taquito/utils";
+import { TezosToolkit } from "@tezos-x/octez.js";
+import { validateAddress, ValidationResult } from "@tezos-x/octez.js-utils";
 
 const toolkits = new Map();
 
@@ -46,8 +46,8 @@ export async function getHead(rpcUrl) {
 // asks for the address of a public key. tz2 and tz4 have no CryptoKit support, so they are
 // generated here with the same @noble/curves code Taquito signs with.
 
-import { InMemorySigner } from "@taquito/signer";
-import { b58Encode, getPkhfromPk, PrefixV2, verifySignature as taquitoVerifySignature } from "@taquito/utils";
+import { InMemorySigner } from "@tezos-x/octez.js-signer";
+import { b58Encode, getPkhfromPk, PrefixV2, verifySignature as taquitoVerifySignature } from "@tezos-x/octez.js-utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bls12_381 } from "@noble/curves/bls12-381";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
@@ -243,7 +243,7 @@ export async function sendTransfer(rpcUrl, signerSpec, destination, amountMutez,
 // passphrase, salt, 32768 rounds, 32 bytes), nonce = 24 zero bytes, plaintext = raw secret)).
 // Mirrors Taquito's decrypt path above and octez's src/lib_signer_backends/encrypted.ml.
 
-import { b58DecodeAndCheckPrefix } from "@taquito/utils";
+import { b58DecodeAndCheckPrefix } from "@tezos-x/octez.js-utils";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha512 } from "@noble/hashes/sha2.js";
 import { secretBox } from "@stablelib/nacl";
@@ -471,7 +471,7 @@ export async function sendGovernanceOperation(rpcUrl, signerSpec, kind, argJson)
 // the node simulates and preapplies, but the bytes we sign are forged here (`rawforge.js`) and
 // the node's forging must match them, so a lying node cannot swap in another operation.
 
-import { RpcClient } from "@taquito/rpc";
+import { RpcClient } from "@tezos-x/octez.js-rpc";
 import { forgeRawOperation, verifyRawForging } from "./rawforge.js";
 import { approvedEstimate, sendApproved, parseLimits, injectSigned, checkedLimit, assertNoPending, forgetOperation, signAndInject, operationRecord, recordCheckedLevel } from "./operations.js";
 export { assertChain, injectSignedBytes, checkApproved, parseLimits, checkApprovedBatch, parseBatchLimits, pendingOperation, forgetOperation, originatedAddress } from "./operations.js";
@@ -549,7 +549,7 @@ export async function sendRawOperation(rpcUrl, signerSpec, contentsJson, limitsJ
 }
 
 // Test hooks for the local forger: our bytes, Taquito's for the same contents, and the check.
-import { localForger } from "@taquito/local-forging";
+import { localForger } from "@tezos-x/octez.js-local-forging";
 export async function forgeRawForTest(branch, contentsJson) { return forgeRawOperation(branch, JSON.parse(contentsJson)); }
 export async function taquitoForgeForTest(branch, contentsJson) { return localForger.forge({ branch, contents: JSON.parse(contentsJson) }); }
 export async function verifyRawForgingForTest(branch, contentsJson, nodeHex) { return verifyRawForging(branch, JSON.parse(contentsJson), nodeHex); }

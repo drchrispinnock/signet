@@ -9,10 +9,10 @@
 // outcome is unknown, instead of an error that invites a second payment.
 
 import { blake2b } from "@noble/hashes/blake2.js";
-import { RpcClient } from "@taquito/rpc";
+import { RpcClient } from "@tezos-x/octez.js-rpc";
 import { forgeRawOperation } from "./rawforge.js";
-import { localForger } from "@taquito/local-forging";
-import { encodeOpHash, b58DecodeAndCheckPrefix, b58Encode, PrefixV2 } from "@taquito/utils";
+import { localForger } from "@tezos-x/octez.js-local-forging";
+import { encodeOpHash, b58DecodeAndCheckPrefix, b58Encode, PrefixV2 } from "@tezos-x/octez.js-utils";
 
 const memoryJournal = new Map();
 function records() {

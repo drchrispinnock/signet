@@ -8,7 +8,7 @@
 // kernel refuses originated (KT1) receivers, and tz4 keys are not on the rollup yet.
 // Withdrawals from Michelson-interface accounts are not offered by Etherlink yet (October 2026).
 
-import { TezosToolkit } from "@taquito/taquito";
+import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { encodedPublicKeyHash } from "./rawforge.js";
 import { approvedEstimate, sendApproved, parseLimits } from "./operations.js";

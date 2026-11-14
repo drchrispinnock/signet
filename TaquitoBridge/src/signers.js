@@ -3,7 +3,7 @@
 //   { "kind": "ledger", "path": "44'/1729'/0'/0'", "derivationType": 0, "address": "tz1…" }
 // Secret keys only ever arrive here for the one operation and are not kept.
 
-import { InMemorySigner } from "@taquito/signer";
+import { InMemorySigner } from "@tezos-x/octez.js-signer";
 import { ledgerSignerFor } from "./ledger.js";
 
 export async function signerFor(spec) {

@@ -15,7 +15,7 @@
 // Voting keys are read from the delegation contract's `voting_delegations` big map, which is
 // what its `list_voters` view answers from.
 
-import { TezosToolkit, MichelCodecPacker } from "@taquito/taquito";
+import { TezosToolkit, MichelCodecPacker } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { approvedEstimate, sendApproved, parseLimits } from "./operations.js";
 

@@ -1,6 +1,6 @@
 // Offline regression: a dApp approval must bind every signed operation, including its reveal.
 const fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict');
-const req=require;const {InMemorySigner}=req('@taquito/signer');const {b58Encode,PrefixV2,encodeOpHash}=req('@taquito/utils');const {localForger}=req('@taquito/local-forging');
+const req=require;const {InMemorySigner}=req('@tezos-x/octez.js-signer');const {b58Encode,PrefixV2,encodeOpHash}=req('@tezos-x/octez.js-utils');const {localForger}=req('@tezos-x/octez.js-local-forging');
 let operation,expectedSigned,preapplies=0,injections=0,mode='honest';const journal=new Map();
 const ctx={console:{log(){},warn(){},error(){},info(){},debug(){}},__signet:{randomBytes:n=>Array.from(crypto.randomBytes(n)),operationRead(){return JSON.stringify([...journal.values()]);},operationSave(json){const record=JSON.parse(json);journal.set(record.hash,record);return "";},operationRemove(hash){journal.delete(hash);return "";},setTimer(){},clearTimer(){},cancelFetch(){},storageGet(){return null},storageSet(){},storageDelete(){},octezConnectEvent(){},fetch(id,url,method,headers,body){
  Promise.resolve().then(()=>{if(url.endsWith('/chain_id'))return 'NetFixture';assert.equal(new URL(url).hostname,'offline.invalid');const data=JSON.parse(body);

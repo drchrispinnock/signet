@@ -11,10 +11,10 @@
 // Lambdas are built exactly as octez's managed_contract.ml writes them (bytes literals, expanded
 // macros), because the signed bytes must agree.
 
-import { TezosToolkit } from "@taquito/taquito";
-import { RpcClient } from "@taquito/rpc";
-import { Parser, packDataBytes } from "@taquito/michel-codec";
-import { b58Encode, getPkhfromPk, PrefixV2, verifySignature } from "@taquito/utils";
+import { TezosToolkit } from "@tezos-x/octez.js";
+import { RpcClient } from "@tezos-x/octez.js-rpc";
+import { Parser, packDataBytes } from "@tezos-x/octez.js-michel-codec";
+import { b58Encode, getPkhfromPk, PrefixV2, verifySignature } from "@tezos-x/octez.js-utils";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { parseLimits, approvedEstimate, prepareApproved, signAndInject } from "./operations.js";

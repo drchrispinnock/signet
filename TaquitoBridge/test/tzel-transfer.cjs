@@ -11,7 +11,7 @@ const { build } = require('esbuild');
 
 async function load(file) {
   const source = fs.readFileSync(path.resolve(__dirname, '../src', file), 'utf8');
-  const result = await build({ stdin: { contents: source, resolveDir: path.resolve(__dirname, '../src'), sourcefile: file }, bundle: true, write: false, format: 'iife', globalName: 'API', platform: 'browser', target: 'safari17', external: ['@taquito/taquito', './signers.js', './operations.js'] });
+  const result = await build({ stdin: { contents: source, resolveDir: path.resolve(__dirname, '../src'), sourcefile: file }, bundle: true, write: false, format: 'iife', globalName: 'API', platform: 'browser', target: 'safari17', external: ['@tezos-x/octez.js', './signers.js', './operations.js'] });
   const context = { console, TextEncoder, TextDecoder, crypto: crypto.webcrypto, require: () => ({}) };
   vm.createContext(context); vm.runInContext(result.outputFiles[0].text, context); return context.API;
 }

@@ -3,7 +3,7 @@
 // drive the Tezos Wallet app on the device. Secrets never leave the Ledger.
 
 import Transport from "@ledgerhq/hw-transport";
-import { LedgerSigner, DerivationType } from "@taquito/ledger-signer";
+import { LedgerSigner, DerivationType } from "@tezos-x/octez.js-ledger-signer";
 
 const g = globalThis;
 const native = g.__signet;
