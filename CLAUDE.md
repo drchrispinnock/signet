@@ -273,6 +273,24 @@ automatic download is off by default. The updater is not started under the test 
   Before signing, `ledgerSignerFor` checks the connected device derives the wallet's address and
   fails with "does not hold this key" otherwise. Trezor is not supported: Taquito has no Trezor
   signer and Trezor's SDK needs its Bridge daemon and a browser popup.
+- **Secure Enclave keys.** One more key type in Create account, "tz3 · in this Mac's Secure
+  Enclave" (offered only when `WalletViewModel.canCreateEnclaveKey`, never the default, behind
+  an "I understand" toggle): a P-256 key made inside the Enclave that never leaves it, so it
+  cannot be exported, backed up or recovered. It is chosen per account; software keys are
+  untouched. `EnclaveKeyService` (`Signet/Services/EnclaveKeys.swift`: `SecureEnclaveKeys` over
+  CryptoKit, `SoftwareEnclaveKeys` for tests, `UnavailableEnclaveKeys` the model's default;
+  `EnclaveKeys.platform`). CryptoKit returns the Enclave's wrapped key, which we keep as the
+  `secret_keys` locator `signet-enclave:<base64>` (`EnclaveKey`, `KeyKind.enclave`,
+  `Wallet.enclaveKey`): no Keychain item, so no entitlement or provisioning profile, and
+  ad-hoc builds work. Signing: `SigningKey.enclave` → the bridge's `enclaveSignerFor`
+  (`src/signers.js`) checks the public key hashes to the address, computes the Blake2b digest,
+  calls `__signet.enclaveSign` (the `TaquitoBridge.enclave` service; Touch ID or the password
+  per signature, a fresh `LAContext`), and verifies the returned signature against the
+  account's public key before using it. The digest is signed as is (`RawDigest`) and
+  normalised to low-S (`P256Signature.lowS`). The header tags the account "Secure Enclave", or
+  "Key not on this Mac" when `isEnclaveKeyPresent` is false; Export is off; Forget asks the
+  Enclave for a signature first. `EnclaveKeyTests`, and `EnclaveSendTests` live on Shadownet.
+  The Touch ID prompt itself has only been exercised by hand; see `docs/spec/ENCLAVE.md`.
 - **Staking and baking (0.3).** `StakingOperation` (delegate/remove, registerAsBaker, reactivateBaker for a baker the chain deactivated: the same registration again, offered by a Reactivate button in the Baking sheet, stake,
   unstake, finalizeUnstake, updateConsensusKey, updateCompanionKey) is estimated with a read-only
   signer and sent via the bridge's `estimateStakingOperation` / `sendStakingOperation` (Taquito

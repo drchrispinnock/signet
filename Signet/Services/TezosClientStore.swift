@@ -108,7 +108,8 @@ struct TezosClientStore: WalletStore {
                 address: Address(address),
                 publicKey: Self.publicKey(from: publicKeys[entry.name]),
                 keyKind: KeyKind(locator: locator),
-                ledgerKey: locator.flatMap(LedgerKey.init(locator:))
+                ledgerKey: locator.flatMap(LedgerKey.init(locator:)),
+                enclaveKey: locator.flatMap(EnclaveKey.init(locator:))
             )
         }
         // Named contracts (`contracts`) are part of the address book: watch-only entries whose
@@ -227,7 +228,8 @@ struct TezosClientStore: WalletStore {
         let locator = value(in: Self.secretKeysFile) as? String
         guard Self.publicKey(from: value(in: Self.publicKeysFile)) == wallet.publicKey,
               KeyKind(locator: locator) == wallet.keyKind,
-              locator.flatMap(LedgerKey.init(locator:)) == wallet.ledgerKey else { throw StoreError.walletChanged(wallet.alias) }
+              locator.flatMap(LedgerKey.init(locator:)) == wallet.ledgerKey,
+              locator.flatMap(EnclaveKey.init(locator:)) == wallet.enclaveKey else { throw StoreError.walletChanged(wallet.alias) }
         let entries = Dictionary(uniqueKeysWithValues: files.map { file, rows in
             (file, rows.filter { ($0["name"] as? String) == wallet.alias })
         })

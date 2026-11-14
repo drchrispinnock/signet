@@ -71,6 +71,13 @@ final class TaquitoBridge: @unchecked Sendable {
     }
     private var _storage: any BridgeStorage
 
+    /// Signs for Secure Enclave keys. The machine's own Enclave unless a test replaces it.
+    var enclave: any EnclaveKeyService {
+        get { lock.withLock { _enclave } }
+        set { lock.withLock { _enclave = newValue } }
+    }
+    private var _enclave: any EnclaveKeyService = EnclaveKeys.platform
+
     /// Receives JSON events pushed from JavaScript (dApp requests). Called on the bridge queue.
     var eventHandler: (@Sendable (String) -> Void)? {
         get { lock.withLock { _eventHandler } }
@@ -470,6 +477,34 @@ final class TaquitoBridge: @unchecked Sendable {
                 }
             }
         }
+        // Secure Enclave keys: JavaScript computes the digest, the Enclave signs it here after
+        // the user authenticates. The secret never exists outside the Enclave.
+        let enclaveSign: @convention(block) (Int, String, String, String) -> Void = { [weak self] id, keyBase64, digestHex, address in
+            guard let self else { return }
+            let generation = self.contextGeneration
+            let service = self.enclave
+            self.trace("enclave #\(id) → sign")
+            Task {
+                var signature = ""
+                var failure: String?
+                do {
+                    guard let key = EnclaveKey(base64: keyBase64) else { throw EnclaveError.failed("the stored key is not readable") }
+                    let digest = Data(Self.bytes(fromHex: digestHex))
+                    let short = address.count > 12 ? "\(address.prefix(7))…\(address.suffix(4))" : address
+                    let raw = try await service.sign(digest: digest, with: key, reason: "sign with the Secure Enclave key of \(short)")
+                    signature = raw.map { String(format: "%02x", $0) }.joined()
+                } catch {
+                    failure = error.localizedDescription
+                }
+                let (hex, message) = (signature, failure)
+                self.queue.async {
+                    guard self.contextGeneration == generation else { return }
+                    self.trace("enclave #\(id) ← \(message == nil ? "signed" : "failed")")
+                    self.context?.objectForKeyedSubscript("__signet_enclaveDone")?.call(withArguments: [id, hex, message ?? NSNull()])
+                }
+            }
+        }
+        native.setObject(enclaveSign, forKeyedSubscript: "enclaveSign" as NSString)
         native.setObject(ledgerDevices, forKeyedSubscript: "ledgerDevices" as NSString)
         native.setObject(ledgerExchange, forKeyedSubscript: "ledgerExchange" as NSString)
         context.setObject(native, forKeyedSubscript: "__signet" as NSString)

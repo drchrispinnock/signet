@@ -543,6 +543,8 @@ final class WalletViewModel {
     private let keyGenerator: KeyGenerator
     /// Ledger discovery and key derivation.
     let ledger: any LedgerService
+    /// Keys made and used inside this Mac's Secure Enclave.
+    let enclave: any EnclaveKeyService
     /// Pasted secret keys and recovery phrases.
     let keyImporter: any KeyImporter
     private let multisigService: any MultisigService
@@ -567,6 +569,7 @@ final class WalletViewModel {
         chainFactory: (@Sendable (Network) -> any ChainService)? = nil,
         keyGenerator: KeyGenerator = KeyGenerator(),
         ledger: any LedgerService = MockLedgerService(),
+        enclave: any EnclaveKeyService = UnavailableEnclaveKeys(),
         keyImporter: any KeyImporter = MockKeyImporter(),
         multisig: any MultisigService = MockMultisigService(),
         proposalStore: (any MultisigProposalStore)? = nil,
@@ -615,6 +618,7 @@ final class WalletViewModel {
         self.chain = factory(network)
         self.keyGenerator = keyGenerator
         self.ledger = ledger
+        self.enclave = enclave
         self.keyImporter = keyImporter
         self.multisigService = multisig
         let proposalStore = proposalStore ?? directory.map { FileMultisigProposalStore(directory: $0) } ?? InMemoryMultisigProposalStore()
@@ -922,6 +926,42 @@ final class WalletViewModel {
         await backUp()
     }
 
+    /// Whether "tz3 in the Secure Enclave" can be offered: this Mac has an Enclave.
+    var canCreateEnclaveKey: Bool { enclave.isAvailable }
+
+    /// Whether an Enclave account's key is in this Mac's Enclave. A wallet directory copied from
+    /// another Mac, or restored after the Enclave was reset, carries entries that are not.
+    func isEnclaveKeyPresent(_ wallet: Wallet) -> Bool {
+        guard wallet.keyKind == .enclave, let key = wallet.enclaveKey else { return false }
+        return enclave.isUsable(key)
+    }
+
+    /// Makes a tz3 account whose key is generated inside the Secure Enclave and never leaves it.
+    /// What is written to `secret_keys` is the Enclave's wrapped form, usable on this Mac only,
+    /// so the key cannot be exported or recovered: the sheet says so before this is called.
+    func createEnclaveWallet(alias: String) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        guard enclave.isAvailable else { throw EnclaveError.unavailable }
+
+        isCreatingWallet = true
+        defer { isCreatingWallet = false }
+
+        let revision = walletDirectoryRevision
+        let store = walletStore
+        let pair = try enclave.create()
+        let publicKey = Base58.checkEncode(prefix: TezosPrefix.p2pk, payload: Array(pair.publicKey))
+        let address = try await keyGenerator.address(for: publicKey)
+        guard walletDirectoryRevision == revision else { throw WalletError.directoryChanged }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        let wallet = Wallet(alias: name, address: Address(address), scheme: .tz3, publicKey: publicKey, keyKind: .enclave, enclaveKey: pair.key)
+        try store.add(wallet, locator: pair.key.locator)
+        wallets = (try? store.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
+    }
+
     /// Removes the selected account from the key store (secret key included). Encrypted keys must
     /// be unlocked with `passphrase` first, so a key cannot be thrown away by someone who does not
     /// know its password. Earlier backups keep their copies.
@@ -938,6 +978,13 @@ final class WalletViewModel {
             guard let passphrase, !passphrase.isEmpty else { throw SendViewModel.SendError.passphraseRequired }
             guard let stored = snapshot.secretKey else { throw SendViewModel.SendError.noSecretKey }
             _ = try await keyImporter.decrypt(secretKey: stored, passphrase: passphrase)
+        }
+        if wallet.keyKind == .enclave, let key = wallet.enclaveKey, enclave.isUsable(key) {
+            // The owner proves presence as for any signature. A key this Mac's Enclave cannot
+            // load is already useless here, and its entry can simply go.
+            var digest = Data(count: 32)
+            for i in digest.indices { digest[i] = UInt8.random(in: .min ... .max) }
+            _ = try await enclave.sign(digest: digest, with: key, reason: "forget the account “\(wallet.alias)”")
         }
         // Even switching away and back invalidates approval. The captured store checks all account
         // entries against the password-verified snapshot under the same lock as deletion.
@@ -1417,6 +1464,9 @@ final class WalletViewModel {
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
+        case .enclave:
+            guard let key = wallet.enclaveKey, let publicKey = wallet.publicKey else { return nil }
+            return .enclave(key, publicKey: publicKey, address: wallet.address)
         case .remote, .unknown, .none:
             return nil
         }

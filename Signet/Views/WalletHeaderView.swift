@@ -22,6 +22,7 @@ struct WalletIdentityView: View {
                 walletPicker
                 if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
                 if wallet.keyKind == .ledger { ledgerTag }
+                if wallet.keyKind == .enclave { enclaveTag }
                 if wallet.isSessionOnly { sessionTag }
             }
             HStack(spacing: 6) {
@@ -104,6 +105,26 @@ struct WalletIdentityView: View {
             .overlay(Capsule().strokeBorder(.orange.opacity(0.5), lineWidth: 1))
             .foregroundStyle(.orange)
             .help("A paper key held in memory only. It is not in the wallet directory or any backup and is forgotten when Signet quits. Use Remember key… in the menu to keep it.")
+    }
+
+    @ViewBuilder private var enclaveTag: some View {
+        if model.isEnclaveKeyPresent(wallet) {
+            Label("Secure Enclave", systemImage: "touchid")
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(.quaternary))
+                .foregroundStyle(.secondary)
+                .help("This key was made inside this Mac's Secure Enclave and never leaves it. Every signature needs Touch ID or your password. It cannot be exported or recovered.")
+        } else {
+            Label("Key not on this Mac", systemImage: "exclamationmark.triangle")
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(.orange.opacity(0.2)))
+                .foregroundStyle(.orange)
+                .help("This account's key lives in another Mac's Secure Enclave, or this Mac's Enclave has been reset. Signet can show the account here but cannot sign for it.")
+        }
     }
 
     private var ledgerTag: some View {

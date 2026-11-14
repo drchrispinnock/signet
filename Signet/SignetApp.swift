@@ -27,6 +27,7 @@ struct SignetApp: App {
             chainFactory: { network in TaquitoChainService(network: network) },
             keyGenerator: KeyGenerator(),
             ledger: BridgeLedgerService(),
+            enclave: EnclaveKeys.platform,
             keyImporter: BridgeKeyImporter(),
             multisig: BridgeMultisigService(),
             importSource: TezosClientStore.octezClientDirectory,

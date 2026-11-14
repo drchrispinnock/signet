@@ -154,6 +154,10 @@ enum ChainError: LocalizedError, Equatable {
     case ledgerNotConnected
     /// The connected Ledger derives a different key at this path (wrong device or seed).
     case ledgerWrongDevice(String)
+    /// The user dismissed the Touch ID / password prompt for a Secure Enclave key.
+    case enclaveCancelled
+    /// The Secure Enclave key was made on another Mac (or the Enclave was reset).
+    case enclaveKeyMissing
     /// The secret key on disk does not derive the account's address (edited or swapped directory).
     case keyAddressMismatch(String)
     /// The network has Etherlink off or no Etherlink node to ask.
@@ -190,6 +194,8 @@ enum ChainError: LocalizedError, Equatable {
         case .ledgerNotConnected: "No Ledger is connected. Plug it in, unlock it and open the Tezos app."
         case .ledgerWrongDevice(let detail): detail
         case .keyAddressMismatch(let detail): detail
+        case .enclaveCancelled: "Not signed: the Touch ID or password prompt was cancelled."
+        case .enclaveKeyMissing: "This account's key is not in this Mac's Secure Enclave. It was made on another Mac, or the Enclave has been reset."
         }
     }
 
@@ -203,6 +209,8 @@ enum ChainError: LocalizedError, Equatable {
         if lower.contains("0x6e00") || lower.contains("0x6d00") || lower.contains("0x6511") || lower.contains("0x6e01") || lower.contains("0x6d02")
             || lower.contains("cla_not_supported") || lower.contains("ins_not_supported") { return .ledgerAppNotOpen }
         if lower.contains("no ledger is connected") || lower.contains("was unplugged") { return .ledgerNotConnected }
+        if lower.contains("secure enclave was cancelled") { return .enclaveCancelled }
+        if lower.contains("not in this mac's secure enclave") { return .enclaveKeyMissing }
         if lower.contains("does not hold this key") { return .ledgerWrongDevice(message) }
         if lower.contains("does not derive the account's address") { return .keyAddressMismatch(message) }
         if lower.contains("proof of possession required") { return .proofOfPossessionRequired }

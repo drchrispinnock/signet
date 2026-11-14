@@ -127,6 +127,10 @@ enum SigningKey: Sendable, Equatable {
     case secret(String, passphrase: String?, address: Address)
     /// A key on a Ledger; the device signs after the user approves on it.
     case ledger(LedgerKey, address: Address)
+    /// A tz3 key in the Secure Enclave: the bridge hands each digest back to Swift, the Enclave
+    /// signs it after the user authenticates, and the bridge checks the signature against
+    /// `publicKey`, which must hash to `address`.
+    case enclave(EnclaveKey, publicKey: String, address: Address)
 
     var isLedger: Bool { if case .ledger = self { return true } else { return false } }
 
@@ -138,6 +142,8 @@ enum SigningKey: Sendable, Equatable {
             object = ["kind": "secret", "secretKey": key, "passphrase": passphrase ?? "", "address": address.value]
         case .ledger(let key, let address):
             object = ["kind": "ledger", "path": key.fullPath, "derivationType": key.curve.derivationType, "address": address.value]
+        case .enclave(let key, let publicKey, let address):
+            object = ["kind": "enclave", "key": key.base64, "publicKey": publicKey, "address": address.value]
         }
         let data = try! JSONSerialization.data(withJSONObject: object)
         return String(data: data, encoding: .utf8)!

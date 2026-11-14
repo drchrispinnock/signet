@@ -14,7 +14,8 @@ struct ForgetAccountSheet: View {
     @State private var errorMessage: String?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var holdsSecret: Bool { [.unencrypted, .encrypted].contains(wallet?.keyKind) }
+    private var holdsSecret: Bool { [.unencrypted, .encrypted, .enclave].contains(wallet?.keyKind) }
+    private var inEnclave: Bool { wallet?.keyKind == .enclave }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
     private var backupFolder: String { model.backupDirectory?.path(percentEncoded: false).replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~") ?? "the backup folder" }
 
@@ -78,6 +79,7 @@ struct ForgetAccountSheet: View {
         }
         return switch wallet?.keyKind {
         case .unencrypted, .encrypted: "Signet holds this account's secret key. Forgetting deletes that key from ~/.signet. Without another copy of the key or its recovery phrase, the account and its tez are lost."
+        case .enclave: "This account's key lives in this Mac's Secure Enclave and has no other copy. Forgetting deletes the entry in ~/.signet that reaches it; after that nothing can sign for the account, and its tez are lost unless you move them out first."
         case .ledger: "This account's key stays on your Ledger; Signet will only forget how to reach it. You can connect it again later."
         case .remote, .unknown: "Signet will forget this account's signer entry. The key itself lives elsewhere and is not touched."
         default: "This is an address-book entry. Signet will forget the name and address; nothing else changes."
@@ -89,12 +91,16 @@ struct ForgetAccountSheet: View {
             Label {
                 Text(isSessionOnly
                      ? "Last chance. The key will be wiped from memory. Make sure you have the paper copy or the recovery phrase first."
+                     : inEnclave
+                     ? "Last chance. A Secure Enclave key cannot be exported and has no recovery phrase. Empty the account first; you will be asked for Touch ID or your password."
                      : "Last chance. The secret key will be deleted from this Mac's wallet directory. Make sure you have exported it or have the recovery phrase first.")
             } icon: { Image(systemName: "exclamationmark.octagon.fill") }
                 .foregroundStyle(.red)
             if !isSessionOnly {
                 Label {
-                    Text("Earlier backups in \(backupFolder) may still contain this key. Delete those too if you need the key gone from this Mac entirely.")
+                    Text(inEnclave
+                         ? "Earlier backups in \(backupFolder) still hold the entry and can bring the account back on this Mac, and only on this Mac."
+                         : "Earlier backups in \(backupFolder) may still contain this key. Delete those too if you need the key gone from this Mac entirely.")
                 } icon: { Image(systemName: "externaldrive.badge.exclamationmark") }
                     .font(.callout).foregroundStyle(.secondary)
             }

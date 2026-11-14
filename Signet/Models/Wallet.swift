@@ -8,6 +8,9 @@ enum KeyKind: String, Codable, Sendable {
     case encrypted
     /// `ledger://...`
     case ledger
+    /// `signet-enclave:<blob>` — a tz3 key inside this Mac's Secure Enclave; it signs there
+    /// after Touch ID or the password, and cannot be exported.
+    case enclave
     /// `http(s)://`, `tcp://`, `unix:`, `remote:` — a remote signer such as octez-signer.
     case remote
     /// Some other scheme we do not understand.
@@ -24,14 +27,16 @@ enum KeyKind: String, Codable, Sendable {
         case "unencrypted": self = .unencrypted
         case "encrypted": self = .encrypted
         case "ledger": self = .ledger
+        case EnclaveKey.scheme: self = .enclave
         case "http", "https", "tcp", "unix", "remote": self = .remote
         default: self = .unknown
         }
     }
 
     /// Kinds Signet can sign with: clear-text keys, encrypted keys once the user supplies the
-    /// password, and Ledger keys when the device is plugged in.
-    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger }
+    /// password, Ledger keys when the device is plugged in, and Secure Enclave keys on the Mac
+    /// that made them.
+    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger || self == .enclave }
 
     /// Base58 prefixes of octez-encrypted secret keys.
     static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"]
@@ -57,6 +62,8 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     var keyKind: KeyKind
     /// Where the key lives on a Ledger, when `keyKind` is `.ledger` and the locator parsed.
     var ledgerKey: LedgerKey?
+    /// The Secure Enclave's wrapped key, when `keyKind` is `.enclave` and the locator parsed.
+    var enclaveKey: EnclaveKey?
     /// A paper key imported for this run only: its secret is in memory (`SessionKeyStore`), not
     /// in the wallet directory, and is gone when Signet quits.
     var isSessionOnly = false
@@ -65,16 +72,17 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     /// unrevealed tz4 account needs it; it is never stored (the reveal publishes it on chain).
     var proofOfPossession: String?
 
-    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil) {
+    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil, enclaveKey: EnclaveKey? = nil) {
         self.alias = alias
         self.address = address
         self.scheme = scheme ?? address.scheme ?? .tz1
         self.publicKey = publicKey
         self.keyKind = keyKind
         self.ledgerKey = ledgerKey
+        self.enclaveKey = enclaveKey
     }
 
-    enum CodingKeys: String, CodingKey { case alias, address, scheme, publicKey, keyKind, ledgerKey, isSessionOnly }
+    enum CodingKeys: String, CodingKey { case alias, address, scheme, publicKey, keyKind, ledgerKey, enclaveKey, isSessionOnly }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -84,6 +92,7 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
         publicKey = try values.decodeIfPresent(String.self, forKey: .publicKey)
         keyKind = try values.decode(KeyKind.self, forKey: .keyKind)
         ledgerKey = try values.decodeIfPresent(LedgerKey.self, forKey: .ledgerKey)
+        enclaveKey = try values.decodeIfPresent(EnclaveKey.self, forKey: .enclaveKey)
         isSessionOnly = try values.decodeIfPresent(Bool.self, forKey: .isSessionOnly) ?? false
     }
 }
