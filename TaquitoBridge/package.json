@@ -24,16 +24,26 @@
     "test:read-only-signer": "node test/read-only-signer.cjs"
   },
   "devDependencies": {
-    "@taquito/taquito": "^25.1.0-beta0",
-    "@taquito/utils": "^25.1.0-beta0",
     "acorn": "8.19.0",
     "esbuild": "^0.28.2"
   },
   "dependencies": {
     "@ledgerhq/hw-transport": "^6.36.0",
-    "@taquito/ledger-signer": "^25.1.0-beta0",
-    "@taquito/signer": "^25.1.0-beta0",
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^2.4.0",
+    "@noble/post-quantum": "^0.7.1",
+    "@scure/bip39": "^2.4.0",
+    "@stablelib/nacl": "^1.0.4",
     "@tezos-x/octez.connect-wallet": "^5.0.5",
+    "@tezos-x/octez.js": "25.0.1",
+    "@tezos-x/octez.js-ledger-signer": "25.0.1",
+    "@tezos-x/octez.js-local-forging": "25.0.1",
+    "@tezos-x/octez.js-michel-codec": "25.0.1",
+    "@tezos-x/octez.js-rpc": "25.0.1",
+    "@tezos-x/octez.js-signer": "25.0.1",
+    "@tezos-x/octez.js-utils": "25.0.1",
+    "bs58check": "^3.0.1",
     "buffer": "^6.0.3",
     "events": "^3.3.0"
   }

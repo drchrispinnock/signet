@@ -69,13 +69,13 @@ async function load(file, substitutions, globals) {
   }
   const ledger=await load('ledger.js',[
     ['import Transport from "@ledgerhq/hw-transport";','const Transport=globalThis.FakeTransport;'],
-    ['import { LedgerSigner, DerivationType } from "@taquito/ledger-signer";','const LedgerSigner=globalThis.FakeSigner;const DerivationType={ED25519:0};']
+    ['import { LedgerSigner, DerivationType } from "@tezos-x/octez.js-ledger-signer";','const LedgerSigner=globalThis.FakeSigner;const DerivationType={ED25519:0};']
   ],{FakeTransport:Transport,FakeSigner:Signer,__signet:{ledgerExchange(id,_device,hex){apdus.push(Buffer.from(hex,'hex').toString());setTimeout(()=>ledger.__signet_ledgerDone(id,'9000',null),0);}}});
   const spec={deviceId:'fixture',path:"44'/1729'/0'",address:'fixture-account'};
   const a=await ledger.API.ledgerSignerFor(spec),b=await ledger.API.ledgerSignerFor(spec);
   await Promise.all([a.sign('A'),b.sign('B')]);assert.deepEqual(apdus,['A0','A1','B0','B1']);
   console.log('PASS S22: complete Ledger signing sessions remain contiguous across concurrent signers');
-  const {InMemorySigner}=require('@taquito/signer');const {b58Encode,PrefixV2}=require('@taquito/utils');
+  const {InMemorySigner}=require('@tezos-x/octez.js-signer');const {b58Encode,PrefixV2}=require('@tezos-x/octez.js-utils');
   const secret=b58Encode(new Uint8Array(32).fill(9),PrefixV2.Ed25519Seed);
   const signing=new InMemorySigner(secret);const source=await signing.publicKeyHash(),publicKey=await signing.publicKey();
   let revealFee=100;
@@ -89,7 +89,7 @@ async function load(file, substitutions, globals) {
     }
     setSignerProvider(signer){this.signer=signer;}
   }
-  const multisig=await load('multisig.js',[[ 'import { TezosToolkit } from "@taquito/taquito";', 'const TezosToolkit=globalThis.FakeToolkit;' ]],{
+  const multisig=await load('multisig.js',[[ 'import { TezosToolkit } from "@tezos-x/octez.js";', 'const TezosToolkit=globalThis.FakeToolkit;' ]],{
     FakeToolkit:Toolkit,fetch:async()=>{throw Error('Unexpected RPC/signing after limit mismatch');},__signet:{randomBytes:n=>[...crypto.randomBytes(n)]}
   });
   const estimate=await multisig.API.multisigEstimateOriginate('https://offline.invalid',source,publicKey,1,JSON.stringify([publicKey]));

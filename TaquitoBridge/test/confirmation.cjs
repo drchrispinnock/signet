@@ -15,7 +15,7 @@ async function fixture({record = {hash:'ooFixture', headLevel:100}, head = 102, 
       return {operations};
     }
   }
-  const api = await load('index.js', [['import { RpcClient } from "@taquito/rpc";', 'const RpcClient = globalThis.FixtureRPC;']], {
+  const api = await load('index.js', [['import { RpcClient } from "@tezos-x/octez.js-rpc";', 'const RpcClient = globalThis.FixtureRPC;']], {
     FixtureRPC:RPC,
     fetch:async()=>{throw Error('fixture must never contact a network');},
     __signet:{setTimer:(id,ms)=>{assert.equal(ms,2000);polls++;timers.push(()=>fire(id));signalTimer();},clearTimer:()=>{},operationRead:()=>JSON.stringify(saved ? [saved] : []),operationSave:json=>{saved=JSON.parse(json);writes.push(saved.lastCheckedLevel);},operationRemove:hash=>{removed.push(hash);saved=null;}},

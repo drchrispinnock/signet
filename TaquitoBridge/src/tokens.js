@@ -2,7 +2,7 @@
 // each carrying every token of that contract going to the recipient, all in one operation
 // group through the approved-limits path (S14, S15). A burn is the same transfer to the
 // conventional burn address, which nobody holds the key to.
-import { TezosToolkit } from "@taquito/taquito";
+import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
 import { approvedBatchEstimate, sendApprovedBatch, parseBatchLimits } from "./operations.js";
 

@@ -8,10 +8,10 @@
 import { WalletClient } from "@tezos-x/octez.connect-wallet";
 import { Serializer, setDebugEnabled, getSenderId } from "@tezos-x/octez.connect-core";
 import { Storage, defaultValues as storageDefaults } from "@tezos-x/octez.connect-types";
-import { TezosToolkit } from "@taquito/taquito";
+import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
-import { RpcClient } from "@taquito/rpc";
-import { localForger } from "@taquito/local-forging";
+import { RpcClient } from "@tezos-x/octez.js-rpc";
+import { localForger } from "@tezos-x/octez.js-local-forging";
 import { assertChain, injectSigned, checkedLimit, assertNoPending } from "./operations.js";
 
 import bs58check from "bs58check";

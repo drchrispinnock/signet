@@ -840,7 +840,19 @@ automatic download is off by default. The updater is not started under the test 
 
 ## Taquito bridge
 
-`TaquitoBridge/` is a small npm package that bundles Taquito (plus `@taquito/ledger-signer` and
+**The library is octez.js, not Taquito (November 2026).** `@tezos-x/octez.js` 25.0.1 is
+Trilitech's fork of Taquito with the same API under other package names (`@taquito/taquito` →
+`@tezos-x/octez.js`, `@taquito/<x>` → `@tezos-x/octez.js-<x>`); where this file says Taquito,
+read octez.js. The Swift names (`TaquitoBridge`, `TaquitoChainService`, `taquito-bridge.js`)
+are unchanged. Two things differ from Taquito and matter here: the crypto packages the bridge
+imports itself (`@noble/*`, `@scure/bip39`, `@stablelib/nacl`, `bs58check`) are declared in
+`package.json` because octez.js hoists them differently, and octez.js's HTTP client retries a
+failed request once on its own, injection included; `src/polyfills.js` sets
+`process.env.OCTEZJS_HTTP_RETRY_COUNT = "0"` before the library loads, so a lost reply is still
+Signet's to judge (S15) and `test/approved-limits.cjs` fails if an injection call never
+settles. Octez Connect is 5.0.5.
+
+`TaquitoBridge/` is a small npm package that bundles the library (plus its `ledger-signer` and
 `@ledgerhq/hw-transport`) and JavaScriptCore polyfills
 (`src/polyfills.js`: timers, fetch, TextEncoder, crypto.getRandomValues, Buffer) into
 `Signet/Resources/taquito-bridge.js`, which is committed and shipped as an app resource.
