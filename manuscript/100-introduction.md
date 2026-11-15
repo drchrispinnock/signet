@@ -2,6 +2,10 @@
 {#id: 100-introduction_1_Introducti}
 # Introduction
 
+*This is in progress*
+
+<!--
+
 *This will be the last chapter to be written. And probably the hardest. Oh the sweet irony!*
 
 
@@ -28,5 +32,5 @@ There are other wallets for Tezos and I encourage you to try them out. Wallet so
 
 The `octez-client` command is typically used by developers and infrastructure users. The other wallets run in the web browser or as browser extensions. This means they integrate very well with dApps because everything runs in the same web browser.
 
-
+-->
 
