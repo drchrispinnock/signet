@@ -118,12 +118,15 @@ We can see this here in the governance window. Choose a key that is a baking key
 ![](gvn/propose.png)
 (Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.)
 
-To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you are someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal with the most voting power advances, provided it has at least 5% of the total voting power and there is no tie for first place. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
+To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you are someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal with the most voting power advances, provided it has at least 5% of the total voting power and there is no tie for first place. 
+
 ![](gvn/upvote.png)
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
 ![](gvn/2-proposal-162togo.png)
-Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for or against the proposal, or vote pass. There needs to be a quorum and a supermajority of over 80% calculated with Yea/(Yea + Nay). Pass votes contribute to the quorum but not the supermajority. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Here we are in the Exploration period:
+Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for or against the proposal, or vote pass. There needs to be a quorum and a supermajority of over 80% calculated with Yea/(Yea + Nay). Pass votes contribute to the quorum but not the supermajority. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
+
+Here we are in the Exploration period:
 
 ![](gvn/3-exploration-before-vote.png)
 And now there are voting buttons: `Yay`, `Nay` and `Pass`. We are going to vote `Yay` by clicking the button. Then `Confirm` in the next screen.

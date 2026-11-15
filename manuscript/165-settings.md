@@ -14,7 +14,7 @@ You can set the wallet directory. Signet stores its files including your keys in
 
 Signet automatically backs up its wallet directory every time you start it. You can change the destination of the backups here and you can also change the number of backups that Signet keeps. By default, it keeps 10 copies.
 
-Should you want to restore from a backup, you can navigate to the directory by pressing `Show in Finder`. The relevant backup file (they are dated) can be moved to `~/.signet` to recover a previous state. Please be careful not to delete any keys by accident.
+Restoring needs some care. Open the backup location using `Show in Finder` and select the dated backup you want to restore. Quit Signet. Move your current wallet directory somewhere safe, then create an empty directory at its original location. Copy the contents of the selected backup into it, rather than copying the dated folder itself. Restart Signet and check your accounts. Use your configured wallet directory, which defaults to ~/.signet. Keep the original directory safe: it may contain keys created after the backup.
 
 ![](165/finder.png)
 You can also initiate a backup with the `Back Up Now` button.

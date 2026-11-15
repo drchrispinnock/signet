@@ -101,9 +101,11 @@ Note that the artwork is usually too big to be stored on the blockchain itself, 
 
 It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
-NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. For example, if you sell a piece of artwork on-chain, the smart contract might have a provision for the creator. This means the artist gets a cut of every sale of their artwork, despite not owning it.
+NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. Some marketplaces include a rule that pays the creator a share of each sale made through that marketplace. This means the artist gets a cut of every sale of their artwork, despite not owning it.
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
+
+Note also that 
 
 {#id: 170-dapps_2_Minting}
 ## Minting an NFT at Teia
@@ -120,7 +122,7 @@ On Teia, click the burger menu and under Create, choose `Mint`.
 
 ![](170/teiadetail.png)
 
-I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I will receive 10% of the proceeds (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
+I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I should receive 10% on sales through marketplaces that honour the royalty (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
 
 ![](170/preview.png)
 Scrolling down and checking all the details, I click `Mint`. Then Signet receives a request for signing the operation:

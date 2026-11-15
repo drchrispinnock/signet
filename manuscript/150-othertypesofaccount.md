@@ -82,23 +82,23 @@ In addition to a recovery phrase, a fundraiser account has an email address and 
 
 In the recovery phrase import there is an account reference of the form `44'/1729'/0'/0'`. For each `tz` key type, you'll find a different key on each of `44'/1729'/0'/0'`, `44'/1729'/1'/0'`, `44'/1729'/2'/0'` and so on.
 
-There is a general format defined in Bitcoin Improvement Proposals BIP32 and BIP44 called the *derivation path*:
+There is a general format defined in Bitcoin Improvement Proposals BIP32 and BIP44 called the *derivation path* (our four-component Tezos paths differ slightly in that they don't have the address_index).
 
 ```
 m/purpose'/coin_type'/account'/change/address_index
 ```
 
-The `m` is the private key which is not included in our account reference. The other fields mean:
+The `m` is the master/root private node which is not included in our account reference. The other fields mean:
 
 | Field         | Definition                                                                                                                             |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| purpose       | Wallet standard - 44 means legacy, there are other values                                                                              |
+| purpose       | Wallet standard - 44 refers to BIP44                                                                             |
 | coin_type     | The coin. 0 is Bitcoin, 60 is Ethereum and 1729 (the [Hardy–Ramanujan number](https://en.wikipedia.org/wiki/Taxicab_number)) is Tezos. |
 | account       | is the account number - you can have multiple accounts starting from 0                                                                 |
 | change        | 0 for receiving addresses and 1 for internal addresses                                                                                 |
 | address_index | A sequence number for an individual address                                                                                            |
 
-The ' means that the derivation is a hardened derivation and the parent private key is required to calculate child keys. From the seed (the number represented by the seed phrase) you can derive many cryptographic keys. One seed can be used to set up accounts on many different blockchains. This is how the Ledger is set up, with one seed phrase. Some other wallets use this method too.
+In this path, an apostrophe marks a hardened derivation, which requires the parent private key. A recovery phrase (mnemonic) is used to derive a seed; in BIP39, an optional passphrase can also be used. The seed then generates the master key and its child keys. The same recovery phrase can therefore generate accounts on multiple blockchains, as Ledger does. Some other wallets work this way too.
 
 {#id: 150-othertypesofaccount_2_Connecting}
 ## Connecting a Ledger
@@ -128,9 +128,13 @@ You can export your secret keys from Signet at any time. Signet displays the key
 
 The best way to store keys as a backup is to store them on paper. Write down the secret key onto good quality paper using permanent ink that will not fade. Using printers or photocopiers to make copies is not necessarily a good idea. Some photocopiers have a memory and other people can print out previous jobs. Then they have your keys.
 
-If you are worried further about offline security, you could shard the key. This is where you write down half of it on one piece of paper and the other half on another. Store one half in one location (e.g. a safe) and the other half in another (e.g. a vault somewhere else). This requires two safe locations. If you want a backup as well, you will need two additional safe locations. However, it's worth it if your key gives access to significant funds.
+As a beginner, the best thing to do is to make sure you have at least two offline copies of your key (or recovery phrases). Keep one in a safe place at home and keep another one in a safe place elsewhere (e.g. bank vault).
+
+If you are worried further about offline security, you could split the key. This is where you write down half of it on one piece of paper and the other half on another. Store one half in one location (e.g. a safe) and the other half in another (e.g. a vault somewhere else). You will need both halves to recover and if you lose one, you've lost the secret. Ideally you need a second copy of each piece. This requires four safe locations of course.
 
 If you use a Ledger or another hardware security module to generate the key, you should store the seed materials (such as recovery phrase) in a similar way. You can break it up into shards if you like and store it in multiple locations.
+
+For larger sums of money, you could shard your key with a scheme such as [Shamir's Secret Sharing Scheme](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing) which is used to distribute private information among a group of people. But for a beginner, you should just worry about baking your key up. If you decide to invest more in cryptocurrency, then you should look at better measures.
 
 {#id: 150-othertypesofaccount_2_Forgetting}
 ## Forgetting Keys

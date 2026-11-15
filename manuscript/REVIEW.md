@@ -1,44 +1,5 @@
 {#id: REVIEW_1_Book}
-# Book review - updated 15 November 2026
-
-{#id: REVIEW_2_Substantiv}
-## Substantive corrections and inconsistencies
-
-{#id: REVIEW_3_5}
-### 5. Complete the governance success conditions
-
-[190-baking.md:121](190-baking.md#L121), [126](190-baking.md#L126), [139](190-baking.md#L139), [142](190-baking.md#L142)
-
-**Partially corrected — rechecked 15 November 2026.** The 80% supermajority is now mentioned in both voting periods and Pass is correctly said to contribute to participation. Still outstanding: the Proposal paragraph conflates proposal support with the moving ballot-participation quorum. State the separate 5% proposal-support threshold and that a tie restarts Proposal. Promotion also needs participation quorum. Clarify that the supermajority is measured using Yea/(Yea + Nay), with Pass excluded. No need to rename UI buttons that display `Yay`. [Octez voting rules](https://octez.tezos.com/docs/active/voting.html). Original PDF pp. 158–166.
-
-{#id: REVIEW_3_14}
-### 14. Qualify burn and royalty guarantees
-
-[170-dapps.md:94](170-dapps.md#L94), [104](170-dapps.md#L104), [123](170-dapps.md#L123)
-
-**Narrowed to royalty wording — rechecked 15 November 2026.** The burn passages at lines 94 and 138 concern the particular Objkt/Teia examples, so a blanket accusation that the book promises burn for all FA2 tokens is too strong. A short “where the contract supports it” qualification is optional. The substantive remaining issue is the guaranteed royalty wording: line 104 says the artist gets a cut of every sale, and line 123 says “I will receive 10%” on a later sale. Limit this to sales through a marketplace/contract that honours those royalties. FA2 itself does not require a burn entrypoint or royalty enforcement. [FA2 specification overview](https://docs.tezos.com/architecture/tokens/FA2). Original PDF pp. 107–110.
-
-{#id: REVIEW_3_18}
-### 18. Correct the derivation-path explanation
-
-[150-othertypesofaccount.md:91](150-othertypesofaccount.md#L91)
-
-**Still outstanding — rechecked 15 November 2026.** Line 91 should identify `m` as the master/root private node, rather than leaving it as “the private key”, which can be read as the imported account key. Line 95 still says “44 means legacy”; it identifies the BIP44 purpose. Explain that the four-component hardened Tezos path shown at line 83 differs from the five-level BIP44 template. Line 101 still conflates mnemonic entropy with the derived seed; briefly distinguish the mnemonic, derived seed and optional BIP39 passphrase. [BIP44](https://bips.dev/44/), [BIP39](https://bips.dev/39/). Original PDF pp. 51–54.
-
-{#id: REVIEW_3_19}
-### 19. Do not equate splitting a string with a robust sharing scheme
-
-[150-othertypesofaccount.md:131](150-othertypesofaccount.md#L131)
-
-**Still outstanding — rechecked 15 November 2026.** Lines 131 and 133 still recommend cutting a secret key or hardware-wallet recovery phrase into halves and storing the pieces separately. This is literal splitting, not a threshold secret-sharing scheme: each piece reveals partial information and both parts are needed for recovery. Explain those limitations or remove the recommendation from the beginner instructions. Original PDF p. 57.
-
-{#id: REVIEW_3_20}
-### 20. Make backup and restore instructions precise
-
-[165-settings.md:17](165-settings.md#L17)
-
-**Still outstanding; backup format now source-checked — rechecked 15 November 2026.** The manuscript still calls the backup a “file” and says it can be moved to `~/.signet`. In the local implementation, a backup is a timestamped directory containing selected wallet files and a `.signet-backup` manifest, not an archive or a single wallet file ([WalletBackup.swift](../Signet/Services/WalletBackup.swift#L49)). Specify quitting Signet, preserving the existing configured wallet directory, and restoring the selected generation’s wallet contents to that configured location without nesting the generation directory or mixing generations. The exact user-facing procedure still needs a check with isolated test data. Startup backup may reuse an unchanged generation, so “every time” does not mean a new copy is always created. No real wallet files were inspected. Original PDF p. 79.
-
+# Book review - consistency 15/11/2026
 
 {#id: REVIEW_2_Consistenc}
 ## Consistency and presentation pass
