@@ -22,7 +22,21 @@ Where a dApp offers a compatible Octez Connect pairing code, you can use this me
 {#id: 170-dapps_2_TezInvader}
 ## TezInvaders
 
-This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.*
+This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.* It's a Space Invaders clone, but you can buy a ticket to participate in a competition. The competition lasts 1 day and at the end of the day, the account with the highest score wins the tez in the pool. If you'd prefer not to play with real-valued tez, you can play it on the test networks.
+![](170/tezinvaders.png)
+TezInvaders includes Signet in the wallet list. To connect your wallet, click `Connect Wallet` , show more and choose Signet from the list.
+
+![](170/octezconnect.png)
+
+Then choose `Open Desktop app` and Signet should connect. Signet will ask you if you want to connect to the dApp. Click `Connect` and you are connected.
+
+![](170/tezinvsign.png)
+
+Back on the TezInvaders screen, you can now buy a ticket to participate in the round. When you do this, Signet needs to sign the transaction as you are sending 1tz with fees to the dApps.
+
+![](170/tezinv.png)
+
+You can now play the game and participate. As you score more points, you get NFTs. There are NFTs for 1000, 3000, 5000, 8000 and 12000 points. These will, of course, appear in your NFT tab on Signet. At the end of the round, the highest scorer gets all the tez in the prize pool.
 
 {#id: 170-dapps_2_Buying}
 ## Buying an NFT from Objkt
@@ -31,9 +45,7 @@ We will cover what a non-fungible token (NFT) is more precisely at the end of th
 
 Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. Some items have a fixed price; for others, you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
 
-
-
-This time, we are going to buy *[Vespera Blackthorn](https://objkt.com/tokens/KT1Hg4HcS78G8HoJjk74oeCDN7nmS6mYJvvp/11)* by the artist Monika (monikasart.tez).
+We are going to buy *[Vespera Blackthorn](https://objkt.com/tokens/KT1Hg4HcS78G8HoJjk74oeCDN7nmS6mYJvvp/11)* by the artist Monika (monikasart.tez).
 
 ![](170/vespera.png)
 
