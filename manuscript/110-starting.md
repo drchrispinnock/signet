@@ -1,5 +1,5 @@
-{sample: true}
 {#id: 110-starting_1_Getting}
+{sample: true}
 # Getting started
 
 {#id: 110-starting_2_Installati}

@@ -1,6 +1,6 @@
 {backmatter}
-{sample: true}
 {#id: 910-apx-ownnode_1_Running}
+{sample: true}
 # Appendix - Running your own node
 
 {#id: 910-apx-ownnode_2_Running}
