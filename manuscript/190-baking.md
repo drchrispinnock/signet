@@ -29,7 +29,7 @@ Click `Register as Baker`.
 
 ![](190/delegate2.png)
 
-There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz staked including external stakers. Also, you'll need to stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, this means you'll need to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
+There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz [baking power](https://octez.tezos.com/docs/alpha/baking_power.html) including external delegators. Also, the baker must stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, a straightforward approach is to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
 
 Go to the `Staking` button and stake whatever you would like.
 

@@ -97,9 +97,9 @@ Let's end the section with some terminology about NFTs.
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
 
-Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
+Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
 
-Although it may be possible to buy more than one copy of each artwork, each one has a unique record of ownership on the chain. So an NFT is unique in this sense.
+It may be possible to buy more than one copy of each artwork. These share a token identifier with quantities held by different accounts. 
 
 NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. For example, if you sell a piece of artwork on-chain, the smart contract might have a provision for the creator. This means the artist gets a cut of every sale of their artwork, despite not owning it.
 
@@ -182,7 +182,7 @@ One word of caution. You might want to live anonymously on a blockchain. It's di
 
 *In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
 
-[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDTz is a wrapped token and represents the US dollar. Roughly speaking, a USDTz coin is roughly $1. It's backed by a diverse set of coins including USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
+[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a stablecoin intended to track the US dollar. A USDtz coin is roughly $1. According to the issuer's reserve description, its collateral includes USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
 
 ![](170/quipuswap.png)
 

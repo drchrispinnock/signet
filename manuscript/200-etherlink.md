@@ -35,11 +35,14 @@ Choose the amount that you want to send and click `Bridge`.
 Then you can see that your 10tz has moved between the networks. The call to the bridge smart contract is also visible in the transaction list.
 
 ![](200/balances.png)
-Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. At the time of writing, it's early days for this bridge. It doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in approximately 14-15 days. The 14 days is related to the refutation window in the smart rollup architecture. The Fast method returns your funds immediately but is subject to a fee.
+Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. At the time of writing, it's early days for this bridge. It doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in approximately 15 days.  The Fast method returns your funds within a minute but is subject to a fee.
 ![](200/bridgeback.png)
-<!-- we need to understand how the bridge actually works here XXX -->
+<!--  Fix Signet and fix this paragraph XXX -->
+
+The delay for the Slow method is due to the smart rollup refutation period of 14 days. As with all smart rollups, the operator nodes post commitments about their state to the layer 1 blockchain. During this time, the other operators can challenge those commitments.
+
 {#id: 200-etherlink_2_Sending}
-## Sending and receiving funds
+## Sending and Receiving funds
 
 Sending and receiving funds on the Etherlink network with Tezos addresses is done in Signet in exactly the same way as for the normal Tezos network. Now that we have enabled layer 2, the Send and Receive dialogues have another option to pick the network. You can select Tezos or Etherlink.
 
@@ -49,7 +52,7 @@ To send on Etherlink, simply pick Etherlink in the drop down and send in exactly
 To receive on Etherlink, you can use your `tz1`, `tz2` or `tz3` address.
 
 {#id: 200-etherlink_2_EVM}
-## EVM address and receiving funds
+## EVM Address and Receiving Funds
 
 <!-- XXX this has changed in Etherlink 8.0. We need to reenable it -->
 

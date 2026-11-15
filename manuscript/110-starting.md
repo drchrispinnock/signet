@@ -1,3 +1,4 @@
+{sample: true}
 {#id: 110-starting_1_Getting}
 # Getting started
 

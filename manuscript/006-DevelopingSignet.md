@@ -1,3 +1,4 @@
+{sample: true}
 {#id: 005-Preface_1_AI}
 # Developing Signet
 

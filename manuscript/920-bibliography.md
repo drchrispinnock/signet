@@ -1,3 +1,4 @@
+{sample: true}
 {#id: 920-bibliography_1_Further}
 # Further Resources and Reading
 

@@ -1,3 +1,4 @@
+{sample: true}
 {#id: 006-Disclaimer_1_Disclaimer}
 # Disclaimer
 

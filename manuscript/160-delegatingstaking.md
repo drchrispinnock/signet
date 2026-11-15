@@ -85,13 +85,13 @@ If you want to stake more, you can go back at any time and stake the extra tez.
 {#id: 160-delegatingstaking_2_Unstaking}
 ## Unstaking and finalising
 
-If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles plus the remainder of the current cycle (between 3 and<!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
+If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles plus the remainder of the current cycle (between 3 and <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
 
 
 ![](160/unstake.png)
 
 
-I've unstaked the funds and now I have to wait for them to unlock. Once they are unlocked, I can come back to Signet and finalise the unstake. Since 2026, there has been a bot on Tezos called Finn. This bot automatically finalises unstaked funds once they are eligible, so you should have them back in your spendable balance within approximately <!-- MARKUPTAG unstakebound-->4<!-- ENDMARKUPTAG --> cycles (within <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*). Finn is only present on *Mainnet*. On the test networks, you'll have to finalise yourself.
+I've unstaked the funds and now I have to wait for them to unlock. Once they are unlocked, I can come back to Signet and finalise the unstake. Since 2026, there has been a bot on Tezos called Finn. This bot automatically finalises eligible requests. Finn is only present on *Mainnet*. On the test networks, you'll have to finalise yourself.
 
 When there are funds available to finalise, you use the `Finalize` button on the Staking menu (Tezos has adopted American spellings and so we have used them in Signet too).
 
