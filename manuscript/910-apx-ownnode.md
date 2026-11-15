@@ -1,4 +1,5 @@
 {backmatter}
+{sample:true}
 {#id: 910-apx-ownnode_1_Running}
 # Appendix - Running your own node
 
@@ -17,57 +18,19 @@ By default, Signet will try to use the node on the local machine. Alternatively,
 {#id: 910-apx-ownnode_2_Running_2}
 ## Running directly on a Mac
 
-You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to use Docker. Install Docker Desktop from the [Docker site](https://www.docker.com/products/docker-desktop/) and run it. 
-
-Docker Desktop’s memory limit defaults to half the host’s RAM. If this is insufficient, you can increase it under `Settings > Resources`. I use a 16GB limit; choose a setting appropriate to your machine and the other applications you run.
-
-Then run the `Terminal` application (you can search for it in Spotlight Search). In the commands below, `$` represents the shell prompt; do not type it. Get the latest release of Octez:
+You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to install packages using Homebrew. If you don't have Homebrew installed, please refer to the instructions at [brew.sh](https://brew.sh). Open the Terminal application and run:
 
 ```
-$ docker pull tezos/tezos:latest
+$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-Make a node directory and configure the node to use it. We've split the long lines with `\`. The IP address configuration here allows the Mac to communicate with the docker container locally.
+Then to install the node and related software you can use my Homebrew packages. They are based on work by Nomadic Labs. 
 
 ```
-$ mkdir ${HOME}/node
-$ docker run -v ${HOME}/node:/home/tezos/.tezos-node \
-	-p 127.0.0.1:8732:8732 \
-	--entrypoint /usr/local/bin/octez-node \
-	tezos/tezos config init --network=mainnet \
-	--history-mode=rolling \
-	--rpc-addr=0.0.0.0 --allow-all-rpc=0.0.0.0 \
-	--net-addr=0.0.0.0
+$ brew tap drchrispinnock/octez
+$ brew trust drchrispinnock/octez
+$ brew install octez-client octez-node
 ```
-
-If you run the node now it will attempt to sync the network state from the genesis block, which will take a long time. You can import a backup called a snapshot.
-
-```
-$ cd
-$ curl -o rolling https://snapshots.tzinit.org/mainnet/rolling
-$ docker run -v ${HOME}/rolling:/snapshot \
-    -v ~/node:/home/tezos/.tezos-node \
-    --entrypoint /usr/local/bin/octez-node \
-    tezos/tezos snapshot import /snapshot
-$ rm rolling
-```
-
-Now run the node:
-
-```
-$ docker run -d -v ${HOME}/node:/home/tezos/.tezos-node \
-   	--entrypoint /usr/local/bin/octez-node \
-	--name node -p 127.0.0.1:8732:8732 \
-	tezos/tezos run
-```
-
-You can observe the logs with:
-
-```
-docker logs -f node
-```
-
-You can now connect to the node from Signet with `http://localhost:8732`.
 
 The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node
 
@@ -97,7 +60,13 @@ Generating a new identity... (level: 26.00)
 ....
 ```
 
-You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez software and you can set it up to run at boot using launchctl. For more details see <!-- MARKUPBIBTAG 6d7f2a11 -->[8]<!-- ENDMARKUPBIBTAG --> or <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->.
+You can now connect to the node from Signet with `http://localhost:8732`. Alternatively you can get `octez-node` to run on boot under your user by using `brew services`:
+
+```
+$ brew services start octez-node
+```
+
+You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez software. For more details see <!-- MARKUPBIBTAG 6d7f2a11 -->[8]<!-- ENDMARKUPBIBTAG --> or <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->.
 
 {#id: 910-apx-ownnode_2_Running_3}
 ## Running on a Linux Desktop or Server

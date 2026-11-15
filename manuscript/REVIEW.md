@@ -13,13 +13,6 @@ Rechecked against the saved manuscript on 15 November 2026, including edits save
 
 **Partially corrected — rechecked 15 November 2026.** The 80% supermajority is now mentioned in both voting periods and Pass is correctly said to contribute to participation. Still outstanding: the Proposal paragraph conflates proposal support with the moving ballot-participation quorum. State the separate 5% proposal-support threshold and that a tie restarts Proposal. Promotion also needs participation quorum. Clarify that the supermajority is measured using Yea/(Yea + Nay), with Pass excluded. No need to rename UI buttons that display `Yay`. [Octez voting rules](https://octez.tezos.com/docs/active/voting.html). Original PDF pp. 158–166.
 
-{#id: REVIEW_3_13}
-### 13. Qualify the NFT explanation
-
-[170-dapps.md:98](170-dapps.md#L98), [102](170-dapps.md#L102), [123](170-dapps.md#L123)
-
-**Narrowed clarification — rechecked 15 November 2026.** Line 106 already distinguishes the NFT from the artwork, and the text does not explicitly promise copyright or all artwork rights. Drop those as assertions about what the manuscript says. The remaining ambiguity is line 102’s claim that every copy has a unique ownership record, alongside the five-edition example at line 123. Explain briefly that editions can share a token identifier, with quantities held by different accounts; there need not be five individually identifiable tokens. “Ownership of the token” is clearer than the unqualified “proves our ownership” at line 100. [FA2 token types and identifiers](https://docs.tezos.com/architecture/tokens/FA2). Original PDF pp. 107–110.
-
 {#id: REVIEW_3_14}
 ### 14. Qualify burn and royalty guarantees
 

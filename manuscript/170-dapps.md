@@ -99,7 +99,7 @@ A *fungible token* is a digital asset that can be interchanged with another one 
 
 Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
 
-It may be possible to buy more than one copy of each artwork. These share a token identifier with quantities held by different accounts. 
+It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
 NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. For example, if you sell a piece of artwork on-chain, the smart contract might have a provision for the creator. This means the artist gets a cut of every sale of their artwork, despite not owning it.
 
