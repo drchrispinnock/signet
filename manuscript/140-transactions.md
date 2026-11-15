@@ -53,17 +53,15 @@ We can click the `View in explorer` link and look at the transaction on the bloc
 
 It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. But you can try the transaction again in such circumstances.
 
-Let's pop back to the address window again. Let's put in this address:
+Let's pop back to the address window again. Let's enter the following address into the `Send` dialogue:
 
 ```
 tz1Xf8zdT3DbAX9cHw3c3CXh79rc4nK4gCe8
 ```
 
-into the Send dialogue.
-
 ![](140/dictator.png)
 
-In this case, Signet has looked the address up on tzkt and found that it has a name. It's still not verified, because anyone with an account can update their name at TZkT using [profiles.tzkt.io](https://profiles.tzkt.io). 
+In this case, Signet has looked the address up on TzKT and found that it has a name. It's still not verified, because anyone with an account can update their name at TzKT using [profiles.tzkt.io](https://profiles.tzkt.io). 
 
 On *Mainnet*, we can also use `.tez` addresses. For example, we can put in `etherlink.tez`*.* This resolves to
 

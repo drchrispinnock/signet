@@ -16,10 +16,11 @@ On Etherlink, you can have Ethereum-style addresses beginning with 0x and Tezos-
 
 To use Signet on Etherlink, first you must enable layer 2 for the network. Go to the `Networks...` menu and enable it. There are Etherlink rollups on *Mainnet* and *Shadownet.* We will do everything on *Shadownet* in this chapter.
 
-Signet holds a default node entry for each one. You can change it to another node if you want. If Etherlink is ever deployed on another test network, Signet will probably have a default node for it, but you can set it in the Networks menu otherwise.
+Signet holds a default node entry for each one. You can change it to another node if you want. If Etherlink is ever deployed on another test network, Signet will probably have a default node for it, but you can set it in the Networks menu otherwise. Also there are configuration items for the governance contracts. These contracts are used by bakers to vote on Etherlink upgrades. On *Mainnet* these fields are filled out with the production contracts.
 
 ![](200/networks.png)
-Once you've done this, when you return to the main screen, you will have a balance on the Etherlink network, probably 0tz.
+
+Once you've enabled Layer 2, when you return to the main screen, you will have a balance on the Etherlink network, probably 0tz.
 
 ![](200/balance.png)
 {#id: 200-etherlink_2_Bridging}
@@ -50,17 +51,53 @@ To receive on Etherlink, you can use your `tz1`, `tz2` or `tz3` address.
 {#id: 200-etherlink_2_EVM}
 ## EVM address and receiving funds
 
+<!-- XXX this has changed in Etherlink 8.0. We need to reenable it -->
+
 Now on Etherlink, there are Ethereum-style addresses as well as Tezos addresses. For each Tezos address, there is a derived Ethereum-style address beginning with 0x. To find your 0x address, click the Receive button and choose Etherlink.
 
 ![](200/link.png)
 The first time you do this, you will need to pay a small fee to link your Ethereum-style address with your Tezos address. Click the Link button, then you will have your 0x address.
 
 ![](200/eth.png)
-Now users on the Etherlink rollup with 0x addresses can send tez to your account using your 0x address. 
+Now users on the Etherlink rollup with 0x addresses can send tez to your account using your 0x address. The original Etherlink users had 0x addresses from the start and used Ethereum-compatible wallets. I'm undecided whether to add support for this to Signet.
 
-At the moment, this is all that Signet can do with Etherlink. More features will be coming soon, including dApp support. This will use a relay service so that a Tezos account can use its Ethereum-style address for dApps. Also, the transactions, assets and NFTs tabs will be populated with items from the Etherlink network.
+{#id: 200-etherlink_2_Connecting}
+## Connecting to Michelson dApps
 
-The original Etherlink users had 0x addresses from the start and used Ethereum-compatible wallets. I'm undecided whether to add support for this to Signet.
+Signet can connect to Michelson dApps on Etherlink. These are the dApps that have been deployed using the native Tezos smart contract language, Michelson. The connection mechanism is exactly the same as for the native Tezos chain and Signet works out which chain the dApp connection request is on.
 
+We saw [TezInvaders](#170-dapps_2_TezInvader) in the dApps chapter. This dApp has versions on Etherlink as well as the native Tezos chain. In fact, TezInvaders was designed to help with Signet development. On either *Mainnet* or *Shadownet*, you can play TezInvaders and participate in the competitions on layer 2, by clicking the layer 2 button `L2`. Then connect your wallet and play as normal.
+
+There will be more applications appearing on Etherlink soon. Work is being done to allow Tezos addresses to use EVM dApps as well. Once the support is in Etherlink, we will add it to Signet as well.
+
+{#id: 200-etherlink_2_Voting}
+## Voting in the Etherlink Governance Process
+
+If you are a baker, you can use Signet to vote in the Etherlink Governance process. There is a [slow governance process ](https://governance.etherlink.com/governance/slow)for regular upgrades and a [fast governance process](https://governance.etherlink.com/governance/fast) for security upgrades. There's also a process to vote on who runs the sequencer. In Signet, you can vote on the slow and fast processes. At the moment, you have to do this with the master baking key. In future versions, you'll be able to do it with a delegated governance key. 
+
+The processes have a proposal period and a promotion period. In the proposal period, proposals are made and upvoted like in the layer 1 governance process. In the promotion period, the bakers vote `Yea`, `Nay` and `Pass` (or abstain).
+
+To vote, go to the `Governance` menu (which will only be there if your account is a baker), then click the `Etherlink` tab.
+We are going to show you a vote in the recent Etherlink 7.3 fast security upgrade. Captain Stake upvoted the proposal  that was already proposed. Signet found this proposal and he clicked the `Upvote` button. 
+
+![](200/ethgov/upvote.png)
+
+And then confirmed it:
+
+![](200/ethgov/upvote2.png)
+
+He could have made his own proposal by submitting a hash, but at the moment Etherlink proposals are usually made on behalf of the development team. There were enough upvotes to move the proposal into the promotion stage. In this stage, Captain Stake came back and used Signet to vote `Yea` in the election.
+
+![](200/ethgov/promotion.png)
+
+He clicked the `Yea` voting button and then confirmed the vote:
+
+![](200/ethgov/promotion2.png)
+
+Finally, the vote was confirmed on the Etherlink chain.
+
+![](200/ethgov/yea.png)
+
+If you have a delegated governance key and the key is in Signet, you can of course connect directly to the [governance.etherlink.com](https://governance.etherlink.com) site as a dApp and vote that way.
 
 

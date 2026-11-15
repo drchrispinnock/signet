@@ -19,12 +19,17 @@ Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, y
 
 Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection.
 
+{#id: 170-dapps_2_TezInvader}
+## TezInvaders
+
+This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.*
+
 {#id: 170-dapps_2_Buying}
 ## Buying an NFT from Objkt
 
 We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
 
-Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. The items sometimes have a fixed price and others you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
+Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. Some items have a fixed price; for others, you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
 
 
 
@@ -70,8 +75,7 @@ And also appears in the NFT tab in Signet:
 
 I'm the proud owner of the NFT.
 
-If I click the icon top-right on objkt.com, I can go to my Profile. Under the `Owned` tab, I can see the purchase as well as in my wallet. Top right on the thumbnail are three dots. Click this and choose `Properties`
-
+If I click the icon top-right on objkt.com, I can go to my Profile. Under the `Owned` tab, I can see the purchase as well as in my wallet. At the top right of the thumbnail is a three-dot menu. Click it and choose `Properties`.
 ![](170/verpera-properties.png)
 There are details about the image on the objkt site. The image is a PNG file. The royalty rate is 25% which goes to the artist in this case. You can see when the token was minted (i.e. created) and the smart contract used to record the ownership on chain. Additionally there are download links for the image from Objkt's asset server and the IPFS service (more on this below).
 
@@ -79,7 +83,7 @@ You can do various other things here with the NFT. For example, you can transfer
 
 Let's end the section with some terminology about NFTs.
 
-A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is one that represents a unique digital token that represents ownership of an item or asset. We will be purchasing a piece of art and we will receive an NFT to show our ownership. We can sell or transfer this NFT.
+A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
 
 Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
 
@@ -139,7 +143,7 @@ It turns out that it is and we can click the button to reserve it:
 
 ![](170/td-yes.png)
 
-Click Reserve, the site will ask me to connect my wallet. Follow the instructions, use Show More, then Show QR Code, then Beacon. Copy the code and paste it into the dApps dialogue in Signet.
+Click `Reserve`. The site will ask me to connect my wallet. Follow the instructions, use Show More, then Show QR Code, then Beacon. Copy the code and paste it into the dApps dialogue in Signet.
 
 ![](170/td-request.png)
 

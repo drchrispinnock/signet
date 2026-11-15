@@ -17,7 +17,7 @@ Signet will remember any multisig transactions signed in the wallet and they wil
 {#id: 180-multisig_2_Creating}
 ## Creating a multisig account
 
-Creating a multisig account is straightforward. You need to have the addresses of the other signatories to hand, or better add them to your address book. Select the account you want to originate the multisig. In my case, I will use the account Alice. Then in the burger menu choose `Create multisig...`
+Creating a multisig account is straightforward. You need to have the addresses of the other signatories to hand, or better add them to your address book. Select the account you want to use to originate the multisig contract. In my case, I will use the account Alice. Then in the burger menu choose `Create multisig...`
 
 Fill in the details. I'm going to call mine `My Multisig Account`.
 

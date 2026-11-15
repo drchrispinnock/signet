@@ -70,7 +70,7 @@ Let's paste that in and click use. Then there is a small fee to pay for the dele
 {#id: 160-delegatingstaking_2_Staking}
 ## Staking
 
-To stake tez uses the same dialogue as for delegating. You can get there either by clicking the `Delegated to` section or the `Stake` button. Captain Stake accepts staking. One thing to be aware of is that you cannot stake all of your tez. You need to have a small amount spare for the fee of the staking operation. We are going to stake 1tz with Captain Stake.
+Staking tez uses the same dialogue as for delegating. You can get there either by clicking the `Delegated to` section or the `Stake` button. Captain Stake accepts staking. One thing to be aware of is that you cannot stake all of your tez. You need to have a small amount spare for the fee of the staking operation. We are going to stake 1tz with Captain Stake.
 
 On the Staking menu, click `Stake` then put in your amount and click `Continue`.
 
@@ -85,7 +85,7 @@ If you want to stake more, you can go back at any time and stake the extra tez.
 {#id: 160-delegatingstaking_2_Unstaking}
 ## Unstaking and finalising
 
-If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles (<!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
+If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles plus the remainder of the current cycle (between 3 and<!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
 
 
 ![](160/unstake.png)
@@ -104,6 +104,6 @@ Choose `Confirm` and the funds will be finalised and returned to the spendable b
 
 Staked funds form part of the baker's security bond on the network. The worst thing that a baker can do is double sign a block at the same level. This could be producing two blocks (double baking) or attesting two blocks at the same level (double attestation). It has happened very often on the Tezos network. A full list of [double baking incidents can be found on TzKT](https://tzkt.io/double_baking). Usually it has happened because of a misconfiguration of infrastructure. The provider has run two separate bakers with the same key and the systems injected blocks into the network at the same time.
 
-The problem for you as a wallet holder is if your baker double bakes or attests, your funds are also at risk. If you are concerned about this, you should try to contact your baker to discuss what protection they have in place. Ideally they will have a remote signer to protect their key. Remote signers are able to prevent signing twice, so if two baking instances try to sign from the same remote signer, double baking will be prevented. You can usually rely on the reputation of the baker in question and you can check their performance on the block explorer.
+The problem for you as a wallet holder is if your baker double bakes or double attests, your funds are also at risk. If you are concerned about this, you should try to contact your baker to discuss what protection they have in place. Ideally they will have a remote signer to protect their key. Remote signers are able to prevent signing twice, so if two baking instances try to sign from the same remote signer, double baking will be prevented. You can usually rely on the reputation of the baker in question and you can check their performance on the block explorer.
 
 If you are unsure about your current baker, you can always unstake. If they pay delegation rewards, you will continue to receive those and delegated funds are not at risk. But staking is essential to the security of the network and consequently pays better rewards, so it is best to find a baker that you are comfortable with.
