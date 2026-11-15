@@ -1,3 +1,4 @@
+{sample: true}
 {#id: 005-Preface_1_Preface}
 # Preface
 
@@ -11,5 +12,4 @@ You will need a modern desktop computer and some patience. Buying cryptocurrency
 
 I wish you luck on your journey on Tezos and on blockchain generally.
 
-Chris Pinnock  
-14th November 2026
+Chris Pinnock 

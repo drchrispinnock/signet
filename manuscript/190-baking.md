@@ -13,7 +13,7 @@ The good news is that you can do all of these operations with the Signet wallet.
 
 A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two `tz4` keys. Also, the Tezos X roadmap needs the baking community to adopt `tz4` keys, so this is a good starting point.
 
-By using a consensus key, the baking key is not stored on the baking server and the other keys do the work. It allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
+Using a consensus key allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
 
 
 {#id: 190-baking_2_Registerin}
@@ -29,7 +29,7 @@ Click `Register as Baker`.
 
 ![](190/delegate2.png)
 
-There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz staked including external stakers. Also, you'll need to stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, this means you'll need to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
+There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz [baking power](https://octez.tezos.com/docs/alpha/baking_power.html) including external delegators. Also, the baker must stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, a straightforward approach is to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
 
 Go to the `Staking` button and stake whatever you would like.
 
@@ -107,8 +107,7 @@ You can change these parameters at any time, but the changes take <!-- MARKUPTAG
 
 Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
 
-Most of the time, a network is in the proposal period.  During the proposal period, bakers can propose new protocols and upvote other proposals. 
-A new protocol proposal is represented by a hash. For Ushuaianet, the hash is:
+Most of the time, a network is in the proposal period.  During the proposal period, bakers can propose new protocols and upvote other proposals. A new protocol proposal is represented by a hash. For Ushuaianet, the hash is:
 
 ```
 PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
@@ -117,14 +116,14 @@ PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
 We can see this here in the governance window. Choose a key that is a baking key and go to `Governance`. Here we are in the proposal period, there are 254 blocks remaining and our voting power is 999999tz:
 
 ![](gvn/propose.png)
-(Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.).
+(Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.)
 
 To propose it, paste the protocol hash into the proposal dialogue and upvote it. It's unlikely that you will do this, unless you are someone proposing a new protocol that you or the core development team have developed. It's more likely that you will upvote an existing proposal. Here is the screen when a proposal has been made already by a baker. There can be more than one proposal at a time. The proposal that has the most votes and has quorum wins the round. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
 ![](gvn/upvote.png)
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
 ![](gvn/2-proposal-162togo.png)
-Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for, against or simply pass for the proposal. There needs to be a quorum and a supermajority of 80% of yea/nay votes for the vote to go through. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Here we are in the Exploration period:
+Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for or against the proposal, or vote pass. There needs to be a quorum and a supermajority of 80% of yea/nay votes for the vote to go through. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Here we are in the Exploration period:
 
 ![](gvn/3-exploration-before-vote.png)
 And now there are voting buttons: `Yay`, `Nay` and `Pass`. We are going to vote `Yay` by clicking the button. Then `Confirm` in the next screen.
@@ -140,9 +139,9 @@ The next phase of the governance process is Cooldown. During this period, blockc
 The next phase is the Promotion period. By this stage, the bakers are confident that the protocol proposal is fit for purpose. If they are not, this is their chance to vote against it. Again, they can vote for, against or pass. Here we are in the Promotion period:
 
 ![](gvn/promotion.png)
-We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol. Similar to Exploration, a 80% supermajority is needed during Promotion.
+We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol. Similar to Exploration, an 80% supermajority is needed during Promotion.
 
-The last phase is Adoption. There is nothing to do from a governance process. It's time to make sure all of our applications are up to date. If we are running a baker, we'll need to update it to the latest Octez. Essentially the governance process is complete. The Adoption period gives the blockchain participants time to update their applications and systems.
+The last phase is Adoption. There is nothing more to do from a governance perspective. It's time to make sure all of our applications are up to date. If we are running a baker, we'll need to update it to the latest Octez. Essentially the governance process is complete. The Adoption period gives the blockchain participants time to update their applications and systems.
 
 ![](gvn/adoption.png)
 
@@ -154,12 +153,12 @@ If you are a baker and you are having trouble figuring out how to vote in a gove
 {#id: 190-baking_2_Baking}
 ## Baking Key considerations
 
-Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or attest - that is bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.
+Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or double attest - that is bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.
 
 It's unlikely a baker will do this with a sensible baking setup. Usually bakers run one instance of the software at a time and protect their keys with a piece of software called a remote signer. This checks to see if a baker has tried to sign a block at the same slot before and prevents the signing.
 
 There's far more to it than my explanation, but it's safe to say that all bakers want to protect their baking key, as someone else having access to it can cause serious problems. Another person could cause the baker to double-bake. So storing your key away from your baking environment where you can manage the balance, baking operations and parameters is a good thing. This is why the baking and governance menus were added to Signet.
 
-But please note that a consensus key still needs to be protected. If some else gets hold of it, they can start a baker with it and cause you to double bake. They can also drain the spendable balance from the master baking key.
+But please note that a consensus key still needs to be protected. If someone else gets hold of it, they can start a baker with it and cause you to double bake. They can also drain the spendable balance from the master baking key.
 
 

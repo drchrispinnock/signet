@@ -29,7 +29,7 @@ The secret key is chosen at random out of all possible secret keys. The number o
 
 The secret key, as the name suggests, needs to be kept secret. If someone else gets the key, they have access to your funds and can sign operations with it.
 
-The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both use [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - an abstract geometric mathematical object suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
+The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both schemes [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - abstract geometric mathematical objects suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
 
 | Key type | Type      | Notes                                                                                                                                                                                   | Networks                                                                                                            |
 | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -37,7 +37,7 @@ The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wi
 | `tz2`    | Secp256k1 | ECDSA signing scheme with the Secp256k1 curve. The public key can also be used on Bitcoin and Ethereum-style networks                                                                   | All                                                                                                                 |
 | `tz3`    | P-256     | ECDSA signing scheme with the P-256 curve (a.k.a. Secp256r1). This is a curve recommended by NIST. It is used in accredited hardware security modules.                                  | All                                                                                                                 |
 | `tz4`    | BLS       | BLS signing scheme with the BLS12-381 curve. Can be used for consensus and companion keys on Mainnet to leverage the aggregation properties of BLS, improving consensus on the network. | All                                                                                                                 |
-| `tz5`    | ML-DSA-44 | Using the ML-DSA-44 signing scheme, these keys are designed to resist known classical and quantum attacks                                                                               | Shadownet, Quantumnet, Ushuaianet. Cannot be used for baking.                                                       |
+| `tz5`    | ML-DSA-44 | Using the ML-DSA-44 signing scheme, these keys are designed to resist known classical and quantum attacks.                                                                              | Shadownet, Quantumnet, Ushuaianet. Cannot be used for baking.                                                       |
 | tz6      | XMSS      | A stateful hash-based signing scheme. New to Tezos.                                                                                                                                     | Used as a consensus key for bakers on Quantumnet. The keys have a "finite budget" and need to be rotated regularly. |
 
 You can generate and use keys of all types in Signet, except for `tz6` which is a relative newcomer and only available on the *Quantumnet* test network. You can safely use `tz1`, `tz2`, `tz3` and `tz4` keys today for day to day work on the Tezos production network *Mainnet.* The Ledger hardware security key only supports `tz1`, `tz2` and `tz3` keys.
@@ -65,17 +65,17 @@ On the same Import screen, there is a tab for a recovery phrase (or seed phrase)
 tuition blur they crop quantum dad pupil album season peanut possible lecture
 ```
 
-The words represent a secret number which can be used to derive many cryptographic keys. In the Signet import, you can choose which `tz` key type to pick. You can also pick an account number which we will cover in the next section. You'll need to know which key type you used with the passphrase, but other wallets such as Temple, Kukai and Umami usually use the `tz1` account 0.
+The words represent a secret number which can be used to derive many cryptographic keys. In the Signet import, you can choose which `tz` key type to pick. You can also pick an account number which we will cover in the next section. You'll need to know which key type you used with the recovery phrase, but other wallets such as Temple, Kukai and Umami usually use the `tz1` account 0.
 ![](150/recover.png)
 Similar to the secret key import, you can decide to keep the key just for the session in which case Signet will discard it when it exits. You can also encrypt the secret key with a password for storage.
 
 {#id: 150-othertypesofaccount_2_Importing_3}
 ## Importing using a Fundraiser Account
 
-Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original fundraiser. Flip the switch for Legacy fundraiser derivation:
+Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original Tezos fundraiser. Flip the switch for Legacy fundraiser derivation:
 
 ![](150/fundraiser.png)
-In addition to a recovery phrase, a fundraiser account has an email address and a fundraiser password. Supply all of these and then click `Import`.
+In addition to a recovery phrase, a fundraiser account has an email address and a password. Supply all of these and then click `Import`.
 
 {#id: 150-othertypesofaccount_2_The}
 ## The Key Hierarchy

@@ -17,7 +17,7 @@ Signet will remember any multisig transactions signed in the wallet and they wil
 {#id: 180-multisig_2_Creating}
 ## Creating a multisig account
 
-Creating a multisig account is straightforward. You need to have the addresses of the other signatories to hand, or better add them to your address book. Select the account you want to originate the multisig. In my case, I will use the account Alice. Then in the burger menu choose `Create multisig...`
+Creating a multisig account is straightforward. You need to have the addresses of the other signatories to hand, or better add them to your address book. Select the account you want to use to originate the multisig contract. In my case, I will use the account Alice. Then in the burger menu choose `Create multisig...`
 
 Fill in the details. I'm going to call mine `My Multisig Account`.
 
@@ -27,7 +27,7 @@ In the Signers section, I drop down on Add account and add Alice (although I don
 
 Each of the signers must have revealed their public key on the network (e.g. by doing a transaction), otherwise Signet will not let you create the multisig account.
 
-Then I increase the number of signatories to 3 with the arrows. This means that I need 3 signatures to sign transactions on the multisig account.
+Then I set the required number of signatures to 3 with the arrows. This means that I need 3 signatures to sign transactions on the multisig account.
 
 Finally I fund the account with 10tz and press the `Create` button. This creates the account, in this case the address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10tz and code to enforce the rules of the committee. The multisig account is created.
 
