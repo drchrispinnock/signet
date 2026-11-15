@@ -1,8 +1,6 @@
 {#id: REVIEW_1_Book}
 # Book review - updated 15 November 2026
 
-Rechecked against the saved manuscript on 15 November 2026, including edits saved during this review. Each remaining numbered finding was reread; the consistency and verification lists were also refreshed. Primary documentation was checked for governance, staking, bridging, reserves, FA2, IPFS and derivation paths. Selected application claims were checked against the local app source, which is not evidence of every released build. No wallet operations, Docker/Debian installation, new PDF rendering or screenshot verification was performed. PDF page references below refer to the original reviewed PDF.
-
 {#id: REVIEW_2_Substantiv}
 ## Substantive corrections and inconsistencies
 
@@ -55,12 +53,6 @@ Rechecked against the saved manuscript on 15 November 2026, including edits save
 
 **Text corrections complete; execution not verified — rechecked 15 November 2026.** The Linux example and output use `ip -br addr`; prerequisites include `extrepo` and `wget`; Mac downloads use `curl`; and the `$` prompt convention is explained. There is no remaining factual text correction established by this finding. The Debian 13 sequence has not been executed in this review, so retain this only as a validation task. The unprefixed `docker logs` example is a separate presentation detail.
 
-{#id: REVIEW_3_35}
-### 35. Supply the promised introduction
-
-[100-introduction.md:5](100-introduction.md#L5)
-
-**Partially written — rechecked 15 November 2026.** The earlier “only a placeholder” description is obsolete: the introduction now has an Other Wallets comparison and prose. Its opening remains a placeholder, “Introducing Signet” remains empty, and it still does not supply the governance introduction referred to at `190-baking.md:108`. Use TERMS.md as a coverage checklist. Acknowledgements is now written; remove that part of the finding. Original PDF pp. xv, 1, 157.
 
 {#id: REVIEW_2_Consistenc}
 ## Consistency and presentation pass
@@ -105,10 +97,3 @@ Every previous entry was reconsidered against the current prose. The items below
 ### 4. Correct baker eligibility requirements
 
 **Resolved — 15 November 2026.** [190-baking.md:32](190-baking.md#L32) now specifies 6,000 tez of baking power, at least 600 tez staked by the baker, and presents the solo-baker amount as a straightforward approach rather than a universal eligibility minimum. The mandatory 10% sentence has been removed. The internal variable name does not need changing. This records the resolution agreed with the author in this session.
-
-{#id: REVIEW_3_23}
-### 23. Keep the Docker history mode consistent with the snapshot
-
-[910-apx-ownnode.md:27](910-apx-ownnode.md#L27), [34](910-apx-ownnode.md#L34), [48](910-apx-ownnode.md#L48), [58](910-apx-ownnode.md#L58)
-
-**Resolved as a factual finding — rechecked 15 November 2026.** Docker configuration explicitly uses rolling history, matching the rolling snapshot, and the command continuations are correct. The remaining use of `latest` (explicit in the pull, implicit in subsequent commands) is a reproducibility choice, not evidence of a history-mode error. Pinning one tested image tag throughout is optional release preparation. No Docker/node execution was performed.

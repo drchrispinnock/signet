@@ -97,7 +97,7 @@ Let's end the section with some terminology about NFTs.
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
 
-Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
+Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. A lot of NFT art is stored on a distributed file service called the *interplanetary file system (IPFS)*. Availability of the file relies on someone retaining or pinning the file. Most NFT sites pin their files for you, but you can also pin them with a service like [Pinata](https://pinata.cloud).
 
 It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
