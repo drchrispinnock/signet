@@ -18,13 +18,6 @@
 
 **Narrowed to royalty wording — rechecked 15 November 2026.** The burn passages at lines 94 and 138 concern the particular Objkt/Teia examples, so a blanket accusation that the book promises burn for all FA2 tokens is too strong. A short “where the contract supports it” qualification is optional. The substantive remaining issue is the guaranteed royalty wording: line 104 says the artist gets a cut of every sale, and line 123 says “I will receive 10%” on a later sale. Limit this to sales through a marketplace/contract that honours those royalties. FA2 itself does not require a burn entrypoint or royalty enforcement. [FA2 specification overview](https://docs.tezos.com/architecture/tokens/FA2). Original PDF pp. 107–110.
 
-{#id: REVIEW_3_15}
-### 15. Clarify off-chain artwork storage
-
-[170-dapps.md:100](170-dapps.md#L100)
-
-**Small clarification still useful — rechecked 15 November 2026.** The text already says artwork is “usually” too large for on-chain storage; do not flag it as claiming on-chain artwork is impossible. However, the following sentence presents IPFS as the storage location generally. Make it specific to this example, and briefly say availability relies on someone retaining/pinning the file. [IPFS persistence documentation](https://docs.ipfs.tech/concepts/persistence/). Original PDF p. 107.
-
 {#id: REVIEW_3_18}
 ### 18. Correct the derivation-path explanation
 
@@ -45,13 +38,6 @@
 [165-settings.md:17](165-settings.md#L17)
 
 **Still outstanding; backup format now source-checked — rechecked 15 November 2026.** The manuscript still calls the backup a “file” and says it can be moved to `~/.signet`. In the local implementation, a backup is a timestamped directory containing selected wallet files and a `.signet-backup` manifest, not an archive or a single wallet file ([WalletBackup.swift](../Signet/Services/WalletBackup.swift#L49)). Specify quitting Signet, preserving the existing configured wallet directory, and restoring the selected generation’s wallet contents to that configured location without nesting the generation directory or mixing generations. The exact user-facing procedure still needs a check with isolated test data. Startup backup may reuse an unchanged generation, so “every time” does not mean a new copy is always created. No real wallet files were inspected. Original PDF p. 79.
-
-{#id: REVIEW_3_25}
-### 25. Finish the command-line prerequisite and example corrections
-
-[910-apx-ownnode.md:24](910-apx-ownnode.md#L24), [112](910-apx-ownnode.md#L112), [147](910-apx-ownnode.md#L147)
-
-**Text corrections complete; execution not verified — rechecked 15 November 2026.** The Linux example and output use `ip -br addr`; prerequisites include `extrepo` and `wget`; Mac downloads use `curl`; and the `$` prompt convention is explained. There is no remaining factual text correction established by this finding. The Debian 13 sequence has not been executed in this review, so retain this only as a validation task. The unprefixed `docker logs` example is a separate presentation detail.
 
 
 {#id: REVIEW_2_Consistenc}

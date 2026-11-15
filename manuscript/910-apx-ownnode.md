@@ -1,5 +1,5 @@
 {backmatter}
-{sample:true}
+{sample: true}
 {#id: 910-apx-ownnode_1_Running}
 # Appendix - Running your own node
 
@@ -24,6 +24,8 @@ You can run your own node on your Mac and connect Signet to it. You'll need to h
 $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
+The `$` represents the shell prompt; do not type it.
+
 Then to install the node and related software you can use my Homebrew packages. They are based on work by Nomadic Labs. 
 
 ```
@@ -41,7 +43,7 @@ $ octez-node config init --network=mainnet \
 	--rpc-addr="127.0.0.1"
 ```
 
-Import a snapshot (as with the docker method).
+Import a snapshot:
 
 ```
 $ curl -o rolling https://snapshots.tzinit.org/mainnet/rolling
@@ -60,7 +62,7 @@ Generating a new identity... (level: 26.00)
 ....
 ```
 
-You can now connect to the node from Signet with `http://localhost:8732`. Alternatively you can get `octez-node` to run on boot under your user by using `brew services`:
+You can now connect to the node from Signet with `http://localhost:8732`. Alternatively you can get `octez-node` to run on login under your user by using `brew services`:
 
 ```
 $ brew services start octez-node
