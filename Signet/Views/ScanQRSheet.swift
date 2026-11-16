@@ -25,6 +25,8 @@ struct ScanQRSheet: View {
     @State private var deviceID: String?
     @State private var found: Found?
     @State private var note: String?
+    /// The parts read so far of a key that a recovery sheet printed across several codes.
+    @State private var keyParts = KeyPartCollector()
     @State private var isChoosingImage = false
 
     /// With no account yet the sheet is a way in: keys and phrases, or an address to watch.
@@ -41,6 +43,16 @@ struct ScanQRSheet: View {
                 foundPanel(found)
             } else {
                 scanner
+            }
+
+            if found == nil, !keyParts.isEmpty {
+                Label {
+                    Text("A secret key in \(keyParts.count) codes: \(keyParts.received) read. Still needed: \(keyParts.missing.map(String.init).joined(separator: ", ")). Scan them in any order.")
+                } icon: {
+                    ProgressView(value: Double(keyParts.received), total: Double(keyParts.count)).progressViewStyle(.circular).controlSize(.small)
+                }
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             if let note {
@@ -73,11 +85,12 @@ struct ScanQRSheet: View {
         .onDisappear { capture.stop() }
         .fileImporter(isPresented: $isChoosingImage, allowedContentTypes: [.image]) { result in
             guard case .success(let url) = result else { return }
-            guard let image = NSImage(contentsOf: url), let text = QRCode.decode(image) else {
+            let codes = NSImage(contentsOf: url).map(QRCode.decodeAll) ?? []
+            guard !codes.isEmpty else {
                 note = "No QR code was found in that image."
                 return
             }
-            handle(text)
+            codes.forEach(handle)
         }
     }
 
@@ -154,15 +167,17 @@ struct ScanQRSheet: View {
     private func scanAgain() {
         found = nil
         note = nil
+        keyParts = KeyPartCollector()
         Task { await startCamera() }
     }
 
     private func paste() {
-        guard let text = QRCamera.textFromPasteboard() else {
+        let texts = QRCamera.textsFromPasteboard()
+        guard !texts.isEmpty else {
             note = "The clipboard holds no QR code image and no text."
             return
         }
-        handle(text)
+        texts.forEach(handle)
     }
 
     // MARK: What was scanned
@@ -181,6 +196,12 @@ struct ScanQRSheet: View {
             finish(.importKey(.secretKey(key)))
         case .recoveryPhrase(let phrase):
             finish(.importKey(.recoveryPhrase(phrase)))
+        case .keyPart(let part):
+            switch keyParts.add(part) {
+            case .needMore: break
+            case .complete(let key): finish(.importKey(.secretKey(key)))
+            case .invalid: note = "Those codes do not fit together into a key. Scan every part of the same recovery sheet again."
+            }
         case .address(let address):
             show(Found(address: address, fromPublicKey: false))
         case .publicKey(let key):
@@ -204,6 +225,7 @@ struct ScanQRSheet: View {
 
     /// Stops the camera and closes; the home view opens the next sheet once this one has gone.
     private func finish(_ handoff: WalletViewModel.ScanHandoff) {
+        guard model.pendingScan == nil else { return }
         capture.stop()
         model.pendingScan = handoff
         dismiss()
