@@ -48,6 +48,8 @@ struct SignetApp: App {
     @State private var model = SignetApp.makeModel()
     // Sparkle: checks the GitHub release appcast daily and on "Check for Updates…". Not started
     // under the test host, which would otherwise reach the network and may put up a dialog.
+    // Shows the Scan QR code items while a camera is attached. Not under the test host.
+    @State private var cameraWatcher: CameraWatcher?
     @State private var updater = UpdaterService(starting: !SignetApp.isTestHost)
 
     var body: some Scene {
@@ -56,6 +58,10 @@ struct SignetApp: App {
             WalletHomeView(model: model)
                 // signet://?type=tzip10&data=<pairing code>: what a dApp's wallet list opens for desktop wallets.
                 .onOpenURL { url in model.handleIncomingURL(url) }
+                .task {
+                    guard !Self.isTestHost, cameraWatcher == nil else { return }
+                    cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
+                }
         }
         .windowResizability(.contentMinSize)
         .commands {

@@ -177,6 +177,9 @@ struct OperationsMenuItems: View {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
             Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+            if model.hasCamera {
+                Button("Scan QR code…") { model.isPresentingScanQR = true }
+            }
             Button("Rename account…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
             Button("Export secret key…") { model.isPresentingExportKey = true }
