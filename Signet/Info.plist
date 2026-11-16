@@ -28,11 +28,11 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Signet uses the camera to scan QR codes, and Mt Pelerin may need it to verify your identity when you buy tez.</string>
+	<string>Signet uses the camera to scan QR codes, and crypto exchanges may need it to verify your identity when you buy tez.</string>
 	<key>NSCameraUseContinuityCameraDeviceType</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mt Pelerin may need your microphone during identity verification when you buy tez.</string>
+	<string>Crypto exchanges may need your microphone during identity verification when you buy tez.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
