@@ -3,10 +3,21 @@ import Foundation
 import FoundationNetworking
 #endif
 
+/// Whether downloaded artwork is filed by account: `nfts/<address>/…` rather than everything in
+/// `nfts`. On unless the user turns it off in Settings.
+enum NFTDownloadSettings {
+    static let arrangeByAddressKey = "arrangeNFTsByAddress"
+
+    static func arrangesByAddress(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: arrangeByAddressKey) as? Bool ?? true
+    }
+}
+
 /// Saves an NFT's artwork to disk: the full artifact (the video, sound or full-size image the
 /// token points at), or the display image when the metadata names no artifact. Content comes
 /// through the pinned public client like the tiles do, one gateway after another, and lands
-/// in the `nfts` folder of the wallet directory under a name made of the token's name, its
+/// in the `nfts` folder of the wallet directory (in a folder named after the account's address
+/// inside it when NFTs are arranged by address) under a name made of the token's name, its
 /// contract and its id, so every token has one file and a second download replaces the first.
 struct NFTDownloader: Sendable {
     /// The largest artwork saved: videos run to tens of megabytes, generative pieces more.
@@ -41,9 +52,12 @@ struct NFTDownloader: Sendable {
     let directory: URL
     private let fetch: Fetch
 
-    /// The downloads folder beside a wallet directory's key files.
-    static func directory(under walletDirectory: URL) -> URL {
-        walletDirectory.appendingPathComponent(folderName, isDirectory: true)
+    /// The downloads folder beside a wallet directory's key files, or the account's own folder
+    /// inside it when one is given. Only a well-formed address becomes a folder name.
+    static func directory(under walletDirectory: URL, account: Address? = nil) -> URL {
+        let folder = walletDirectory.appendingPathComponent(folderName, isDirectory: true)
+        guard let account, account.isValidAccount else { return folder }
+        return folder.appendingPathComponent(account.value, isDirectory: true)
     }
 
     init(directory: URL, fetch: Fetch? = nil) {

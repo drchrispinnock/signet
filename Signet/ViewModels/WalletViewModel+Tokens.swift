@@ -20,9 +20,13 @@ extension WalletViewModel {
         return layer == 1
     }
 
-    /// Saves artwork into the `nfts` folder of the wallet directory in use.
-    var nftDownloader: NFTDownloader {
-        NFTDownloader(directory: NFTDownloader.directory(under: walletDirectory ?? TezosClientStore.defaultDirectory))
+    /// Saves artwork into the `nfts` folder of the wallet directory in use, in the selected
+    /// account's own folder there while "Arrange NFTs by address" is on.
+    var nftDownloader: NFTDownloader { nftDownloader(arrangedByAddress: NFTDownloadSettings.arrangesByAddress()) }
+
+    func nftDownloader(arrangedByAddress: Bool) -> NFTDownloader {
+        NFTDownloader(directory: NFTDownloader.directory(under: walletDirectory ?? TezosClientStore.defaultDirectory,
+                                                         account: arrangedByAddress ? selectedWallet?.address : nil))
     }
 
     /// The network tokens on `layer` live on, for explorer links.

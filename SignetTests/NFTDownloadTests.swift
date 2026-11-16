@@ -74,4 +74,32 @@ struct NFTDownloadTests {
         var urls: [URL] = []
         func add(_ url: URL) { urls.append(url) }
     }
+
+    @Test func filesDownloadsByAccountAddress() {
+        let wallet = URL(fileURLWithPath: "/tmp/signet-wallet", isDirectory: true)
+        let address = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        #expect(NFTDownloader.directory(under: wallet).path == "/tmp/signet-wallet/nfts")
+        #expect(NFTDownloader.directory(under: wallet, account: address).path == "/tmp/signet-wallet/nfts/tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        // Anything that is not a checksummed address never becomes a folder name.
+        #expect(NFTDownloader.directory(under: wallet, account: Address("../../etc")).path == "/tmp/signet-wallet/nfts")
+    }
+
+    @Test func arrangesByAddressUnlessTurnedOff() throws {
+        let name = "signet-nft-settings-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        #expect(NFTDownloadSettings.arrangesByAddress(defaults))
+        defaults.set(false, forKey: NFTDownloadSettings.arrangeByAddressKey)
+        #expect(!NFTDownloadSettings.arrangesByAddress(defaults))
+        defaults.set(true, forKey: NFTDownloadSettings.arrangeByAddressKey)
+        #expect(NFTDownloadSettings.arrangesByAddress(defaults))
+    }
+
+    @Test @MainActor func theModelDownloadsIntoTheSelectedAccountsFolder() throws {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService())
+        let address = try #require(model.selectedWallet?.address)
+        #expect(model.nftDownloader(arrangedByAddress: true).directory.lastPathComponent == address.value)
+        #expect(model.nftDownloader(arrangedByAddress: true).directory.deletingLastPathComponent().lastPathComponent == "nfts")
+        #expect(model.nftDownloader(arrangedByAddress: false).directory.lastPathComponent == "nfts")
+    }
 }

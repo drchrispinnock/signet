@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Saves the artwork of one or many NFTs into the wallet directory's `nfts` folder, a row per
+/// Saves the artwork of one or many NFTs into the wallet directory's `nfts` folder (the
+/// account's own folder there when NFTs are arranged by address), a row per
 /// token with its progress, and shows the folder in the Finder when asked. Closing the sheet
 /// stops whatever is still downloading; what was saved stays.
 struct DownloadNFTsSheet: View {
