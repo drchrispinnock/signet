@@ -51,6 +51,48 @@ struct QRScanTests {
         #expect(DAppPairingLink.code(from: URL(string: "tezos://?type=tzip10&data=CODE")!) == nil)
     }
 
+    @Test func collectsThePartsOfALongKey() {
+        // A tz5 secret key: the mdsk prefix and 3872 bytes.
+        let key = Base58.checkEncode(prefix: [9, 57, 116, 57], payload: (0..<3872).map { UInt8(truncatingIfNeeded: $0 &* 13) })
+        #expect(key.hasPrefix("mdsk"))
+        let parts = KeyPart.split(key, chunkLength: 1400)
+        #expect(parts.count == 4)
+        #expect(Set(parts.map(\.id)).count == 1)
+        #expect(parts.allSatisfy { QRPayload.classify($0.text) == .keyPart($0) && QRPayload.classify($0.text).isSecret })
+        #expect(KeyPart.split("short").isEmpty)
+
+        var collector = KeyPartCollector()
+        #expect(collector.isEmpty)
+        #expect(collector.add(parts[2]) == .needMore)
+        #expect(collector.add(parts[2]) == .needMore)
+        #expect(collector.missing == [1, 2, 4] && collector.received == 1 && collector.count == 4)
+        #expect(collector.add(parts[0]) == .needMore)
+        #expect(collector.add(parts[3]) == .needMore)
+        #expect(collector.add(parts[1]) == .complete(key))
+        #expect(collector.isEmpty)
+
+        // A part of another key starts over rather than mixing the two.
+        let other = KeyPart.split(Base58.checkEncode(prefix: [9, 57, 116, 57], payload: [UInt8](repeating: 9, count: 3872)), chunkLength: 1400)
+        #expect(collector.add(parts[0]) == .needMore)
+        #expect(collector.add(other[1]) == .needMore)
+        #expect(collector.missing == [1, 3, 4])
+
+        // Parts that claim one id but do not make that key are refused.
+        var forged = KeyPartCollector()
+        let swapped = [parts[0], KeyPart(index: 2, count: 4, id: parts[0].id, chunk: parts[2].chunk), parts[2], parts[3]]
+        #expect(swapped.map { forged.add($0) }.last == .invalid)
+        #expect(forged.isEmpty)
+    }
+
+    @Test func refusesMalformedKeyParts() {
+        for text in ["signet-key:", "signet-key:1/1:abcdef12:abc", "signet-key:0/3:abcdef12:abc", "signet-key:4/3:abcdef12:abc",
+                     "signet-key:1/99:abcdef12:abc", "signet-key:1/3:xyz:abc", "signet-key:1/3:abcdef12:", "signet-key:1/3:abcdef12:a b",
+                     "signet-key:1/3:abcdef12:abc:def", "signet-key:one/3:abcdef12:abc"] {
+            #expect(QRPayload.classify(text) == .unknown, "\(text)")
+        }
+        #expect(QRPayload.classify("signet-key:2/3:abcdef12:abc") == .keyPart(KeyPart(index: 2, count: 3, id: "abcdef12", chunk: "abc")))
+    }
+
     @Test func refusesEverythingElse() {
         #expect(QRPayload.classify("") == .unknown)
         #expect(QRPayload.classify("https://example.com") == .unknown)

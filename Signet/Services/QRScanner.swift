@@ -28,8 +28,16 @@ enum QRCamera {
     /// The QR code in an image on the pasteboard, or the pasteboard's text when it holds no
     /// image: a screenshot of a code and a copied code are both worth reading.
     @MainActor static func textFromPasteboard(_ pasteboard: NSPasteboard = .general) -> String? {
-        if let image = NSImage(pasteboard: pasteboard), let text = QRCode.decode(image) { return text }
-        return pasteboard.string(forType: .string)
+        textsFromPasteboard(pasteboard).first
+    }
+
+    /// The same, with every code of an image that shows several (a recovery sheet's page of parts).
+    @MainActor static func textsFromPasteboard(_ pasteboard: NSPasteboard = .general) -> [String] {
+        if let image = NSImage(pasteboard: pasteboard) {
+            let codes = QRCode.decodeAll(image)
+            if !codes.isEmpty { return codes }
+        }
+        return pasteboard.string(forType: .string).map { [$0] } ?? []
     }
 }
 
@@ -61,11 +69,10 @@ final class QRCaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDele
     private let queue = DispatchQueue(label: "org.tezos.signet.qr-capture")
     // Touched on `queue` only.
     private var output: AVCaptureVideoDataOutput?
-    private var lastCode: String?
-    private var lastCodeTime = Date.distantPast
+    private var seen: [String: Date] = [:]
 
     override init() {
-        (codes, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1))
+        (codes, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(32))
         super.init()
     }
 
@@ -87,7 +94,7 @@ final class QRCaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDele
                 }
             }
             session.commitConfiguration()
-            lastCode = nil
+            seen = [:]
             if !session.isRunning { session.startRunning() }
         }
     }
@@ -96,7 +103,7 @@ final class QRCaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDele
     func stop() {
         queue.async { [self] in
             if session.isRunning { session.stopRunning() }
-            lastCode = nil
+            seen = [:]
         }
     }
 
@@ -104,15 +111,15 @@ final class QRCaptureSession: NSObject, AVCaptureVideoDataOutputSampleBufferDele
         guard let pixels = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let request = VNDetectBarcodesRequest()
         request.symbologies = [.qr]
-        guard (try? VNImageRequestHandler(cvPixelBuffer: pixels).perform([request])) != nil,
-              let code = request.results?.compactMap(\.payloadStringValue).first
-        else { return }
-        // The same code stays in view for many frames; say it once, and again after a pause so a
-        // code the sheet could not use can be tried again.
+        guard (try? VNImageRequestHandler(cvPixelBuffer: pixels).perform([request])) != nil else { return }
+        // Every code in view is reported (a recovery sheet can show several parts of one key at
+        // once). A code stays in view for many frames; say it once, and again after a pause so
+        // a code the sheet could not use can be tried again.
         let now = Date()
-        guard code != lastCode || now.timeIntervalSince(lastCodeTime) > 3 else { return }
-        lastCode = code
-        lastCodeTime = now
-        continuation.yield(code)
+        seen = seen.filter { now.timeIntervalSince($0.value) <= 3 }
+        for code in request.results?.compactMap(\.payloadStringValue) ?? [] where seen[code] == nil {
+            seen[code] = now
+            continuation.yield(code)
+        }
     }
 }

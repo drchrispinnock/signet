@@ -47,7 +47,7 @@ struct ExportKeySheet: View {
                 if let exported {
                     keyRow(title: "Secret key", value: exported.clear, maskable: true)
                     if let recoverySheet, !recoverySheet.hasQRCode {
-                        Text("A recovery sheet for this key is \(recoverySheet.pageCount) pages of text: the key is too long for a QR code, so recovering from it means typing the key back in.")
+                        Text("A recovery sheet for this key is \(recoverySheet.pageCount) pages: it is too long for one QR code, so it is printed as \(recoverySheet.keyParts.count) codes that Scan QR code reads back in any order, then in full as text.")
                             .font(.callout).foregroundStyle(.secondary)
                     } else if recoverySheet != nil {
                         Text(exported.encrypted == nil
@@ -85,7 +85,7 @@ struct ExportKeySheet: View {
                         Button("Recovery Sheet…") { RecoverySheetPrinter.print(recoverySheet) }
                             .help(recoverySheet.hasQRCode
                                   ? "Print a sheet with this key as a QR code, to recover the account later with Scan QR code"
-                                  : "Print this key as text over \(recoverySheet.pageCount) pages; it is too long for a QR code")
+                                  : "Print this key over \(recoverySheet.pageCount) pages; it is too long for one QR code")
                     }
                     Button("Done") { close() }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
                 }

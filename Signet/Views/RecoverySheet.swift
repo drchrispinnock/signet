@@ -31,9 +31,21 @@ struct RecoverySheet: Equatable, Sendable {
     /// The QR code of the secret key, or `nil` when the key is too long for one (a tz5 key is).
     func qrImage(size: CGFloat = 1000) -> NSImage? { QRCode.image(for: secretKey, size: size) }
 
-    /// False when the key is too long for a QR code. The sheet then prints the public and secret
-    /// keys as numbered lines of text over as many pages as they need, and recovery is by typing.
+    /// False when the key is too long for one QR code (a tz5 key). The sheet then carries the
+    /// key as several codes on following pages (`keyParts`), which Scan QR code puts back
+    /// together, and after them as numbered lines of text for when a code cannot be read.
     var hasQRCode: Bool { qrImage(size: 200) != nil }
+
+    /// The codes of a key too long for one; empty when one code carries it.
+    var keyParts: [KeyPart] { hasQRCode ? [] : KeyPart.split(secretKey) }
+
+    static let codesPerPage = 4
+
+    /// The pages of codes, four to a page so each prints large enough for a webcam.
+    var codePages: [[KeyPart]] {
+        let parts = keyParts
+        return stride(from: 0, to: parts.count, by: Self.codesPerPage).map { Array(parts[$0..<min($0 + Self.codesPerPage, parts.count)]) }
+    }
 
     static let lineLength = 90
     static let linesPerPage = 60
@@ -58,7 +70,7 @@ struct RecoverySheet: Equatable, Sendable {
         let parts: Int
     }
 
-    /// The pages after the first: none when the QR code carries the key.
+    /// The pages of key text at the end: none when one QR code carries the key.
     var secretKeyPages: [KeyPage] {
         guard !hasQRCode else { return [] }
         let lines = Self.lines(of: secretKey)
@@ -68,7 +80,7 @@ struct RecoverySheet: Equatable, Sendable {
         }
     }
 
-    var pageCount: Int { 1 + secretKeyPages.count }
+    var pageCount: Int { 1 + codePages.count + secretKeyPages.count }
 }
 
 /// The page itself, drawn at the paper's size in black on white whatever the app's appearance.
@@ -80,7 +92,7 @@ struct RecoverySheetPage: View {
 
     var body: some View {
         let hasQRCode = sheet.hasQRCode
-        let keyPages = sheet.secretKeyPages
+        let partCount = sheet.keyParts.count
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 18) {
                 Image(nsImage: NSApp.applicationIconImage)
@@ -134,7 +146,9 @@ struct RecoverySheetPage: View {
                     row(sheet.isEncrypted ? "Secret key (encrypted)" : "Secret key", sheet.secretKey)
                 } else {
                     row(sheet.isEncrypted ? "Secret key (encrypted)" : "Secret key",
-                        "Too long for a QR code. Printed in full on the next \(keyPages.count == 1 ? "page" : "\(keyPages.count) pages"); keep all \(sheet.pageCount) pages together.",
+                        partCount > 0
+                            ? "Too long for one QR code. It follows as \(partCount) codes, then in full as text; keep all \(sheet.pageCount) pages together."
+                            : "Too long for QR codes. It follows in full as text; keep all \(sheet.pageCount) pages together.",
                         monospaced: false)
                 }
             }
@@ -164,7 +178,7 @@ struct RecoverySheetPage: View {
 
             Text(hasQRCode
                  ? "To recover the account, open Signet, choose Scan QR code… and hold this sheet up to the camera, or choose Import account… and type the secret key\(sheet.isEncrypted ? ", then enter the password" : ""). octez-client accepts the same key. Keep this sheet offline and out of sight, and do not photograph or photocopy it."
-                 : "To recover the account, open Signet, choose Import account… and type the secret key from the following pages as one unbroken line, without the line numbers or spaces\(sheet.isEncrypted ? ", then enter the password" : ""). octez-client accepts the same key. Keep these pages offline and out of sight, and do not photograph or photocopy them.")
+                 : "To recover the account, open Signet, choose Scan QR code… and hold up each of the \(partCount) codes on the following pages, in any order; Signet says which it still needs. Or choose Import account… and type the secret key from the last pages as one unbroken line, without the line numbers or spaces\(sheet.isEncrypted ? ". Then enter the password" : ""). octez-client accepts the typed key. Keep these pages offline and out of sight, and do not photograph or photocopy them.")
                 .font(.system(size: 10))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -217,7 +231,7 @@ struct RecoverySheetKeyPage: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Signet Tezos Wallet Recovery Sheet")
                 .font(.system(size: 14, weight: .semibold))
-            Text("\(sheet.alias)  ·  \(sheet.address.value)  ·  page \(page.part + 1) of \(sheet.pageCount)")
+            Text("\(sheet.alias)  ·  \(sheet.address.value)  ·  page \(1 + sheet.codePages.count + page.part) of \(sheet.pageCount)")
                 .font(.system(size: 9))
                 .padding(.top, 3)
             Rectangle().frame(height: 1).padding(.top, 6)
@@ -226,6 +240,55 @@ struct RecoverySheetKeyPage: View {
                 .padding(.top, 14)
                 .padding(.bottom, 6)
             NumberedKeyLines(lines: page.lines, firstLine: page.firstLine)
+            Spacer(minLength: 0)
+        }
+        .padding(RecoverySheetPage.margin)
+        .frame(width: paperSize.width, height: paperSize.height, alignment: .topLeading)
+        .foregroundStyle(.black)
+        .background(.white)
+        .environment(\.colorScheme, .light)
+    }
+}
+
+/// A page of the codes that together carry a key too long for one.
+struct RecoverySheetCodesPage: View {
+    let sheet: RecoverySheet
+    let parts: [KeyPart]
+    /// Which of the code pages this is, from 1.
+    let number: Int
+    let paperSize: CGSize
+
+    private static let codeSize: CGFloat = 230
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Signet Tezos Wallet Recovery Sheet")
+                .font(.system(size: 14, weight: .semibold))
+            Text("\(sheet.alias)  ·  \(sheet.address.value)  ·  page \(1 + number) of \(sheet.pageCount)")
+                .font(.system(size: 9))
+                .padding(.top, 3)
+            Rectangle().frame(height: 1).padding(.top, 6)
+            Text("\(sheet.isEncrypted ? "Secret key (encrypted)" : "Secret key") as QR codes. Scan every part with Signet's Scan QR code, in any order.")
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.top, 14)
+                .padding(.bottom, 18)
+            Grid(horizontalSpacing: 27, verticalSpacing: 26) {
+                ForEach(Array(stride(from: 0, to: parts.count, by: 2)), id: \.self) { start in
+                    GridRow {
+                        ForEach(parts[start..<min(start + 2, parts.count)], id: \.index) { part in
+                            VStack(spacing: 6) {
+                                if let image = QRCode.image(for: part.text, size: 1000, correction: "L") {
+                                    Image(nsImage: image)
+                                        .interpolation(.none)
+                                        .resizable()
+                                        .frame(width: Self.codeSize, height: Self.codeSize)
+                                }
+                                Text("Part \(part.index) of \(part.count)").font(.system(size: 11, weight: .semibold))
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(minLength: 0)
         }
         .padding(RecoverySheetPage.margin)
@@ -259,6 +322,7 @@ enum RecoverySheetPrinter {
             }
         }
         draw(RecoverySheetPage(sheet: sheet, paperSize: paperSize))
+        for (index, parts) in sheet.codePages.enumerated() { draw(RecoverySheetCodesPage(sheet: sheet, parts: parts, number: index + 1, paperSize: paperSize)) }
         for page in sheet.secretKeyPages { draw(RecoverySheetKeyPage(sheet: sheet, page: page, paperSize: paperSize)) }
         context.closePDF()
         return data as Data
