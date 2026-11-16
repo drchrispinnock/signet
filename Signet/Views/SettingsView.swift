@@ -16,6 +16,7 @@ struct SettingsView: View {
             if let backupDirectory = model.backupDirectory {
                 backupSection(backupDirectory)
             }
+            nftSection
             updatesSection
             developerSection
         }
@@ -39,6 +40,21 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
+        }
+    }
+
+    @AppStorage(NFTDownloadSettings.arrangeByAddressKey) private var arrangeNFTsByAddress = true
+
+    private var nftSection: some View {
+        Section {
+            Toggle("Arrange NFTs by address", isOn: $arrangeNFTsByAddress)
+            Text(arrangeNFTsByAddress
+                 ? "Downloaded artwork goes into a folder named after the account's address, inside the wallet directory's nfts folder."
+                 : "Downloaded artwork from every account goes into the wallet directory's nfts folder together.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("NFTs")
         }
     }
 
