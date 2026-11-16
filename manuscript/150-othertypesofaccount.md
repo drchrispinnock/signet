@@ -1,9 +1,9 @@
-{#id: 150-othertypesofaccount_1_Other}
+{id: ID150-othertypesofaccount_1_Other}
 # Key Management
 
 So far we have created a `tz1` key and used it for our transactions. There are other types of Tezos key and we will cover those in this chapter. There are also other ways to import a key into Signet. Also Signet can use a key on a hardware wallet called a Ledger. We will also look at ways of using keys temporarily in Signet and storing your keys offline.
 
-{#id: 150-othertypesofaccount_2_Key_2}
+{id: ID150-othertypesofaccount_2_Key_2}
 ## Key and Account Generation
 
 When we started Signet, we created an account on Tezos and we created an account using the `tz1` key type. This is sufficient for most purposes, but there are other key types and other ways to get keys into Signet. You can create a new account at any time with `Create Account`. You can choose between five key types which we cover in the next section.
@@ -16,9 +16,9 @@ During account creation, you can choose to protect the key with a password. This
 
 Once the account is created, you can use it to receive funds straightaway. When you do your first operation on the network, for example to send tez or to delegate or stake, your public key will be *revealed*. This means that it is available on the network and can be used to verify your operations. 
 
-There are some things you cannot do if your public key is not revealed. These will not affect most users and we will see an example in the [Operations for Bakers](#190-baking_1_Operations) chapter.
+There are some things you cannot do if your public key is not revealed. These will not affect most users and we will see an example in the [Operations for Bakers](#ID190-baking_1_Operations) chapter.
 
-{#id: 150-othertypesofaccount_2_Key}
+{id: ID150-othertypesofaccount_2_Key}
 ## Key Types
 
 There are currently 6 types of keys on Tezos. You can tell which key you are using by its public key hash which begins with `tz`. Each key type uses a different signing scheme. You don't have to understand the different key types to use Tezos, just be aware that there are different key types and they sometimes have different uses. As a beginner to Tezos, you can use the `tz1` key type. You can safely skip this section if you want.
@@ -44,7 +44,7 @@ You can generate and use keys of all types in Signet, except for `tz6` which is 
 
 Which key type you should use is up to you. It's expected that blockchains will shift to quantum resistant keys soon, so you may need to move your funds to a new address. This is another reason not to get attached to your address.
 
-{#id: 150-othertypesofaccount_2_Importing}
+{id: ID150-othertypesofaccount_2_Importing}
 ## Importing Secret Keys
 
 You can import secret keys that have been created in other Tezos wallets directly into Signet. You can paste them into the import window. If the secret key is encrypted, then you will be asked for the password and you will have to use it each time.
@@ -56,7 +56,7 @@ Also you have the option to keep the key only until Signet quits. I added this f
 
 I've added this feature to Signet because I want to use keys that I store on paper or a memory stick in a safe. The idea is to keep them off the internet as much as possible. Of course, a better way to do this is with a hardware security module, such as a Ledger.
 
-{#id: 150-othertypesofaccount_2_Importing_2}
+{id: ID150-othertypesofaccount_2_Importing_2}
 ## Importing using a Recovery Phrase
 
 On the same Import screen, there is a tab for a recovery phrase (or seed phrase). This allows you to import keys from phrases made from words, usually 12 or 24 words based on [Bitcoin Improvement Proposal BIP39](https://cryptotag.io/bip39-list/). An example is this (please don't use it!):
@@ -69,7 +69,7 @@ The words represent a secret number which can be used to derive many cryptograph
 ![](150/recover.png)
 Similar to the secret key import, you can decide to keep the key just for the session in which case Signet will discard it when it exits. You can also encrypt the secret key with a password for storage.
 
-{#id: 150-othertypesofaccount_2_Importing_3}
+{id: ID150-othertypesofaccount_2_Importing_3}
 ## Importing using a Fundraiser Account
 
 Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original Tezos fundraiser. Flip the switch for Legacy fundraiser derivation:
@@ -77,7 +77,7 @@ Signet also supports fundraiser accounts although we doubt there are many of the
 ![](150/fundraiser.png)
 In addition to a recovery phrase, a fundraiser account has an email address and a password. Supply all of these and then click `Import`.
 
-{#id: 150-othertypesofaccount_2_The}
+{id: ID150-othertypesofaccount_2_The}
 ## The Key Hierarchy
 
 In the recovery phrase import there is an account reference of the form `44'/1729'/0'/0'`. For each `tz` key type, you'll find a different key on each of `44'/1729'/0'/0'`, `44'/1729'/1'/0'`, `44'/1729'/2'/0'` and so on.
@@ -100,7 +100,7 @@ The `m` is the master/root private node which is not included in our account ref
 
 In this path, an apostrophe marks a hardened derivation, which requires the parent private key. A recovery phrase (mnemonic) is used to derive a seed; in BIP39, an optional passphrase can also be used. The seed then generates the master key and its child keys. The same recovery phrase can therefore generate accounts on multiple blockchains, as Ledger does. Some other wallets work this way too.
 
-{#id: 150-othertypesofaccount_2_Connecting}
+{id: ID150-othertypesofaccount_2_Connecting}
 ## Connecting a Ledger
 
 A [Ledger](https://www.ledger.com) is a hardware security module that holds cryptographic keys for signing operations and plugs into your computer via USB. When you want to use your key, you attach it. When you have finished, you remove it and your key is safely offline. The Ledger supports many cryptocurrencies. It has a seed phrase and implements the key hierarchy above (without showing the detail to the user, unless they look of course). All the signing operations happen on the hardware device, so the keys never leave it.
@@ -115,7 +115,7 @@ Choose a name for the key in the ledger, pick the key type and account number. I
 
 Click `Add` and confirm the operation on your Ledger. Once the Ledger is connected, you can use the keys like any other keys in Signet. You'll need to connect the Ledger and open the Tezos Wallet application to use the key. When a transaction or operation is done, Signet will use the Ledger to sign it and you'll have to confirm it on the Ledger itself.
 
-{#id: 150-othertypesofaccount_2_Exporting}
+{id: ID150-othertypesofaccount_2_Exporting}
 ## Exporting Keys
 
 You can export your secret keys from Signet at any time. Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
@@ -123,7 +123,7 @@ You can export your secret keys from Signet at any time. Signet displays the key
 ![](150/export.png)
 
 
-{#id: 150-othertypesofaccount_2_Storing}
+{id: ID150-othertypesofaccount_2_Storing}
 ## Storing Keys Offline
 
 The best way to store keys as a backup is to store them on paper. Write down the secret key onto good quality paper using permanent ink that will not fade. Using printers or photocopiers to make copies is not necessarily a good idea. Some photocopiers have a memory and other people can print out previous jobs. Then they have your keys.
@@ -136,7 +136,7 @@ If you use a Ledger or another hardware security module to generate the key, you
 
 For larger sums of money, you could shard your key with a scheme such as [Shamir's Secret Sharing Scheme](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing) which is used to distribute private information among a group of people. But for a beginner, you should just worry about baking your key up. If you decide to invest more in cryptocurrency, then you should look at better measures.
 
-{#id: 150-othertypesofaccount_2_Forgetting}
+{id: ID150-othertypesofaccount_2_Forgetting}
 ## Forgetting Keys
 
 To remove a key from Signet, you can forget it. Choose the account, then choose `Forget account` from the burger menu.

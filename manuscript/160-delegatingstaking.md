@@ -1,4 +1,4 @@
-{#id: delegating}
+{id: delegating}
 # Delegating and Staking
 
 From its inception, a Tezos account holder has been able to *delegate* their tez to a baker. By doing this, the extra coins contribute to the baker's power on the network. They get more baking opportunities and more power in the governance process. Sometimes a baker will pay a small reward to the account holder in return for delegating their tez. A baker that does this is called a *public baker*. All delegation reward payments are handled off chain and at the baker's discretion.
@@ -17,7 +17,7 @@ Note that to stake, you can only stake with your delegated baker. So staking and
 
 In this chapter we look at choosing a baker, delegating with them and staking with them.
 
-{#id: 160-delegatingstaking_2_Choosing}
+{id: ID160-delegatingstaking_2_Choosing}
 ## Choosing a baker
 
 Choosing a baker is a matter of personal preference. We've tried to make the process easier with Signet, but you need to do a bit of research to choose a baker. There are at least two places to go to find possible bakers. Firstly, TzKT maintains a list of [public bakers](https://tzkt.io/bakers/).
@@ -45,7 +45,7 @@ When choosing a baker you should be looking for a baker that is:
 With staking there is a further consideration because your funds are at risk. You want a baker that is trustworthy and has well-configured infrastructure. The key problem here is if the baker double-bakes (produces two blocks at the same level), the staked funds are at risk. 
 
 
-{#id: 160-delegatingstaking_2_Delegating}
+{id: ID160-delegatingstaking_2_Delegating}
 ## Delegating
 
 Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the last days researching and decided to delegate them to Captain Stake. 
@@ -67,7 +67,7 @@ tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N
 Let's paste that in and click use. Then there is a small fee to pay for the delegate operation which can be confirmed. Now my 2tz is delegated to Captain Stake. Whether Captain Stake pays me rewards for my delegated tez is between him and me. I need to discuss it off chain directly if there is any ambiguity.
 ![](160/captstake.png)
 
-{#id: 160-delegatingstaking_2_Staking}
+{id: ID160-delegatingstaking_2_Staking}
 ## Staking
 
 Staking tez uses the same dialogue as for delegating. You can get there either by clicking the `Delegated to` section or the `Stake` button. Captain Stake accepts staking. One thing to be aware of is that you cannot stake all of your tez. You need to have a small amount spare for the fee of the staking operation. We are going to stake 1tz with Captain Stake.
@@ -82,7 +82,7 @@ Then check you are happy with the fee and `Confirm` the transaction. You have no
 If you want to stake more, you can go back at any time and stake the extra tez.
 
 
-{#id: 160-delegatingstaking_2_Unstaking}
+{id: ID160-delegatingstaking_2_Unstaking}
 ## Unstaking and finalising
 
 If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles plus the remainder of the current cycle (between 3 and <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
@@ -99,7 +99,7 @@ When there are funds available to finalise, you use the `Finalize` button on the
 Choose `Confirm` and the funds will be finalised and returned to the spendable balance.
 
 
-{#id: 160-delegatingstaking_2_The}
+{id: ID160-delegatingstaking_2_The}
 ## The Risks of Staking
 
 Staked funds form part of the baker's security bond on the network. The worst thing that a baker can do is double sign a block at the same level. This could be producing two blocks (double baking) or attesting two blocks at the same level (double attestation). It has happened very often on the Tezos network. A full list of [double baking incidents can be found on TzKT](https://tzkt.io/double_baking). Usually it has happened because of a misconfiguration of infrastructure. The provider has run two separate bakers with the same key and the systems injected blocks into the network at the same time.

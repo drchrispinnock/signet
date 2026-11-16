@@ -1,8 +1,7 @@
-{#id: 110-starting_1_Getting}
-{sample: true}
+{id: ID110-starting_1_Getting, sample: true}
 # Getting started
 
-{#id: 110-starting_2_Installati}
+{id: ID110-starting_2_Installati}
 ## Installation
 
 [Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org). The repositories for each project are here:
@@ -15,7 +14,7 @@
 
 The first thing we need to do is install Signet. Let's look at each platform in turn, starting with the Mac.
 
-{#id: 110-starting_3_Mac}
+{id: ID110-starting_3_Mac}
 ### Mac
 
 The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store.
@@ -31,7 +30,7 @@ On the first run, you will get this message because it is a stand-alone applicat
 <!-- XXX we need a way of providing some certainty on this XXX XXX GPG signing XXX -->
 Click Open and continue.
 
-{#id: 110-starting_3_Windows}
+{id: ID110-starting_3_Windows}
 ### Windows
 
 <!-- XXX Windows download -->
@@ -41,7 +40,7 @@ The Windows version is written in C# and was ported from the Mac version by Clau
 
 To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file and run it. Signet will install. It will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
 
-{#id: 110-starting_3_Linux}
+{id: ID110-starting_3_Linux}
 ### Linux
 
 The Linux version is written in [Swift](https://www.swift.org) using the code from the Mac version. The graphical library is GTK.
@@ -97,7 +96,7 @@ You can also run Signet from the command line (but it is quite verbose with its 
 $ signet-gtk
 ```
 
-{#id: 110-starting_2_Running}
+{id: ID110-starting_2_Running}
 ## Running Signet for the first time
 
 Throughout the rest of the book, we will be using the Mac version of Signet. The screens are very similar on the Windows and Linux versions.
@@ -128,7 +127,7 @@ If your key is already set up on a Ledger with the Tezos Wallet application inst
 
 Finally, if you happen to have used the command-line wallet `octez-client`, Signet will detect its wallet directory and offer you the option to import it. This option does not appear if the directory is not detected. As it happens, Signet's wallet directory is compatible with `octez-client`'s.
 
-{#id: 110-starting_2_Key}
+{id: ID110-starting_2_Key}
 ## Key hygiene
 
 If you lose your keys, you lose your funds. If someone gets your keys, they have your funds. There are two rules for beginners:
@@ -145,7 +144,7 @@ You can press the view button to look at it and write it down. Or you can use th
 
 There's a temptation to treat your crypto account like a bank account. Your main bank account details probably haven't changed for years. Don't get too attached to your crypto address. You can make a new one very easily. With your first account, use it to try things out and test things. Once someone knows that this account is yours, they will know forever and they will be able to see all your transactions on the chain and know they are yours. When you've done a bit of experimenting, it might be worth generating some keys for different purposes. Perhaps you want to buy some NFTs and show your collection? Well, why not have a separate key for that?
 
-{#id: 110-starting_2_Navigating}
+{id: ID110-starting_2_Navigating}
 ## Navigating around Signet
 
 The main screen of Signet has four buttons, a burger menu and information about your account. At the top is your account alias (in this case `My Account`) and a shortened Tezos address beginning `tz1`. You can copy the address by clicking the icon next to it. This is the address that will be used on the chain. The account alias is your name for the address and it is only known by your wallet software. It's a way for you to label your account. The account picture comes from your account's picture on the TzKT explorer.
@@ -170,7 +169,7 @@ Some DeFi assets:
 
 ![](110/assets.png)
 
-And some NFTs. These are artworks purchased from various NFT sites. We will purchase some artwork in the later chapter [Decentralised Apps](#170-dapps_1_Distribute).
+And some NFTs. These are artworks purchased from various NFT sites. We will purchase some artwork in the later chapter [Decentralised Apps](#ID170-dapps_1_Distribute).
 
 ![](110/nfts.png)
 
@@ -182,7 +181,7 @@ tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N
 
 This should resolve as Captain Stake. Signet looks up addresses on the block explorer and suggests names for them for your address book. You'll then be able to see the same screens as above by switching to the account. Note that this is just an address book entry - you have his public key hash but you don't have his secret key.
 
-{#id: 110-starting_2_Getting}
+{id: ID110-starting_2_Getting}
 ## Getting your first tez
 
 In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pelerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
@@ -221,7 +220,7 @@ Now I could improve this piece of Signet and in fact Transak will allow wallets 
 
 Please make sure that you record all your cryptoasset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
 
-{#id: 110-starting_2_Getting_2}
+{id: ID110-starting_2_Getting_2}
 ## Getting tez on a test network
 
 If you don't want to spend any money at this stage, you can always use a test network. When you switch to a test network in Signet, the Buy button becomes a Get button. A test network usually has a *faucet* that gives out tez to participants. As the tez don't have real-world value, this is possible. Signet is integrated with the faucets on the test networks.
@@ -236,7 +235,7 @@ After a minute or two, you will have some tez in your account.
 
 Now that you have some tez coins, you can truly use the Tezos blockchain. You can work through the book on *Shadownet*, or with care on *Mainnet*. Remember that there is no central body to help you if you make a mistake, so double-check everything before you make a transaction. Measure twice, cut once.
 
-{#id: 110-starting_2_Keeping}
+{id: ID110-starting_2_Keeping}
 ## Keeping up to date
 
 On the Mac and Windows platforms, Signet can check for updates and download them. On the Mac, go to the Signet menu and choose `Check for Updates...`. On Windows, you'll find it on the burger menu.

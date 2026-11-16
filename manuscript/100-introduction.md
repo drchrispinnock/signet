@@ -1,5 +1,5 @@
 {mainmatter}
-{#id: 100-introduction_1_Introducti}
+{id: ID100-introduction_1_Introducti}
 # Introduction
 
 *This will be the last chapter to be written. And probably the hardest. Oh the sweet irony!*
@@ -7,11 +7,11 @@
 
 
 
-{#id: 100-introduction_2_What}
+{id: ID100-introduction_2_What}
 ## Introducing Signet
 
 
-{#id: 100-introduction_2_Other}
+{id: ID100-introduction_2_Other}
 ## Other Wallets
 
 There are other wallets for Tezos and I encourage you to try them out. Wallet software is a matter of personal preference. For example, Signet is a desktop wallet and you might prefer to work on your mobile. Here is an overview of the some other wallets that support Tezos:

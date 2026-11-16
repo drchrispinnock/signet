@@ -1,5 +1,4 @@
-{#id: 920-bibliography_1_Further}
-{sample: true}
+{id: ID920-bibliography_1_Further, sample: true}
 # Further Resources and Reading
 
 <!-- MARKUPBIBLIOGRAPHY -->

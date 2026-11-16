@@ -1,4 +1,4 @@
-{#id: 190-baking_1_Operations}
+{id: ID190-baking_1_Operations}
 # Operations for Bakers
 
 If you are not going to bake on Tezos, you can safely skip this chapter.
@@ -16,7 +16,7 @@ A good way to manage the key is to hold the master key on a Ledger and delegate 
 Using a consensus key allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
 
 
-{#id: 190-baking_2_Registerin}
+{id: ID190-baking_2_Registerin}
 ## Registering as a baker
 
 Only follow this section if you intend to use your key for baking. Once you register as a baker, you cannot unregister. One consequence of this is that you cannot delegate or stake to another baker ever again. We will assume that you have imported your master baking key in Signet. In the tutorial below, we are going to do everything on the *Ushuaianet* test network, but it works on all other networks.
@@ -35,7 +35,7 @@ Go to the `Staking` button and stake whatever you would like.
 
 You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 9ac4bf2d -->[7]<!-- ENDMARKUPBIBTAG -->.
 
-{#id: 190-baking_2_Consensus}
+{id: ID190-baking_2_Consensus}
 ## Consensus and Companion keys
 
 Now that you have a baking key, you can set your consensus and companion keys. If you are using `tz4` for your consensus key and you are using DAL, then you'll need a `tz4` companion key. We will assume that you are using `tz4` keys because it is currently the best practice for the Tezos network.
@@ -92,7 +92,7 @@ Anyway, now you have set the consensus and companion key for your baker and we c
 ![](190/blkexplorer.png)
 
 
-{#id: 190-baking_2_Staking}
+{id: ID190-baking_2_Staking}
 ## Staking parameters
 
 Now go back to the `Baking...` menu and scroll to the bottom of it.
@@ -102,10 +102,10 @@ Here you can set the two staking parameters. The Limit of staking over baking co
 
 You can change these parameters at any time, but the changes take <!-- MARKUPTAG paramchange-->5<!-- ENDMARKUPTAG --> cycles to take effect.
 
-{#id: 190-baking_2_Governance}
+{id: ID190-baking_2_Governance}
 ## Governance
 
-Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
+Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#ID100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
 
 Most of the time, a network is in the proposal period.  During the proposal period, bakers can propose new protocols and upvote other proposals. A new protocol proposal is represented by a hash. For Ushuaianet, the hash is:
 
@@ -153,7 +153,7 @@ After this period, the network switches to the new protocol and returns to the P
 If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the participation and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there are not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
 
 
-{#id: 190-baking_2_Baking}
+{id: ID190-baking_2_Baking}
 ## Baking Key considerations
 
 Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or double attest - that is bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.

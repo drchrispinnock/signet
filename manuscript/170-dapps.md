@@ -1,9 +1,9 @@
-{#id: 170-dapps_1_Distribute}
+{id: ID170-dapps_1_Distribute}
 # Decentralised Apps
 
 *Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
-{#id: 170-dapps_2_Connecting}
+{id: ID170-dapps_2_Connecting}
 ## Connecting to a dApp
 
 Signet uses [Octez Connect](https://octez-connect.tezos.com) (formerly called Beacon) to connect to dApp websites. We will go through the full process with Objkt.com and 3Route, but here are some things to be aware of. On dApp websites, there will be a button to `Sign in`, `Connect Wallet` or `Sync`. If you click on this, a dialogue will appear. Sometimes it will ask you which style of connection to use - choose Beacon or Octez Connect. Then usually there will be a popup asking you which wallet you use.
@@ -19,7 +19,7 @@ Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, y
 
 Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection.
 
-{#id: 170-dapps_2_TezInvader}
+{id: ID170-dapps_2_TezInvader}
 ## TezInvaders
 
 This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.* It's a Space Invaders clone, but you can buy a ticket to participate in a competition. The competition lasts 1 day and at the end of the day, the account with the highest score wins the tez in the pool. If you'd prefer not to play with real-valued tez, you can play it on the test networks.
@@ -38,7 +38,7 @@ Back on the TezInvaders screen, you can now buy a ticket to participate in the r
 
 You can now play the game and participate. As you score more points, you get NFTs. There are NFTs for 1000, 3000, 5000, 8000 and 12000 points. These will, of course, appear in your NFT tab on Signet. At the end of the round, the highest scorer gets all the tez in the prize pool.
 
-{#id: 170-dapps_2_Buying}
+{id: ID170-dapps_2_Buying}
 ## Buying an NFT from Objkt
 
 We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
@@ -107,7 +107,7 @@ People tend to refer to digital art whose purchases have been recorded on blockc
 
 Note also that 
 
-{#id: 170-dapps_2_Minting}
+{id: ID170-dapps_2_Minting}
 ## Minting an NFT at Teia
 
 [Teia](https://teia.art) is another art NFT site on the Tezos blockchain. It's based on the *hic et nunc* NFT marketplace that is no longer with us. You can buy and sell NFTs there. We are going to upload a piece of art and mint an NFT to represent the ownership on chain. You can do this at Objkt as well, but I want to show you an alternative site on Tezos. Using the terminology of making coins, we will *mint* the NFT. On blockchains, creating assets is called *minting.*
@@ -144,7 +144,7 @@ It took a little while for my NFT to be listed but some time later, it appeared 
 ![](170/teiafront.png)
 From the listing you can buy one of these artworks for 1tz.
 
-{#id: 170-dapps_2_Buying_2}
+{id: ID170-dapps_2_Buying_2}
 ## Buying a Tezos Domain
 
 Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
@@ -179,7 +179,7 @@ You can use Tezos domain names in Signet as recipients of transactions.
 
 One word of caution. You might want to live anonymously on a blockchain. It's difficult to do this actually, but one way to be anonymous is not to have any obvious identifiers on your account. A domain name may hint that an account belongs to you.
 
-{#id: 170-dapps_2_Quipuswap}
+{id: ID170-dapps_2_Quipuswap}
 ## Quipuswap
 
 *In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
@@ -206,7 +206,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ![](170/quipuswap-assets.png)
 
-{#id: 170-dapps_2_3Route}
+{id: ID170-dapps_2_3Route}
 ## 3Route
 
 3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
