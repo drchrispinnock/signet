@@ -66,6 +66,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectDApp) {
             ConnectDAppSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingScanQR, onDismiss: { model.routePendingScan() }) {
+            ScanQRSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingBridge) { BridgeSheet(model: model) }
         .sheet(item: $model.nftOperation) { operation in TransferNFTSheet(model: model, operation: operation) }
         .sheet(item: $model.nftDownload) { download in DownloadNFTsSheet(downloader: model.nftDownloader, download: download) }
@@ -83,7 +86,7 @@ struct WalletHomeView: View {
             DAppRequestSheet(model: model, request: request)
                 .interactiveDismissDisabled()
         }
-        .sheet(isPresented: $model.isPresentingSend) {
+        .sheet(isPresented: $model.isPresentingSend, onDismiss: { model.sendPrefill = nil }) {
             if let wallet = model.selectedWallet {
                 SendSheet(model: model, sender: wallet)
             }
@@ -179,6 +182,13 @@ struct NoWalletsView: View {
                     symbol: "lock.rectangle.stack"
                 ) { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
+                if model.hasCamera {
+                    StartOption(
+                        title: "Import from QR code",
+                        detail: "Scan a secret key or a recovery phrase with the camera.",
+                        symbol: "qrcode.viewfinder"
+                    ) { model.isPresentingScanQR = true }
+                }
                 if hasOctezWallet {
                     StartOption(
                         title: "Import your octez-client wallet",

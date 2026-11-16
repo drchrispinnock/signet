@@ -50,6 +50,14 @@ struct ImportAccountSheet: View {
         self.model = model
         _alias = State(initialValue: model.suggestedAlias(base: "Imported"))
         _encrypt = State(initialValue: model.network.isMainnet)
+        // A key or phrase that Scan QR code found: the sheet opens on it, already filled in.
+        switch model.importPrefill {
+        case .secretKey(let key): _secretKeyText = State(initialValue: key)
+        case .recoveryPhrase(let words):
+            _source = State(initialValue: .phrase)
+            _phrase = State(initialValue: words)
+        case nil: break
+        }
     }
 
     private var trimmedAlias: String { alias.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -97,6 +105,11 @@ struct ImportAccountSheet: View {
         }
         .padding(20)
         .frame(width: 560)
+        .onAppear {
+            guard model.importPrefill != nil else { return }
+            model.importPrefill = nil
+            refreshPreview()
+        }
         .onChange(of: source) { refreshPreview() }
         .onChange(of: phrase) { refreshPreview() }
         .onChange(of: phrasePassphrase) { refreshPreview() }

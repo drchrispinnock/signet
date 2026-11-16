@@ -159,9 +159,9 @@ automatic download is off by default. The updater is not started under the test 
   A backup folder that is the wallet directory, inside it or around it is refused
   (`BackupError.overlapsWallet`).
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys)
-  `NoWalletsView` offers four ways in: create a new account (first and highlighted), import an
-  existing key or phrase, connect a Ledger, or, last and only when one exists, import
-  `~/.tezos-client` (an exact file copy). The merge
+  `NoWalletsView` offers its ways in: create a new account (first and highlighted), import an
+  existing key or phrase, connect a Ledger, import from a QR code when a camera is attached, or,
+  last and only when one exists, import `~/.tezos-client` (an exact file copy). The merge
   path in `TezosClientStore.importWallets` remains but is not exposed in the menu. The app is
   deliberately not sandboxed so it can reach both directories.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
@@ -508,10 +508,36 @@ automatic download is off by default. The updater is not started under the test 
   `signMultisigProposal`, `addMultisigSignature`, `submitMultisig`. `ShadownetMultisigTests` is the
   live 2-of-3 round trip (a transfer, then a delegate change) and checks local packing against
   the node's `pack_data`.
+- **Scan QR code.** "Scan QR code…" (both menus, after Connect Ledger) and the welcome screen's
+  "Import from QR code" show only while `WalletViewModel.hasCamera` is true; `CameraWatcher`
+  (`Signet/Services/QRScanner.swift`, made by `SignetApp`, never under the test host) sets it
+  from an AVFoundation discovery session (built-in, external and Continuity cameras) and the
+  connect/disconnect notifications. `ScanQRSheet` shows the camera (`QRCaptureSession`: frames
+  to Vision's barcode request on a private queue, each distinct code yielded on an
+  `AsyncStream`; nothing is recorded or logged, since a code may be a secret key), a camera
+  picker when there are several, and "Paste from Clipboard" (Cmd-V: a QR code in a clipboard
+  image such as a screenshot, else the clipboard's text, `QRCamera.textFromPasteboard`) and
+  "Choose Image…", because a camera cannot see a code on this Mac's own screen.
+  `QRPayload.classify` (`Signet/Models/QRPayload.swift`, pure) decides by shape and base58
+  checksum what the text is: a pairing code (any `…?type=tzip10&data=…` link,
+  `DAppPairingLink.code(fromScanned:)`, or bare base58check over JSON), an address (also as a
+  `tezos:` URI), a public key, a secret key (clear or octez-encrypted) or a recovery phrase by
+  shape. The scan sheet acts on nothing itself: it sets `pendingScan` (`ScanHandoff`) and
+  dismisses, and its `onDismiss` calls `routePendingScan`, which opens the dApps sheet with
+  `pendingPairingCode`, Import account on `importPrefill` (the key in its `SecureField` or the
+  phrase tab, so alias, encryption and session-only are still chosen there), Add address on
+  `addAddressPrefill` or Send on `sendPrefill`; each sheet clears its prefill when it appears.
+  An address (or a public key, hashed locally by `address(forScannedPublicKey:)`) is shown in
+  the scan sheet first with Add to Address Book… and, when `canSendFromSelected`, Send…; it is
+  the only scanned content ever displayed. A pairing code is refused until an account that can
+  sign exists. The camera needs `com.apple.security.device.camera` in `Signet.entitlements`
+  (hardened runtime) and `NSCameraUseContinuityCameraDeviceType` in `Info.plist`.
+  `QRScanTests` covers classification, the clipboard and the routing; the camera itself can
+  only be checked by hand.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
-  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
+  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Scan QR code when a camera is attached, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
   dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
   has Cmd-comma. File has Create Backup (`backUp(force: true)`).

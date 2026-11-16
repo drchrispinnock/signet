@@ -28,7 +28,9 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Mt Pelerin may need your camera to verify your identity when you buy tez.</string>
+	<string>Signet uses the camera to scan QR codes, and Mt Pelerin may need it to verify your identity when you buy tez.</string>
+	<key>NSCameraUseContinuityCameraDeviceType</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mt Pelerin may need your microphone during identity verification when you buy tez.</string>
 	<key>CFBundleDevelopmentRegion</key>

@@ -136,6 +136,63 @@ final class WalletViewModel {
         isPresentingConnectDApp = true
     }
 
+    // MARK: Scan QR code
+
+    /// Whether this Mac has a camera right now; `CameraWatcher` keeps it current. The Scan QR
+    /// code items show only while it is true.
+    var hasCamera = false
+    var isPresentingScanQR = false
+    /// What the scan sheet found, routed to the sheet that deals with it once the scan sheet has
+    /// gone (only one sheet can be up at a time).
+    var pendingScan: ScanHandoff?
+    /// What the Import account, Add address and Send sheets open on after a scan. Each sheet
+    /// takes its value when it appears and clears it.
+    var importPrefill: ImportPrefill?
+    var addAddressPrefill: Address?
+    var sendPrefill: Address?
+
+    /// Where a scanned code goes next.
+    enum ScanHandoff: Equatable {
+        case pair(code: String)
+        case importKey(ImportPrefill)
+        case addAddress(Address)
+        case send(Address)
+    }
+
+    /// Opens the sheet for what was scanned. Called when the scan sheet has been dismissed.
+    func routePendingScan() {
+        guard let handoff = pendingScan else { return }
+        pendingScan = nil
+        switch handoff {
+        case .pair(let code):
+            pendingPairingCode = code
+            isPresentingConnectDApp = true
+        case .importKey(let prefill):
+            importPrefill = prefill
+            isPresentingImportAccount = true
+        case .addAddress(let address):
+            addAddressPrefill = address
+            isPresentingAddAddress = true
+        case .send(let address):
+            guard selectedWallet != nil else { return }
+            sendPrefill = address
+            isPresentingSend = true
+        }
+    }
+
+    /// The address a scanned public key belongs to, derived locally.
+    func address(forScannedPublicKey key: String) async throws -> Address {
+        let address = try await multisig.address(forPublicKey: key)
+        guard address.isValidAccount else { throw WalletError.invalidAddress }
+        return address
+    }
+
+    /// Whether Send can be offered for a scanned address: the same rule as the Send button.
+    var canSendFromSelected: Bool {
+        guard let wallet = selectedWallet else { return false }
+        return wallet.keyKind.canSign && !wallet.address.isContract && !accountNotOnChain
+    }
+
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
     /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds: the

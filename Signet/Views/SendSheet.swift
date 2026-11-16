@@ -31,7 +31,10 @@ struct SendSheet: View {
         self.sender = sender
         self.wallets = model.wallets
         (layer1, layer2) = Self.capture(model)
-        _send = State(initialValue: Self.makeSend(model: model, sender: sender, wallets: wallets, context: layer1))
+        let send = Self.makeSend(model: model, sender: sender, wallets: wallets, context: layer1)
+        // An address that Scan QR code found is the recipient to start with.
+        if let scanned = model.sendPrefill { send.recipientText = scanned.value }
+        _send = State(initialValue: send)
     }
 
     /// Both sides as they are now; the Etherlink side exists only when its network and service

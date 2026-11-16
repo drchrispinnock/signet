@@ -8,7 +8,19 @@ enum DAppPairingLink {
 
     /// The pairing code carried by `url`, or `nil` when it is not a TZIP-10 pairing link.
     static func code(from url: URL) -> String? {
-        guard url.scheme?.lowercased() == scheme,
+        guard url.scheme?.lowercased() == scheme else { return nil }
+        return code(fromAnyScheme: url)
+    }
+
+    /// The pairing code in scanned text that is a TZIP-10 link for any wallet (`tezos://`,
+    /// `signet://`, a wallet's https page): a QR code is shown to whichever wallet reads it.
+    static func code(fromScanned text: String) -> String? {
+        guard text.contains("://") || text.hasPrefix("tezos:"), let url = URL(string: text) else { return nil }
+        return code(fromAnyScheme: url)
+    }
+
+    private static func code(fromAnyScheme url: URL) -> String? {
+        guard url.scheme != nil,
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let items = components.queryItems
         else { return nil }

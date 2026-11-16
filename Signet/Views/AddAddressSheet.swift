@@ -6,7 +6,7 @@ struct AddAddressSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var alias = ""
-    @State private var address = ""
+    @State private var address: String
     @State private var previewDomains: [String] = []
     @State private var suggestedName: String?
     @State private var errorMessage: String?
@@ -14,6 +14,12 @@ struct AddAddressSheet: View {
     @FocusState private var focus: Field?
 
     private enum Field { case alias, address }
+
+    init(model: WalletViewModel) {
+        self.model = model
+        // An address that Scan QR code found is already filled in.
+        _address = State(initialValue: model.addAddressPrefill?.value ?? "")
+    }
 
     private var trimmedAddress: Address { Address(address.trimmingCharacters(in: .whitespacesAndNewlines)) }
     private var addressLooksValid: Bool { trimmedAddress.isValidAccount }
@@ -91,7 +97,10 @@ struct AddAddressSheet: View {
         }
         .padding(20)
         .frame(width: 480)
-        .onAppear { focus = .alias }
+        .onAppear {
+            focus = .alias
+            model.addAddressPrefill = nil
+        }
         .task(id: address) {
             previewDomains = []
             suggestedName = nil
