@@ -83,6 +83,7 @@
 		6A22F2F98B16A73EDE913B76 /* WalletLockMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA311716161FC9F3CDA4E11 /* WalletLockMeasurementTests.swift */; };
 		6A4C2F1D4DD5E2B07A0B1896 /* ConfirmationWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5669132EA4D561AD15D4B9CE /* ConfirmationWatcherTests.swift */; };
 		6B65F7A02E57F2224A86412F /* NFTDownloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BDC078F4BC29D0BF918AE2E /* NFTDownloadTests.swift */; };
+		6B6617EF76D7271392FD319B /* RecoverySheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEF361C1628ED0C6C2E18271 /* RecoverySheetTests.swift */; };
 		6D5DD41FA174C1D5D5195EDB /* ImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553EFF8C5CBB6DD9AB7C48CE /* ImportTests.swift */; };
 		6D72B36ED768416E56BD2AE0 /* Staking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC270D9AC39835A78941A29 /* Staking.swift */; };
 		6FCF292C5B26254F635D7CF8 /* KeyGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */; };
@@ -157,6 +158,7 @@
 		CC416E163124554D18F60393 /* ArtworkCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */; };
 		CCE991CE15CCAB79FA4E9CCB /* DownloadNFTsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5E68D2F1F4BE979566A3A /* DownloadNFTsSheet.swift */; };
 		CEA73B444F784FD76B29360A /* StakingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F6224B138E3946294DCF2F /* StakingTests.swift */; };
+		CF135E7DFC30EF1CC394E1F0 /* RecoverySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBB198A5B2562C08A15115D /* RecoverySheet.swift */; };
 		D00A61ADCB828C0F5819423F /* AuditRepairTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */; };
 		D040B3DBCE102CE52E93484E /* PublicHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */; };
 		D1119DFB6539DFF9B599B0CA /* WalletStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B591F4ED8860E9761BCAEC /* WalletStore.swift */; };
@@ -224,6 +226,7 @@
 		17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGenerator.swift; sourceTree = "<group>"; };
 		19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofOfPossessionSheet.swift; sourceTree = "<group>"; };
 		1A8C3F27FDBA04A985D8BCA3 /* TokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTests.swift; sourceTree = "<group>"; };
+		1CBB198A5B2562C08A15115D /* RecoverySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySheet.swift; sourceTree = "<group>"; };
 		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
 		1E08640FEBFABBA503E1C79D /* AuditFixTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditFixTests.swift; sourceTree = "<group>"; };
 		1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernance.swift; sourceTree = "<group>"; };
@@ -373,6 +376,7 @@
 		D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GovernanceTests.swift; sourceTree = "<group>"; };
 		DC8A76F85DE0CC08F85782C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DE044A8A1BE46F91615E4E3C /* NFTDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTDownloader.swift; sourceTree = "<group>"; };
+		DEF361C1628ED0C6C2E18271 /* RecoverySheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySheetTests.swift; sourceTree = "<group>"; };
 		DFB37E0605BAF6FC87E509D6 /* BridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeTests.swift; sourceTree = "<group>"; };
 		E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGeneratorTests.swift; sourceTree = "<group>"; };
 		E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegateRowView.swift; sourceTree = "<group>"; };
@@ -447,6 +451,7 @@
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
 				19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */,
 				525C79C726F273E9E3375452 /* ReceiveSheet.swift */,
+				1CBB198A5B2562C08A15115D /* RecoverySheet.swift */,
 				B7C91E197F985BCEF1138D6E /* RememberKeySheet.swift */,
 				4D71F7B751EAD0CCE916B84E /* RenameWalletSheet.swift */,
 				E66C61FF6973FCE0CDEF7AD4 /* ScanQRSheet.swift */,
@@ -548,6 +553,7 @@
 				A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */,
 				822144910E1FB03FD7D270CA /* QRCodeTests.swift */,
 				4FED3AF0774BAE18B7179808 /* QRScanTests.swift */,
+				DEF361C1628ED0C6C2E18271 /* RecoverySheetTests.swift */,
 				6B5AB0D4CA449EBD13FE53D7 /* RefreshContextTests.swift */,
 				088C8CA0ACEDD480A9684481 /* SendTests.swift */,
 				B7AEA3E7D456319C0F83A147 /* SessionKeyTests.swift */,
@@ -877,6 +883,7 @@
 				924C1EC915C8AB871C55EE0F /* QRPayload.swift in Sources */,
 				02B7A12A15CE5B545558A949 /* QRScanner.swift in Sources */,
 				F26C76D739108A6AA2B3ACC9 /* ReceiveSheet.swift in Sources */,
+				CF135E7DFC30EF1CC394E1F0 /* RecoverySheet.swift in Sources */,
 				0DC2DAF901DB2FA364724E8F /* RememberKeySheet.swift in Sources */,
 				F69C430DC456544A2DC19040 /* RenameWalletSheet.swift in Sources */,
 				7585B26531737CF69E87B28D /* ScanQRSheet.swift in Sources */,
@@ -967,6 +974,7 @@
 				F90384B120EBF0588BDE29CB /* PostQuantumSendTests.swift in Sources */,
 				49007ED6467AA6F2D6205E8C /* QRCodeTests.swift in Sources */,
 				3A6C9561CD52640CE935DC03 /* QRScanTests.swift in Sources */,
+				6B6617EF76D7271392FD319B /* RecoverySheetTests.swift in Sources */,
 				6147C62CC2E4DC757507FDA2 /* RefreshContextTests.swift in Sources */,
 				A739ED053C1344CED9AEB04E /* SendTests.swift in Sources */,
 				378BC315BC1066DF3E199286 /* SessionKeyTests.swift in Sources */,

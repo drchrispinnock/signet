@@ -242,6 +242,19 @@ automatic download is off by default. The updater is not started under the test 
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
   copied too), then the key masked with a reveal toggle and a Copy button. `WalletViewModel.
   exportSecretKey(passphrase:)` returns `ExportedKey(clear:encrypted:)`; nothing is written anywhere.
+  **Recovery sheet.** Once the key is shown, "Recovery Sheet…" prints one page
+  (`Signet/Views/RecoverySheet.swift`, after the sketch `docs/spec/recoverysheet.HEIC`): the
+  app icon, "Signet Tezos Wallet Recovery Sheet", the alias and date, a QR code of the secret
+  key, then the address, public key and secret key in full. The key is printed as it is stored
+  (`RecoverySheet.secretKey` is `encrypted ?? clear`), so an encrypted account's sheet carries
+  the `edesk…` form and an empty Password box to fill in by hand; a clear key's sheet says it
+  has no password instead. The QR code is the bare key, which Scan QR code classifies as a
+  secret key and hands to Import account, and octez-client reads too. `RecoverySheetPrinter`
+  renders `RecoverySheetPage` with `ImageRenderer` into PDF data in memory (an unhosted
+  `NSHostingView` draws a blank page) and prints it through PDFKit's print operation; Signet
+  writes no file. A key too long for a QR code (tz5) has no sheet (`canBePrinted`).
+  `RecoverySheetTests`; set `TEST_RUNNER_SIGNET_RECOVERY_SHEET_OUTPUT=<path>.pdf` to keep the
+  rendered page for a look.
 - **Forget (0.6).** "Forget account…" (both menus, under Add address) opens `ForgetAccountSheet`:
   one warning for everything, a second one when Signet holds the secret key (clear or encrypted;
   Ledger and watch-only entries get only the first), the password for encrypted keys (checked by

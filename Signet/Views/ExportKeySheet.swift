@@ -16,6 +16,11 @@ struct ExportKeySheet: View {
 
     private var wallet: Wallet? { model.selectedWallet }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    /// The printable sheet for the key now on show.
+    private var recoverySheet: RecoverySheet? {
+        guard let wallet, let exported else { return nil }
+        return RecoverySheet(wallet: wallet, key: exported)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -41,6 +46,12 @@ struct ExportKeySheet: View {
             Form {
                 if let exported {
                     keyRow(title: "Secret key", value: exported.clear, maskable: true)
+                    if recoverySheet?.canBePrinted == true {
+                        Text(exported.encrypted == nil
+                             ? "A recovery sheet is a printed page with this key as a QR code, which Scan QR code reads back in. This key has no password, so the sheet alone controls the account."
+                             : "A recovery sheet is a printed page with the encrypted key as a QR code, which Scan QR code reads back in, and a box to write the password in by hand.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
                     if let encrypted = exported.encrypted {
                         keyRow(title: "Encrypted form", value: encrypted, maskable: false)
                         Text("The encrypted form is what ~/.signet holds; it still needs this account's password. octez-client accepts both.")
@@ -67,6 +78,13 @@ struct ExportKeySheet: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(isWorking || (needsPassphrase && passphrase.isEmpty))
                 } else {
+                    if let recoverySheet {
+                        Button("Recovery Sheet…") { RecoverySheetPrinter.print(recoverySheet) }
+                            .disabled(!recoverySheet.canBePrinted)
+                            .help(recoverySheet.canBePrinted
+                                  ? "Print a sheet with this key as a QR code, to recover the account later with Scan QR code"
+                                  : "This key is too long for a QR code, so no recovery sheet can be made for it")
+                    }
                     Button("Done") { close() }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
                 }
             }
