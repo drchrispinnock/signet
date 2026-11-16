@@ -252,7 +252,10 @@ automatic download is off by default. The updater is not started under the test 
   secret key and hands to Import account, and octez-client reads too. `RecoverySheetPrinter`
   renders `RecoverySheetPage` with `ImageRenderer` into PDF data in memory (an unhosted
   `NSHostingView` draws a blank page) and prints it through PDFKit's print operation; Signet
-  writes no file. A key too long for a QR code (tz5) has no sheet (`canBePrinted`).
+  writes no file. A key too long for a QR code (tz5: `hasQRCode` false) is printed as text
+  instead: the public key on the first page and the secret key on following pages
+  (`RecoverySheetKeyPage`, `secretKeyPages`) as numbered lines of 90 characters, 60 to a page,
+  to be typed back into Import account; about 5,300 characters, so this is a stopgap.
   `RecoverySheetTests`; set `TEST_RUNNER_SIGNET_RECOVERY_SHEET_OUTPUT=<path>.pdf` to keep the
   rendered page for a look.
 - **Forget (0.6).** "Forget account…" (both menus, under Add address) opens `ForgetAccountSheet`:
