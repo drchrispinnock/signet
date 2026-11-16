@@ -1,4 +1,6 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import Foundation
 import Testing
 @testable import Signet
@@ -107,6 +109,7 @@ struct QRScanTests {
         #expect(QRCode.decode(image).map(QRPayload.classify) == .secretKey(Self.secretKey))
     }
 
+    #if canImport(AppKit)
     @Test @MainActor func readsTheClipboardAsImageOrText() throws {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("signet-qr-test-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }
@@ -118,6 +121,7 @@ struct QRScanTests {
         pasteboard.writeObjects([try #require(QRCode.image(for: Self.address, size: 300))])
         #expect(QRCamera.textFromPasteboard(pasteboard) == Self.address)
     }
+    #endif
 
     @Test @MainActor func routesAScanToTheSheetThatHandlesIt() {
         let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService())
