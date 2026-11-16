@@ -1,6 +1,10 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import Foundation
+#if canImport(PDFKit)
 import PDFKit
+#endif
 import Testing
 @testable import Signet
 
@@ -76,6 +80,7 @@ struct RecoverySheetTests {
         #expect(RecoverySheet(wallet: Self.wallet, key: .init(clear: Self.clear, encrypted: nil), version: "1.0").keyParts.isEmpty)
     }
 
+    #if canImport(PDFKit)
     @Test @MainActor func rendersALongKeyOverSeveralPages() throws {
         let wallet = Wallet(alias: "Quantum", address: Self.wallet.address, publicKey: Self.longPublic, keyKind: .unencrypted)
         let sheet = RecoverySheet(wallet: wallet, key: .init(clear: Self.longSecret, encrypted: nil), version: "1.0")
@@ -95,4 +100,5 @@ struct RecoverySheetTests {
         #expect(text.contains("Savings"))
         #expect(text.contains("Password"))
     }
+    #endif
 }

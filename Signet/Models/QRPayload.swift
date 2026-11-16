@@ -1,4 +1,8 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// What the text of a scanned QR code (or a pasted string) is, as far as Signet can use it.
