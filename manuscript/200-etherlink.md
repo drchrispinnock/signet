@@ -1,7 +1,7 @@
 {id: ID200-etherlink_1_Etherlink}
 # Etherlink and Tezos X
 
-In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to the main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
+In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to the main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in Rust and compiled to WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
 
 Etherlink is the first official rollup on Tezos and it brings an Ethereum compatible virtual machine to Tezos. This means that you can deploy an Ethereum smart contract on the Etherlink rollup without modification. Now Tezos smart contracts (written in a language called Michelson) can be deployed in the rollup and they can interact with the EVM contracts.
 
@@ -35,7 +35,6 @@ Then you can see that your 10tz has moved between the networks. The call to the 
 ![](200/balances.png)
 Back on the bridge menu, we can reverse the direction of bridging by clicking the arrow in the middle. This is to bridge funds from Etherlink back to Tezos. At the time of writing, it's early days for this bridge. It doesn't work for Michelson addresses but it will soon. When it does, there will be two methods: Fast and Slow. The Slow method returns your funds in approximately 15 days.  The Fast method returns your funds within a minute but is subject to a fee.
 ![](200/bridgeback.png)
-<!--  Fix Signet and fix this paragraph XXX -->
 
 The delay for the Slow method is due to the smart rollup refutation period of 14 days. As with all smart rollups, the operator nodes post commitments about their state to the layer 1 blockchain. During this time, the other operators can challenge those commitments.
 
@@ -51,8 +50,6 @@ To receive on Etherlink, you can use your `tz1`, `tz2` or `tz3` address.
 
 {id: ID200-etherlink_2_EVM}
 ## EVM Address and Receiving Funds
-
-<!-- XXX this has changed in Etherlink 8.0. We need to reenable it -->
 
 Now on Etherlink, there are Ethereum-style addresses as well as Tezos addresses. For each Tezos address, there is a derived Ethereum-style address beginning with 0x. To find your 0x address, click the Receive button and choose Etherlink.
 
@@ -78,7 +75,7 @@ If you are a baker, you can use Signet to vote in the Etherlink Governance proce
 
 The processes have a proposal period and a promotion period. In the proposal period, proposals are made and upvoted like in the layer 1 governance process. In the promotion period, the bakers vote `Yea`, `Nay` and `Pass` (or abstain).
 
-To vote, go to the `Governance` menu (which will only be there if your account is a baker), then click the `Etherlink` tab.
+To vote, go to the `Governance...` menu (which will only be there if your account is a baker), then click the `Etherlink` tab.
 We are going to show you a vote in the recent Etherlink 7.3 fast security upgrade. Captain Stake upvoted the proposal  that was already proposed. Signet found this proposal and he clicked the `Upvote` button. 
 
 ![](200/ethgov/upvote.png)

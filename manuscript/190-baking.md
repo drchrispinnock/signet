@@ -19,19 +19,19 @@ Using a consensus key allows you to manage the baking key away from the baking e
 {id: ID190-baking_2_Registerin}
 ## Registering as a Baker
 
-Only follow this section if you intend to use your key for baking. Once you register as a baker, you cannot unregister. One consequence of this is that you cannot delegate or stake to another baker ever again. We will assume that you have imported your master baking key in Signet. In the tutorial below, we are going to do everything on the *Ushuaianet* test network, but it works on all other networks.
+Only follow this section if you intend to use your key for baking. Once you register as a baker, you cannot unregister. One consequence of this is that you cannot delegate or stake to another baker ever again. We will assume that you have imported your master baking key in Signet. In the tutorial below, we are going to do most things on the *Ushuaianet* test network, but it works on all other networks. 
 
 Select the key and go to `Baking...` on the burger menu.
 
 ![](190/delegate.png)
 
-Click `Register as Baker`.
+Click `Register as a Baker`.
 
 ![](190/delegate2.png)
 
 There is a small fee to pay, which you can confirm and then your key is registered as a baker. You will need to stake some tez. You need a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz [baking power](https://octez.tezos.com/docs/alpha/baking_power.html) including external delegators. Also, the baker must stake at least <!-- MARKUPTAG minstake-->600<!-- ENDMARKUPTAG -->tz. You can do this in exactly the same way as you learnt in the [Delegating and Staking](#delegating) chapter. If you are starting out on your own without any external stakers, a straightforward approach is to stake a minimum of <!-- MARKUPTAG minfrozen-->6000<!-- ENDMARKUPTAG -->tz or <!-- MARKUPTAG stakepercent-->10%<!-- ENDMARKUPTAG --> of your total balance, whichever is higher. 
 
-Go to the `Staking` button and stake whatever you would like.
+Go to the `Stake` button and stake whatever you would like.
 
 You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 9ac4bf2d -->[7]<!-- ENDMARKUPBIBTAG -->.
 
@@ -105,7 +105,7 @@ You can change these parameters at any time, but the changes take <!-- MARKUPTAG
 {id: ID190-baking_2_Governance}
 ## Governance
 
-Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#ID100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
+Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#ID100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance...`. The flow detects what period of governance the chain is in and provides the right actions to the bakers. 
 
 Most of the time, a network is in the proposal period.  During the proposal period, bakers can propose new protocols and upvote other proposals. A new protocol proposal is represented by a hash. For Ushuaianet, the hash is:
 
@@ -113,7 +113,7 @@ Most of the time, a network is in the proposal period.  During the proposal peri
 PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
 ```
 
-We can see this here in the governance window. Choose a key that is a baking key and go to `Governance`. Here we are in the proposal period, there are 254 blocks remaining and our voting power is 999999tz:
+We can see this here in the governance window. Choose a key that is a baking key and go to `Governance...`. Here we are in the proposal period, there are 254 blocks remaining and our voting power is 999999tz:
 
 ![](gvn/propose.png)
 (Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.)
@@ -124,7 +124,7 @@ To propose it, paste the protocol hash into the proposal dialogue and upvote it.
 Here I select the only proposal and click `Upvote` to add my baker's vote to it. We can return to the screen any time to see the progress. Here we have 39.95% of the voting power supporting the proposal:
 
 ![](gvn/2-proposal-162togo.png)
-Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for or against the proposal, or vote pass. There needs to be a quorum and a supermajority of over 80% calculated with Yea/(Yea + Nay). Pass votes contribute to the quorum but not the supermajority. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
+Now it turns out that enough bakers upvoted the proposal. The next stage of the governance process is Exploration. During this phase, bakers vote for or against the proposal, or vote pass. There needs to be a quorum and a supermajority of 80% calculated with Yay/(Yay + Nay). Pass votes contribute to the quorum but not the supermajority. Bakers decide on the proposal by testing it on a test network, reading the documentation at Tezos Agora and doing their own checks. Remember that the protocol keeps an exponential moving average of participation in the voting processes and adjusts the quorum as appropriate.
 
 Here we are in the Exploration period:
 

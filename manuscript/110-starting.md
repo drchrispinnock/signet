@@ -27,18 +27,17 @@ On the first run, you will get this message because it is a stand-alone applicat
 
 ![](110/warning.png)
 
-<!-- XXX we need a way of providing some certainty on this XXX XXX GPG signing XXX -->
-Click Open and continue.
+Click `Open` and continue.
 
 {id: ID110-starting_3_Windows}
 ### Windows
 
-<!-- XXX Windows download -->
-*At the time of writing the Windows distribution is not signed and so downloading it requires the user to "Keep" the download. This will hopefully be fixed in November 2026. Some screenshots will be added.*
 
-The Windows version is written in C# and was ported from the Mac version by Claude.
+The Windows version is written in C# and was ported from the Mac version by Claude. Claude and I chose C# over Swift. At the moment, Swift can build Windows applications, including GUI apps, but the tooling, especially for user interfaces, is still immature. Maybe in the future, we will rewrite the Windows version in Swift to help unify the three platforms.
 
-To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file and run it. Signet will install. It will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
+To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file. Windows may warn you that the `exe` file isn't commonly downloaded. If it does, click the three dots and choose `Keep`. The next window will show you that the file is signed by me. Change the `Delete` button to `Keep anyway`. Then click `Open file` and the installer will run.
+
+Signet will install and Windows will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
 
 {id: ID110-starting_3_Linux}
 ### Linux
@@ -56,6 +55,7 @@ In the commands, `$` is the command prompt and the backslash shows a split line.
 ```
 $ su -
 Password: (enter the root password)
+# apt update
 # apt install -y sudo
 ```
 
@@ -99,7 +99,6 @@ $ sudo apt install -y signet-gtk
 ```
 
 You can then run Signet. It depends on your desktop environment but on most of them you can run an application by pressing `ALT+F2`. For example, press `ALT+F2` and type `signet-gtk` to run Signet. Some desktop environments have an application menu or launcher that you can search for Signet and then run it.
-<!-- XXX need to fix this -->
 
 ![](110/ApplicationFinder.png)
 
@@ -128,7 +127,7 @@ The key you have made is generated on your machine and stored there too. We have
 
 The name "My Account" is local and is your alias for the account. No-one else will know this name, unless you tell them of course. It isn't stored on the blockchain. 
 
-There are three other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The import account option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
+There are four other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The `Import an existing account` option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
 
 ![](110/secret.png)
 
@@ -136,7 +135,9 @@ Alternatively if you have a recovery phrase, you can use the Recovery phrase tab
 
 ![](110/recovery.png)
 
-If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect Ledger...` option.
+If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect a Ledger...` option.
+
+If you have a QR code representing your account, you can use the `Import from QR code` method to restore your key. Signet can print a recovery sheet of your account details and you can use this to restore the account.
 
 Finally, if you happen to have used the command-line wallet `octez-client`, Signet will detect its wallet directory and offer you the option to import it. This option does not appear if the directory is not detected. As it happens, Signet's wallet directory is compatible with `octez-client`'s.
 

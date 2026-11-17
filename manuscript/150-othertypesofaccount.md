@@ -6,7 +6,7 @@ So far we have created a `tz1` key and used it for our transactions. There are o
 {id: ID150-othertypesofaccount_2_Key_2}
 ## Key and Account Generation
 
-When we started Signet, we created an account on Tezos and we created an account using the `tz1` key type. This is sufficient for most purposes, but there are other key types and other ways to get keys into Signet. You can create a new account at any time with `Create Account`. You can choose between five key types which we cover in the next section.
+When we started Signet, we created an account on Tezos and we created an account using the `tz1` key type. This is sufficient for most purposes, but there are other key types and other ways to get keys into Signet. You can create a new account at any time with `Create account...`. You can choose between five key types which we cover in the next section.
 
 ![](150/keytypes.png)
 
@@ -23,7 +23,7 @@ There are some things you cannot do if your public key is not revealed. These wi
 
 There are currently 6 types of keys on Tezos. You can tell which key you are using by its public key hash which begins with `tz`. Each key type uses a different signing scheme. You don't have to understand the different key types to use Tezos, just be aware that there are different key types and they sometimes have different uses. As a beginner to Tezos, you can use the `tz1` key type. You can safely skip this section if you want.
 
-When you use `Create Account` on Signet, you are really generating a cryptographic key pair - a secret key (also called a private key) and a public key using a signing scheme. A *signing scheme* is the key generation algorithm together with a signing algorithm and a signature verifying algorithm. The signing algorithm is used on a blockchain to sign operations with the secret key and the signature verifying algorithm is used to check them with the public key. 
+When you use `Create account...` on Signet, you are really generating a cryptographic key pair - a secret key (also called a private key) and a public key using a signing scheme. A *signing scheme* is the key generation algorithm together with a signing algorithm and a signature verifying algorithm. The signing algorithm is used on a blockchain to sign operations with the secret key and the signature verifying algorithm is used to check them with the public key. 
 
 The secret key is chosen at random out of all possible secret keys. The number of possibilities is so huge that it is very unlikely for two people to generate the same secret key. The public key is converted into a common format (it is hashed) and becomes your Tezos address starting with `tz`. By doing this, there is a consistent key format across the different types of key. Also it allows the public key to be kept private until it is needed. The secret key is stored in the file `secret_keys` in your Signet wallet directory, the public key is stored in `public_keys` and the public key hash is stored in `public_key_hashs`. 
 
@@ -107,7 +107,7 @@ A [Ledger](https://www.ledger.com) is a hardware security module that holds cryp
 
 To use a Ledger with Tezos, you need to run through the installation process with [Ledger Wallet](https://shop.ledger.com/pages/ledger-wallet-download) (formerly Ledger Live) and install the Tezos Wallet application from the Ledger app store. Once you have this, you can use the Ledger with Signet.
 
-Plug the Ledger into your computer, open Signet and choose `Connect Ledger`. Signet will complain if it cannot find a Ledger. If it is plugged in and Signet can't find it, it is likely that you are not running the Tezos Wallet application.
+Plug the Ledger into your computer, open Signet and choose `Connect Ledger...`. Signet will complain if it cannot find a Ledger. If it is plugged in and Signet can't find it, it is likely that you are not running the Tezos Wallet application.
 
 ![](150/ledger.png) 
 
@@ -122,7 +122,7 @@ You can export your secret keys from Signet at any time. The easiest way to back
 ![](150/export.png)
 To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet, has access to your keys.
 ![](150/recovery.png)
-You can import a key from a recovery sheet into Signet by using the `Scan QR code` feature from the burger memory.
+You can import a key from a recovery sheet into Signet by using the `Scan QR code...` on the burger menu.
 
 In addition to the Recovery Sheet feature, Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
 
@@ -144,7 +144,7 @@ For larger sums of money, you could shard your key with a scheme such as [Shamir
 {id: ID150-othertypesofaccount_2_Forgetting}
 ## Forgetting Keys
 
-To remove a key from Signet, you can forget it. Choose the account, then choose `Forget account` from the burger menu.
+To remove a key from Signet, you can forget it. Choose the account, then choose `Forget account...` from the burger menu.
 
 ![](150/forget1.png)
 

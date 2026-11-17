@@ -3,7 +3,7 @@
 
 A *multisig account* is one where more than one person or entity needs to sign the transaction. The set of signatories is called a *committee*. The whole *committee* doesn't need to sign the transactions necessarily. When one sets up the multisig account, one can choose how many of the committee sign.
 
-On Tezos, there are two multisig account features. The first works by deploying a smart contract holding the balance of the account, with the code implementing the signing committee. Signet uses the same multisig contract scheme as `octez-client`, with a graphical user interface. There is a native multisig account using `tz4` keys. Currently, Signet doesn't implement this.
+On Tezos, there are two multisig account features. The first works by deploying a smart contract holding the balance of the account, with the code implementing the signing committee. Signet uses the same multisig contract scheme as `octez-client`, with a graphical user interface. There is also a native multisig feature using `tz4` keys. Currently, Signet doesn't implement this.
 
 The functions available in Signet are:
 
@@ -82,7 +82,7 @@ Once all the necessary parties have signed the transaction, it can be submitted 
 
 ![](180/submit.png)
 
-Alice chooses the transaction that Signet has remembered for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add Signatures`. She then clicks `Submit`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
+Alice chooses the transaction that Signet has remembered for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add signatures`. She then clicks `Submit`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
 
 Note also that Alice can `Discard proposal`. This is used to delete the record of the multisig transaction if it is no longer needed.
 
@@ -93,7 +93,7 @@ We can see the transaction, in this case in Bob's Signet view:
 {id: ID180-multisig_2_Delegating}
 ## Delegating
 
-You can delegate smart contracts to bakers on Tezos. The `Sign multisig transaction` feature can be used to sign the transactions to set the delegate (i.e. the baker) or remove it. As with delegating from normal accounts, you need to have an agreement directly with the baker to receive any rewards for your delegation. To set the delegate, choose the tab in the dialogue `Set delegate`, paste in a baker address and click `Sign`. You will get a signature string as with a transfer transaction.
+You can delegate smart contracts to bakers on Tezos. The `Sign multisig transaction...` feature can be used to sign the transactions to set the delegate (i.e. the baker) or remove it. As with delegating from normal accounts, you need to have an agreement directly with the baker to receive any rewards for your delegation. To set the delegate, choose the tab in the dialogue `Set delegate`, paste in a baker address and click `Sign`. You will get a signature string as with a transfer transaction.
 
 ![](180/setdelegate.png)
 

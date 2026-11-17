@@ -1,7 +1,7 @@
 {id: ID170-dapps_1_Distribute}
 # Decentralised Apps
 
-*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will play [TezInvaders](https://tezinvaders.xyz), a game that stores the high score on the Tezos chain. We will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art. We will mint an NFT at the art site [Teia](https://teia.art). We will buy a Tezos domain at [Tezos Domains](https://tezos.domains). These are handy names to make it easier to remember addresses on the Tezos network. We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {id: ID170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -10,14 +10,13 @@ Signet uses [Octez Connect](https://octez-connect.tezos.com) (formerly called Be
 
 ![](170/signet-in-beacon.png)
 
-<!-- Waiting -->
 In this case, Signet is in the list at the bottom right. You can click Signet and it will communicate with the desktop app to log into the dApp.
 
 However, some dApps do not yet have Signet on their wallet lists. You can still connect to these sites if they will give you a QR code for the connection. Select `Show QR Code`, then `Octez Connect` if necessary, then there will be a barcode on the screen. You can copy the value to the clipboard.
 
 Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
 
-Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection.
+Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection. Some dApps still have an older wallet list, so you'll need to use a pairing code.
 
 {id: ID170-dapps_2_TezInvader}
 ## TezInvaders
@@ -211,7 +210,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ![](170/3route.png)
 
-To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps...` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)
