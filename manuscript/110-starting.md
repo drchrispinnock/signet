@@ -1,5 +1,5 @@
 {id: ID110-starting_1_Getting, sample: true}
-# Getting started
+# Getting Started
 
 {id: ID110-starting_2_Installati}
 ## Installation
@@ -47,15 +47,27 @@ The Linux version is written in [Swift](https://www.swift.org) using the code fr
 
 The easiest Linux platform to install Signet on is Debian Linux 13 on an Intel/AMD processor because there are pre-built packages in an APT repository. However, on the [release page](https://github.com/drchrispinnock/signet-gtk) there are other packages and more formats will be supported in the future. To use Signet on Debian Linux 13, you'll need to be running a graphical desktop environment. You can, of course, run the application and display it on another machine using X11 forwarding, but this is beyond the scope of the book. We'll assume that you are running on the desktop directly and that you have an account with enough access to install software. We will use `sudo` to do this.
 
-To install Signet on Linux, follow the instructions at [apt.signetwallet.org](https://apt.signetwallet.org). We will add the APT repository to our system and then install the packages from it. Open the Terminal application and type the commands below. On the default Debian Linux installation, the terminal application can be found in the dock at the bottom of the screen. It's the icon with the symbols `>_`.
+To install Signet on Linux, follow the instructions at [apt.signetwallet.org](https://apt.signetwallet.org). We will add the APT repository to our system and then install the packages from it. Open the Terminal application and type the commands below. On Debian Linux installation, the terminal application can be found in different places depending on the desktop environment. For example, on Xfce it can be found in the applications menu. Sometimes it can be found in the dock at the bottom of the screen. It's the icon with the symbols `>_`.
 
 ![](110/TerminalLinux.png)
 
-In the commands, `$` is the command prompt and the backslash shows a split line.
+In the commands, `$` is the command prompt and the backslash shows a split line. We assume that you will use `sudo`. If it is not installed, you will need to install it as root:
+
+```
+$ su -
+Password: (enter the root password)
+# apt install -y sudo
+```
+
+Then edit `/etc/group` and add your user account to the `sudo` group. Then log out and in again on the machine.
+
+To install Signet:
 
 1. Import the signing key for the APT repository:
 
 ```
+$ sudo apt update
+$ sudo apt install -y curl gpg
 $ sudo install -d -m 0755 /etc/apt/keyrings
 $ curl -fsSL "https://apt.signetwallet.org/keys/signet.asc" | \
     sudo gpg --dearmor -o /etc/apt/keyrings/signet.gpg
@@ -86,7 +98,8 @@ $ sudo apt update
 $ sudo apt install -y signet-gtk
 ```
 
-You can then run Signet from the Application finder (the icon with the magnifying glass). Search for Signet and run it there:
+You can then run Signet from the Application finder XXX (the icon with the magnifying glass). Search for Signet and run it there:
+<!-- XXX need to fix this -->
 
 ![](110/ApplicationFinder.png)
 
@@ -97,7 +110,7 @@ $ signet-gtk
 ```
 
 {id: ID110-starting_2_Running}
-## Running Signet for the first time
+## Running Signet for the First Time
 
 Throughout the rest of the book, we will be using the Mac version of Signet. The screens are very similar on the Windows and Linux versions.
 
@@ -109,7 +122,7 @@ Next you will be given some options to set up an account for use on the Tezos ne
 
 ![](110/coldstart.png)
 
-To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
+To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key pair - a public key and a private key - suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
 ![](110/create.png)
 The key you have made is generated on your machine and stored there too. We haven't introduced it to the network yet. Later we will fund the account, either from an exchange on *Mainnet* or from a *faucet* on a test network. When we start to do things on the blockchain, we will *reveal* our public key to it. At no point will our secret key be stored on the blockchain.
 
@@ -128,7 +141,7 @@ If your key is already set up on a Ledger with the Tezos Wallet application inst
 Finally, if you happen to have used the command-line wallet `octez-client`, Signet will detect its wallet directory and offer you the option to import it. This option does not appear if the directory is not detected. As it happens, Signet's wallet directory is compatible with `octez-client`'s.
 
 {id: ID110-starting_2_Key}
-## Key hygiene
+## Key Hygiene
 
 If you lose your keys, you lose your funds. If someone gets your keys, they have your funds. There are two rules for beginners:
 
@@ -138,7 +151,7 @@ On the production network *Mainnet*, your tez coins are valuable. Back up your k
 
 ![](110/export.png)
 
-You can press the view button to look at it and write it down. Or you can use the copy facility to copy and paste it somewhere. The best way to back this up is to write it down on paper. Keep two copies in two different safe places. We will go into more detail on key storage later on. But please do this step before you do anything involving real-world value.
+As a beginner, the best way to back up your key is to use the `Recovery Sheet...` button and print two copies. Store each copy in different offline places such as a safe or a vault. We will go into more detail on key storage later on. But please do this step before you do anything involving real-world value.
 
 2\. Don't get too attached to your account.
 
@@ -182,7 +195,7 @@ tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N
 This should resolve as Captain Stake. Signet looks up addresses on the block explorer and suggests names for them for your address book. You'll then be able to see the same screens as above by switching to the account. Note that this is just an address book entry - you have his public key hash but you don't have his secret key.
 
 {id: ID110-starting_2_Getting}
-## Getting your first tez
+## Getting Your First tez
 
 In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pelerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
 
@@ -221,7 +234,7 @@ Now I could improve this piece of Signet and in fact Transak will allow wallets 
 Please make sure that you record all your cryptoasset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
 
 {id: ID110-starting_2_Getting_2}
-## Getting tez on a test network
+## Getting tez on a Test Network
 
 If you don't want to spend any money at this stage, you can always use a test network. When you switch to a test network in Signet, the Buy button becomes a Get button. A test network usually has a *faucet* that gives out tez to participants. As the tez don't have real-world value, this is possible. Signet is integrated with the faucets on the test networks.
 
@@ -236,7 +249,7 @@ After a minute or two, you will have some tez in your account.
 Now that you have some tez coins, you can truly use the Tezos blockchain. You can work through the book on *Shadownet*, or with care on *Mainnet*. Remember that there is no central body to help you if you make a mistake, so double-check everything before you make a transaction. Measure twice, cut once.
 
 {id: ID110-starting_2_Keeping}
-## Keeping up to date
+## Keeping Up to Date
 
 On the Mac and Windows platforms, Signet can check for updates and download them. On the Mac, go to the Signet menu and choose `Check for Updates...`. On Windows, you'll find it on the burger menu.
 

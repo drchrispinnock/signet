@@ -9,10 +9,8 @@ Tezos X is the strategic target architecture of Tezos and a potential outcome is
 
 On Etherlink, you can have Ethereum-style addresses beginning with 0x and Tezos-style addresses `tz1`, `tz2` and `tz3`. If you have one of these Tezos accounts already, you can use your address on the rollup. There are other ways of getting addresses on Etherlink, but for now this is the only method that Signet supports. One thing to be aware of is that to use your funds on Etherlink, you have to bridge them from the main Tezos chain.
 
- At the moment, Signet doesn't support dApps on Etherlink, but it will in the future. It supports bridging funds to Etherlink and establishing your EVM address from your Tezos address.
-
 {id: ID200-etherlink_2_Setting}
-## Setting up Signet to use Etherlink
+## Setting Up Signet to Use Etherlink
 
 To use Signet on Etherlink, first you must enable layer 2 for the network. Go to the `Networks...` menu and enable it. There are Etherlink rollups on *Mainnet* and *Shadownet.* We will do everything on *Shadownet* in this chapter.
 
@@ -24,7 +22,7 @@ Once you've enabled Layer 2, when you return to the main screen, you will have a
 
 ![](200/balance.png)
 {id: ID200-etherlink_2_Bridging}
-## Bridging funds between Tezos and Etherlink
+## Bridging Funds between Tezos and Etherlink
 
 To move some funds between Tezos and Etherlink is easy and there is a bridge for it. To make it convenient, Signet knows about the bridges on *Mainnet* and *Shadownet.* To bridge funds, choose the account you want to work in and choose `Bridge...` from the burger menu. 
 
@@ -42,7 +40,7 @@ Back on the bridge menu, we can reverse the direction of bridging by clicking th
 The delay for the Slow method is due to the smart rollup refutation period of 14 days. As with all smart rollups, the operator nodes post commitments about their state to the layer 1 blockchain. During this time, the other operators can challenge those commitments.
 
 {id: ID200-etherlink_2_Sending}
-## Sending and Receiving funds
+## Sending and Receiving Funds
 
 Sending and receiving funds on the Etherlink network with Tezos addresses is done in Signet in exactly the same way as for the normal Tezos network. Now that we have enabled layer 2, the Send and Receive dialogues have another option to pick the network. You can select Tezos or Etherlink.
 
@@ -97,7 +95,7 @@ He clicked the `Yea` voting button and then confirmed the vote:
 
 ![](200/ethgov/promotion2.png)
 
-Finally, the vote was confirmed on the Etherlink chain.
+Finally, the vote was confirmed on the Tezos layer 1 blockchain.
 
 ![](200/ethgov/yea.png)
 

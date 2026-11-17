@@ -34,13 +34,15 @@
 
 [12] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
 
-[13] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
+[13] Peter Kent and Tyler Bain, *Bitcoin For Dummies*, For Dummies, 2022.
 
-[14] Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+[14] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
-[15] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+[15] Andreas M. Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
-[16] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
+[16] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+
+[17] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->

@@ -18,7 +18,7 @@ Note that to stake, you can only stake with your delegated baker. So staking and
 In this chapter we look at choosing a baker, delegating with them and staking with them.
 
 {id: ID160-delegatingstaking_2_Choosing}
-## Choosing a baker
+## Choosing a Baker
 
 Choosing a baker is a matter of personal preference. We've tried to make the process easier with Signet, but you need to do a bit of research to choose a baker. There are at least two places to go to find possible bakers. Firstly, TzKT maintains a list of [public bakers](https://tzkt.io/bakers/).
 
@@ -83,7 +83,7 @@ If you want to stake more, you can go back at any time and stake the extra tez.
 
 
 {id: ID160-delegatingstaking_2_Unstaking}
-## Unstaking and finalising
+## Unstaking and Finalising
 
 If you want to unstake your funds, you can do so at any time, but you will have to wait <!-- MARKUPTAG unstake-->3<!-- ENDMARKUPTAG --> cycles plus the remainder of the current cycle (between 3 and <!-- MARKUPTAG unstakedays-->4<!-- ENDMARKUPTAG --> days on *Mainnet*) before you can get them. I'm going to unstake everything that I have with Captain Stake, but you can unstake any amount and leave the rest staked. Go to the `Stake` menu, click `Unstake` and choose the amount. I am going to choose `Max`, then `Continue`. Then I check the fee and confirm the transaction.
 

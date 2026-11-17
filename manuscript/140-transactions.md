@@ -51,7 +51,9 @@ There is a final confirmation window. We click `Confirm and Send`. And the trans
 ![](140/confirmed.png)
 We can click the `View in explorer` link and look at the transaction on the block explorer. I'd recommend that you try this on your own when you make a transaction. The long string beginning `oo` is the operation hash, used to identify the operation on the blockchain.
 
-It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. But you can try the transaction again in such circumstances.
+It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. XXX But you can try the transaction again in such circumstances. XXX
+
+<!-- XXX “But you can try the transaction again in such circumstances.” — Add an explicit check of the original operation’s status before instructing readers to retry. A delayed or missing confirmation is not proof of failure; explain that readers should check the operation hash and account history to avoid making a second payment after the first succeeds. --->
 
 Let's pop back to the address window again. Let's enter the following address into the `Send` dialogue:
 
@@ -74,7 +76,7 @@ And we can send to it in the same way:
 ![](140/usetezaddr.png)
 
 {id: ID140-transactions_2_Making}
-## Making large transactions
+## Making Large Transactions
 
 As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. (By the way, that includes the addresses in this book which are provided for example only.) It's a good idea to add commonly used addresses to the address book.
 

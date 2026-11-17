@@ -17,7 +17,7 @@ Using a consensus key allows you to manage the baking key away from the baking e
 
 
 {id: ID190-baking_2_Registerin}
-## Registering as a baker
+## Registering as a Baker
 
 Only follow this section if you intend to use your key for baking. Once you register as a baker, you cannot unregister. One consequence of this is that you cannot delegate or stake to another baker ever again. We will assume that you have imported your master baking key in Signet. In the tutorial below, we are going to do everything on the *Ushuaianet* test network, but it works on all other networks.
 
@@ -36,7 +36,7 @@ Go to the `Staking` button and stake whatever you would like.
 You now need to set up your baker if you haven't already, as soon as possible so that it will bake when you get rights. If you are not going to use a consensus key, you'll need to export the secret key and use it on the baker. There are several ways to secure your key in a baking environment, such as using a remote signer. This is beyond the scope of this book, but you can look at my other book on Tezos Infrastructure <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG --> or my quick start guide <!-- MARKUPBIBTAG 9ac4bf2d -->[7]<!-- ENDMARKUPBIBTAG -->.
 
 {id: ID190-baking_2_Consensus}
-## Consensus and Companion keys
+## Consensus and Companion Keys
 
 Now that you have a baking key, you can set your consensus and companion keys. If you are using `tz4` for your consensus key and you are using DAL, then you'll need a `tz4` companion key. We will assume that you are using `tz4` keys because it is currently the best practice for the Tezos network.
 
@@ -75,7 +75,7 @@ $ octez-client create bls proof for Clyde
 BLsig9efYbCxYMiVxuvAWBprtrr1U8mFWzfjaWk9iUyucYuzNuWXmo67y6gmUmKHbq7etoDLtMWCAJ9ioZ4b46pEmM2e7bhwvdcw7dwfoHgbrGdUEPkVE52iPVfwA9yecEtMCz5mW2oQe8
 ```
 
-Now we can set the Consensus and Companion keys by pasting the public addresses and proofs into Signet. We'll do Consensus here, but Companion is exactly the same:
+Now we can set the Consensus and Companion keys by pasting the public keys and proofs into Signet. We'll do Consensus here, but Companion is exactly the same:
 
 ![](190/consensus.png)
 
@@ -93,7 +93,7 @@ Anyway, now you have set the consensus and companion key for your baker and we c
 
 
 {id: ID190-baking_2_Staking}
-## Staking parameters
+## Staking Parameters
 
 Now go back to the `Baking...` menu and scroll to the bottom of it.
 
@@ -154,7 +154,7 @@ If you are a baker and you are having trouble figuring out how to vote in a gove
 
 
 {id: ID190-baking_2_Baking}
-## Baking Key considerations
+## Baking Key Considerations
 
 Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or double attest - that is bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.
 

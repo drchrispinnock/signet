@@ -1,11 +1,11 @@
 {backmatter}
 {id: ID910-apx-ownnode_1_Running, sample: true}
-# Appendix - Running your own node
+# Appendix: Running Your Own Node
 
 {id: ID910-apx-ownnode_2_Running}
-## Running nodes
+## Running Nodes
 
-You can connect to any Tezos node from Signet. We will cover running a node on your machine and running it on a server on your home network. The Octez suite contains `octez-node`, the node and we will show you how to install that. You'll need at least 16GB of RAM for it to be comfortable, so if it is something you think you'll need permanently, you should consider a dedicated machine for it.
+You can connect to any Tezos node from Signet. We will cover running a node on your machine and running it on a server on your home network. The Octez suite contains `octez-node`, the node software, and we will show you how to install that. You'll need at least 16GB of RAM for it to be comfortable, so if it is something you think you'll need permanently, you should consider a dedicated machine for it.
 
 In the case of running the node on the same machine as Signet, the node address will be `http://localhost:8732`. For the server, on your home network, you'll need the IP address. For example, if it is 192.168.1.140, the node address will be `http://192.168.1.140:8732`.
 
@@ -15,7 +15,7 @@ In Signet, go to the `Networks...` page and choose `Custom`. Fill out the node a
 By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings for *Mainnet*.
 
 {id: ID910-apx-ownnode_2_Running_2}
-## Running directly on a Mac
+## Running Directly on a Mac
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to install packages using Homebrew. If you don't have Homebrew installed, please refer to the instructions at [brew.sh](https://brew.sh). Open the Terminal application and run:
 
@@ -33,7 +33,7 @@ $ brew trust drchrispinnock/octez
 $ brew install octez-client octez-node
 ```
 
-The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Once you have it installed, open the `Terminal` application and configure the node
+The other way to do it is to build Octez from source. This is beyond the scope of this book, but you can find details at the [Octez documentation site](https://octez.tezos.com/docs/introduction/howtobuild.html) and also in <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Once you have installed it, configure the node:
 
 ```
 $ octez-node config init --network=mainnet \
@@ -50,7 +50,7 @@ $ octez-node snapshot import rolling
 $ rm -f rolling
 ```
 
-Then you can run the node in the terminal and see the progress there. Then connect Signet to the node as above.
+Then you can run the node in the terminal and see the progress there.
 
 ```
 $ octez-node run
@@ -74,12 +74,22 @@ You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez softw
 
 If you are using Linux on the desktop or have a Linux machine on your home network, you can set up a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications.
 
+We will use the `sudo` command. If you don't have `sudo` access, you can install as the `root` user. Use `visudo` to add your account to the list of allowed users.
+
+```
+$ su -
+Password: (enter the root password)
+# apt install -y sudo
+# visudo
+# exit
+```
+
 For Debian Linux 13, you can install the release version of `octez-node`, the node, as follows:
 
 As a user with `sudo` access:
 
 ```
-$ sudo apt install extrepo wget
+$ sudo apt install -y extrepo wget
 $ sudo extrepo enable tzinit
 $ sudo apt update
 $ sudo apt install -y octez-node
@@ -96,7 +106,7 @@ $ octez-node config init --network=mainnet \
 	--allow-all-rpc="0.0.0.0"
 ```
 
-This will set up a node that you can do everything with. This is fine if you are running a node on a private home network, but if it will be directly on the internet, you should protect it with a firewall or consider removing the `--allow-all-rpc` which allows operations that might cause your node to use a lot of resources.
+This will set up a node that you can do everything with. This is fine if you are running a node on a private home network where you control all the devices, but if it will be directly on the internet or a shared network, you should protect it with a firewall or consider removing the `--allow-all-rpc` which allows operations that might cause your node to use a lot of resources.
 
 As with the method for the Mac above, you can import a backup called a snapshot.
 
@@ -124,16 +134,16 @@ eno1             UP             192.168.1.140/24
 ```
 
 {id: ID910-apx-ownnode_2_Running_5}
-## Running on a Windows machine
+## Running on a Windows Machine
 
 Running a node on a Windows system is possible using Windows Subsystem for Linux. You can find details at <!-- MARKUPBIBTAG eaa71d7e -->[9]<!-- ENDMARKUPBIBTAG --> or in my infrastructure book <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Alternatively, I have vibe coded a tool to help you called [OctezDesk](https://github.com/drchrispinnock/octezdesk). This will install the software and set up the node for you.
 
 {id: ID910-apx-ownnode_2_Running_4}
-## Running nodes on test networks
+## Running Nodes on Test Networks
 
 If you want to run a node on a different network to *Mainnet*, replace `mainnet` with the values below. For the snapshot, use the link below instead of the one above. For some test networks such as *Weeklynet* and *Quantumnet*, you may need development versions of the software instead of the release.
 
-| Network      | --network=                                                  |
+| Network      | `--network=`                                                |
 | ------------ | ----------------------------------------------------------- |
 | *Shadownet*  | https://teztnets.com/shadownet                              |
 | *Bakingnet*  | https://teztnets.com/bakingnet                              |

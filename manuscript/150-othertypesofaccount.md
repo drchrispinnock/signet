@@ -29,7 +29,7 @@ The secret key is chosen at random out of all possible secret keys. The number o
 
 The secret key, as the name suggests, needs to be kept secret. If someone else gets the key, they have access to your funds and can sign operations with it.
 
-The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both schemes [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - abstract geometric mathematical objects suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
+The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both schemes use [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - abstract geometric mathematical objects suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
 
 | Key type | Type      | Notes                                                                                                                                                                                   | Networks                                                                                                            |
 | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -57,7 +57,7 @@ Also you have the option to keep the key only until Signet quits. I added this f
 I've added this feature to Signet because I want to use keys that I store on paper or a memory stick in a safe. The idea is to keep them off the internet as much as possible. Of course, a better way to do this is with a hardware security module, such as a Ledger.
 
 {id: ID150-othertypesofaccount_2_Importing_2}
-## Importing using a Recovery Phrase
+## Importing Using a Recovery Phrase
 
 On the same Import screen, there is a tab for a recovery phrase (or seed phrase). This allows you to import keys from phrases made from words, usually 12 or 24 words based on [Bitcoin Improvement Proposal BIP39](https://cryptotag.io/bip39-list/). An example is this (please don't use it!):
 
@@ -70,7 +70,7 @@ The words represent a secret number which can be used to derive many cryptograph
 Similar to the secret key import, you can decide to keep the key just for the session in which case Signet will discard it when it exits. You can also encrypt the secret key with a password for storage.
 
 {id: ID150-othertypesofaccount_2_Importing_3}
-## Importing using a Fundraiser Account
+## Importing Using a Fundraiser Account
 
 Signet also supports fundraiser accounts although we doubt there are many of these around that have not been activated. A fundraiser account belongs to someone that participated in the original Tezos fundraiser. Flip the switch for Legacy fundraiser derivation:
 
@@ -92,7 +92,7 @@ The `m` is the master/root private node which is not included in our account ref
 
 | Field         | Definition                                                                                                                             |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| purpose       | Wallet standard - 44 refers to BIP44                                                                             |
+| purpose       | Wallet standard - 44 refers to BIP44                                                                                                   |
 | coin_type     | The coin. 0 is Bitcoin, 60 is Ethereum and 1729 (the [Hardy–Ramanujan number](https://en.wikipedia.org/wiki/Taxicab_number)) is Tezos. |
 | account       | is the account number - you can have multiple accounts starting from 0                                                                 |
 | change        | 0 for receiving addresses and 1 for internal addresses                                                                                 |
@@ -118,15 +118,20 @@ Click `Add` and confirm the operation on your Ledger. Once the Ledger is connect
 {id: ID150-othertypesofaccount_2_Exporting}
 ## Exporting Keys
 
-You can export your secret keys from Signet at any time. Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
-
+You can export your secret keys from Signet at any time. The easiest way to back up your keys as a beginner is to print a recovery sheet. Make sure that you do this on a printer that you trust (e.g. one at home). Some printers have memory and can replay jobs later on. Select the account you want to export and choose `Export secret key...`.
 ![](150/export.png)
+To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet, has access to your keys.
+![](150/recovery.png)
+You can import a key from a recovery sheet into Signet by using the `Scan QR code` feature from the burger memory.
+
+In addition to the Recovery Sheet feature, Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
+
 
 
 {id: ID150-othertypesofaccount_2_Storing}
 ## Storing Keys Offline
 
-The best way to store keys as a backup is to store them on paper. Write down the secret key onto good quality paper using permanent ink that will not fade. Using printers or photocopiers to make copies is not necessarily a good idea. Some photocopiers have a memory and other people can print out previous jobs. Then they have your keys.
+The best way to store keys as a backup is to store them on paper. If you don't want to use the Signet Recovery Sheet feature, you can write down the secret key onto good quality paper using permanent ink that will not fade. Using shared printers or photocopiers to make copies is not necessarily a good idea. Some photocopiers have a memory and other people can print out previous jobs. Then they have your keys.
 
 As a beginner, the best thing to do is to make sure you have at least two offline copies of your key (or recovery phrases). Keep one in a safe place at home and keep another one in a safe place elsewhere (e.g. bank vault).
 
@@ -134,7 +139,7 @@ If you are worried further about offline security, you could split the key. This
 
 If you use a Ledger or another hardware security module to generate the key, you should store the seed materials (such as recovery phrase) in a similar way. You can break it up into shards if you like and store it in multiple locations.
 
-For larger sums of money, you could shard your key with a scheme such as [Shamir's Secret Sharing Scheme](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing) which is used to distribute private information among a group of people. But for a beginner, you should just worry about baking your key up. If you decide to invest more in cryptocurrency, then you should look at better measures.
+For larger sums of money, you could shard your key with a scheme such as [Shamir's Secret Sharing Scheme](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing) which is used to distribute private information among a group of people. But for a beginner, you should just worry about backing your key up. If you decide to invest more in cryptocurrency, then you should look at better measures.
 
 {id: ID150-othertypesofaccount_2_Forgetting}
 ## Forgetting Keys

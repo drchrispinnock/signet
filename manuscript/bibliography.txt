@@ -7,13 +7,14 @@ L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://te
 4efd851c|Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, In Preparation.
 9ac4bf2d|Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
 6d7f2a11|Chris Pinnock, [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html).
-Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
+eaa71d7e|Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
 SEC|Signet resources
 [Signet Wallet website](https://signetwallet.org), https://signetwallet.org
 [Signet Videos](https://www.youtube.com/playlist?list=PLaeBlcwTd5PY), https://www.youtube.com/playlist?list=PLaeBlcwTd5PY
 SEC|Other chains
 Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
+Peter Kent and Tyler Bain, *Bitcoin For Dummies*, For Dummies, 2022.
 Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
-Andreas M Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+Andreas M. Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.

@@ -35,7 +35,7 @@ Here is a screenshot from version 0.1 of Signet. The NFT view was done early on 
 
 According to GitHub, I released v0.1 at 20:07 on the 5th October 2026, the same day I started the project. At 20:53 on the same day, I released v0.2 which included a basic address book and the capability to send tez.
 
-When I started working on the Tezos chain in 2021, I used two desktop wallets on the Mac. One of my biggest frustrations with them was logging into dApps. A dApp is essentially a website and the site needs a connection from the desktop wallet to sign operations. This is done with a system called Octez Connect (formerly Beacon). A session is established through the Octez Connect infrastructure so that the dApp can request operations from the wallet. This didn't work very well for me then, and I switched to the browser-based wallet, Temple.
+When I started working on the Tezos chain in 2021, I used two desktop wallets on the Mac. One of my biggest frustrations with them was logging into dApps. These are applications using the blockchain. A dApp usually needs a connection from the desktop wallet to sign operations. This is done with a system called Octez Connect (formerly Beacon). A session is established through the Octez Connect infrastructure so that the dApp can request operations from the wallet. This didn't work very well for me then, and I switched to the browser-based wallet, Temple.
 
 I decided that Signet must have good dApp support, or there was little point in continuing with it. On Tuesday 6th October, I asked Claude to implement dApp support. Claude started work on it, but we didn't finish it. In fact, there was an obstacle getting it to work. On Wednesday, I had other things to do.
 
@@ -56,7 +56,7 @@ According to the GitHub logs, I did 7 releases on that day - versions 0.3, 0.4, 
 - Apple package signing (to avoid errors for other users wanting to run Signet)
 - Ledger Support - using a key from the hardware wallet
 - Buy tez from Mt Pelerin
-- On a test network, Buy becomes Get and integrates directly to the test network faucet.
+- On a test network, Buy becomes Get, which integrates directly with the test network's faucet.
 - Baker key management and governance
 - Import keys, seed phrases, export keys and forget accounts
 - Fix the dApp Octez Connect work
@@ -79,7 +79,7 @@ In the evening, I ran a source code audit with Codex and got Claude to fix the i
 
 I took a break on the Sunday and resumed on Monday 12th. The good thing about using an AI agent is it is essentially like a member of staff. You tell it what you want and you tell it when to come back to you with questions. I haven't turned off Claude's permission prompts yet, because I'm using a machine that I use for other things. But if I had, it would have sped things up even more.
 
-On the same day, I did some further audit with Codex (v0.8.2), added support for session-only keys (which Signet forgets when it quits), added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet worked on the production network *Mainnet* and all the test networks for Tezos.
+On the same day, I carried out a further audit with Codex (v0.8.2), added support for session-only keys (which Signet forgets when it quits), added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet worked on the production network *Mainnet* and all the test networks for Tezos.
 
 Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Ethereum (and on Bitcoin, and on other EVM-based chains). I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
 
@@ -87,7 +87,7 @@ I cannot remember in the timeline when I did this, but I had a call with Thomas 
 
 On Monday 12th at 17:25 I released 0.9 which included support to show the Etherlink balance of the account. Then about 2 hours later, I had bridge integration, so that a user could bridge tez from their layer 1 account to Etherlink. According to GitHub I did a release at 05:35 on Tuesday 13th - this is entirely possible as my sleep patterns were disturbed that week. The release included send and receive of tez between Tezos addresses on the Etherlink rollup. Also I added a switch to hide Etherlink in the wallet.
 
-The Etherlink work was done with about 30 minutes of Thomas's wisdom, a bit of thought on my part to design it and then Claude reading source code and documentation.
+The Etherlink work was done with about 30 minutes of Thomas's wisdom, a bit of thought on my part to design it and then Claude reading source code and documentation. (Note that this work will be redeveloped for Etherlink 8.0.)
 
 There were several other releases that week. Features included:
 

@@ -1,7 +1,7 @@
 {id: ID170-dapps_1_Distribute}
 # Decentralised Apps
 
-*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
 {id: ID170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -32,7 +32,7 @@ Then choose `Open Desktop app` and Signet should connect. Signet will ask you if
 
 ![](170/tezinvsign.png)
 
-Back on the TezInvaders screen, you can now buy a ticket to participate in the round. When you do this, Signet needs to sign the transaction as you are sending 1tz with fees to the dApps.
+Back on the TezInvaders screen, you can now buy a ticket to participate in the round. When you do this, Signet needs to sign the transaction as you are sending 1tz to the dApp and paying transaction fees.
 
 ![](170/tezinv.png)
 
@@ -53,7 +53,7 @@ Let's connect our wallet. On objkt.com, I click `Log In`, then I choose "Log in 
 
 ![](170/objkt-code.png)
 
-In Signet, choose the account you want to buy the NFT from. I'm using a new account with 10tz. Then in the burger menu, choose `dApps...`. Paste the code into the dialogue and click `Pair`.
+In Signet, choose the account you want to buy the NFT with. I'm using a new account with 10tz. Then in the burger menu, choose `dApps...`. Paste the code into the dialogue and click `Pair`.
 
 ![](170/objkt-signet-pair.png)
 
@@ -97,15 +97,13 @@ Let's end the section with some terminology about NFTs.
 
 A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
 
-Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. A lot of NFT art is stored on a distributed file service called the *interplanetary file system (IPFS)*. Availability of the file relies on someone retaining or pinning the file. Some NFT platforms provide pinning, but you can also pin them with a service like [Pinata](https://pinata.cloud).
+Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. A lot of NFT art is stored on a distributed file service called the *InterPlanetary File System (IPFS)*. Availability of the file relies on someone retaining or pinning the file. Some NFT platforms provide pinning, but you can also pin them with a service like [Pinata](https://pinata.cloud).
 
 It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
 NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. Some marketplaces include a rule that pays the creator a share of each sale made through that marketplace. This means the artist gets a cut of every sale of their artwork, despite not owning it.
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
-
-Note also that 
 
 {id: ID170-dapps_2_Minting}
 ## Minting an NFT at Teia
@@ -147,7 +145,7 @@ From the listing you can buy one of these artworks for 1tz.
 {id: ID170-dapps_2_Buying_2}
 ## Buying a Tezos Domain
 
-Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
+Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is to give them my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
 
 First, let's go to the Tezos Domains website https://tezos.domains and see if the domain is available by typing it in the search box.
 
@@ -180,21 +178,21 @@ You can use Tezos domain names in Signet as recipients of transactions.
 One word of caution. You might want to live anonymously on a blockchain. It's difficult to do this actually, but one way to be anonymous is not to have any obvious identifiers on your account. A domain name may hint that an account belongs to you.
 
 {id: ID170-dapps_2_Quipuswap}
-## Quipuswap
+## QuipuSwap
 
 *In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
 
-[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a stablecoin intended to track the US dollar. A USDtz coin is roughly $1. According to the issuer's reserve description, its collateral includes USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
+[QuipuSwap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a stablecoin intended to track the US dollar. A USDtz coin is roughly $1. According to the issuer's reserve description, its collateral includes USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
 
 ![](170/quipuswap.png)
 
-To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
+To swap at QuipuSwap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into QuipuSwap.
 
 <!--
 ![](170/quipuswap-tokens.png)
 -->
 
-Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about $0.30 USDtz in return.)
+Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about 0.30 USDtz, worth approximately $0.30, in return.)
 
 ![](170/quipuswap-usdtzsend.png)
 
@@ -202,7 +200,7 @@ In Signet, I get a notification to sign the operation.
 
 ![](170/quipuswap-sign.png)
 
-And once I've signed, the tez has been swapped for USDtz and I can see it in my assets. I also got some Quipuswap governance tokens whilst I was there.
+And once I've signed, the tez has been swapped for USDtz and I can see it in my assets. I also got some QuipuSwap governance tokens whilst I was there.
 
 ![](170/quipuswap-assets.png)
 
