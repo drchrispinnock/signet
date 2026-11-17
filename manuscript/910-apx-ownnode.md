@@ -1,9 +1,8 @@
 {backmatter}
-{#id: 910-apx-ownnode_1_Running}
-{sample: true}
+{id: ID910-apx-ownnode_1_Running, sample: true}
 # Appendix - Running your own node
 
-{#id: 910-apx-ownnode_2_Running}
+{id: ID910-apx-ownnode_2_Running}
 ## Running nodes
 
 You can connect to any Tezos node from Signet. We will cover running a node on your machine and running it on a server on your home network. The Octez suite contains `octez-node`, the node and we will show you how to install that. You'll need at least 16GB of RAM for it to be comfortable, so if it is something you think you'll need permanently, you should consider a dedicated machine for it.
@@ -15,7 +14,7 @@ In Signet, go to the `Networks...` page and choose `Custom`. Fill out the node a
 ![](910/custom.png)
 By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings for *Mainnet*.
 
-{#id: 910-apx-ownnode_2_Running_2}
+{id: ID910-apx-ownnode_2_Running_2}
 ## Running directly on a Mac
 
 You can run your own node on your Mac and connect Signet to it. You'll need to have enough RAM to support the node and also your other applications. The easiest way to do this is to install packages using Homebrew. If you don't have Homebrew installed, please refer to the instructions at [brew.sh](https://brew.sh). Open the Terminal application and run:
@@ -70,7 +69,7 @@ $ brew services start octez-node
 
 You can get your Mac to use a dedicated user (e.g. tezos) to run the Octez software. For more details see <!-- MARKUPBIBTAG 6d7f2a11 -->[8]<!-- ENDMARKUPBIBTAG --> or <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->.
 
-{#id: 910-apx-ownnode_2_Running_3}
+{id: ID910-apx-ownnode_2_Running_3}
 ## Running on a Linux Desktop or Server
 
 If you are using Linux on the desktop or have a Linux machine on your home network, you can set up a node very easily. The Tezos Foundation provides packages of the Octez software via the [Tzinit project](https://packages.tzinit.org). A rolling node is suitable for most applications.
@@ -124,12 +123,12 @@ lo               UNKNOWN        127.0.0.1/8 ::1/128
 eno1             UP             192.168.1.140/24 
 ```
 
-{#id: 910-apx-ownnode_2_Running_5}
+{id: ID910-apx-ownnode_2_Running_5}
 ## Running on a Windows machine
 
 Running a node on a Windows system is possible using Windows Subsystem for Linux. You can find details at <!-- MARKUPBIBTAG eaa71d7e -->[9]<!-- ENDMARKUPBIBTAG --> or in my infrastructure book <!-- MARKUPBIBTAG 4efd851c -->[6]<!-- ENDMARKUPBIBTAG -->. Alternatively, I have vibe coded a tool to help you called [OctezDesk](https://github.com/drchrispinnock/octezdesk). This will install the software and set up the node for you.
 
-{#id: 910-apx-ownnode_2_Running_4}
+{id: ID910-apx-ownnode_2_Running_4}
 ## Running nodes on test networks
 
 If you want to run a node on a different network to *Mainnet*, replace `mainnet` with the values below. For the snapshot, use the link below instead of the one above. For some test networks such as *Weeklynet* and *Quantumnet*, you may need development versions of the software instead of the release.

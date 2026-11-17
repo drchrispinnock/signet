@@ -1,4 +1,4 @@
-{#id: 200-etherlink_1_Etherlink}
+{id: ID200-etherlink_1_Etherlink}
 # Etherlink and Tezos X
 
 In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to the main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
@@ -11,7 +11,7 @@ On Etherlink, you can have Ethereum-style addresses beginning with 0x and Tezos-
 
  At the moment, Signet doesn't support dApps on Etherlink, but it will in the future. It supports bridging funds to Etherlink and establishing your EVM address from your Tezos address.
 
-{#id: 200-etherlink_2_Setting}
+{id: ID200-etherlink_2_Setting}
 ## Setting up Signet to use Etherlink
 
 To use Signet on Etherlink, first you must enable layer 2 for the network. Go to the `Networks...` menu and enable it. There are Etherlink rollups on *Mainnet* and *Shadownet.* We will do everything on *Shadownet* in this chapter.
@@ -23,7 +23,7 @@ Signet holds a default node entry for each one. You can change it to another nod
 Once you've enabled Layer 2, when you return to the main screen, you will have a balance on the Etherlink network, probably 0tz.
 
 ![](200/balance.png)
-{#id: 200-etherlink_2_Bridging}
+{id: ID200-etherlink_2_Bridging}
 ## Bridging funds between Tezos and Etherlink
 
 To move some funds between Tezos and Etherlink is easy and there is a bridge for it. To make it convenient, Signet knows about the bridges on *Mainnet* and *Shadownet.* To bridge funds, choose the account you want to work in and choose `Bridge...` from the burger menu. 
@@ -41,7 +41,7 @@ Back on the bridge menu, we can reverse the direction of bridging by clicking th
 
 The delay for the Slow method is due to the smart rollup refutation period of 14 days. As with all smart rollups, the operator nodes post commitments about their state to the layer 1 blockchain. During this time, the other operators can challenge those commitments.
 
-{#id: 200-etherlink_2_Sending}
+{id: ID200-etherlink_2_Sending}
 ## Sending and Receiving funds
 
 Sending and receiving funds on the Etherlink network with Tezos addresses is done in Signet in exactly the same way as for the normal Tezos network. Now that we have enabled layer 2, the Send and Receive dialogues have another option to pick the network. You can select Tezos or Etherlink.
@@ -51,7 +51,7 @@ To send on Etherlink, simply pick Etherlink in the drop down and send in exactly
 
 To receive on Etherlink, you can use your `tz1`, `tz2` or `tz3` address.
 
-{#id: 200-etherlink_2_EVM}
+{id: ID200-etherlink_2_EVM}
 ## EVM Address and Receiving Funds
 
 <!-- XXX this has changed in Etherlink 8.0. We need to reenable it -->
@@ -64,16 +64,16 @@ The first time you do this, you will need to pay a small fee to link your Ethere
 ![](200/eth.png)
 Now users on the Etherlink rollup with 0x addresses can send tez to your account using your 0x address. The original Etherlink users had 0x addresses from the start and used Ethereum-compatible wallets. I'm undecided whether to add support for this to Signet.
 
-{#id: 200-etherlink_2_Connecting}
+{id: ID200-etherlink_2_Connecting}
 ## Connecting to Michelson dApps
 
 Signet can connect to Michelson dApps on Etherlink. These are the dApps that have been deployed using the native Tezos smart contract language, Michelson. The connection mechanism is exactly the same as for the native Tezos chain and Signet works out which chain the dApp connection request is on.
 
-We saw [TezInvaders](#170-dapps_2_TezInvader) in the dApps chapter. This dApp has versions on Etherlink as well as the native Tezos chain. In fact, TezInvaders was designed to help with Signet development. On either *Mainnet* or *Shadownet*, you can play TezInvaders and participate in the competitions on layer 2, by clicking the layer 2 button `L2`. Then connect your wallet and play as normal.
+We saw [TezInvaders](#ID170-dapps_2_TezInvader) in the dApps chapter. This dApp has versions on Etherlink as well as the native Tezos chain. In fact, TezInvaders was designed to help with Signet development. On either *Mainnet* or *Shadownet*, you can play TezInvaders and participate in the competitions on layer 2, by clicking the layer 2 button `L2`. Then connect your wallet and play as normal.
 
 There will be more applications appearing on Etherlink soon. Work is being done to allow Tezos addresses to use EVM dApps as well. Once the support is in Etherlink, we will add it to Signet as well.
 
-{#id: 200-etherlink_2_Voting}
+{id: ID200-etherlink_2_Voting}
 ## Voting in the Etherlink Governance Process
 
 If you are a baker, you can use Signet to vote in the Etherlink Governance process. There is a [slow governance process ](https://governance.etherlink.com/governance/slow)for regular upgrades and a [fast governance process](https://governance.etherlink.com/governance/fast) for security upgrades. There's also a process to vote on who runs the sequencer. In Signet, you can vote on the slow and fast processes. At the moment, you have to do this with the master baking key. In future versions, you'll be able to do it with a delegated governance key. 

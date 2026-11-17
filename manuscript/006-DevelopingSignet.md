@@ -1,5 +1,4 @@
-{#id: 005-Preface_1_AI}
-{sample: true}
+{id: ID005-Preface_1_AI, sample: true}
 # Developing Signet
 
 Before we start, I want to tell you a story about AI application development. As I'm typing this, Signet has been in development for just over a month. I'm going to tell you how I developed it. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can describe it.
