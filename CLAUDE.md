@@ -870,6 +870,21 @@ automatic download is off by default. The updater is not started under the test 
   (`ShieldedNote.memo`). The research, verified Shadownet
   parameters and the step plan are in `docs/tzel/RESEARCH.md` (section 8); the spec note is
   `docs/spec/shield.md` and the protocol is https://github.com/trilitech/tzel/.
+- **Shadownet (Previewnet)** (`Network.shadownetPreviewnet`) is Tezos X Previewnet
+  (github.com/trilitech/tezos-x-previewnet), a second Etherlink-style rollup on Shadownet: layer 1
+  is Shadownet's (node, chain id, TzKT, faucet, shielded pool and pending operations are shared),
+  Layer 2 is the Previewnet rollup (`sr1BvTT7tVNneG2TeP18sixq57TxsZELebLu`, Michelson node
+  `michelson.previewnet.tezosx.nomadic-labs.com`, chain `NetXY2oPPzkxUW1`, bridge helper
+  `KT1DUaf49SNALJRSB8R45TvEtgVi2xZnCh8B` with the same `deposit` entrypoint as Etherlink's, TzKT
+  `api.previewnet.tezosx.tzkt.io`). Its Layer 2 is on by default (`l2EnabledByDefault`; saved
+  state records only a differing choice), it is named on screen by `l2Name` ("Previewnet": the
+  dashboard row, Bridge, the Send chain picker, the activity toggles) and its `layer2` chain is
+  `l2Chain` "previewnet". The badge, Networks and Shielded settings list
+  `WalletViewModel.offeredNetworks`, which shows it only while Shadownet has Layer 2 on or it is
+  in use, and dApps are served its Layer 2 only then. It carries no `dappType` (a dApp asking for
+  "shadownet" gets Shadownet) and Octez Connect has no Previewnet type, so dApps reach its rollup
+  only by naming its node as a custom network. Previewnet is reset from time to time; the rollup,
+  helper and chain id then change here.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

@@ -9,7 +9,7 @@ struct NetworkBadgeMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(Network.all) { base in
+            ForEach(model.offeredNetworks) { base in
                 let network = model.resolved(base)
                 Button {
                     model.switchNetwork(to: base)

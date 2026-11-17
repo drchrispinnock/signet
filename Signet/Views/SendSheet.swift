@@ -92,8 +92,8 @@ private struct ComposeTransferView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ChainSidePicker(side: $side, canSwitch: canSwitch)
-            Text(side == .etherlink ? "Send tez on Etherlink" : "Send tez")
+            ChainSidePicker(side: $side, canSwitch: canSwitch, layer2Name: network.l2Name)
+            Text(side == .etherlink ? "Send tez on \(network.l2Name)" : "Send tez")
                 .font(.title2.weight(.semibold))
         }
 

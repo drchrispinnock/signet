@@ -51,7 +51,7 @@ struct NetworksSheet: View {
     private var nodeSection: some View {
         Section {
             Picker("Network", selection: $editingNetworkName) {
-                ForEach(Network.all) { network in
+                ForEach(model.offeredNetworks) { network in
                     Text(network.name + (network.name == model.network.name ? "  (in use)" : "")).tag(network.name)
                 }
             }

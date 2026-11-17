@@ -14,6 +14,10 @@ enum ChainSide: String, CaseIterable, Identifiable {
 struct ChainSidePicker: View {
     @Binding var side: ChainSide
     var canSwitch: Bool
+    /// What the Layer 2 side is called on this network ("Etherlink", or "Previewnet").
+    var layer2Name = ChainSide.etherlink.rawValue
+
+    private func title(_ side: ChainSide) -> String { side == .etherlink ? layer2Name : side.rawValue }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -22,14 +26,14 @@ struct ChainSidePicker: View {
             if canSwitch {
                 Picker("Chain", selection: $side) {
                     ForEach(ChainSide.allCases) { candidate in
-                        Text(candidate.rawValue).tag(candidate)
+                        Text(title(candidate)).tag(candidate)
                     }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .fixedSize()
                 .controlSize(.small)
-                .help("On \(side.rawValue). Switch between Tezos and Etherlink.")
+                .help("On \(title(side)). Switch between Tezos and \(layer2Name).")
             }
         }
     }

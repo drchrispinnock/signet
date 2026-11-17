@@ -465,7 +465,8 @@ struct ShieldedSwitchTests {
     }
 
     @Test func onlyShadownetAndQuantumnetHaveShieldedTransactionsToday() {
-        #expect(Network.all.filter(\.shieldedAvailable).map(\.name) == ["Shadownet", "Quantumnet"])
+        // Shadownet (Previewnet) is Shadownet's layer 1, so it has Shadownet's shielded pool.
+        #expect(Network.all.filter(\.shieldedAvailable).map(\.name) == ["Shadownet", "Shadownet (Previewnet)", "Quantumnet"])
         #expect(!Network.mainnet.shieldedAvailable && !Network.custom.shieldedAvailable && !Network.weeklynet.shieldedAvailable)
     }
 
@@ -642,5 +643,68 @@ struct EtherlinkHistoryTests {
         await model.refresh()
         #expect(model.transactions.map(\.hash) == ["ooL1"] && model.errorMessage == nil)
         #expect(model.tokens.map(\.id) == ["KT1l1:0"] && model.nfts.map(\.id) == ["KT1l1:1"] && model.portfolioState == .complete)
+    }
+
+    // MARK: Shadownet (Previewnet)
+
+    @Test func previewnetIsShadownetWithAnotherRollup() throws {
+        let previewnet = Network.shadownetPreviewnet
+        // Layer 1 is Shadownet itself.
+        #expect(previewnet.chain == Network.shadownet.chain)
+        #expect(previewnet.expectedChainID == Network.shadownet.expectedChainID)
+        #expect(previewnet.defaultRPCURL == Network.shadownet.defaultRPCURL)
+        #expect(previewnet.faucetURL == Network.shadownet.faucetURL)
+        // Layer 2 is Previewnet, on from the start, pinned to its own chain and bridge.
+        #expect(previewnet.l2Enabled && previewnet.hasL2 && previewnet.canDepositToL2)
+        #expect(previewnet.l2Rollup == "sr1BvTT7tVNneG2TeP18sixq57TxsZELebLu")
+        #expect(previewnet.l2Rollup != Network.shadownet.l2Rollup)
+        let layer2 = try #require(previewnet.layer2)
+        #expect(layer2.name == "Shadownet (Previewnet) · Previewnet")
+        #expect(layer2.chain == "previewnet")
+        #expect(layer2.chain != Network.shadownet.usingL2(enabled: true, node: Network.shadownet.l2DefaultRPCURL).layer2?.chain)
+        #expect(layer2.expectedChainID == "NetXY2oPPzkxUW1")
+        #expect(layer2.dappType == nil && previewnet.dappType == nil)
+        #expect(layer2.l2Name == "Previewnet")
+        // Etherlink keeps its own name.
+        #expect(Network.shadownet.l2Name == "Etherlink" && !Network.shadownet.l2Enabled)
+    }
+
+    @Test func previewnetsLayer2IsSavedOnlyWhenTurnedOff() {
+        var state = AppState()
+        #expect(state.resolved(.shadownetPreviewnet).l2Enabled)
+        state.remember(Network.shadownetPreviewnet)
+        #expect(state.l2Enabled == nil)
+        state.remember(Network.shadownetPreviewnet.usingL2(enabled: false, node: Network.shadownetPreviewnet.l2DefaultRPCURL))
+        #expect(state.l2Enabled == ["Shadownet (Previewnet)": false])
+        #expect(!state.resolved(.shadownetPreviewnet).l2Enabled)
+        // Shadownet's own switch is unchanged: off, saved only when on.
+        #expect(!state.resolved(.shadownet).l2Enabled)
+    }
+
+    @Test @MainActor func previewnetIsOfferedOnlyWithShadownetsLayer2On() {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService())
+        let name = Network.shadownetPreviewnet.name
+        #expect(!model.offeredNetworks.contains { $0.name == name })
+        model.setL2Enabled(true, for: .shadownet)
+        #expect(model.offeredNetworks.contains { $0.name == name })
+        model.setL2Enabled(false, for: .shadownet)
+        #expect(!model.offeredNetworks.contains { $0.name == name })
+        // While it is the network in use it stays listed, so the badge can show and leave it.
+        model.switchNetwork(to: .shadownetPreviewnet)
+        #expect(model.network.name == name && model.network.hasL2)
+        #expect(model.offeredNetworks.contains { $0.name == name })
+    }
+
+    @Test func dAppsNamingShadownetStillReachShadownet() {
+        let layer2 = [Network.shadownetPreviewnet.layer2!]
+        #expect(DAppRequest.network(forType: "shadownet", rpcURL: nil, layer2: layer2)?.name == "Shadownet")
+        #expect(DAppRequest.network(forType: "custom", rpcURL: Network.shadownet.defaultRPCURL, layer2: layer2)?.name == "Shadownet")
+        // Previewnet's rollup is reached by naming its node, and only while it is offered.
+        let node = URL(string: "https://michelson.previewnet.tezosx.nomadic-labs.com")!
+        #expect(DAppRequest.network(forType: "custom", rpcURL: node, layer2: layer2)?.expectedChainID == "NetXY2oPPzkxUW1")
+    }
+
+    @Test func backupListsTheShadownetShieldedFileOnce() {
+        #expect(WalletBackup.shieldedFiles.count == Set(WalletBackup.shieldedFiles).count)
     }
 }
