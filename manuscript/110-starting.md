@@ -164,7 +164,7 @@ The main screen of Signet has four buttons, a burger menu and information about 
 
 By dropping down next to `My Account`, you can switch between accounts if you have more than one.
 
-On the right is the network name *Mainnet*. This is the production Tezos network. You can drop this down and switch to another network, usually a test network. We'll cover networks in a section below. Below these are four buttons: Send, Receive, Buy and Stake. Send is for sending tez coins to other accounts. Receive is to get details about your Tezos address so that others can send coins to you. Buy takes you to a menu to buy tez from a centralised exchange. Stake is for delegation and staking, and we will cover these much later.
+On the right is the network name *Mainnet*. This is the production Tezos network. You can drop this down and switch to another network, usually a test network. We'll cover networks in a section below. Below these are four buttons: `Send`, `Receive`, `Buy` and `Stake`. `Send` is for sending tez coins to other accounts. `Receive` is to get details about your Tezos address so that others can send coins to you. `Buy` takes you to a menu to buy tez from a centralised exchange. `Stake` is for delegation and staking, and we will cover these much later.
 
 ![](110/main.png)
 
