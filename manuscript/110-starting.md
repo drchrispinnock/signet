@@ -98,7 +98,7 @@ $ sudo apt update
 $ sudo apt install -y signet-gtk
 ```
 
-You can then run Signet from the Application finder XXX (the icon with the magnifying glass). Search for Signet and run it there:
+You can then run Signet. It depends on your desktop environment but on most of them you can run an application by pressing `ALT+F2`. For example, press `ALT+F2` and type `signet-gtk` to run Signet. Some desktop environments have an application menu or launcher that you can search for Signet and then run it.
 <!-- XXX need to fix this -->
 
 ![](110/ApplicationFinder.png)
