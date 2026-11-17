@@ -18,7 +18,7 @@ struct ActivityTabsView: View {
                 .frame(maxWidth: 400)
                 Spacer(minLength: 0)
                 if model.filtersLayers {
-                    LayerToggles(shown: $model.shownLayers)
+                    LayerToggles(shown: $model.shownLayers, layer2Name: model.network.l2Name)
                 }
             }
 
@@ -43,11 +43,12 @@ struct ActivityTabsView: View {
 /// are shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
 struct LayerToggles: View {
     @Binding var shown: Set<Int>
+    var layer2Name = "Etherlink"
 
     var body: some View {
         HStack(spacing: 4) {
             toggle(layer: 1, logo: "TezosToken", name: "Tezos")
-            toggle(layer: 2, logo: "EtherlinkLogo", name: "Etherlink")
+            toggle(layer: 2, logo: "EtherlinkLogo", name: layer2Name)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chains shown")

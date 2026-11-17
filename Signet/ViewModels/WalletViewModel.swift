@@ -40,9 +40,9 @@ final class WalletViewModel {
     private nonisolated static func etherlinkRow(for address: Address, on network: Network, chain: any ChainService) async -> AssetBalance? {
         guard network.hasL2, address.isUsableOnEtherlink else { return nil }
         do {
-            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: network.l2Name, symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
         } catch {
-            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: 0, unavailable: "Etherlink balance unavailable: \(error.localizedDescription)")
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: network.l2Name, symbol: "tz", amount: 0, unavailable: "\(network.l2Name) balance unavailable: \(error.localizedDescription)")
         }
     }
 
@@ -411,6 +411,13 @@ final class WalletViewModel {
     }
 
     /// Whether the Etherlink balance is shown for `base` (saved or default), without switching.
+    /// The networks the badge, Networks and Shielded settings offer: every one, except that
+    /// Shadownet (Previewnet) appears only while Shadownet has Layer 2 on (or it is in use).
+    var offeredNetworks: [Network] {
+        let previewnet = Network.shadownetPreviewnet.name
+        return Network.all.filter { $0.name != previewnet || network.name == previewnet || isL2Enabled(for: .shadownet) }
+    }
+
     func isL2Enabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).l2Enabled }
 
     /// The Etherlink node in use for `base`, if it has one.
@@ -733,7 +740,7 @@ final class WalletViewModel {
                 return try await service.waitForConfirmation(of: hash)
             },
             // Only a Layer 2 the user turned on in Networks is served, on the node in use there.
-            layer2: { [unowned self] in Network.all.compactMap { self.resolved($0).layer2 } },
+            layer2: { [unowned self] in self.offeredNetworks.compactMap { self.resolved($0).layer2 } },
             wallets: { [unowned self] in self.wallets },
             signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
         )

@@ -102,7 +102,7 @@ struct BridgeSheet: View {
             .disabled(step != .compose)
             .help(direction == .toEtherlink ? "Tezos to Etherlink. Click to reverse." : "Etherlink to Tezos. Click to reverse.")
             .accessibilityLabel(direction == .toEtherlink ? "Direction: Tezos to Etherlink" : "Direction: Etherlink to Tezos")
-            side(image: "EtherlinkLogo", title: "Etherlink", balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
+            side(image: "EtherlinkLogo", title: network.l2Name, balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
         }
         .frame(maxWidth: .infinity)
     }
