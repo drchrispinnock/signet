@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct SignetApp: App {
     /// True when this process is the host for `SignetTests`.
-    /// The Getting Started chapter of the Signet book, opened from the Help menu.
+    /// The Getting Started chapter of the Signet book online, for when the bundled copy is missing.
     static let gettingStartedURL = URL(string: "https://leanpub.com/read/tezossignet/ID110-starting_1_Getting")!
     /// Signet's website, opened from the Help menu.
     static let websiteURL = URL(string: "https://signetwallet.org")!
@@ -77,17 +77,22 @@ struct SignetApp: App {
                 Button("Create Backup") { Task { await model.backUp(force: true) } }
                     .disabled(model.backupDirectory == nil)
             }
-            // Help points at the Signet book on Leanpub and the website (replacing the default
-            // item, which only says no help is available).
+            // Help: the book's Getting Started chapter in a window of its own, and the website
+            // (replacing the default item, which only says no help is available).
             CommandGroup(replacing: .help) {
-                Button("Getting Started") { NSWorkspace.shared.open(Self.gettingStartedURL) }
-                Button("Signet Website") { NSWorkspace.shared.open(Self.websiteURL) }
+                HelpMenuItems()
             }
             // The same actions as the burger menu, in the menu bar.
             CommandMenu("Operations") {
                 OperationsMenuItems(model: model)
             }
         }
+
+        Window("Getting Started", id: GettingStartedView.windowID) {
+            GettingStartedView()
+                .appliesStoredAppearance()
+        }
+        .defaultSize(width: 860, height: 780)
 
         Settings {
             SettingsView(model: model, updater: updater)
