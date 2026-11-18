@@ -16,15 +16,10 @@ struct WalletIdentityView: View {
 
     private var identity: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // The tags sit beside the menu, not in its label: AppKit draws that label and drops
-            // backgrounds and overlays.
-            HStack(spacing: 8) {
-                walletPicker
-                if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
-                if wallet.keyKind == .ledger { ledgerTag }
-                if wallet.keyKind == .airgap { airGapTag }
-                if wallet.isSessionOnly { sessionTag }
-            }
+            walletPicker
+            // The tags sit on the address line, not beside the alias: a long alias left them no
+            // room and they wrapped into a column. (Not in the menu's label either: AppKit draws
+            // that label and drops backgrounds and overlays.)
             HStack(spacing: 6) {
                 Text(wallet.address.shortened())
                     .font(.body.monospaced())
@@ -36,6 +31,14 @@ struct WalletIdentityView: View {
                 .buttonStyle(.borderless)
                 .help("Copy address")
                 .accessibilityLabel("Copy address")
+                Group {
+                    if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
+                    if wallet.keyKind == .ledger { ledgerTag }
+                    if wallet.keyKind == .airgap { airGapTag }
+                    if wallet.isSessionOnly { sessionTag }
+                }
+                .fixedSize()
+                .padding(.leading, 2)
             }
             ForEach(model.domains, id: \.self) { domain in
                 Text(domain)
