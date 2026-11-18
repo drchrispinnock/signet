@@ -1,5 +1,7 @@
 #if canImport(Compression)
 import Compression
+#elseif canImport(CZlib)
+import CZlib
 #endif
 import Foundation
 
@@ -214,7 +216,7 @@ enum AirGap {
 /// gzip (RFC 1952) around raw DEFLATE from Apple's Compression framework.
 enum Gzip {
     static func decompress(_ data: [UInt8], limit: Int) -> [UInt8]? {
-        #if canImport(Compression)
+        #if canImport(Compression) || canImport(CZlib)
         guard data.count >= 18, data[0] == 0x1f, data[1] == 0x8b, data[2] == 8 else { return nil }
         let flags = data[3]
         var offset = 10
@@ -234,11 +236,15 @@ enum Gzip {
         let crc = UInt32(trailer[0]) | UInt32(trailer[1]) << 8 | UInt32(trailer[2]) << 16 | UInt32(trailer[3]) << 24
         let deflated = Array(data[offset..<(data.count - 8)])
         var output = [UInt8](repeating: 0, count: size + 1)
+        #if canImport(Compression)
         let written = output.withUnsafeMutableBufferPointer { out in
             deflated.withUnsafeBufferPointer { input in
                 compression_decode_buffer(out.baseAddress!, out.count, input.baseAddress!, input.count, nil, COMPRESSION_ZLIB)
             }
         }
+        #else
+        let written = zlibInflateRaw(deflated, into: &output)
+        #endif
         guard written == size else { return nil }
         let result = Array(output.prefix(size))
         return CRC32.checksum(result) == crc ? result : nil
@@ -248,17 +254,61 @@ enum Gzip {
     }
 
     static func compress(_ data: [UInt8]) -> [UInt8] {
-        #if canImport(Compression)
+        #if canImport(Compression) || canImport(CZlib)
         var deflated = [UInt8](repeating: 0, count: data.count + 1024)
+        #if canImport(Compression)
         let written = deflated.withUnsafeMutableBufferPointer { out in
             data.withUnsafeBufferPointer { input in
                 compression_encode_buffer(out.baseAddress!, out.count, input.baseAddress!, input.count, nil, COMPRESSION_ZLIB)
             }
         }
+        #else
+        let written = zlibDeflateRaw(data, into: &deflated)
+        #endif
         let little = { (v: UInt32) in [UInt8(v & 0xff), UInt8(v >> 8 & 0xff), UInt8(v >> 16 & 0xff), UInt8(v >> 24)] }
         return [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3] + deflated.prefix(written) + little(CRC32.checksum(data)) + little(UInt32(truncatingIfNeeded: data.count))
         #else
         return []
         #endif
     }
+
+    #if !canImport(Compression) && canImport(CZlib)
+    /// Raw DEFLATE (no zlib header, as Compression's `COMPRESSION_ZLIB`) with zlib: the bytes
+    /// written into `output`, or -1.
+    private static func zlibInflateRaw(_ input: [UInt8], into output: inout [UInt8]) -> Int {
+        var stream = z_stream()
+        guard inflateInit2_(&stream, -MAX_WBITS, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK else { return -1 }
+        defer { inflateEnd(&stream) }
+        var input = input
+        let capacity = output.count
+        return input.withUnsafeMutableBufferPointer { inBuffer in
+            output.withUnsafeMutableBufferPointer { outBuffer in
+                stream.next_in = inBuffer.baseAddress
+                stream.avail_in = uInt(inBuffer.count)
+                stream.next_out = outBuffer.baseAddress
+                stream.avail_out = uInt(capacity)
+                guard inflate(&stream, Z_FINISH) == Z_STREAM_END else { return -1 }
+                return capacity - Int(stream.avail_out)
+            }
+        }
+    }
+
+    private static func zlibDeflateRaw(_ input: [UInt8], into output: inout [UInt8]) -> Int {
+        var stream = z_stream()
+        guard deflateInit2_(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK else { return 0 }
+        defer { deflateEnd(&stream) }
+        var input = input
+        let capacity = output.count
+        return input.withUnsafeMutableBufferPointer { inBuffer in
+            output.withUnsafeMutableBufferPointer { outBuffer in
+                stream.next_in = inBuffer.baseAddress
+                stream.avail_in = uInt(inBuffer.count)
+                stream.next_out = outBuffer.baseAddress
+                stream.avail_out = uInt(capacity)
+                guard deflate(&stream, Z_FINISH) == Z_STREAM_END else { return 0 }
+                return capacity - Int(stream.avail_out)
+            }
+        }
+    }
+    #endif
 }

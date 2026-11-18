@@ -1,6 +1,11 @@
+#if canImport(AppKit)
 import AppKit
 import AVFoundation
 import SwiftUI
+#else
+import Foundation
+import Observation
+#endif
 
 /// Signing with AirGap Vault. When the bridge's AirGap signer needs a signature it calls here
 /// with the forged operation; a panel slides down over whatever sheet is open and shows the
@@ -28,7 +33,9 @@ final class AirGapSigning {
     }
 
     private var active: AirGapSignSession?
+    #if canImport(AppKit)
     private var window: NSWindow?
+    #endif
 
     /// The 64-byte signature for `{address, publicKey, forged}` (forged as hex), or an error.
     func sign(requestJSON: String) async throws -> [UInt8] {
@@ -50,6 +57,7 @@ final class AirGapSigning {
         }
     }
 
+    #if canImport(AppKit)
     private func present(_ session: AirGapSignSession) {
         let panel = NSWindow(contentViewController: NSHostingController(rootView: AirGapSignView(session: session).appliesStoredAppearance()))
         panel.styleMask = [.titled]
@@ -72,6 +80,15 @@ final class AirGapSigning {
         window = nil
         active = nil
     }
+    #else
+    // Off the Mac the port shows the panel (`presentPanel`, `closePanel`).
+    private func present(_ session: AirGapSignSession) { presentPanel(session) }
+
+    private func dismiss() {
+        closePanel()
+        active = nil
+    }
+    #endif
 }
 
 /// One request to the Vault: the code to show, then the reply being read.
@@ -144,6 +161,7 @@ final class AirGapSignSession {
     }
 }
 
+#if canImport(AppKit)
 /// The panel: the request code, then the camera for the reply.
 struct AirGapSignView: View {
     @Bindable var session: AirGapSignSession
@@ -320,3 +338,4 @@ struct AirGapSignView: View {
         cameraState = .running
     }
 }
+#endif

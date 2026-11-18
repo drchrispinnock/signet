@@ -64,6 +64,7 @@ struct GettingStartedTests {
         #expect(!Markua.html(from: "![](https://example.com/x.png)\n\n![](../../x.png)", title: "t").contains("<img"))
     }
 
+    #if canImport(AppKit)
     /// The app carries the chapter and every picture it shows (the test host is Signet.app).
     @Test func theAppBundlesTheChapterAndItsPictures() throws {
         let html = try #require(GettingStartedView.chapterHTML())
@@ -75,4 +76,5 @@ struct GettingStartedTests {
             #expect(FileManager.default.fileExists(atPath: resources.appendingPathComponent(picture).path), "\(picture)")
         }
     }
+    #endif
 }
