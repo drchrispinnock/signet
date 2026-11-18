@@ -1,5 +1,10 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Network)
 import Network
+#endif
 
 /// What Signet asks a remote signer that speaks octez-signer's protocol (octez-signer itself,
 /// Signatory, Russignol and others): its keys, a key's public key, whether it wants requests
@@ -212,12 +217,17 @@ struct NetworkRemoteSignerService: RemoteSignerService {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
+        #if canImport(FoundationNetworking)
+        // swift-corelibs-foundation crashes freeing a short-lived session: one for every request.
+        let session = Self.session
+        #else
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
         configuration.timeoutIntervalForRequest = TimeInterval(timeout.components.seconds)
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
+        #endif
         let reply: BoundedHTTP.Reply
         do {
             reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.replyLimit, json: .record)
@@ -242,11 +252,22 @@ struct NetworkRemoteSignerService: RemoteSignerService {
         return object
     }
 
+    #if canImport(FoundationNetworking)
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 120
+        return URLSession(configuration: configuration)
+    }()
+    #endif
+
     // MARK: Sockets
 
     /// Sends `requests` one after another on one connection and returns each reply's payload.
     /// `check` sees every reply as it arrives and may stop the exchange by throwing.
     private func exchange(_ signer: RemoteSignerLocator, _ requests: [[UInt8]], check: @escaping @Sendable (Int, [UInt8]) throws -> Void = { _, _ in }) async throws -> [[UInt8]] {
+        #if canImport(Network)
         let endpoint: NWEndpoint
         switch signer.transport {
         case .tcp:
@@ -258,6 +279,10 @@ struct NetworkRemoteSignerService: RemoteSignerService {
             throw RemoteSignerError.unreachable("not a socket signer")
         }
         let connection = FramedConnection(endpoint: endpoint)
+        #else
+        // Off the Mac the port supplies the connection, over POSIX sockets.
+        let connection = try FramedConnection(signer: signer)
+        #endif
         defer { connection.close() }
         return try await withThrowingTaskGroup(of: [[UInt8]]?.self) { group in
             group.addTask {
@@ -288,6 +313,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
     }
 }
 
+#if canImport(Network)
 /// One Network.framework connection carrying length-prefixed messages. Every callback resumes
 /// its continuation once; closing fails whatever is still waiting.
 private final class FramedConnection: @unchecked Sendable {
@@ -359,6 +385,8 @@ private final class FramedConnection: @unchecked Sendable {
         }
     }
 }
+
+#endif
 
 /// For tests and previews: a signer holding the given keys that signs with `signer`.
 struct MockRemoteSignerService: RemoteSignerService {
