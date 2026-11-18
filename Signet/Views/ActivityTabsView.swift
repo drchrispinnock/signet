@@ -246,7 +246,7 @@ struct TransactionRowView: View {
             switch role {
             case .weDelegated: return "Delegated to \(party.name)"
             case .weUndelegated: return "Undelegated"
-            case .delegatorJoined: return "\(party.name) delegated to you"
+            case .delegatorJoined: return "\(party.name) delegated"
             case .delegatorLeft: return "\(party.name) undelegated"
             case .delegatorMoved: return "\(party.name) moved their delegation"
             }
