@@ -8,6 +8,9 @@ enum KeyKind: String, Codable, Sendable {
     case encrypted
     /// `ledger://...`
     case ledger
+    /// `airgap://<fingerprint>/<path>` — the key is in AirGap Vault on a phone; Signet holds the
+    /// public key, and operations go to the Vault and back by QR code.
+    case airgap
     /// `http(s)://`, `tcp://`, `unix:`, `remote:` — a remote signer such as octez-signer.
     case remote
     /// Some other scheme we do not understand.
@@ -24,6 +27,7 @@ enum KeyKind: String, Codable, Sendable {
         case "unencrypted": self = .unencrypted
         case "encrypted": self = .encrypted
         case "ledger": self = .ledger
+        case "airgap": self = .airgap
         case "http", "https", "tcp", "unix", "remote": self = .remote
         default: self = .unknown
         }

@@ -66,6 +66,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectDApp) {
             ConnectDAppSheet(model: model)
         }
+        .sheet(isPresented: Binding(get: { model.airGapImport != nil }, set: { if !$0 { model.airGapImport = nil } })) {
+            if let accounts = model.airGapImport { AddAirGapAccountSheet(model: model, accounts: accounts) }
+        }
         .sheet(isPresented: $model.isPresentingScanQR, onDismiss: { model.routePendingScan() }) {
             ScanQRSheet(model: model)
         }

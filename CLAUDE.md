@@ -556,6 +556,28 @@ automatic download is off by default. The updater is not started under the test 
   (hardened runtime) and `NSCameraUseContinuityCameraDeviceType` in `Info.plist`.
   `QRScanTests` covers classification, the clipboard and the routing; the camera itself can
   only be checked by hand.
+  **AirGap Vault.** Vault's "Pair Account" code (QR Code V3) is an AirGap IAC message:
+  `gzip(CBOR([3, [[1, type, protocol, id, payload]]]))` (`Signet/Models/AirGap.swift`; the
+  payload is the message type's JSON schema as an array of its properties in alphabetical
+  order, hex-looking strings as bytes behind a one-byte tag) carried as a Blockchain Commons
+  Uniform Resource, `ur:bytes/…` in Bytewords, or `ur:bytes/n-m/…` frames of an animated code
+  whose frames after the first m are fountain-coded mixes
+  (`Signet/Models/UniformResource.swift`: Bytewords, CRC-32, a bounded CBOR reader/writer,
+  Xoshiro256**, the alias sampler and the decoder, matched to `@ngraveio/bc-ur`). Scan QR code
+  classifies frames as `.uniformResource`, gathers them in `UniformResource.Decoder` (any
+  order, mixed frames included; the sheet shows progress) and hands the Tezos account shares
+  (`AirGap.accounts`, protocol `xtz`, ed25519, hex public key) to `AddAirGapAccountSheet`
+  through `ScanHandoff.airGap`. `WalletViewModel.addAirGapAccount` derives the address from
+  the public key and writes an octez alias whose `secret_keys` locator is
+  `airgap://<master fingerprint>/<path>` (`KeyKind.airgap`; octez-client lists it as "airgap
+  sk known" and leaves it alone); the header tags it "AirGap". `airgap-…://?ur=` links are read
+  too; the old `?d=` format (`.airGapLegacy`) gets a note to pick QR Code V3. **Signing is
+  not done yet** (`KeyKind.airgap.canSign` is false): the pieces are there
+  (`AirGap.signRequest`, a type 5 message with the forged bytes, `callbackURL`
+  `airgap-wallet://?d=` which Vault requires, and `AirGap.signedOperation` reading the type 6
+  reply, forged bytes plus the 64-byte signature; `UniformResource.encode` cycles pure
+  frames, which AirGap's decoder accepts). `AirGapTests` uses vectors made with
+  `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

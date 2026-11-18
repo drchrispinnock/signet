@@ -28,6 +28,7 @@ struct StakingSheet: View {
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
         case .remote: "Signet cannot sign for this account: it uses a remote signer."
+        case .airgap: "Signet cannot sign with AirGap Vault yet, so it can show but not change this account's delegation."
         default: "Signet holds only this address's public key, so it can show but not change its delegation."
         }
     }

@@ -60,6 +60,8 @@
 		4211803B900DA67DB7886BE4 /* tzel_blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = 5481C59429754E514430580E /* tzel_blake2s.c */; settings = {COMPILER_FLAGS = "-O3"; }; };
 		437BEDF2C4A2FA96A2D6E07A /* ShieldedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC9386B2C2BD2D795CADA7B /* ShieldedService.swift */; };
 		43974418BF2EE224E97E1C91 /* SubmitMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */; };
+		43FBE1A6FF5D0D26A78548D7 /* AddAirGapAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1F54EBEDB1AABB28591CC /* AddAirGapAccountSheet.swift */; };
+		477A4E394B436DFC9E591ED0 /* AirGapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F797146AB3C1C9C258628CD /* AirGapTests.swift */; };
 		48BF0FDADB88E86B0E19C32E /* ShieldedWallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 544161FC930E414B7F3E0D0B /* ShieldedWallet.swift */; };
 		49007ED6467AA6F2D6205E8C /* QRCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 822144910E1FB03FD7D270CA /* QRCodeTests.swift */; };
 		4AED8C1726FA50A22393D834 /* NFT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D36824F9FB49AF03A6D12F1 /* NFT.swift */; };
@@ -70,6 +72,7 @@
 		549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */; };
 		54B0069FB7DCE84D174D9DAD /* Multisig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D40B17B45C19919EA6F806 /* Multisig.swift */; };
 		557958E2DA023D11DAECD05E /* LedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A0D0255843FAE3AF79D460 /* LedgerTests.swift */; };
+		576C9A708EF77DB6B5CC4353 /* UniformResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77BBFBE07CAD59BA0942AD58 /* UniformResource.swift */; };
 		57A60E498D042D8AF11CD26B /* ExportKeySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC69668A535E699142B2FC8 /* ExportKeySheet.swift */; };
 		58532C6573A1A3FB460EA85A /* AppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD834C06F49658A295BADA09 /* AppStateStore.swift */; };
 		5988FB98D3C29FB3B442328B /* WalletBackupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507B55356D52C39CF790496A /* WalletBackupTests.swift */; };
@@ -95,6 +98,7 @@
 		797EA9C15590F97F7BBB8237 /* Micheline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7E3944EC2E0534678CCBD8 /* Micheline.swift */; };
 		7B96FA319FEEBEDB31EDBAE1 /* TezosClientStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A237F56680C24625B031AEF /* TezosClientStoreTests.swift */; };
 		7C90079CDB99B2DB05EEBE1F /* AuditRepairTests2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC4188ACD1FC6FAAE20501 /* AuditRepairTests2.swift */; };
+		7D1916A237F8E0214E0915DF /* AirGap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF71F22E905A057186AD9F /* AirGap.swift */; };
 		7E50AA94FD93517E66818B1B /* TestHostIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4339A580A4088A3D82710DAF /* TestHostIsolationTests.swift */; };
 		7F077A5907D72A9379B6A1AD /* DAppPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */; };
 		87EF0C514614D59FEC8B90B8 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = EC49F06EDD571F1736674E8F /* Sparkle */; };
@@ -230,6 +234,7 @@
 		1DEA4BC564C40603E442A7FA /* TaquitoChainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoChainService.swift; sourceTree = "<group>"; };
 		1E08640FEBFABBA503E1C79D /* AuditFixTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditFixTests.swift; sourceTree = "<group>"; };
 		1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernance.swift; sourceTree = "<group>"; };
+		1F797146AB3C1C9C258628CD /* AirGapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirGapTests.swift; sourceTree = "<group>"; };
 		201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectEndToEnd.swift; sourceTree = "<group>"; };
 		2480FCA7277757AFED969B9B /* EndpointPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointPolicy.swift; sourceTree = "<group>"; };
 		26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCache.swift; sourceTree = "<group>"; };
@@ -302,6 +307,7 @@
 		7665292051E3F0C81DFF8E57 /* ShieldSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldSheet.swift; sourceTree = "<group>"; };
 		766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedKeyTests.swift; sourceTree = "<group>"; };
 		76F6224B138E3946294DCF2F /* StakingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StakingTests.swift; sourceTree = "<group>"; };
+		77BBFBE07CAD59BA0942AD58 /* UniformResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UniformResource.swift; sourceTree = "<group>"; };
 		79F498AB6E54AD10BF1747A6 /* TransactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionTests.swift; sourceTree = "<group>"; };
 		7C948C8E89FF2FB57B5B39A5 /* StakingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StakingSheet.swift; sourceTree = "<group>"; };
 		7CC270D9AC39835A78941A29 /* Staking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Staking.swift; sourceTree = "<group>"; };
@@ -386,6 +392,7 @@
 		E66B745B7CB13559CE63D231 /* WalletHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletHeaderView.swift; sourceTree = "<group>"; };
 		E66C61FF6973FCE0CDEF7AD4 /* ScanQRSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanQRSheet.swift; sourceTree = "<group>"; };
 		E70E02FF7663B97A85CBD8A8 /* DAppConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppConnectionManager.swift; sourceTree = "<group>"; };
+		E9BF71F22E905A057186AD9F /* AirGap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirGap.swift; sourceTree = "<group>"; };
 		EEF0AB14B65D2F2992D0B4B3 /* BuyWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyWebView.swift; sourceTree = "<group>"; };
 		F13F6EF9356E3F5DA0AA03F5 /* NetworkBadgeMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkBadgeMenu.swift; sourceTree = "<group>"; };
 		F14BE215CE24A40FB22C3584 /* TaquitoBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaquitoBridge.swift; sourceTree = "<group>"; };
@@ -394,6 +401,7 @@
 		F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetListView.swift; sourceTree = "<group>"; };
 		F940745F8842D7E206AB1B3D /* DAppRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAppRequest.swift; sourceTree = "<group>"; };
 		F999353F1C6082368B01FE9C /* CreateWalletSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateWalletSheet.swift; sourceTree = "<group>"; };
+		F9D1F54EBEDB1AABB28591CC /* AddAirGapAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAirGapAccountSheet.swift; sourceTree = "<group>"; };
 		FA67AEB7C1F32578A7CBF62E /* ActivityTabsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityTabsView.swift; sourceTree = "<group>"; };
 		FB238C502C752F4198363525 /* ActionButtonsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonsView.swift; sourceTree = "<group>"; };
 		FC442CD0DFDAD1EAF81FE3B8 /* taquito-bridge.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "taquito-bridge.js"; sourceTree = "<group>"; };
@@ -423,6 +431,7 @@
 				FB238C502C752F4198363525 /* ActionButtonsView.swift */,
 				FA67AEB7C1F32578A7CBF62E /* ActivityTabsView.swift */,
 				5BD932CF4FDC70FD16F70AD4 /* AddAddressSheet.swift */,
+				F9D1F54EBEDB1AABB28591CC /* AddAirGapAccountSheet.swift */,
 				12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */,
 				F8A34357B62DD38EF9E5AD05 /* AssetListView.swift */,
 				A212889342C7C573BC835EB1 /* BakingSheet.swift */,
@@ -480,6 +489,7 @@
 			children = (
 				0FC5AEA37DB0C4CC4A507E78 /* Address.swift */,
 				FDEC38EDE514E7EC1A935DF1 /* AddressScheme.swift */,
+				E9BF71F22E905A057186AD9F /* AirGap.swift */,
 				82891C504DD66214B765AF83 /* AssetBalance.swift */,
 				A8F7142388FBD9770414F6F0 /* Base58.swift */,
 				4E5E2324BFDBC6E3F5919159 /* DAppPairingLink.swift */,
@@ -498,6 +508,7 @@
 				9BB43BB3B884C40E4BF7D28D /* TezosTransaction.swift */,
 				0112E6B83F48D5B43089E13D /* TokenTransfer.swift */,
 				059BEFFF9819257E3E6DE356 /* Transfer.swift */,
+				77BBFBE07CAD59BA0942AD58 /* UniformResource.swift */,
 				B83A465432E9E915B374F22E /* Wallet.swift */,
 			);
 			path = Models;
@@ -517,6 +528,7 @@
 			children = (
 				83072D0DF452B9C3626CC42E /* AddressBookTests.swift */,
 				CAA4DCC1C0CAF33159BE4D59 /* AddressTests.swift */,
+				1F797146AB3C1C9C258628CD /* AirGapTests.swift */,
 				3FAF4C4ADD21676C61D44F8A /* ArtworkCacheTests.swift */,
 				A7347B803D9BD4E4E863D671 /* ArtworkPolicyTests.swift */,
 				1E08640FEBFABBA503E1C79D /* AuditFixTests.swift */,
@@ -806,9 +818,11 @@
 				10516DDFD3C74F49D141E4A6 /* ActionButtonsView.swift in Sources */,
 				FBAD05C8952CFBDAE7CA9B9C /* ActivityTabsView.swift in Sources */,
 				CAACE4F7F93B951CEBA5DC00 /* AddAddressSheet.swift in Sources */,
+				43FBE1A6FF5D0D26A78548D7 /* AddAirGapAccountSheet.swift in Sources */,
 				4EC9E16CA50BB4796AE325A2 /* AddMultisigSheet.swift in Sources */,
 				353C2A8477261BC9E54ED68A /* Address.swift in Sources */,
 				8D9405F75AAB8B8C0884DA0B /* AddressScheme.swift in Sources */,
+				7D1916A237F8E0214E0915DF /* AirGap.swift in Sources */,
 				58532C6573A1A3FB460EA85A /* AppStateStore.swift in Sources */,
 				07D7E4480040CCD4175347AC /* Appearance.swift in Sources */,
 				CC416E163124554D18F60393 /* ArtworkCache.swift in Sources */,
@@ -916,6 +930,7 @@
 				C4D72615EE6CDE9929FCAEA6 /* Transfer.swift in Sources */,
 				E00C1D36FA26AB318459B871 /* TransferNFTSheet.swift in Sources */,
 				07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */,
+				576C9A708EF77DB6B5CC4353 /* UniformResource.swift in Sources */,
 				08CCFB1467F8E3B1DB2040BA /* UnshieldSheet.swift in Sources */,
 				887DB0322DE85C7FDA7634F3 /* UpdaterService.swift in Sources */,
 				9384F5734C7FA30F1AAAF719 /* Wallet.swift in Sources */,
@@ -938,6 +953,7 @@
 			files = (
 				C1520149D8096C061FFD673F /* AddressBookTests.swift in Sources */,
 				31F1DF6D5014FD3C0BB362B0 /* AddressTests.swift in Sources */,
+				477A4E394B436DFC9E591ED0 /* AirGapTests.swift in Sources */,
 				DF7BCF4269CA7D56B03497B0 /* ArtworkCacheTests.swift in Sources */,
 				145E0B88B61BD0E4C096F15E /* ArtworkPolicyTests.swift in Sources */,
 				3CCB5B94FF732598FBAE4303 /* AuditFixTests.swift in Sources */,

@@ -22,6 +22,12 @@ enum QRPayload: Equatable, Sendable {
     /// One of several codes that together carry a secret key too long for one (a tz5 key on a
     /// recovery sheet); `KeyPartCollector` puts them together.
     case keyPart(KeyPart)
+    /// One frame of a Uniform Resource (`ur:bytes/…`), the format of AirGap Vault's codes;
+    /// `UniformResource.Decoder` gathers the frames and `AirGap` reads the message.
+    case uniformResource(UniformResource.Part)
+    /// An AirGap code in its older format (`airgap-…://?d=…`, serializer version 2), which
+    /// Signet does not read; Vault offers QR Code V3 under QR Details.
+    case airGapLegacy
     case unknown
 
     static let publicKeyPrefixes = ["edpk", "sppk", "p2pk", "BLpk", "mdpk"]
@@ -42,6 +48,8 @@ enum QRPayload: Equatable, Sendable {
         guard !text.isEmpty, text.utf8.count <= maximumLength else { return .unknown }
 
         if text.hasPrefix(KeyPart.scheme) { return KeyPart(text: text).map(QRPayload.keyPart) ?? .unknown }
+        if text.lowercased().hasPrefix(UniformResource.scheme) { return (try? UniformResource.Part(text: text)).map(QRPayload.uniformResource) ?? .unknown }
+        if let airGap = airGapLink(text) { return airGap }
         if let code = DAppPairingLink.code(fromScanned: text) { return .pairing(code: code) }
 
         // Some wallets write an address as a `tezos:` URI.
@@ -57,6 +65,17 @@ enum QRPayload: Equatable, Sendable {
         // A bare pairing code is base58check over the pairing request's JSON.
         if body.first == UInt8(ascii: "{"), body.last == UInt8(ascii: "}") { return .pairing(code: text) }
         return .unknown
+    }
+
+    /// AirGap's deep links (`airgap-wallet://?ur=…`, `airgap-vault://?ur=…`), which wrap a
+    /// single-frame UR, or carry the old `d=` format.
+    private static func airGapLink(_ text: String) -> QRPayload? {
+        guard let components = URLComponents(string: text), let scheme = components.scheme?.lowercased(), scheme.hasPrefix("airgap") else { return nil }
+        let items = components.queryItems ?? []
+        if let ur = items.first(where: { $0.name == "ur" })?.value, !ur.isEmpty {
+            return (try? UniformResource.Part(text: UniformResource.scheme + "bytes/" + ur)).map(QRPayload.uniformResource) ?? .unknown
+        }
+        return items.contains(where: { $0.name == "d" }) ? .airGapLegacy : .unknown
     }
 
     private static func strippingTezosScheme(_ text: String) -> String {

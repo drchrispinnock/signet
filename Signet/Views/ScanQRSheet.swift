@@ -27,6 +27,8 @@ struct ScanQRSheet: View {
     @State private var note: String?
     /// The parts read so far of a key that a recovery sheet printed across several codes.
     @State private var keyParts = KeyPartCollector()
+    /// The frames read so far of an animated code (AirGap Vault's, when it does not fit one).
+    @State private var frames = UniformResource.Decoder()
     @State private var isChoosingImage = false
 
     /// With no account yet the sheet is a way in: keys and phrases, or an address to watch.
@@ -53,6 +55,15 @@ struct ScanQRSheet: View {
                 }
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if found == nil, !frames.isEmpty {
+                Label {
+                    Text("An animated code: \(frames.receivedFragments) of \(frames.expectedParts) parts read. Keep the code in view.")
+                } icon: {
+                    ProgressView(value: frames.progress).progressViewStyle(.circular).controlSize(.small)
+                }
+                .font(.callout)
             }
 
             if let note {
@@ -125,8 +136,8 @@ struct ScanQRSheet: View {
             }
 
             Text(isFirstRun
-                 ? "Hold up a QR code of a secret key or a recovery phrase to import it, or of an address to watch it. A code shown on this Mac's own screen can be read from a screenshot on the clipboard."
-                 : "Hold up a QR code: a dApp's pairing code, an address or public key, or a secret key or recovery phrase. A code shown on this Mac's own screen can be read from a screenshot on the clipboard.")
+                 ? "Hold up a QR code of a secret key or a recovery phrase to import it, AirGap Vault's Pair Account code, or an address to watch it. A code shown on this Mac's own screen can be read from a screenshot on the clipboard."
+                 : "Hold up a QR code: a dApp's pairing code, an address or public key, a secret key or recovery phrase, or AirGap Vault's Pair Account code. A code shown on this Mac's own screen can be read from a screenshot on the clipboard.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -168,6 +179,7 @@ struct ScanQRSheet: View {
         found = nil
         note = nil
         keyParts = KeyPartCollector()
+        frames = UniformResource.Decoder()
         Task { await startCamera() }
     }
 
@@ -212,8 +224,33 @@ struct ScanQRSheet: View {
                     note = "That looks like a public key, but Signet could not read it."
                 }
             }
+        case .uniformResource(let part):
+            do {
+                if case .complete(let payload) = try frames.receive(part) { readAirGap(payload) }
+            } catch {
+                frames = UniformResource.Decoder()
+                note = "That animated code could not be read. Hold it steady and scan it again."
+            }
+        case .airGapLegacy:
+            note = "That is an AirGap code in its older format. In AirGap Vault, open QR Details under the code and choose QR Code V3."
         case .unknown:
             note = "That code is not a pairing code, an address or a key that Signet can use."
+        }
+    }
+
+    /// An AirGap message: a Vault's account share is the only one that makes sense here.
+    private func readAirGap(_ payload: [UInt8]) {
+        do {
+            let accounts = try AirGap.accounts(in: AirGap.messages(from: payload))
+            guard !accounts.isEmpty else {
+                note = "That AirGap code holds no Tezos account. In AirGap Vault, open the Tezos account and choose Pair Account."
+                return
+            }
+            finish(.airGap(accounts))
+        } catch AirGap.Error.unsupportedVersion {
+            note = "That AirGap code is in a format Signet does not read. In AirGap Vault, choose QR Code V3 under QR Details."
+        } catch {
+            note = "That code is not one Signet can use."
         }
     }
 

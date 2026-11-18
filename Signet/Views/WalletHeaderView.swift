@@ -22,6 +22,7 @@ struct WalletIdentityView: View {
                 walletPicker
                 if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
                 if wallet.keyKind == .ledger { ledgerTag }
+                if wallet.keyKind == .airgap { airGapTag }
                 if wallet.isSessionOnly { sessionTag }
             }
             HStack(spacing: 6) {
@@ -114,6 +115,16 @@ struct WalletIdentityView: View {
             .background(Capsule().fill(.quaternary))
             .foregroundStyle(.secondary)
             .help("This key lives on a Ledger\(wallet.ledgerKey.map { " (\($0.fullPath))" } ?? ""). Operations are approved on the device.")
+    }
+
+    private var airGapTag: some View {
+        Label("AirGap", systemImage: "iphone")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("This key lives in AirGap Vault on a phone. Signet holds only the address and public key.")
     }
 
     private func pickerItem(_ candidate: Wallet) -> some View {

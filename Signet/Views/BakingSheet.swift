@@ -158,6 +158,7 @@ struct BakingSheet: View {
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
         case .remote: "Watch only: this baker signs through a remote signer. Its keys and parameters are shown but cannot be changed here."
+        case .airgap: "Watch only: this baker's key is in AirGap Vault, and Signet cannot sign with AirGap Vault yet. Its keys and parameters are shown but cannot be changed here."
         default: "Watch only: Signet holds just this baker's public key. Its keys and parameters are shown but cannot be changed here."
         }
     }
