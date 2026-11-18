@@ -7,6 +7,9 @@ protocol ChainService: Sendable {
     func etherlinkBalance(for address: Address) async throws -> Decimal
     func tokenBalances(for address: Address) async throws -> [AssetBalance]
     func domains(for address: Address) async throws -> [String]
+    /// Every Tezos Domains name the account owns or that points at it (the Domains tab);
+    /// `nil` when the network has no Tezos Domains.
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]?
     func nfts(for address: Address) async throws -> [NFT]
     /// Tokens and NFTs from one indexer snapshot, with whether it is complete (S26).
     func portfolio(for address: Address) async throws -> Portfolio
@@ -125,6 +128,8 @@ struct Portfolio: Equatable, Sendable {
 }
 
 extension ChainService {
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]? { nil }
+
     func pendingOperation(for address: Address) async throws -> SentOperation? { nil }
     func portfolio(for address: Address) async throws -> Portfolio {
         async let tokens = tokenBalances(for: address)

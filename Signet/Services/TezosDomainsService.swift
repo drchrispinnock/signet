@@ -45,6 +45,67 @@ struct TezosDomainsService: Sendable {
         return decoded.data?.reverseRecord?.domain?.name
     }
 
+    /// The most names of each kind the Domains tab asks for.
+    static let pageSize = 200
+    /// Up to 400 names with their owner, address and expiry.
+    static let listBytes = 512 << 10
+
+    /// Every name `address` owns or that points at it, its reverse record first, then by name.
+    func domains(of address: Address) async throws -> [TezosDomain] {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 20
+        let fields = "items { name address owner expiresAtUtc }"
+        let query = """
+        query($a: Address!, $s: String!) {
+          owned: domains(where: { owner: { equalTo: $a } }, first: \(Self.pageSize)) { \(fields) }
+          pointing: domains(where: { address: { equalTo: $a } }, first: \(Self.pageSize)) { \(fields) }
+          reverseRecord(address: $s) { domain { name } }
+        }
+        """
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": ["a": address.value, "s": address.value]])
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.listBytes, json: .page)
+        guard reply.isSuccess else { throw DomainsError.badResponse("HTTP \(reply.status)") }
+        return try Self.parseDomains(reply.data)
+    }
+
+    /// The Domains tab's list from the API's reply: owned and pointing names merged.
+    static func parseDomains(_ data: Data) throws -> [TezosDomain] {
+        let decoded = try JSONDecoder().decode(ListResponse.self, from: data)
+        if let errors = decoded.errors, !errors.isEmpty {
+            throw DomainsError.badResponse(errors.map(\.message).joined(separator: "; "))
+        }
+        let reverse = decoded.data?.reverseRecord?.domain?.name
+        let iso = ISO8601DateFormatter()
+        var byName: [String: TezosDomain] = [:]
+        for item in (decoded.data?.owned?.items ?? []) + (decoded.data?.pointing?.items ?? []) {
+            guard let name = item.name, !name.isEmpty, byName[name] == nil else { continue }
+            byName[name] = TezosDomain(name: name, address: item.address.map(Address.init), owner: item.owner.map(Address.init),
+                                       expires: item.expiresAtUtc.flatMap { iso.date(from: $0) }, isReverseRecord: name == reverse)
+        }
+        return byName.values.sorted { ($0.isReverseRecord ? 0 : 1, $0.name) < ($1.isReverseRecord ? 0 : 1, $1.name) }
+    }
+
+    private struct ListResponse: Decodable {
+        struct Item: Decodable {
+            let name: String?
+            let address: String?
+            let owner: String?
+            let expiresAtUtc: String?
+        }
+        struct Page: Decodable { let items: [Item]? }
+        struct Payload: Decodable {
+            let owned: Page?
+            let pointing: Page?
+            let reverseRecord: Response.Payload.ReverseRecord?
+        }
+        let data: Payload?
+        let errors: [Response.GraphQLError]?
+    }
+
     /// The address a `.tez` name points at, or `nil` if the name is unregistered or has no address.
     func resolve(name: String) async throws -> Address? {
         var request = URLRequest(url: endpoint)

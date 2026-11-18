@@ -25,6 +25,15 @@ struct MockChainService: ChainService {
         address == Self.captainStake ? ["captstake.tez"] : ["mytez.tez"]
     }
 
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]? {
+        let year: TimeInterval = 365 * 86_400
+        return [
+            TezosDomain(name: "mytez.tez", address: address, owner: address, expires: Date().addingTimeInterval(2 * year), isReverseRecord: true),
+            TezosDomain(name: "shop.mytez.tez", address: Self.captainStake, owner: address, expires: nil, isReverseRecord: false),
+            TezosDomain(name: "gift.tez", address: address, owner: Self.captainStake, expires: Date().addingTimeInterval(20 * 86_400), isReverseRecord: false),
+        ]
+    }
+
     func nfts(for address: Address) async throws -> [NFT] {
         (1...6).map { NFT(id: "mock:\($0)", contract: "KT1mock", tokenId: "\($0)", name: "NFT \($0)", balance: 1, thumbnailURL: nil) }
     }

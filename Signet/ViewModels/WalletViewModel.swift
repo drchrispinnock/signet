@@ -46,7 +46,7 @@ final class WalletViewModel {
         }
     }
 
-    /// Etherlink's side of the account's history, for the Recent transactions list: the same
+    /// Etherlink's side of the account's history, for the Activity list: the same
     /// TzKT shape read from Etherlink's indexer through the Layer 2 service, each row tagged as
     /// layer 2. Nothing without Layer 2 on, for a key the rollup refuses, or when Etherlink's
     /// indexer cannot be read, in which case the layer 1 list stands alone.
@@ -270,12 +270,23 @@ final class WalletViewModel {
     static let recentTransactionLimit = 25
 
     enum ActivityTab: String, CaseIterable, Identifiable {
-        case transactions = "Recent transactions"
+        case transactions = "Activity"
         case assets = "Assets"
         case nfts = "NFTs"
+        case domains = "Domains"
         var id: String { rawValue }
     }
     var activityTab: ActivityTab = .transactions
+
+    /// The Domains tab's list, read when the tab is shown, for the account and network in `key`.
+    enum DomainListState: Equatable {
+        case loading
+        case loaded([TezosDomain])
+        /// The network has no Tezos Domains (only mainnet does).
+        case unavailable
+        case failed(String)
+    }
+    var domainList: (key: String, state: DomainListState)?
 
     /// Which layers the activity tabs show while Layer 2 is on: the Tezos and Etherlink
     /// toggles beside the activity picker, both on to begin with. Ignored without Layer 2,
@@ -285,7 +296,7 @@ final class WalletViewModel {
     /// Whether the layer toggles apply: Layer 2 is on for the network in use.
     var filtersLayers: Bool { network.hasL2 }
 
-    /// The rows the Recent transactions list shows: everything loaded, cut to the chosen layers
+    /// The rows the Activity list shows: everything loaded, cut to the chosen layers
     /// while Layer 2 is on.
     var visibleTransactions: [TezosTransaction] { visible(transactions, by: \.layer) }
     /// The Assets tab's tokens, cut the same way.

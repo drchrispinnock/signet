@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Bottom section of the dashboard: recent transactions or NFTs, chosen with a segmented control.
+/// Bottom section of the dashboard: activity, assets, NFTs or Tezos Domains names, chosen with
+/// a segmented control.
 struct ActivityTabsView: View {
     @Bindable var model: WalletViewModel
 
@@ -15,7 +16,7 @@ struct ActivityTabsView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 400)
+                .frame(maxWidth: 460)
                 Spacer(minLength: 0)
                 if model.filtersLayers {
                     LayerToggles(shown: $model.shownLayers, layer2Name: model.network.l2Name)
@@ -33,6 +34,8 @@ struct ActivityTabsView: View {
                             layerEmptyText: model.layerEmptyText(for: "NFTs"),
                             actions: NFTActions(network: { model.tokenNetwork(on: $0) }, canOperate: { model.canTransferTokens(on: $0) }, start: { model.nftOperation = $0 },
                                                 download: { model.nftDownload = $0 }))
+            case .domains:
+                DomainListView(model: model)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
