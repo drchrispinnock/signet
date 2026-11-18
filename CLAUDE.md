@@ -635,9 +635,16 @@ automatic download is off by default. The updater is not started under the test 
   share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Scan QR code when a camera is attached, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
   dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
-  has Cmd-comma. File has Create Backup (`backUp(force: true)`). Help has Getting Started (the Signet book on Leanpub,
-  `SignetApp.gettingStartedURL`) and Signet Website (`websiteURL`, https://signetwallet.org) in
-  place of the default help item.
+  has Cmd-comma. File has Create Backup (`backUp(force: true)`). Help has Getting Started and Signet Website (`websiteURL`,
+  https://signetwallet.org) in place of the default help item (`HelpMenuItems`). Getting Started
+  opens a window of its own (`GettingStartedView`, a `Window` scene) showing the book's chapter
+  `manuscript/110-starting.md` with its screenshots `manuscript/resources/110`, both bundled as
+  resources by `project.yml`, rendered by `Markua` (`Signet/Models/Markua.swift`: the subset of
+  Leanpub's Markua the book uses; `<!-- -->` author notes dropped; everything escaped; pictures
+  only from beside the chapter) in a web view with JavaScript off; links within the chapter
+  scroll, other chapters go to Leanpub (`Markua.bookURL`), other links open in the browser.
+  Re-copying the chapter is all an update needs; `GettingStartedTests` checks every picture it
+  shows is in the bundle.
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
