@@ -27,7 +27,6 @@ struct StakingSheet: View {
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var watchOnlyNote: String {
         switch wallet?.keyKind {
-        case .remote: "Signet cannot sign for this account: it uses a remote signer."
         default: "Signet holds only this address's public key, so it can show but not change its delegation."
         }
     }

@@ -111,6 +111,9 @@ final class WalletViewModel {
     var isPresentingStaking = false
     var isPresentingBaking = false
     var isPresentingConnectLedger = false
+    var isPresentingConnectRemoteSigner = false
+    /// How Connect Remote Signer reaches a signer; tests put a mock here.
+    var remoteSigners: any RemoteSignerService = RemoteSigners.service
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
     var isPresentingProofOfPossession = false
@@ -201,10 +204,10 @@ final class WalletViewModel {
 
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
-    /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds: the
-    /// proof is the key's signature over its own public key, and Taquito's Ledger signer cannot
-    /// make one.
-    var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && canExportSelectedKey }
+    /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds or a
+    /// remote signer holds (octez-signer makes it on request): the proof is the key's signature
+    /// over its own public key, and Taquito's Ledger signer cannot make one.
+    var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && (canExportSelectedKey || selectedWallet?.remoteSigner != nil) }
     var isPresentingGovernance = false
     var isPresentingBridge = false
     /// The NFTs a Transfer or Burn was started on from the grid's context menu; the sheet shows while set.
@@ -1555,7 +1558,10 @@ final class WalletViewModel {
         case .airgap:
             guard let publicKey = wallet.publicKey, publicKey.hasPrefix("edpk") else { return nil }
             return .airgap(publicKey: publicKey, address: wallet.address)
-        case .remote, .unknown, .none:
+        case .remote:
+            guard let signer = wallet.remoteSigner, signer.address == wallet.address, let publicKey = wallet.publicKey else { return nil }
+            return .remote(signer, publicKey: publicKey)
+        case .unknown, .none:
             return nil
         }
     }
@@ -1597,6 +1603,23 @@ final class WalletViewModel {
 
         let wallet = Wallet(alias: name, address: derived.address, scheme: curve.scheme, publicKey: derived.publicKey, keyKind: .ledger, ledgerKey: key)
         try walletStore.add(wallet, locator: key.locator)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
+    }
+
+    /// Connect Remote Signer: checks the signer again (`checkRemoteSigner`) and adds the account with the signer's locator in `secret_keys`.
+    func connectRemoteSigner(alias: String, signer: RemoteSignerLocator) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == signer.address }) { throw WalletError.addressExists(existing.alias) }
+        let check = try await checkRemoteSigner(signer)
+        // The list may have changed while the signer was asked.
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == signer.address }) { throw WalletError.addressExists(existing.alias) }
+        let wallet = Wallet(alias: name, address: signer.address, publicKey: check.publicKey, keyKind: .remote, remoteSigner: signer)
+        try walletStore.add(wallet, locator: signer.locator)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
         await backUp()

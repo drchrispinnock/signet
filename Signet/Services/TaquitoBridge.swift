@@ -492,6 +492,26 @@ final class TaquitoBridge: @unchecked Sendable {
             }
         }
         native.setObject(airgapSign, forKeyedSubscript: "airgapSign" as NSString)
+
+        // Remote signers: the bridge's remote signer names the signer, the key and the bytes;
+        // Swift does the HTTP or socket exchange (`RemoteSignerClient`) and hands back the
+        // signature as given, which the bridge checks against the account's key.
+        let remoteSign: @convention(block) (Int, String) -> Void = { [weak self] id, json in
+            guard let self else { return }
+            let generation = self.contextGeneration
+            self.trace("remote signer #\(id) request")
+            Task {
+                let reply: (String, String?)
+                do { reply = (try await RemoteSigners.answer(requestJSON: json), nil) }
+                catch { reply = ("", error.localizedDescription) }
+                self.queue.async {
+                    guard self.contextGeneration == generation else { return }
+                    self.trace("remote signer #\(id) \(reply.1 == nil ? "answered" : "failed")")
+                    self.context?.objectForKeyedSubscript("__signet_remoteDone")?.call(withArguments: [id, reply.0, reply.1 ?? NSNull()])
+                }
+            }
+        }
+        native.setObject(remoteSign, forKeyedSubscript: "remoteSign" as NSString)
         context.setObject(native, forKeyedSubscript: "__signet" as NSString)
     }
 

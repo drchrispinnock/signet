@@ -33,6 +33,9 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingConnectLedger) {
             ConnectLedgerSheet(model: model)
         }
+        .sheet(isPresented: $model.isPresentingConnectRemoteSigner) {
+            ConnectRemoteSignerSheet(model: model)
+        }
         .sheet(isPresented: $model.isPresentingImportAccount) {
             ImportAccountSheet(model: model)
         }
@@ -185,6 +188,11 @@ struct NoWalletsView: View {
                     symbol: "lock.rectangle.stack"
                 ) { model.isPresentingConnectLedger = true }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
+                StartOption(
+                    title: "Connect a remote signer",
+                    detail: "Use a key held by a remote signer such as octez-signer or Signatory.",
+                    symbol: "server.rack"
+                ) { model.isPresentingConnectRemoteSigner = true }
                 if model.hasCamera {
                     StartOption(
                         title: "Import from QR code",
