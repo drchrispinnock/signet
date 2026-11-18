@@ -108,7 +108,8 @@ struct TezosClientStore: WalletStore {
                 address: Address(address),
                 publicKey: Self.publicKey(from: publicKeys[entry.name]),
                 keyKind: KeyKind(locator: locator),
-                ledgerKey: locator.flatMap(LedgerKey.init(locator:))
+                ledgerKey: locator.flatMap(LedgerKey.init(locator:)),
+                remoteSigner: KeyKind(locator: locator) == .remote ? locator.flatMap(RemoteSignerLocator.init(locator:)) : nil
             )
         }
         // Named contracts (`contracts`) are part of the address book: watch-only entries whose
@@ -123,8 +124,9 @@ struct TezosClientStore: WalletStore {
     func add(_ wallet: Wallet, locator: String) throws {
         guard let publicKey = wallet.publicKey else { throw StoreError.missingPublicKey(wallet.alias) }
         // octez-client points the public key at the same place as the secret: the file for
-        // in-memory keys, the device for Ledger keys.
-        let publicKeyLocator = locator.lowercased().hasPrefix("ledger://") ? locator : "unencrypted:\(publicKey)"
+        // in-memory keys, the device for Ledger keys, the signer for remote keys.
+        let pointsAtKey = locator.lowercased().hasPrefix("ledger://") || KeyKind(locator: locator) == .remote
+        let publicKeyLocator = pointsAtKey ? locator : "unencrypted:\(publicKey)"
         try PrivateFile.hardenDirectory(directory)
         try withWalletLock {
             try recoverIfNeeded()
@@ -227,7 +229,8 @@ struct TezosClientStore: WalletStore {
         let locator = value(in: Self.secretKeysFile) as? String
         guard Self.publicKey(from: value(in: Self.publicKeysFile)) == wallet.publicKey,
               KeyKind(locator: locator) == wallet.keyKind,
-              locator.flatMap(LedgerKey.init(locator:)) == wallet.ledgerKey else { throw StoreError.walletChanged(wallet.alias) }
+              locator.flatMap(LedgerKey.init(locator:)) == wallet.ledgerKey,
+              (KeyKind(locator: locator) == .remote ? locator.flatMap(RemoteSignerLocator.init(locator:)) : nil) == wallet.remoteSigner else { throw StoreError.walletChanged(wallet.alias) }
         let entries = Dictionary(uniqueKeysWithValues: files.map { file, rows in
             (file, rows.filter { ($0["name"] as? String) == wallet.alias })
         })

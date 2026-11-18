@@ -131,8 +131,8 @@ automatic download is off by default. The updater is not started under the test 
   `FileMultisigProposalStore` and `WalletBackup` use the same primitive. Proposal changes go
   through `MultisigProposalStore.update(_:)`, which merges into what is on disk under the lock,
   and oversized proposals another program wrote are left out (S19). A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
-  unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
-  (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
+  unencrypted, encrypted, on a ledger, in AirGap Vault, remote or absent. Clear, encrypted, Ledger,
+  AirGap and remote-signer keys can sign (`KeyKind.canSign`). `WalletStore.add(_:locator:)` writes any
   `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
   `importWallets(from:)` (S09) first takes the source's own locks and rolls back any journal it
   finds there, copies all three key files as one snapshot, releases that lock and only then takes
@@ -587,6 +587,36 @@ automatic download is off by default. The updater is not started under the test 
   signed with the Vault (`KeyKind.signsMessages` is false: dApp sign_payload, multisig
   proposals, Mt Pelerin's check); multisig submission and dApp operations can. The Vault's old
   Tezos code decodes the operation to show it, so a newer encoding (a reveal) may not display.
+  **Remote signers (octez-signer).** "Connect Remote Signer…" (both menus after Connect Ledger,
+  and the welcome screen) opens `ConnectRemoteSignerSheet`: HTTP, HTTPS or TCP with
+  octez-signer's default ports (6732, 443, 7732; `RemoteSignerLocator.Transport.defaultPort`,
+  any port may be typed), host, the key's address (or "List Keys", `known_keys`, which
+  octez-signer 21 and earlier do not answer), and a name. `WalletViewModel.checkRemoteSigner`
+  asks the signer for the key's public key and derives the address from it locally (a key for
+  another address is `RemoteSignerError.keyMismatch`), and reports a signer started with
+  `--require-authentication`, which Signet cannot authenticate to yet; `connectRemoteSigner`
+  checks again and writes octez-client's locator (`tcp://host:port/tz1…`,
+  `http(s)://host:port[/path]/tz1…`, `unix:/path?pkh=…` read too) in both `secret_keys` and
+  `public_keys`. Plain HTTP is only for local or private hosts (`EndpointPolicy`, plus
+  `NSAllowsLocalNetworking`); TCP may go anywhere with a note that it is unencrypted.
+  `KeyKind.remote` signs operations and messages; `remote:tz1…` (a signer configured in
+  octez-client) is `.unknown`. `SigningKey.remote(locator, publicKey:)` goes to the bridge's
+  `src/remote.js` signer, which asks Swift through `__signet.remoteSign` (watermark in front of
+  the bytes), puts the reply in the key's form (base58, often generic `sig…`, over HTTP; raw
+  bytes over a socket; BLS/ML-DSA get the `ff03`/`ff04` operation marker) and uses it only
+  when `verifySignature` accepts it for the account's key (`test/remote-signer.cjs`); tz4
+  proofs of possession come from `bls_prove_possession` and are verified too. Swift's
+  `NetworkRemoteSignerService` (`Signet/Services/RemoteSignerClient.swift`) speaks the JSON RPC
+  over URLSession with `BoundedHTTP`, and the binary protocol (`SignerWire` in
+  `Signet/Models/RemoteSigner.swift`, from octez's `signer_messages.ml`: 2-byte length frames,
+  one-byte request kind, `00`/`01` result tag, an absent trailing optional field written as
+  nothing, lists behind a 4-byte length inside unions) over Network.framework, asking for
+  `authorized_keys` and signing on one connection as octez-client does, with a 120 s deadline.
+  A tz4 sign request names the key with its signature version (`03 ‖ pkh ‖ 03`). tz4 needs
+  octez-signer 23 or later: Octez 23 moved BLS signing from the augmented scheme to the
+  proof-of-possession one the chain checks, so an older signer's tz4 signature fails the
+  bridge's check (and over TCP it cannot read the request and closes), both reported as such.
+  `RemoteSignerTests` uses bytes captured between octez-client and octez-signer 21.
   `AirGapTests` uses vectors made with
   `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via

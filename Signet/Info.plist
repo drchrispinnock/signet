@@ -58,6 +58,8 @@
 	<!-- Shadownet's TzEL rollup node and operator serve plain HTTP (test services); nothing else is exempt. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
 			<key>rollup.tzel.tezos.com</key>
