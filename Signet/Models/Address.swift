@@ -38,3 +38,22 @@ struct Address: Hashable, Codable, Sendable {
         return "\(value.prefix(prefix))...\(value.suffix(suffix))"
     }
 }
+
+/// A Tezos Domains name tied to an account: one it owns, one that points at it, or both.
+struct TezosDomain: Identifiable, Equatable, Sendable {
+    var id: String { name }
+    let name: String
+    /// Where the name points; `nil` when it points nowhere.
+    let address: Address?
+    let owner: Address?
+    /// `nil` for a subdomain, which lives as long as its parent.
+    let expires: Date?
+    /// The name this account publishes as its own (reverse record).
+    let isReverseRecord: Bool
+
+    func isOwned(by account: Address) -> Bool { owner == account }
+    func pointsAt(_ account: Address) -> Bool { address == account }
+
+    /// The name's page on the Tezos Domains app (mainnet).
+    var appURL: URL? { URL(string: "https://app.tezos.domains/domain/\(name)") }
+}

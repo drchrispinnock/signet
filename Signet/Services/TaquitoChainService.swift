@@ -544,6 +544,11 @@ struct TaquitoChainService: ChainService {
         }
     }
 
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]? {
+        guard let endpoint = network.tezosDomainsURL else { return nil }
+        return try await TezosDomainsService(endpoint: endpoint, session: session).domains(of: address)
+    }
+
     /// NFTs from the TzKT indexer.
     func nfts(for address: Address) async throws -> [NFT] {
         guard let tzkt = network.tzktURL else { return [] }

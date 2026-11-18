@@ -1,28 +1,29 @@
 import AppKit
 import SwiftUI
 
-/// Bottom section of the dashboard: recent transactions or NFTs, chosen with a segmented control.
+/// Bottom section of the dashboard: activity, assets, NFTs or Tezos Domains names, chosen with
+/// a segmented control.
 struct ActivityTabsView: View {
     @Bindable var model: WalletViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                Picker("Activity", selection: $model.activityTab) {
-                    ForEach(WalletViewModel.ActivityTab.allCases) { tab in
+                Picker("Activity", selection: Binding(get: { model.shownActivityTab }, set: { model.activityTab = $0 })) {
+                    ForEach(model.activityTabs) { tab in
                         Text(tab.rawValue).tag(tab)
                     }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 400)
+                .frame(maxWidth: 460)
                 Spacer(minLength: 0)
                 if model.filtersLayers {
                     LayerToggles(shown: $model.shownLayers, layer2Name: model.network.l2Name)
                 }
             }
 
-            switch model.activityTab {
+            switch model.shownActivityTab {
             case .transactions:
                 TransactionListView(model: model)
             case .assets:
@@ -33,6 +34,8 @@ struct ActivityTabsView: View {
                             layerEmptyText: model.layerEmptyText(for: "NFTs"),
                             actions: NFTActions(network: { model.tokenNetwork(on: $0) }, canOperate: { model.canTransferTokens(on: $0) }, start: { model.nftOperation = $0 },
                                                 download: { model.nftDownload = $0 }))
+            case .domains:
+                DomainListView(model: model)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
