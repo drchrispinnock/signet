@@ -43,7 +43,8 @@ struct GettingStartedTests {
     @Test func readsBothAnchorFormsAndHidesAttributeLines() {
         let html = Markua.html(from: "{id: ID110-starting_1_Getting, sample: true}\n# Getting started\n\n{width: 80%}\nText", title: "t")
         #expect(html.contains(#"<h1 id="ID110-starting_1_Getting">Getting started</h1>"#))
-        #expect(!html.contains("{") && html.contains("<p>Text</p>"))
+        // The page's stylesheet has braces of its own; the attribute lines must not appear.
+        #expect(!html.contains("{id:") && !html.contains("{width") && html.contains("<p>Text</p>"))
         #expect(Markua.anchor(in: "{#id: 110-starting_1_Getting}") == "110-starting_1_Getting")
     }
 
@@ -66,7 +67,7 @@ struct GettingStartedTests {
     /// The app carries the chapter and every picture it shows (the test host is Signet.app).
     @Test func theAppBundlesTheChapterAndItsPictures() throws {
         let html = try #require(GettingStartedView.chapterHTML())
-        #expect(html.contains("Getting started"))
+        #expect(html.localizedCaseInsensitiveContains("<h1 id=\"ID110-starting_1_Getting\">Getting started</h1>"))
         let resources = try #require(Bundle.main.resourceURL)
         let pictures = html.components(separatedBy: "<img src=\"").dropFirst().compactMap { $0.components(separatedBy: "\"").first }
         #expect(pictures.count >= 10)
