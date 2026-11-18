@@ -1,7 +1,8 @@
 import Foundation
 import Network
 
-/// What Signet asks an octez-signer: its keys, a key's public key, whether it wants requests
+/// What Signet asks a remote signer that speaks octez-signer's protocol (octez-signer itself,
+/// Signatory, Russignol and others): its keys, a key's public key, whether it wants requests
 /// authenticated, a signature, and a tz4 key's proof of possession. HTTP(S) speaks the signer's
 /// JSON RPC (`signer_services.ml`); TCP and Unix sockets its binary messages (`SignerWire`).
 /// Nothing secret is ever sent: what is signed is public once injected, and every signature is
@@ -40,6 +41,10 @@ enum RemoteSignerError: LocalizedError, Equatable {
     case timedOut
     case authenticationRequired
     case refused(String?)
+    /// A request the signer answered with an error: which, to which signer, for which key, and its reason.
+    case declined(Request, signer: String, key: Address, reason: String?)
+
+    enum Request: Equatable, Sendable { case listKeys, publicKey, authorization, sign, proveIt }
     case notFound
     case malformedReply
     case unsupported(String)
@@ -48,16 +53,39 @@ enum RemoteSignerError: LocalizedError, Equatable {
 
     /// Octez 23 moved BLS signing to the proof-of-possession scheme the chain checks today, and
     /// names a tz4 key in a request with its signature version; older signers do neither.
-    static let tz4NeedsRecentSigner = "This signer does not understand a signing request for a tz4 key. tz4 keys need octez-signer 23 or later, which makes the BLS signatures the chain accepts."
+    static let tz4NeedsRecentSigner = "This signer does not understand a signing request for a tz4 key. tz4 keys need a signer that makes the BLS signatures the chain accepts today (for octez-signer, version 23 or later)."
+
+    /// What to tell the user when a signer says no: what was asked of whom, the signer's words,
+    /// and the usual cause.
+    static func describe(_ request: Request, signer: String, key: Address, reason: String?) -> String {
+        let said = reason.map { " The signer said: “\($0).”" } ?? " The signer gave no reason."
+        let notAllowed = reason?.localizedCaseInsensitiveContains("not allowed") == true
+        switch request {
+        case .listKeys:
+            return "The signer at \(signer) will not list its keys.\(said)"
+                + (notAllowed ? " Many signers list keys only when configured to (octez-signer: --allow-list-known-keys)." : "")
+                + " Type the key's address instead; the signer's own configuration or key list shows it."
+        case .publicKey:
+            return "The signer at \(signer) did not give the public key for \(key.value).\(said) Check that the signer holds this key and is set up to use it."
+        case .authorization:
+            return "The signer at \(signer) would not say whether it needs authentication.\(said)"
+        case .sign:
+            return "The signer at \(signer) refused to sign with \(key.value).\(said) A signer refuses what its policy forbids, such as an operation kind or magic byte it does not allow, or a level below its high watermark. Nothing was sent."
+        case .proveIt:
+            return "The signer at \(signer) refused to make a proof of possession for \(key.value).\(said)"
+        }
+    }
 
     var errorDescription: String? {
         switch self {
         case .unreachable(let detail): "Signet could not reach the remote signer: \(detail)"
-        case .closed: "The remote signer closed the connection without answering; it may not understand this request (an older octez-signer?)."
+        case .closed: "The remote signer closed the connection without answering; it may not understand this request (an older signer?)."
         case .timedOut: "The remote signer did not answer in time."
-        case .authenticationRequired: "The remote signer only accepts authenticated requests (it was started with --require-authentication). Signet cannot authenticate to a signer yet."
+        case .authenticationRequired: "The remote signer only accepts authenticated requests (octez-signer: --require-authentication). Signet cannot authenticate to a signer yet."
         case .refused(let reason): "The remote signer refused the request" + (reason.map { ": \($0)" } ?? ".")
-        case .notFound: "The remote signer does not answer that request (it may be an older octez-signer)."
+        case .declined(let request, let signer, let key, let reason):
+            Self.describe(request, signer: signer, key: key, reason: reason.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: ". ")) })
+        case .notFound: "The remote signer does not answer that request (it may be an older signer, or one that does not offer it)."
         case .malformedReply: "The remote signer's reply could not be read."
         case .unsupported(let what): what
         case .keyMismatch(let expected, let found): "The signer's public key for \(expected.value) belongs to \(found.value). Signet will not use it."
@@ -71,7 +99,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
     /// The most a reply may carry: a public key list, a key, a signature.
     static let replyLimit = 256 << 10
 
-    func knownKeys(at signer: RemoteSignerLocator) async throws -> [Address] {
+    private func listKeys(_ signer: RemoteSignerLocator) async throws -> [Address] {
         switch signer.transport {
         case .http, .https:
             let object = try await getJSON(signer, path: "/known_keys")
@@ -82,7 +110,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
         }
     }
 
-    func publicKey(at signer: RemoteSignerLocator) async throws -> String {
+    private func fetchPublicKey(_ signer: RemoteSignerLocator) async throws -> String {
         switch signer.transport {
         case .http, .https:
             let object = try await getJSON(signer, path: "/keys/\(signer.address.value)")
@@ -94,7 +122,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
         }
     }
 
-    func authorizedKeys(at signer: RemoteSignerLocator) async throws -> [Address]? {
+    private func fetchAuthorizedKeys(_ signer: RemoteSignerLocator) async throws -> [Address]? {
         switch signer.transport {
         case .http, .https:
             let object = try await getJSON(signer, path: "/authorized_keys")
@@ -106,10 +134,10 @@ struct NetworkRemoteSignerService: RemoteSignerService {
         }
     }
 
-    func sign(_ bytes: [UInt8], at signer: RemoteSignerLocator) async throws -> RemoteSignature {
+    private func signBytes(_ bytes: [UInt8], _ signer: RemoteSignerLocator) async throws -> RemoteSignature {
         switch signer.transport {
         case .http, .https:
-            guard try await authorizedKeys(at: signer) == nil else { throw RemoteSignerError.authenticationRequired }
+            guard try await fetchAuthorizedKeys(signer) == nil else { throw RemoteSignerError.authenticationRequired }
             let body = try JSONSerialization.data(withJSONObject: Hex.encode(bytes), options: .fragmentsAllowed)
             let object = try await requestJSON(signer, path: "/keys/\(signer.address.value)", method: "POST", body: body)
             guard let signature = object["signature"] as? String else { throw RemoteSignerError.malformedReply }
@@ -134,7 +162,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
         }
     }
 
-    func provePossession(at signer: RemoteSignerLocator) async throws -> String {
+    private func prove(_ signer: RemoteSignerLocator) async throws -> String {
         guard signer.address.scheme == .tz4 else { throw RemoteSignerError.unsupported("Only a tz4 key has a proof of possession.") }
         switch signer.transport {
         case .http, .https:
@@ -146,6 +174,26 @@ struct NetworkRemoteSignerService: RemoteSignerService {
             let value = try SignerWire.value(try await exchange(signer, [request]).last!)
             guard value.count == 96 else { throw RemoteSignerError.malformedReply }
             return Base58.checkEncode(prefix: [40, 171, 64, 207], payload: Array(value))
+        }
+    }
+
+
+    // Every refusal names the signer, the request and the key, with the signer's own reason.
+    func knownKeys(at signer: RemoteSignerLocator) async throws -> [Address] { try await explaining(.listKeys, signer) { try await listKeys(signer) } }
+    func publicKey(at signer: RemoteSignerLocator) async throws -> String { try await explaining(.publicKey, signer) { try await fetchPublicKey(signer) } }
+    func authorizedKeys(at signer: RemoteSignerLocator) async throws -> [Address]? { try await explaining(.authorization, signer) { try await fetchAuthorizedKeys(signer) } }
+    func sign(_ bytes: [UInt8], at signer: RemoteSignerLocator) async throws -> RemoteSignature { try await explaining(.sign, signer) { try await signBytes(bytes, signer) } }
+    func provePossession(at signer: RemoteSignerLocator) async throws -> String { try await explaining(.proveIt, signer) { try await prove(signer) } }
+
+    private func explaining<T>(_ request: RemoteSignerError.Request, _ signer: RemoteSignerLocator, _ work: () async throws -> T) async throws -> T {
+        do {
+            return try await work()
+        } catch SignerWire.Failure.refused(let reason) {
+            throw RemoteSignerError.declined(request, signer: signer.endpoint, key: signer.address, reason: reason)
+        } catch RemoteSignerError.refused(let reason) {
+            throw RemoteSignerError.declined(request, signer: signer.endpoint, key: signer.address, reason: reason)
+        } catch SignerWire.Failure.malformed {
+            throw RemoteSignerError.malformedReply
         }
     }
 
@@ -188,7 +236,7 @@ struct NetworkRemoteSignerService: RemoteSignerService {
             let errors = try? JSONSerialization.jsonObject(with: reply.data) as? [[String: Any]]
             let id = errors?.first?["id"] as? String
             if let id, id.contains("authentication") || id.contains("unauthorized") { throw RemoteSignerError.authenticationRequired }
-            throw RemoteSignerError.refused(id ?? "HTTP \(reply.status)")
+            throw RemoteSignerError.refused((errors?.first?["msg"] as? String) ?? id ?? "HTTP \(reply.status)")
         }
         guard let object = try? JSONSerialization.jsonObject(with: reply.data) as? [String: Any] else { throw RemoteSignerError.malformedReply }
         return object

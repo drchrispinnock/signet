@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where an account's key lives when octez-signer holds it: the `secret_keys` locator
+/// Where an account's key lives when a remote signer (octez-signer, Signatory, Russignol…) holds it: the `secret_keys` locator
 /// octez-client writes for a remote signer, `http://host:port/tz1…`, `https://host:port/tz1…`,
 /// `tcp://host:port/tz1…` or `unix:/path?pkh=tz1…`. Signet never sees the secret; it sends the
 /// bytes to sign and checks the signature that comes back against the account's public key.
@@ -26,16 +26,6 @@ struct RemoteSignerLocator: Hashable, Codable, Sendable {
             case .https: "HTTPS"
             case .tcp: "TCP"
             case .unix: "Unix socket"
-            }
-        }
-
-        /// What octez-signer is started with to listen this way.
-        var signerCommand: String {
-            switch self {
-            case .http: "octez-signer launch http signer"
-            case .https: "octez-signer launch https signer <cert> <key>"
-            case .tcp: "octez-signer launch socket signer"
-            case .unix: "octez-signer launch local signer"
             }
         }
     }
@@ -198,13 +188,39 @@ enum SignerWire {
         guard let tag = reply.first else { throw Failure.malformed }
         switch tag {
         case 0: return reply.dropFirst()
-        case 1: throw Failure.refused(errorID(in: Array(reply.dropFirst())))
+        case 1: throw Failure.refused(errorReason(in: Array(reply.dropFirst())))
         default: throw Failure.malformed
         }
     }
 
-    /// The first error id in a trace, when the signer wrote one (errors are carried as JSON).
-    static func errorID(in bytes: [UInt8]) -> String? {
+    /// The signer's reason in an error trace. octez writes each error as a BSON document
+    /// (`kind`, `id`, often `msg`); the message is the readable part, the id the fallback.
+    static func errorReason(in bytes: [UInt8]) -> String? {
+        bsonString(named: "msg", in: bytes) ?? bsonString(named: "id", in: bytes) ?? jsonErrorID(in: bytes)
+    }
+
+    /// The first BSON string element called `name`: `02`, the name, `00`, a little-endian length
+    /// counting the closing `00`, then the text.
+    static func bsonString(named name: String, in bytes: [UInt8]) -> String? {
+        let key: [UInt8] = [2] + Array(name.utf8) + [0]
+        var index = 0
+        while index + key.count + 4 <= bytes.count {
+            if Array(bytes[index..<(index + key.count)]) == key {
+                let at = index + key.count
+                let length = Int(bytes[at]) | Int(bytes[at + 1]) << 8 | Int(bytes[at + 2]) << 16 | Int(bytes[at + 3]) << 24
+                let start = at + 4
+                if (1...4096).contains(length), start + length <= bytes.count, bytes[start + length - 1] == 0,
+                   let text = String(bytes: bytes[start..<(start + length - 1)], encoding: .utf8), !text.isEmpty {
+                    return text
+                }
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    /// An error id written as JSON, as a signer might over other transports.
+    static func jsonErrorID(in bytes: [UInt8]) -> String? {
         let text = String(decoding: bytes, as: UTF8.self)
         guard let range = text.range(of: #""id"\s*:\s*"([^"]{1,200})""#, options: .regularExpression) else { return nil }
         let match = text[range]

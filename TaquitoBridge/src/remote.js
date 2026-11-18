@@ -1,4 +1,5 @@
-// Remote signers (octez-signer over HTTP, HTTPS, TCP or a Unix socket). Swift does the talking
+// Remote signers speaking octez-signer's protocol (octez-signer, Signatory, Russignol…) over
+// HTTP, HTTPS, TCP or a Unix socket. Swift does the talking
 // (`RemoteSignerClient.swift`) and hands back the signature as the signer gave it: base58 over
 // HTTP, raw bytes over a socket. Here it is put in the key's own form and checked against the
 // account's public key, so a signer that answers with another key's signature, or a network
@@ -89,7 +90,7 @@ export function remoteSignerFor(s) {
       const raw = rawSignature(reply, s.publicKey);
       const prefixSig = b58Encode(raw, form.prefix);
       if (!verifySignature(bytes, s.publicKey, prefixSig, watermark || undefined)) {
-        const hint = s.publicKey.startsWith("BLpk") ? " A tz4 key needs octez-signer 23 or later, which makes the BLS signatures the chain accepts." : " The signer may hold a different key under this address.";
+        const hint = s.publicKey.startsWith("BLpk") ? " A tz4 key needs a signer that makes the BLS signatures the chain accepts today (for octez-signer, version 23 or later)." : " The signer may hold a different key under this address.";
         throw new Error(`The remote signer's signature is not valid for this account's key.${hint} Nothing was sent.`);
       }
       const rawHex = Buffer.from(raw).toString("hex");

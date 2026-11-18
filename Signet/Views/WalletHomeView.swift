@@ -190,7 +190,7 @@ struct NoWalletsView: View {
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 StartOption(
                     title: "Connect a remote signer",
-                    detail: "Use a key held by octez-signer on another machine.",
+                    detail: "Use a key held by a remote signer such as octez-signer or Signatory.",
                     symbol: "server.rack"
                 ) { model.isPresentingConnectRemoteSigner = true }
                 if model.hasCamera {

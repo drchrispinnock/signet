@@ -587,7 +587,8 @@ automatic download is off by default. The updater is not started under the test 
   signed with the Vault (`KeyKind.signsMessages` is false: dApp sign_payload, multisig
   proposals, Mt Pelerin's check); multisig submission and dApp operations can. The Vault's old
   Tezos code decodes the operation to show it, so a newer encoding (a reveal) may not display.
-  **Remote signers (octez-signer).** "Connect Remote Signer…" (both menus after Connect Ledger,
+  **Remote signers** (anything speaking octez-signer's protocol: octez-signer, Signatory,
+  Russignol; user-facing text names none of them as *the* signer). "Connect Remote Signer…" (both menus after Connect Ledger,
   and the welcome screen) opens `ConnectRemoteSignerSheet`: HTTP, HTTPS or TCP with
   octez-signer's default ports (6732, 443, 7732; `RemoteSignerLocator.Transport.defaultPort`,
   any port may be typed), host, the key's address (or "List Keys", `known_keys`, which
@@ -616,7 +617,9 @@ automatic download is off by default. The updater is not started under the test 
   octez-signer 23 or later: Octez 23 moved BLS signing from the augmented scheme to the
   proof-of-possession one the chain checks, so an older signer's tz4 signature fails the
   bridge's check (and over TCP it cannot read the request and closes), both reported as such.
-  `RemoteSignerTests` uses bytes captured between octez-client and octez-signer 21.
+  `RemoteSignerTests` uses bytes captured between octez-client and octez-signer 21. A refusal
+  (`RemoteSignerError.declined`) names the signer, the request and the key with the signer's
+  own reason, which octez writes as a BSON document in the error trace (`SignerWire.errorReason`).
   `AirGapTests` uses vectors made with
   `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via

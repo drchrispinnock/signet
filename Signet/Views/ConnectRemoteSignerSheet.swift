@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Connect Remote Signer: an account whose key octez-signer holds. The user picks how the
-/// signer listens (HTTP, HTTPS or TCP, with octez-signer's default ports), where, and which of
+/// Connect Remote Signer: an account whose key a remote signer holds (octez-signer, Signatory,
+/// Russignol: anything speaking octez-signer's protocol). The user picks how the signer listens
+/// (HTTP, HTTPS or TCP, with octez-signer's default ports), where, and which of
 /// its keys; Signet asks the signer for that key's public key, derives the address from it and
 /// adds the account only when the two agree.
 struct ConnectRemoteSignerSheet: View {
@@ -71,7 +72,7 @@ struct ConnectRemoteSignerSheet: View {
                         Label("The port is a number from 1 to 65535.", systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                     }
                 } footer: {
-                    Text("octez-signer listens on port \(RemoteSignerLocator.Transport.http.defaultPort!) for HTTP, \(RemoteSignerLocator.Transport.https.defaultPort!) for HTTPS and \(RemoteSignerLocator.Transport.tcp.defaultPort!) for TCP unless started with --port.")
+                    Text("The usual ports are \(RemoteSignerLocator.Transport.http.defaultPort!) for HTTP, \(RemoteSignerLocator.Transport.https.defaultPort!) for HTTPS and \(RemoteSignerLocator.Transport.tcp.defaultPort!) for TCP (octez-signer's defaults). Use whatever port your signer is set to.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -164,7 +165,7 @@ struct ConnectRemoteSignerSheet: View {
                 }
             }
             if !check.acceptsUnauthenticated {
-                Label("This signer requires authenticated requests (--require-authentication), which Signet cannot make yet, so it will refuse to sign. Restart it without that option or put it behind a tunnel only you can reach.", systemImage: "exclamationmark.triangle")
+                Label("This signer requires authenticated requests, which Signet cannot make yet, so it will refuse to sign. Turn authentication off in the signer (octez-signer: --require-authentication) and keep it reachable only by you, for example through a tunnel.", systemImage: "exclamationmark.triangle")
                     .font(.callout).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -208,7 +209,7 @@ struct ConnectRemoteSignerSheet: View {
                 if keys.isEmpty { listNote = "The signer lists no keys." }
                 else if keys.count == 1, addressText.isEmpty { addressText = keys[0].value }
             } catch RemoteSignerError.notFound, RemoteSignerError.closed {
-                listNote = "This signer does not list its keys (octez-signer 21 and earlier). Enter the key's address; `octez-signer list known addresses` shows it."
+                listNote = "This signer does not list its keys. Enter the key's address; the signer's own configuration or key list shows it."
             } catch {
                 listNote = error.localizedDescription
             }

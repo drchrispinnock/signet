@@ -56,6 +56,8 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© Chris Pinnock 2026</string>
 	<!-- Shadownet's TzEL rollup node and operator serve plain HTTP (test services); nothing else is exempt. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Signet connects to remote signers and Tezos nodes on your local network when you set one up.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

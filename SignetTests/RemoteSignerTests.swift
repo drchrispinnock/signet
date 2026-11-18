@@ -96,6 +96,14 @@ struct RemoteSignerTests {
         #expect(throws: SignerWire.Failure.malformed) { try SignerWire.addresses(fromValue: ([0, 0, 0, 22] + one)[...]) }
         let refusal = [1] + Array(#"[{"kind":"temporary","id":"signer.unknown_key","msg":"x"}]"#.utf8)
         #expect(throws: SignerWire.Failure.refused("signer.unknown_key")) { try SignerWire.value(refusal) }
+        // What an octez-signer started without --allow-list-known-keys answers to known_keys: BSON.
+        let listing = Hex.decode("010000005b0000005757000000026b696e64000a00000074656d706f726172790002696400080000006661696c75726500026d736700250000004c697374206b6e6f776e206b6579732072657175657374206e6f7420616c6c6f7765642e0000")!
+        #expect(throws: SignerWire.Failure.refused("List known keys request not allowed.")) { try SignerWire.value(listing) }
+        let declined = RemoteSignerError.declined(.listKeys, signer: "tcp://192.168.178.213:7732", key: Self.alice, reason: "List known keys request not allowed.")
+        #expect(declined.localizedDescription.contains("The signer at tcp://192.168.178.213:7732 will not list its keys. The signer said: “List known keys request not allowed.”"))
+        #expect(declined.localizedDescription.contains("--allow-list-known-keys"))
+        let sign = RemoteSignerError.declined(.sign, signer: "tcp://h:7732", key: Self.alice, reason: nil).localizedDescription
+        #expect(sign.contains("refused to sign with \(Self.alice.value). The signer gave no reason."))
         #expect(throws: SignerWire.Failure.malformed) { try SignerWire.value([7]) }
     }
 
