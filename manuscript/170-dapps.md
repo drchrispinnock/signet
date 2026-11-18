@@ -1,34 +1,50 @@
-{#id: 170-dapps_1_Distribute}
+{id: ID170-dapps_1_Distribute}
 # Decentralised Apps
 
-*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art.  We will also swap some tez for another coin at the DEX [Quipuswap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will play [TezInvaders](https://tezinvaders.xyz), a game that stores the high score on the Tezos chain. We will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art. We will mint an NFT at the art site [Teia](https://teia.art). We will buy a Tezos domain at [Tezos Domains](https://tezos.domains). These are handy names to make it easier to remember addresses on the Tezos network. We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
 
-{#id: 170-dapps_2_Connecting}
+{id: ID170-dapps_2_Connecting}
 ## Connecting to a dApp
 
 Signet uses [Octez Connect](https://octez-connect.tezos.com) (formerly called Beacon) to connect to dApp websites. We will go through the full process with Objkt.com and 3Route, but here are some things to be aware of. On dApp websites, there will be a button to `Sign in`, `Connect Wallet` or `Sync`. If you click on this, a dialogue will appear. Sometimes it will ask you which style of connection to use - choose Beacon or Octez Connect. Then usually there will be a popup asking you which wallet you use.
 
 ![](170/signet-in-beacon.png)
 
-<!-- Waiting -->
 In this case, Signet is in the list at the bottom right. You can click Signet and it will communicate with the desktop app to log into the dApp.
 
 However, some dApps do not yet have Signet on their wallet lists. You can still connect to these sites if they will give you a QR code for the connection. Select `Show QR Code`, then `Octez Connect` if necessary, then there will be a barcode on the screen. You can copy the value to the clipboard.
 
 Then in Signet, choose `dApps...` from the burger menu. In the first dialogue, you will be able to paste the pairing code to connect Signet to the dApp website.
 
-Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection.
+Where a dApp offers a compatible Octez Connect pairing code, you can use this method to connect Signet manually. The Octez Connect team has added Signet to the wallet list, so dApps using an updated version can offer a direct connection. Some dApps still have an older wallet list, so you'll need to use a pairing code.
 
-{#id: 170-dapps_2_Buying}
+{id: ID170-dapps_2_TezInvader}
+## TezInvaders
+
+This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.* It's a Space Invaders clone, but you can buy a ticket to participate in a competition. The competition lasts 1 day and at the end of the day, the account with the highest score wins the tez in the pool. If you'd prefer not to play with real-valued tez, you can play it on the test networks.
+![](170/tezinvaders.png)
+TezInvaders includes Signet in the wallet list. To connect your wallet, click `Connect Wallet` , show more and choose Signet from the list.
+
+![](170/octezconnect.png)
+
+Then choose `Open Desktop app` and Signet should connect. Signet will ask you if you want to connect to the dApp. Click `Connect` and you are connected.
+
+![](170/tezinvsign.png)
+
+Back on the TezInvaders screen, you can now buy a ticket to participate in the round. When you do this, Signet needs to sign the transaction as you are sending 1tz to the dApp and paying transaction fees.
+
+![](170/tezinv.png)
+
+You can now play the game and participate. As you score more points, you get NFTs. There are NFTs for 1000, 3000, 5000, 8000 and 12000 points. These will, of course, appear in your NFT tab on Signet. At the end of the round, the highest scorer gets all the tez in the prize pool.
+
+{id: ID170-dapps_2_Buying}
 ## Buying an NFT from Objkt
 
 We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
 
-Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. The items sometimes have a fixed price and others you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
+Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. Some items have a fixed price; for others, you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
 
-
-
-This time, we are going to buy *[Vespera Blackthorn](https://objkt.com/tokens/KT1Hg4HcS78G8HoJjk74oeCDN7nmS6mYJvvp/11)* by the artist Monika (monikasart.tez).
+We are going to buy *[Vespera Blackthorn](https://objkt.com/tokens/KT1Hg4HcS78G8HoJjk74oeCDN7nmS6mYJvvp/11)* by the artist Monika (monikasart.tez).
 
 ![](170/vespera.png)
 
@@ -36,7 +52,7 @@ Let's connect our wallet. On objkt.com, I click `Log In`, then I choose "Log in 
 
 ![](170/objkt-code.png)
 
-In Signet, choose the account you want to buy the NFT from. I'm using a new account with 10tz. Then in the burger menu, choose `dApps...`. Paste the code into the dialogue and click `Pair`.
+In Signet, choose the account you want to buy the NFT with. I'm using a new account with 10tz. Then in the burger menu, choose `dApps...`. Paste the code into the dialogue and click `Pair`.
 
 ![](170/objkt-signet-pair.png)
 
@@ -70,8 +86,7 @@ And also appears in the NFT tab in Signet:
 
 I'm the proud owner of the NFT.
 
-If I click the icon top-right on objkt.com, I can go to my Profile. Under the `Owned` tab, I can see the purchase as well as in my wallet. Top right on the thumbnail are three dots. Click this and choose `Properties`
-
+If I click the icon top-right on objkt.com, I can go to my Profile. Under the `Owned` tab, I can see the purchase as well as in my wallet. At the top right of the thumbnail is a three-dot menu. Click it and choose `Properties`.
 ![](170/verpera-properties.png)
 There are details about the image on the objkt site. The image is a PNG file. The royalty rate is 25% which goes to the artist in this case. You can see when the token was minted (i.e. created) and the smart contract used to record the ownership on chain. Additionally there are download links for the image from Objkt's asset server and the IPFS service (more on this below).
 
@@ -79,17 +94,17 @@ You can do various other things here with the NFT. For example, you can transfer
 
 Let's end the section with some terminology about NFTs.
 
-A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is one that represents a unique digital token that represents ownership of an item or asset. We will be purchasing a piece of art and we will receive an NFT to show our ownership. We can sell or transfer this NFT.
+A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
 
-Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership. The art is stored on a distributed file service called the *interplanetary file system (IPFS)*.
+Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. A lot of NFT art is stored on a distributed file service called the *InterPlanetary File System (IPFS)*. Availability of the file relies on someone retaining or pinning the file. Some NFT platforms provide pinning, but you can also pin them with a service like [Pinata](https://pinata.cloud).
 
-Although it may be possible to buy more than one copy of each artwork, each one has a unique record of ownership on the chain. So an NFT is unique in this sense.
+It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
-NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. For example, if you sell a piece of artwork on-chain, the smart contract might have a provision for the creator. This means the artist gets a cut of every sale of their artwork, despite not owning it.
+NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. Some marketplaces include a rule that pays the creator a share of each sale made through that marketplace. This means the artist gets a cut of every sale of their artwork, despite not owning it.
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
-{#id: 170-dapps_2_Minting}
+{id: ID170-dapps_2_Minting}
 ## Minting an NFT at Teia
 
 [Teia](https://teia.art) is another art NFT site on the Tezos blockchain. It's based on the *hic et nunc* NFT marketplace that is no longer with us. You can buy and sell NFTs there. We are going to upload a piece of art and mint an NFT to represent the ownership on chain. You can do this at Objkt as well, but I want to show you an alternative site on Tezos. Using the terminology of making coins, we will *mint* the NFT. On blockchains, creating assets is called *minting.*
@@ -104,7 +119,7 @@ On Teia, click the burger menu and under Create, choose `Mint`.
 
 ![](170/teiadetail.png)
 
-I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I will receive 10% of the proceeds (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
+I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I should receive 10% on sales through marketplaces that honour the royalty (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
 
 ![](170/preview.png)
 Scrolling down and checking all the details, I click `Mint`. Then Signet receives a request for signing the operation:
@@ -126,10 +141,10 @@ It took a little while for my NFT to be listed but some time later, it appeared 
 ![](170/teiafront.png)
 From the listing you can buy one of these artworks for 1tz.
 
-{#id: 170-dapps_2_Buying_2}
+{id: ID170-dapps_2_Buying_2}
 ## Buying a Tezos Domain
 
-Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
+Tezos Domains are text names, such as drchris.tez, used to identify accounts on the Tezos network. It's easier for me to give another user the name drchris.tez than it is to give them my Tezos wallet address. The [Tezos Domains](https://tezos.domains/) project provides a dApp for purchasing these domains. We are going to purchase signetwallet.tez. 
 
 First, let's go to the Tezos Domains website https://tezos.domains and see if the domain is available by typing it in the search box.
 
@@ -139,7 +154,7 @@ It turns out that it is and we can click the button to reserve it:
 
 ![](170/td-yes.png)
 
-Click Reserve, the site will ask me to connect my wallet. Follow the instructions, use Show More, then Show QR Code, then Beacon. Copy the code and paste it into the dApps dialogue in Signet.
+Click `Reserve`. The site will ask me to connect my wallet. Follow the instructions, use Show More, then Show QR Code, then Beacon. Copy the code and paste it into the dApps dialogue in Signet.
 
 ![](170/td-request.png)
 
@@ -161,22 +176,22 @@ You can use Tezos domain names in Signet as recipients of transactions.
 
 One word of caution. You might want to live anonymously on a blockchain. It's difficult to do this actually, but one way to be anonymous is not to have any obvious identifiers on your account. A domain name may hint that an account belongs to you.
 
-{#id: 170-dapps_2_Quipuswap}
-## Quipuswap
+{id: ID170-dapps_2_Quipuswap}
+## QuipuSwap
 
 *In this section, we look at swapping tokens. There may be financial implications for you if you do this. Please take professional advice if you are unsure.*
 
-[Quipuswap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDTz is a wrapped token and represents the US dollar. Roughly speaking, a USDTz coin is roughly $1. It's backed by a diverse set of coins including USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
+[QuipuSwap](https://quipuswap.com) is an on-chain Tezos decentralised exchange. You can swap tokens such as tez with other tokens. In this section, we will swap 1tz for some [USDtz](https://usdtz.com). USDtz is a stablecoin intended to track the US dollar. A USDtz coin is roughly $1. According to the issuer's reserve description, its collateral includes USDC, USDP and GUSD. These are all reserve-backed *stablecoins*, so called because they are pegged to the underlying asset (in this case, the US dollar).
 
 ![](170/quipuswap.png)
 
-To swap at Quipuswap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into Quipuswap.
+To swap at QuipuSwap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into QuipuSwap.
 
 <!--
 ![](170/quipuswap-tokens.png)
 -->
 
-Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about $0.30 USDtz in return.)
+Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1tz was about $0.30 and so I was getting about 0.30 USDtz, worth approximately $0.30, in return.)
 
 ![](170/quipuswap-usdtzsend.png)
 
@@ -184,18 +199,18 @@ In Signet, I get a notification to sign the operation.
 
 ![](170/quipuswap-sign.png)
 
-And once I've signed, the tez has been swapped for USDtz and I can see it in my assets. I also got some Quipuswap governance tokens whilst I was there.
+And once I've signed, the tez has been swapped for USDtz and I can see it in my assets. I also got some QuipuSwap governance tokens whilst I was there.
 
 ![](170/quipuswap-assets.png)
 
-{#id: 170-dapps_2_3Route}
+{id: ID170-dapps_2_3Route}
 ## 3Route
 
 3Route is a cross-DEX aggregator where you can swap your Tezos crypto tokens for other ones cost-efficiently across various DEXes. In this section, we are going to swap 1tz for some Tezos Domains Governance Tokens (TED). This token allows you to vote in the [Tezos Domains Decentralised Autonomous Organisation](https://tezos.domains/en/governance/dao). A *Decentralised Autonomous Organisation (DAO)* is a system for handling voting and finances of an organisation on a decentralised system such as a blockchain. There are many other tokens that you can swap with at 3route, but TED will be fine for this demonstration.
 
 ![](170/3route.png)
 
-To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps...` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)

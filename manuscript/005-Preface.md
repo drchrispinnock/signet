@@ -1,4 +1,4 @@
-{#id: 005-Preface_1_Preface}
+{id: ID005-Preface_1_Preface, sample: true}
 # Preface
 
 [Tezos](https://tezos.com/) is an environmentally friendly proof-of-stake blockchain with on-chain governance. [Signet](https://signetwallet.org) is an open-source desktop wallet application for Tezos available for Mac, Windows and Linux. It's been written entirely with AI tools. In fact, as I type this preface (into a text editor that I've also written with AI), I haven't written or read a single line of code. Some of my colleagues would say that this is a good thing.
@@ -11,5 +11,4 @@ You will need a modern desktop computer and some patience. Buying cryptocurrency
 
 I wish you luck on your journey on Tezos and on blockchain generally.
 
-Chris Pinnock  
-14th November 2026
+Chris Pinnock 
