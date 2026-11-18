@@ -27,9 +27,9 @@ enum Markua {
             let line = lines[index]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            if let id = anchor(in: line) {
+            if attributes(in: line) != nil {
                 flushParagraph()
-                pendingAnchor = id
+                if let id = anchor(in: line) { pendingAnchor = id }
                 index += 1
                 continue
             }
@@ -127,11 +127,22 @@ enum Markua {
 
     // MARK: Blocks
 
+    /// The id in an attribute line, `{#id: x}` or `{id: x, sample: true}`.
     static func anchor(in line: String) -> String? {
+        guard let attributes = attributes(in: line) else { return nil }
+        for field in attributes.components(separatedBy: ",") {
+            let parts = field.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2, parts[0] == "id" || parts[0] == "#id", !parts[1].isEmpty else { continue }
+            return parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        }
+        return nil
+    }
+
+    /// The inside of a Markua attribute line (`{…}` alone on its line), which is never printed.
+    static func attributes(in line: String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard trimmed.hasPrefix("{#id:"), trimmed.hasSuffix("}") else { return nil }
-        let id = trimmed.dropFirst(5).dropLast().trimmingCharacters(in: .whitespaces)
-        return id.isEmpty ? nil : id
+        guard trimmed.hasPrefix("{"), trimmed.hasSuffix("}"), trimmed.count > 2, !trimmed.dropFirst().contains("{") else { return nil }
+        return String(trimmed.dropFirst().dropLast())
     }
 
     private static func heading(_ line: String) -> (Int, String)? {

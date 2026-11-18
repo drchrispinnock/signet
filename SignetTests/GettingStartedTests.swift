@@ -40,6 +40,13 @@ struct GettingStartedTests {
         #expect(html.contains(#"<aside class="info"><p>A note for the reader.</p></aside>"#))
     }
 
+    @Test func readsBothAnchorFormsAndHidesAttributeLines() {
+        let html = Markua.html(from: "{id: ID110-starting_1_Getting, sample: true}\n# Getting started\n\n{width: 80%}\nText", title: "t")
+        #expect(html.contains(#"<h1 id="ID110-starting_1_Getting">Getting started</h1>"#))
+        #expect(!html.contains("{") && html.contains("<p>Text</p>"))
+        #expect(Markua.anchor(in: "{#id: 110-starting_1_Getting}") == "110-starting_1_Getting")
+    }
+
     @Test func linksWithinTheChapterStayAndOthersGoToTheBook() {
         let source = "{#id: here}\n## Here\n\nSee [here](#here), [dApps](#170-dapps_1_Distribute) and [bad](javascript:alert(1))."
         let html = Markua.html(from: source, title: "t")
