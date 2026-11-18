@@ -84,6 +84,11 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Networks sheet under Layer 2; a process without a contract is not offered.
     var etherlinkGovernance: [EtherlinkGovernance.Process: Address] = [:]
     let defaultEtherlinkGovernance: [EtherlinkGovernance.Process: Address]
+    /// The contract recording which key votes for which baker in Etherlink governance (its
+    /// `voting_delegations` big map; bakers `propose_voting_key`, keys `claim_voting_rights`).
+    /// `nil` uses the one each governance contract names in its storage.
+    var etherlinkVotingContract: Address?
+    let defaultEtherlinkVotingContract: Address?
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -96,6 +101,7 @@ struct Network: Hashable, Identifiable, Sendable {
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
          l2RPCURL: URL? = nil, l2DAppType: String? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
          l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, etherlinkGovernance: [EtherlinkGovernance.Process: String] = [:],
+         etherlinkVotingContract: String? = nil,
          l2Name: String = "Etherlink", l2Chain: String? = nil, l2EnabledByDefault: Bool = false,
          shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
@@ -104,6 +110,8 @@ struct Network: Hashable, Identifiable, Sendable {
         self.l2EnabledByDefault = l2EnabledByDefault
         self.defaultEtherlinkGovernance = etherlinkGovernance.mapValues(Address.init)
         self.etherlinkGovernance = self.defaultEtherlinkGovernance
+        self.defaultEtherlinkVotingContract = etherlinkVotingContract.map(Address.init)
+        self.etherlinkVotingContract = self.defaultEtherlinkVotingContract
         self.shieldedAvailable = shieldedAvailable
         self.shielded = shielded
         self.shieldedDefault = shielded
@@ -166,6 +174,15 @@ struct Network: Hashable, Identifiable, Sendable {
     /// The processes with a contract, in display order.
     var etherlinkGovernanceProcesses: [EtherlinkGovernance.Process] { EtherlinkGovernance.Process.allCases.filter { etherlinkGovernance[$0] != nil } }
     func isUsingDefaultEtherlinkGovernance(_ process: EtherlinkGovernance.Process) -> Bool { etherlinkGovernance[process] == defaultEtherlinkGovernance[process] }
+
+    var isUsingDefaultEtherlinkVotingContract: Bool { etherlinkVotingContract == defaultEtherlinkVotingContract }
+
+    /// The same network reading voting keys from `contract` (`nil`: the one each governance contract names).
+    func usingEtherlinkVotingContract(_ contract: Address?) -> Network {
+        var copy = self
+        copy.etherlinkVotingContract = contract
+        return copy
+    }
 
     /// The same network with `process` governed through `contract` (`nil` turns the process off).
     func usingEtherlinkGovernance(_ contract: Address?, for process: EtherlinkGovernance.Process) -> Network {
@@ -334,7 +351,9 @@ struct Network: Hashable, Identifiable, Sendable {
         l2TzKTURL: URL(string: "https://api.etherlink.tzkt.io")!,
         l2ExplorerURL: URL(string: "https://etherlink.tzkt.io")!,
         // The contracts of the Ganesha update (May 2026); the earlier ones still answer but count for nothing.
-        etherlinkGovernance: [.slow: "KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb", .fast: "KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo"]
+        etherlinkGovernance: [.slow: "KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb", .fast: "KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo"],
+        // What both governance contracts name as their delegation_contract (November 2026).
+        etherlinkVotingContract: "KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH"
     )
     static let shadownet = Network(
         name: "Shadownet",

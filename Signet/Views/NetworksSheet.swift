@@ -134,6 +134,17 @@ struct NetworksSheet: View {
                     )
                     .id("\(base.name)/governance/\(process.rawValue)")
                 }
+                SettingField(
+                    title: "Voting rights contract",
+                    current: model.etherlinkVotingContract(in: base),
+                    defaultValue: base.defaultEtherlinkVotingContract?.value ?? "",
+                    prompt: "KT1… (empty: the one the governance contracts name)",
+                    monospaced: true,
+                    apply: { model.setEtherlinkVotingContract($0, in: base) },
+                    problem: { _ in "Enter the voting-rights contract's address (KT1…), or leave it empty to use the one the governance contracts name." },
+                    useDefault: { model.useDefaultEtherlinkVotingContract(in: base) }
+                )
+                .id("\(base.name)/governance/voting")
             }
         } header: {
             SectionHeader(title: "Networks", help: nodeHelp)

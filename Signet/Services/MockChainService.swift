@@ -171,7 +171,7 @@ struct MockChainService: ChainService {
     static let etherlinkVotingKey = Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
     static let mockKernelHash = "0x009e07373751a43acbf0cd747b404f45130e0ad561c4b7da937e02eb812bd0f7e8"
 
-    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address] {
+    func etherlinkVotingRights(for address: Address, contract: Address, votingContract: Address?) async throws -> [Address] {
         address == Self.etherlinkVotingKey ? [Self.captainStake] : []
     }
 
@@ -182,7 +182,7 @@ struct MockChainService: ChainService {
         state.config = EtherlinkGovernance.Config(periodLength: 4800, upvotingLimit: 20, scale: 100, proposalQuorum: 5, promotionQuorum: 15, promotionSupermajority: 80)
         state.totalVotingPower = 654_433_650_040_589
         state.proposals = [EtherlinkGovernance.Proposal(hash: Self.mockKernelHash, proposers: [Self.captainStake], upvotes: 215_727_025_713_721)]
-        state.votesFor = try await etherlinkVotingRights(for: address, contract: contract)
+        state.votesFor = try await etherlinkVotingRights(for: address, contract: contract, votingContract: nil)
         state.votingPower = address == Self.captainStake || !state.votesFor.isEmpty ? 1_234_567_000 : 0
         return state
     }

@@ -17,7 +17,11 @@ struct GovernanceSheet: View {
     @State private var tab: Tab = .tezos
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var showsTabs: Bool { model.canGovernEtherlink }
+    private var isBaker: Bool { model.delegateInfo?.isBaker == true }
+    /// Both tabs only for a baker with Etherlink governance on; a voting key that is not a baker
+    /// has Etherlink alone.
+    private var showsTabs: Bool { model.canGovernEtherlink && isBaker }
+    private var shownTab: Tab { isBaker ? tab : .etherlink }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -35,17 +39,14 @@ struct GovernanceSheet: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
-            switch tab {
+            switch shownTab {
             case .tezos: TezosGovernanceView(model: model, dismiss: { dismiss() })
             case .etherlink: EtherlinkGovernanceView(model: model, dismiss: { dismiss() })
             }
         }
         .padding(20)
         .frame(width: 560)
-        .onAppear {
-            // An account that cannot vote on Tezos (a voting key that is not a baker) opens on Etherlink.
-            if showsTabs, model.delegateInfo?.isBaker != true { tab = .etherlink }
-        }
+
     }
 }
 
