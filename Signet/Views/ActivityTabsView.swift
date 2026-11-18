@@ -9,8 +9,8 @@ struct ActivityTabsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                Picker("Activity", selection: $model.activityTab) {
-                    ForEach(WalletViewModel.ActivityTab.allCases) { tab in
+                Picker("Activity", selection: Binding(get: { model.shownActivityTab }, set: { model.activityTab = $0 })) {
+                    ForEach(model.activityTabs) { tab in
                         Text(tab.rawValue).tag(tab)
                     }
                 }
@@ -23,7 +23,7 @@ struct ActivityTabsView: View {
                 }
             }
 
-            switch model.activityTab {
+            switch model.shownActivityTab {
             case .transactions:
                 TransactionListView(model: model)
             case .assets:

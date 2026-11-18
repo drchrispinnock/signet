@@ -3,6 +3,14 @@ import Foundation
 /// The Domains tab: the Tezos Domains names the selected account owns or that point at it.
 /// Read when the tab is shown rather than on every refresh, since only mainnet has them.
 extension WalletViewModel {
+    /// The tabs the dashboard offers: Domains only where Tezos Domains exists (Mainnet).
+    var activityTabs: [ActivityTab] {
+        network.tezosDomainsURL == nil ? ActivityTab.allCases.filter { $0 != .domains } : ActivityTab.allCases
+    }
+
+    /// The tab to show: the chosen one, or Activity when the network does not offer it.
+    var shownActivityTab: ActivityTab { activityTabs.contains(activityTab) ? activityTab : .transactions }
+
     /// Which account on which network a list belongs to, so one never shows for another.
     var domainListKey: String? { selectedWallet.map { "\(network.name)|\($0.address.value)" } }
 

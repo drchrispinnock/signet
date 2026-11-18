@@ -52,6 +52,24 @@ struct DomainsTabTests {
         }
     }
 
+    @Test @MainActor func offersTheDomainsTabOnMainnetOnly() {
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService())
+        model.network = .mainnet
+        #expect(model.activityTabs.contains(.domains))
+        model.activityTab = .domains
+        #expect(model.shownActivityTab == .domains)
+        model.network = .shadownet
+        #expect(model.activityTabs.map(\.rawValue) == ["Activity", "Assets", "NFTs"])
+        #expect(model.shownActivityTab == .transactions)
+    }
+
+    @Test func followsThePagesOfTheApi() throws {
+        let first = #"{"data":{"owned":{"items":[{"name":"a.tez","address":null,"owner":"tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N","expiresAtUtc":null}],"pageInfo":{"hasNextPage":true,"endCursor":"C1"}},"pointing":{"items":[],"pageInfo":{"hasNextPage":false,"endCursor":null}},"reverseRecord":null}}"#
+        let page = try TezosDomainsService.parsePage(Data(first.utf8))
+        #expect(page.ownedNext == "C1" && page.pointingNext == nil && page.items.count == 1 && page.reverse == nil)
+        #expect(TezosDomainsService.pageSize <= 50)
+    }
+
     @Test func onlyMainnetHasDomains() async throws {
         // Answered before any request: Shadownet has no Tezos Domains endpoint.
         #expect(try await TaquitoChainService(network: .shadownet).tezosDomains(for: Self.captain) == nil)
