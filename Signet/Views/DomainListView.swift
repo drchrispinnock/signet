@@ -64,7 +64,7 @@ struct DomainRowView: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(domain.name).font(.body.weight(.medium)).lineLimit(1).textSelection(.enabled)
-                    if domain.isReverseRecord { tag("Your name", help: "The reverse record: wallets and explorers show this name for the account.") }
+                    if domain.isReverseRecord { tag("Primary name", help: "The account's reverse record: the name wallets and explorers show for this address.") }
                 }
                 Text(detail).font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
