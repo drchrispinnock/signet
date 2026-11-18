@@ -635,7 +635,9 @@ automatic download is off by default. The updater is not started under the test 
   share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Scan QR code when a camera is attached, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
   dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
-  has Cmd-comma. File has Create Backup (`backUp(force: true)`).
+  has Cmd-comma. File has Create Backup (`backUp(force: true)`). Help has Getting Started (the Signet book on Leanpub,
+  `SignetApp.gettingStartedURL`) and Signet Website (`websiteURL`, https://signetwallet.org) in
+  place of the default help item.
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
