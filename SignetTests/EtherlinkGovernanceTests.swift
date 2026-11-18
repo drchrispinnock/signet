@@ -97,9 +97,18 @@ struct EtherlinkGovernanceTests {
         // Another network, without switching: a contract can be given where we ship none.
         #expect(model.setEtherlinkGovernanceContract("KT1DxndcFitAbxLdJCN3C1pPivqbC3RJxD1R", for: .fast, in: .shadownet))
         #expect(model.network.name == "Mainnet" && model.etherlinkGovernanceContract(for: .fast, in: .shadownet) == "KT1DxndcFitAbxLdJCN3C1pPivqbC3RJxD1R")
+        // The voting-rights contract: Mainnet ships KT1Ut6…, empty means the governance contracts' own.
+        #expect(Network.mainnet.etherlinkVotingContract == Address("KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH"))
+        #expect(model.etherlinkVotingContract(in: .mainnet) == "KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH")
+        #expect(!model.setEtherlinkVotingContract("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb", in: .mainnet))
+        #expect(model.setEtherlinkVotingContract("", in: .mainnet))
+        #expect(model.etherlinkVotingContract(in: .mainnet) == "")
         // A relaunch reads the same choices back.
         let again = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: MockChainService(), stateStore: store)
         #expect(again.resolved(.shadownet).etherlinkGovernance == [.fast: Address("KT1DxndcFitAbxLdJCN3C1pPivqbC3RJxD1R")])
+        #expect(again.resolved(.mainnet).etherlinkVotingContract == nil)
+        again.useDefaultEtherlinkVotingContract(in: .mainnet)
+        #expect(again.resolved(.mainnet).etherlinkVotingContract == Address("KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH"))
     }
 
     @Test @MainActor func theEtherlinkTabNeedsLayer2AndABakerOrVotingKey() async throws {
@@ -111,6 +120,8 @@ struct EtherlinkGovernanceTests {
         await model.refresh()
         #expect(model.etherlinkVotesFor == [MockChainService.captainStake])
         #expect(model.canGovernEtherlink && model.canGovern)
+        // Every signing account was checked, not only the selected one.
+        #expect(model.etherlinkVotingKeys == [MockChainService.etherlinkVotingKey: [MockChainService.captainStake]])
         // Off again, or no contract: the item goes.
         model.setEtherlinkGovernanceContract("", for: .slow, in: .mainnet)
         model.setEtherlinkGovernanceContract("", for: .fast, in: .mainnet)
@@ -164,7 +175,7 @@ struct EtherlinkGovernanceTests {
         let service = TaquitoChainService(network: .mainnet)
         let fast = Address("KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo")
         let votingKey = Address("tz1XjYbYEdJgoUK2ERHD5iVaquJQwPbvYjDJ")
-        let bakers = try await service.etherlinkVotingRights(for: votingKey, contract: fast)
+        let bakers = try await service.etherlinkVotingRights(for: votingKey, contract: fast, votingContract: nil)
         #expect(!bakers.isEmpty && bakers.allSatisfy { $0.value.hasPrefix("tz3") })
         let state = try await service.etherlinkGovernanceState(contract: fast, for: votingKey)
         #expect(state.config.periodLength == 4800 && state.config.promotionSupermajority == 80 && state.config.upvotingLimit == 20)

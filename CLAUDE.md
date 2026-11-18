@@ -376,11 +376,18 @@ automatic download is off by default. The updater is not started under the test 
   `AppState.etherlinkGovernance` only where they differ, "" for a process turned off), and
   `Network.canGovernEtherlink` is Layer 2 on with at least one contract. The item shows
   (`WalletViewModel.canGovern` / `canGovernEtherlink`) for a baker, or for an account the
-  delegation contract (named in each governance contract's storage) lists as some baker's
-  voting key: `refresh` asks the bridge's `etherlinkVotingRights` (what the delegation
-  contract's `list_voters(address, Some contract)` view answers, read from its
-  `voting_delegations` big map: `votersFrom`) and keeps the bakers in `etherlinkVotesFor`; a
-  voting key that is not a baker opens on the Etherlink tab and the Tezos tab says so.
+  voting-rights contract lists as some baker's voting key. That contract is a Networks
+  setting, "Voting rights contract" (`Network.etherlinkVotingContract`, Mainnet
+  `KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH`, what both governance contracts name as their
+  `delegation_contract`; saved under `AppState.etherlinkGovernance[name]["voting"]`, empty
+  meaning the one each governance contract names). `checkEtherlinkVotingKeys` asks the
+  bridge's `etherlinkVotingRights` (what the contract's `list_voters(address, Some contract)`
+  view answers, read from its `voting_delegations` big map: `votersFrom`) for every signing
+  account, beside and apart from the selected account's refresh (a failed balance or history
+  read used to hide Governance), once per network, settings and account list
+  (`etherlinkVotingKeysContext`), again after any failed lookup; `etherlinkVotingKeys` maps
+  account to bakers, `etherlinkVotesFor` is the selected account's. A voting key that is not a
+  baker gets the Etherlink tab alone.
   **No views are run**: public nodes such as rpc.tzbeta.net refuse `run_script_view` and
   `pack_data` (401), so `getEtherlinkGovernanceState` (`src/etherlink-governance.js`) computes
   the period from the storage's `config` and the head level exactly as the contract does

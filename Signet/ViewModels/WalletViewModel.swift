@@ -264,9 +264,17 @@ final class WalletViewModel {
     private(set) var portfolioState: Portfolio.State = .complete
     private(set) var transactions: [TezosTransaction] = []
     private(set) var delegateInfo: DelegateInfo?
-    /// Bakers the selected account votes for in Etherlink governance (their voting key), as of
-    /// the last refresh; empty when Layer 2 is off or the account votes for nobody.
-    private(set) var etherlinkVotesFor: [Address] = []
+    /// Bakers each of our signing accounts votes for in Etherlink governance (its voting key),
+    /// checked for every account at launch and whenever the network, its Layer 2 and
+    /// governance settings or the account list change (`checkEtherlinkVotingKeys`); only
+    /// accounts with rights are listed.
+    private(set) var etherlinkVotingKeys: [Address: [Address]] = [:]
+    /// What `etherlinkVotingKeys` was checked for; a different value means check again.
+    private var etherlinkVotingKeysContext: String?
+
+    /// Bakers the selected account votes for in Etherlink governance; empty when Layer 2 is off
+    /// or the account votes for nobody.
+    var etherlinkVotesFor: [Address] { selectedWallet.flatMap { etherlinkVotingKeys[$0.address] } ?? [] }
     static let recentTransactionLimit = 25
 
     enum ActivityTab: String, CaseIterable, Identifiable {
@@ -372,7 +380,6 @@ final class WalletViewModel {
         nfts = []
         transactions = []
         delegateInfo = nil
-        etherlinkVotesFor = []
         tezBalance = nil
         accountNotOnChain = false
         portfolioState = .complete
@@ -479,6 +486,29 @@ final class WalletViewModel {
 
     func useDefaultEtherlinkGovernanceContract(for process: EtherlinkGovernance.Process, in base: Network) {
         change(base) { $0.usingEtherlinkGovernance($0.defaultEtherlinkGovernance[process], for: process) }
+    }
+
+    /// The voting-rights contract in use on `base` ("" when the governance contracts' own is used).
+    func etherlinkVotingContract(in base: Network) -> String {
+        resolved(Network.named(base.name) ?? base).etherlinkVotingContract?.value ?? ""
+    }
+
+    /// Reads voting keys from the contract typed in Networks, or from the governance contracts'
+    /// own for empty text. False (and no change) when the text is not a contract address.
+    @discardableResult
+    func setEtherlinkVotingContract(_ text: String, in base: Network) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var contract: Address?
+        if !trimmed.isEmpty {
+            guard let parsed = EtherlinkGovernance.contractAddress(from: trimmed) else { return false }
+            contract = parsed
+        }
+        change(base) { $0.usingEtherlinkVotingContract(contract) }
+        return true
+    }
+
+    func useDefaultEtherlinkVotingContract(in base: Network) {
+        change(base) { $0.usingEtherlinkVotingContract($0.defaultEtherlinkVotingContract) }
     }
 
     /// Whether shielded transactions are on for `base` (saved or default), without switching.
@@ -867,6 +897,9 @@ final class WalletViewModel {
         let shieldedBridge = self.shieldedBridge
         isLoading = true
         errorMessage = nil
+        // Which accounts are Etherlink voting keys is checked beside this account's load and
+        // apart from it, so a failing balance or history read cannot hide Governance.
+        async let votingKeys: Void = checkEtherlinkVotingKeys()
 
         struct Snapshot {
             var tezBalance: TezBalance?
@@ -876,7 +909,6 @@ final class WalletViewModel {
             var domains: [String] = []
             var transactions: [TezosTransaction] = []
             var delegateInfo: DelegateInfo?
-            var etherlinkVotesFor: [Address] = []
             var notOnChain = false
             var error: String?
         }
@@ -890,7 +922,6 @@ final class WalletViewModel {
             async let etherlinkHoldings = Self.etherlinkPortfolio(for: address, on: network, chain: layer2)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
-            async let votesFor = Self.etherlinkVotesFor(address, on: network, chain: chain)
             async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
 
             let tezBalance = try await tez
@@ -903,7 +934,6 @@ final class WalletViewModel {
             snapshot.domains = try await names
             snapshot.transactions = Self.mergedHistory(try await history, await etherlinkHistory, limit: Self.recentTransactionLimit)
             snapshot.delegateInfo = (try? await delegation) ?? nil
-            snapshot.etherlinkVotesFor = await votesFor
         } catch ChainError.accountNotOnChain {
             // Not on layer 1: no balance rows at all, the Etherlink one included.
             snapshot.notOnChain = true
@@ -913,6 +943,7 @@ final class WalletViewModel {
             snapshot.error = error.localizedDescription
         }
 
+        await votingKeys
         // Publish only into the context the load was started for.
         guard currentContext == mine else { return }
         isLoading = false
@@ -937,23 +968,46 @@ final class WalletViewModel {
         domains = snapshot.domains
         transactions = snapshot.transactions
         delegateInfo = snapshot.delegateInfo
-        etherlinkVotesFor = snapshot.etherlinkVotesFor
         accountNotOnChain = snapshot.notOnChain
     }
 
-    /// The bakers `address` is the Etherlink voting key of, across the network's governance
-    /// contracts; empty when Layer 2 is off, no contract is set, or the lookup fails (the
-    /// Governance item then shows for bakers alone).
-    private static func etherlinkVotesFor(_ address: Address, on network: Network, chain: any ChainService) async -> [Address] {
-        guard network.canGovernEtherlink else { return [] }
-        var bakers: [Address] = []
-        for process in network.etherlinkGovernanceProcesses {
-            guard let contract = network.etherlinkGovernance[process] else { continue }
-            for baker in (try? await chain.etherlinkVotingRights(for: address, contract: contract)) ?? [] where !bakers.contains(baker) {
-                bakers.append(baker)
-            }
+    /// Finds which of our signing accounts are some baker's Etherlink voting key, unless that
+    /// was already found for this network, these settings and these accounts. Off with Layer 2
+    /// off. A lookup that fails leaves the context unchecked, so the next refresh tries again.
+    func checkEtherlinkVotingKeys() async {
+        let network = self.network
+        let candidates = wallets.filter { $0.keyKind.canSign && $0.address.isValidAccount && !$0.address.isContract }.map(\.address)
+        let contracts = network.etherlinkGovernanceProcesses.compactMap { network.etherlinkGovernance[$0] }
+        let context = ([network.name, network.rpcURL.absoluteString, String(network.canGovernEtherlink), network.etherlinkVotingContract?.value ?? "-"]
+                       + contracts.map(\.value) + candidates.map(\.value).sorted()).joined(separator: "|")
+        guard context != etherlinkVotingKeysContext else { return }
+        guard network.canGovernEtherlink, !candidates.isEmpty else {
+            etherlinkVotingKeys = [:]
+            etherlinkVotingKeysContext = context
+            return
         }
-        return bakers
+        etherlinkVotingKeysContext = context  // one check at a time for this context
+        let chain = self.chain
+        let voting = network.etherlinkVotingContract
+        let found = await withTaskGroup(of: (Address, [Address]?).self) { group in
+            for address in candidates {
+                group.addTask {
+                    var bakers: [Address] = []
+                    for contract in contracts {
+                        guard let list = try? await chain.etherlinkVotingRights(for: address, contract: contract, votingContract: voting) else { return (address, nil) }
+                        for baker in list where !bakers.contains(baker) { bakers.append(baker) }
+                    }
+                    return (address, bakers)
+                }
+            }
+            var result: [Address: [Address]?] = [:]
+            for await (address, bakers) in group { result[address] = bakers }
+            return result
+        }
+        guard etherlinkVotingKeysContext == context else { return }
+        etherlinkVotingKeys = found.compactMapValues { $0 }.filter { !$0.value.isEmpty }
+        // Try again on the next refresh if any account could not be looked up.
+        if found.values.contains(where: { $0 == nil }) { etherlinkVotingKeysContext = nil }
     }
 
     func select(_ wallet: Wallet) {

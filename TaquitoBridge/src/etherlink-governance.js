@@ -152,13 +152,18 @@ async function votingRightsOf(tk, delegation, contract, address) {
 /**
  * The bakers `address` is the Etherlink voting key of on `contract` (what the delegation
  * contract's `list_voters(address, Some contract)` answers, read from its big map), or []
- * when the governance contract names no delegation contract.
+ * when there is no delegation contract. `votingContract`, the voting-rights contract set in
+ * Networks, is used when given; otherwise the one the governance contract names.
  */
-export async function etherlinkVotingRights(rpcUrl, contract, address) {
+export async function etherlinkVotingRights(rpcUrl, contract, address, votingContract) {
   if (!KT1.test(contract)) throw new Error(`Not a governance contract: ${contract}`);
+  if (votingContract != null && !KT1.test(votingContract)) throw new Error(`Not a voting-rights contract: ${votingContract}`);
   const tk = reader(rpcUrl);
-  if (!delegationContracts.has(contract)) await storageOf(tk, contract);
-  const delegation = delegationContracts.get(contract);
+  let delegation = votingContract ?? null;
+  if (!delegation) {
+    if (!delegationContracts.has(contract)) await storageOf(tk, contract);
+    delegation = delegationContracts.get(contract);
+  }
   if (!delegation) return [];
   return votingRightsOf(tk, delegation, contract, address);
 }

@@ -423,9 +423,9 @@ struct TaquitoChainService: ChainService {
 
     // MARK: Etherlink governance (layer 1 contracts)
 
-    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address] {
+    func etherlinkVotingRights(for address: Address, contract: Address, votingContract: Address?) async throws -> [Address] {
         try await verifyChain()
-        let r = try await bridge.call("etherlinkVotingRights", [network.rpcURL.absoluteString, contract.value, address.value], timeout: 60)
+        let r = try await bridge.call("etherlinkVotingRights", [network.rpcURL.absoluteString, contract.value, address.value, votingContract?.value ?? NSNull()], timeout: 60)
         guard let list = r.arrayValue else { throw TaquitoBridge.BridgeError.javaScript("unexpected voting rights payload: \(String(describing: r))") }
         return try list.map {
             guard let value = $0.stringValue, Address(value).isValidAccount else { throw TaquitoBridge.BridgeError.javaScript("unexpected voting rights payload: \(String(describing: r))") }

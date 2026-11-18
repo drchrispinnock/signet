@@ -23,6 +23,8 @@ struct AppState: Codable, Equatable, Sendable {
     var serviceURLs: [String: [String: String]]?
     /// Etherlink governance contracts by network name, then by `EtherlinkGovernance.Process`
     /// raw value, only where the user replaced what we ship; an empty string turns the process off.
+    /// The voting-rights contract is kept here too, under `votingRightsKey`; empty means "the
+    /// one the governance contracts name".
     var etherlinkGovernance: [String: [String: String]]?
 }
 
@@ -58,8 +60,13 @@ extension AppState {
                 network = network.usingEtherlinkGovernance(contract, for: process)
             }
         }
+        if let saved = etherlinkGovernance?[base.name]?[Self.votingRightsKey] {
+            network = network.usingEtherlinkVotingContract(saved.isEmpty ? nil : EtherlinkGovernance.contractAddress(from: saved) ?? base.defaultEtherlinkVotingContract)
+        }
         return network
     }
+
+    static let votingRightsKey = "voting"
 
     /// Records `net`'s node, Layer 2 choices and links, each only where it differs from the
     /// defaults, so the maps stay sparse and `nil` when nothing is custom.
@@ -133,6 +140,7 @@ extension AppState {
         for process in EtherlinkGovernance.Process.allCases {
             contracts[process.rawValue] = net.isUsingDefaultEtherlinkGovernance(process) ? nil : (net.etherlinkGovernance[process]?.value ?? "")
         }
+        contracts[Self.votingRightsKey] = net.isUsingDefaultEtherlinkVotingContract ? nil : (net.etherlinkVotingContract?.value ?? "")
         all[net.name] = contracts.isEmpty ? nil : contracts
         etherlinkGovernance = all.isEmpty ? nil : all
     }
