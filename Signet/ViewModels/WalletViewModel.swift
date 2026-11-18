@@ -1487,7 +1487,10 @@ final class WalletViewModel {
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
-        case .airgap, .remote, .unknown, .none:
+        case .airgap:
+            guard let publicKey = wallet.publicKey, publicKey.hasPrefix("edpk") else { return nil }
+            return .airgap(publicKey: publicKey, address: wallet.address)
+        case .remote, .unknown, .none:
             return nil
         }
     }

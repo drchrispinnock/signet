@@ -136,6 +136,7 @@
 		A8605F0B652A3BDAA36F2C4D /* ImportAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A35A11B252F5C76BBC15290 /* ImportAccountSheet.swift */; };
 		A888988B53D51769A9E2D113 /* TezosClientStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741349B359248E0F53BDF375 /* TezosClientStore.swift */; };
 		ACEEFBEA79DEAC5A35BA2E00 /* SignMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */; };
+		B33F90DC44E83C36FEF20A5A /* AirGapSigning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDD61FE37E24016D53B9855 /* AirGapSigning.swift */; };
 		B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B85C43802035F011273672C /* LedgerHID.swift */; };
 		B485B566CF82C1E2C33B73E0 /* JSONBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A798BC85F924D7A47B00E61A /* JSONBudget.swift */; };
 		B4879498749B6A09EF28AFE0 /* TokenTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0112E6B83F48D5B43089E13D /* TokenTransfer.swift */; };
@@ -222,6 +223,7 @@
 		08FB43B12028F0D54446D75E /* DeveloperSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettings.swift; sourceTree = "<group>"; };
 		0B8A25CB62696FFB8F173814 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		0FC5AEA37DB0C4CC4A507E78 /* Address.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Address.swift; sourceTree = "<group>"; };
+		0FDD61FE37E24016D53B9855 /* AirGapSigning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirGapSigning.swift; sourceTree = "<group>"; };
 		12061334BC624B52CD710148 /* TezClientStoreDirectoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TezClientStoreDirectoryTests.swift; sourceTree = "<group>"; };
 		1215AD142745D76B5C97441C /* tzel-shadownet-producer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "tzel-shadownet-producer.json"; sourceTree = "<group>"; };
 		12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMultisigSheet.swift; sourceTree = "<group>"; };
@@ -616,6 +618,7 @@
 		C0376BE86D00E92CD14CD922 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				0FDD61FE37E24016D53B9855 /* AirGapSigning.swift */,
 				046B82438F96A071EF2BC434 /* Appearance.swift */,
 				CD834C06F49658A295BADA09 /* AppStateStore.swift */,
 				26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */,
@@ -823,6 +826,7 @@
 				353C2A8477261BC9E54ED68A /* Address.swift in Sources */,
 				8D9405F75AAB8B8C0884DA0B /* AddressScheme.swift in Sources */,
 				7D1916A237F8E0214E0915DF /* AirGap.swift in Sources */,
+				B33F90DC44E83C36FEF20A5A /* AirGapSigning.swift in Sources */,
 				58532C6573A1A3FB460EA85A /* AppStateStore.swift in Sources */,
 				07D7E4480040CCD4175347AC /* Appearance.swift in Sources */,
 				CC416E163124554D18F60393 /* ArtworkCache.swift in Sources */,

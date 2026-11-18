@@ -113,7 +113,7 @@ struct ScanQRSheet: View {
                 RoundedRectangle(cornerRadius: 10).fill(.black.opacity(0.85))
                 switch cameraState {
                 case .running:
-                    CameraPreview(session: capture.session)
+                    QRCameraPreview(session: capture.session)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 case .starting:
                     ProgressView().controlSize(.small).colorScheme(.dark)
@@ -312,7 +312,7 @@ struct ScanQRSheet: View {
 }
 
 /// The live picture from the camera.
-private struct CameraPreview: NSViewRepresentable {
+struct QRCameraPreview: NSViewRepresentable {
     let session: AVCaptureSession
 
     func makeNSView(context: Context) -> NSView {

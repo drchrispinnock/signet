@@ -127,6 +127,9 @@ enum SigningKey: Sendable, Equatable {
     case secret(String, passphrase: String?, address: Address)
     /// A key on a Ledger; the device signs after the user approves on it.
     case ledger(LedgerKey, address: Address)
+    /// A key in AirGap Vault: the operation goes to the phone as a QR code and the signature
+    /// comes back the same way (`AirGapSigning`). The public key is the account's `edpk`.
+    case airgap(publicKey: String, address: Address)
 
     var isLedger: Bool { if case .ledger = self { return true } else { return false } }
 
@@ -138,6 +141,8 @@ enum SigningKey: Sendable, Equatable {
             object = ["kind": "secret", "secretKey": key, "passphrase": passphrase ?? "", "address": address.value]
         case .ledger(let key, let address):
             object = ["kind": "ledger", "path": key.fullPath, "derivationType": key.curve.derivationType, "address": address.value]
+        case .airgap(let publicKey, let address):
+            object = ["kind": "airgap", "publicKey": publicKey, "address": address.value]
         }
         let data = try! JSONSerialization.data(withJSONObject: object)
         return String(data: data, encoding: .utf8)!

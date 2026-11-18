@@ -38,7 +38,7 @@ struct ActionButtonsView: View {
         if isWatchOnly { return "Not available for a watch-only address" }
         if action.title == "Send" {
             if model.accountNotOnChain { return "This address has no tez on this network" }
-            if let kind = model.selectedWallet?.keyKind, !kind.canSign { return kind == .airgap ? "Sending with AirGap Vault is not supported yet" : "Sending with \(kind.rawValue) keys is not supported yet" }
+            if let kind = model.selectedWallet?.keyKind, !kind.canSign { return "Sending with \(kind.rawValue) keys is not supported yet" }
         }
         return "\(action.title) is coming soon"
     }
@@ -50,7 +50,6 @@ struct ActionButtonsView: View {
         if model.accountNotOnChain { return "This address has no tez on \(model.network.name), so there is nothing to send." }
         switch wallet.keyKind {
         case .remote: return "This account signs through a remote signer, which Signet does not support yet."
-        case .airgap: return "This account's key is in AirGap Vault. Signing with AirGap Vault is not supported yet."
         default: return "Signet cannot sign for this account yet."
         }
     }

@@ -571,12 +571,23 @@ automatic download is off by default. The updater is not started under the test 
   the public key and writes an octez alias whose `secret_keys` locator is
   `airgap://<master fingerprint>/<path>` (`KeyKind.airgap`; octez-client lists it as "airgap
   sk known" and leaves it alone); the header tags it "AirGap". `airgap-…://?ur=` links are read
-  too; the old `?d=` format (`.airGapLegacy`) gets a note to pick QR Code V3. **Signing is
-  not done yet** (`KeyKind.airgap.canSign` is false): the pieces are there
-  (`AirGap.signRequest`, a type 5 message with the forged bytes, `callbackURL`
-  `airgap-wallet://?d=` which Vault requires, and `AirGap.signedOperation` reading the type 6
-  reply, forged bytes plus the 64-byte signature; `UniformResource.encode` cycles pure
-  frames, which AirGap's decoder accepts). `AirGapTests` uses vectors made with
+  too; the old `?d=` format (`.airGapLegacy`) gets a note to pick QR Code V3. **Signing.**
+  `KeyKind.airgap.canSign` is true and `SigningKey.airgap(publicKey:address:)` goes to the
+  bridge as `{kind: "airgap", publicKey, address}`; `src/airgap.js`'s signer accepts only the
+  operation watermark (0x03), hands the forged hex to Swift through `__signet.airgapSign`
+  (no deadline, like every signing call) and checks the returned signature with
+  `verifySignature` against the account's `edpk` before Taquito uses it (`test/airgap.cjs`).
+  Swift's `AirGapSigning.shared` (`Signet/Services/AirGapSigning.swift`) opens one panel at a
+  time as an AppKit sheet on the deepest sheet of the front window, so every sheet that signs
+  works unchanged: it shows the type 5 request (`AirGap.signRequest`, `callbackURL`
+  `airgap-wallet://?d=` which Vault requires; `UniformResource.encode` at 200 bytes a frame,
+  pure frames cycled every 250 ms), then scans the Vault's type 6 reply with the camera or a
+  pasted screenshot (`AirGapSignSession`), and `AirGap.signature(in:id:forged:)` takes the
+  signature only from a reply to that id carrying exactly the bytes sent. Messages cannot be
+  signed with the Vault (`KeyKind.signsMessages` is false: dApp sign_payload, multisig
+  proposals, Mt Pelerin's check); multisig submission and dApp operations can. The Vault's old
+  Tezos code decodes the operation to show it, so a newer encoding (a reveal) may not display.
+  `AirGapTests` uses vectors made with
   `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.

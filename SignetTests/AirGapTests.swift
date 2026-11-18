@@ -45,7 +45,9 @@ struct AirGapTests {
                                             derivationPath: "m/44h/1729h/0h/0h", masterFingerprint: "f4e3d2c1", groupLabel: "My Vault")])
         #expect(accounts[0].locator == "airgap://f4e3d2c1/44h/1729h/0h/0h")
         #expect(KeyKind(locator: accounts[0].locator) == .airgap)
-        #expect(!KeyKind.airgap.canSign)
+        #expect(KeyKind.airgap.canSign)
+        #expect(!KeyKind.airgap.signsMessages)
+        #expect(KeyKind.ledger.signsMessages && KeyKind.encrypted.signsMessages)
     }
 
     @Test(arguments: [[1, 2, 3], [3, 2, 1], [2, 4, 5, 6, 7, 8, 9], [1, 7, 9], [4, 5, 6, 7, 8, 9], [3, 4, 5, 7], [1, 1, 2, 2, 3]])
@@ -143,5 +145,54 @@ struct AirGapTests {
         var extended = messages[0]
         extended.payload[4] = .bool(true)
         #expect(throws: AirGap.Error.malformed) { try AirGap.accounts(in: [extended]) }
+    }
+
+    @Test func takesTheSignatureOnlyForTheBytesSent() throws {
+        let messages = try AirGap.messages(from: #require(try payload([Self.responseSingle])))
+        #expect(try AirGap.signature(in: messages, id: 87_654_321, forged: Self.forged) == [UInt8](repeating: 0xcd, count: 64))
+        #expect(throws: AirGap.Error.differentOperation) { try AirGap.signature(in: messages, id: 87_654_321, forged: Self.forged.dropLast() + [0x01]) }
+        #expect(throws: AirGap.Error.differentOperation) { try AirGap.signature(in: messages, id: 87_654_321, forged: Array(Self.forged.dropLast())) }
+        #expect(throws: AirGap.Error.wrongResponse) { try AirGap.signature(in: messages, id: 12_121_212, forged: Self.forged) }
+    }
+
+    @MainActor @Test func aSigningSessionShowsTheRequestAndReadsTheReply() throws {
+        let edpk = try #require(AirGap.edpk(from: Self.publicKeyHex))
+        let session = try #require(AirGapSignSession(address: "tz1", publicKey: edpk, forged: Self.forged, id: 87_654_321))
+        #expect(session.frames == [Self.requestSingle.uppercased()])
+        var result: Result<[UInt8], Error>?
+        session.onFinish = { result = $0 }
+
+        session.receive(Self.requestSingle)  // our own code, seen by the camera by mistake
+        #expect(result == nil)
+        #expect(session.note?.contains("Signet's own request") == true)
+        session.receive("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb")
+        #expect(result == nil)
+        session.receive(Self.responseSingle)
+        #expect(try result?.get() == [UInt8](repeating: 0xcd, count: 64))
+    }
+
+    @MainActor @Test func aSessionRefusesAReplyForOtherBytes() throws {
+        let edpk = try #require(AirGap.edpk(from: Self.publicKeyHex))
+        let session = try #require(AirGapSignSession(address: "tz1", publicKey: edpk, forged: Self.forged + [0], id: 87_654_321))
+        var failure: Error?
+        session.onFinish = { if case .failure(let error) = $0 { failure = error } }
+        session.receive(Self.responseSingle)
+        #expect(failure as? AirGapSigning.Failure == .differentOperation)
+        let other = try #require(AirGapSignSession(address: "tz1", publicKey: edpk, forged: Self.forged, id: 11_111_111))
+        var finished = false
+        other.onFinish = { _ in finished = true }
+        other.receive(Self.responseSingle)
+        #expect(!finished)
+        #expect(other.note?.contains("not the Vault's reply") == true)
+        other.cancel()
+        #expect(finished)
+    }
+
+    @Test func anAirGapAccountSignsThroughTheVault() throws {
+        let edpk = try #require(AirGap.edpk(from: Self.publicKeyHex))
+        let key = SigningKey.airgap(publicKey: edpk, address: Address("tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"))
+        let spec = try #require(try JSONSerialization.jsonObject(with: Data(key.bridgeSpec.utf8)) as? [String: String])
+        #expect(spec == ["kind": "airgap", "publicKey": edpk, "address": "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb"])
+        #expect(!key.isLedger)
     }
 }

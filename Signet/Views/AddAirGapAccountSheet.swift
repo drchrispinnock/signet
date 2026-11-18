@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Adds an account whose key is in AirGap Vault, from the Vault's "Pair Account" code that Scan
 /// QR code read. Like a Ledger account, Signet keeps only the address and public key; the
-/// secret never leaves the phone.
+/// secret never leaves the phone, and operations are signed there (`AirGapSigning`).
 struct AddAirGapAccountSheet: View {
     @Bindable var model: WalletViewModel
     let accounts: [AirGap.Account]
@@ -71,7 +71,7 @@ struct AddAirGapAccountSheet: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Label("Signing with AirGap Vault is not available yet: until it is, Signet shows this account's balance and history but cannot send from it.", systemImage: "info.circle")
+            Label("To send, Signet shows each operation as a QR code for the Vault to scan; you approve it on the phone and hold its signed reply up to this Mac's camera. Signing messages for dApps or multisig proposals is not available with the Vault.", systemImage: "info.circle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

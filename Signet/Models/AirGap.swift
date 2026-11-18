@@ -35,6 +35,8 @@ enum AirGap {
         case malformed
         case noTezosAccount
         case wrongResponse
+        /// The reply answers this request but signs other bytes than were sent.
+        case differentOperation
     }
 
     struct Message: Equatable, Sendable {
@@ -194,6 +196,15 @@ enum AirGap {
         // accountIdentifier, transaction
         guard message.payload.count == 2, let bytes = Hex.decode(try decodeString(message.payload[1])) else { throw Error.malformed }
         return bytes
+    }
+
+    /// The 64-byte signature in a Vault's reply to request `id` for `forged`: the reply must
+    /// carry exactly those bytes followed by the signature. The signature itself is checked
+    /// against the account's key in the bridge before it is used.
+    static func signature(in messages: [Message], id: UInt64, forged: [UInt8]) throws -> [UInt8] {
+        let signed = try signedOperation(in: messages, id: id)
+        guard signed.count == forged.count + 64, signed.starts(with: forged) else { throw Error.differentOperation }
+        return Array(signed.suffix(64))
     }
 
     /// A fresh 8-digit message id, as AirGap makes them.

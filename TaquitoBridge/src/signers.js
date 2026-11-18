@@ -1,10 +1,12 @@
 // Builds a Taquito signer from the JSON "signing key" Swift passes for an operation:
 //   { "kind": "secret", "secretKey": "edsk…|edesk…", "passphrase": "…", "address": "tz1…" }  — in-memory signing
 //   { "kind": "ledger", "path": "44'/1729'/0'/0'", "derivationType": 0, "address": "tz1…" }
+//   { "kind": "airgap", "publicKey": "edpk…", "address": "tz1…" }  — AirGap Vault, by QR codes
 // Secret keys only ever arrive here for the one operation and are not kept.
 
 import { InMemorySigner } from "@tezos-x/octez.js-signer";
 import { ledgerSignerFor } from "./ledger.js";
+import { airGapSignerFor } from "./airgap.js";
 
 export async function signerFor(spec) {
   const s = typeof spec === "string" ? JSON.parse(spec) : spec;
@@ -12,6 +14,8 @@ export async function signerFor(spec) {
   switch (s.kind) {
     case "ledger":
       return ledgerSignerFor(s);
+    case "airgap":
+      return airGapSignerFor(s);
     case "secret": {
       if (typeof s.address !== "string" || s.address.trim().length === 0) {
         throw new Error("signerFor: missing expected account address");
