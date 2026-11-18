@@ -157,7 +157,11 @@ final class WalletViewModel {
         case importKey(ImportPrefill)
         case addAddress(Address)
         case send(Address)
+        case airGap([AirGap.Account])
     }
+
+    /// The accounts an AirGap Vault shared, while the Add AirGap account sheet is up.
+    var airGapImport: [AirGap.Account]?
 
     /// Opens the sheet for what was scanned. Called when the scan sheet has been dismissed.
     func routePendingScan() {
@@ -177,6 +181,8 @@ final class WalletViewModel {
             guard selectedWallet != nil else { return }
             sendPrefill = address
             isPresentingSend = true
+        case .airGap(let accounts):
+            airGapImport = accounts
         }
     }
 
@@ -1481,9 +1487,31 @@ final class WalletViewModel {
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
+        case .airgap:
+            guard let publicKey = wallet.publicKey, publicKey.hasPrefix("edpk") else { return nil }
+            return .airgap(publicKey: publicKey, address: wallet.address)
         case .remote, .unknown, .none:
             return nil
         }
+    }
+
+    /// Adds an account whose key is in AirGap Vault: its address and public key, with an
+    /// `airgap://` locator in `secret_keys` (octez-client lists it as "airgap sk known" and
+    /// cannot sign with it). The address is derived from the public key here, never taken
+    /// from the code.
+    func addAirGapAccount(alias: String, account: AirGap.Account) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        let address = try await address(forScannedPublicKey: account.publicKey)
+        guard address.scheme == .tz1 else { throw WalletError.invalidAddress }
+        if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        let wallet = Wallet(alias: name, address: address, scheme: .tz1, publicKey: account.publicKey, keyKind: .airgap)
+        try walletStore.add(wallet, locator: account.locator)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
     }
 
     /// Adds a key that lives on a Ledger. The device shows the address and the user approves it

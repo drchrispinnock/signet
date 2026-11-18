@@ -8,6 +8,9 @@ enum KeyKind: String, Codable, Sendable {
     case encrypted
     /// `ledger://...`
     case ledger
+    /// `airgap://<fingerprint>/<path>` — the key is in AirGap Vault on a phone; Signet holds the
+    /// public key, and operations go to the Vault and back by QR code.
+    case airgap
     /// `http(s)://`, `tcp://`, `unix:`, `remote:` — a remote signer such as octez-signer.
     case remote
     /// Some other scheme we do not understand.
@@ -24,14 +27,21 @@ enum KeyKind: String, Codable, Sendable {
         case "unencrypted": self = .unencrypted
         case "encrypted": self = .encrypted
         case "ledger": self = .ledger
+        case "airgap": self = .airgap
         case "http", "https", "tcp", "unix", "remote": self = .remote
         default: self = .unknown
         }
     }
 
-    /// Kinds Signet can sign with: clear-text keys, encrypted keys once the user supplies the
-    /// password, and Ledger keys when the device is plugged in.
-    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger }
+    /// Kinds Signet can sign operations with: clear-text keys, encrypted keys once the user
+    /// supplies the password, Ledger keys when the device is plugged in, and AirGap Vault keys
+    /// by a QR round trip with the phone.
+    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger || self == .airgap }
+
+    /// Kinds that can also sign raw bytes without the operation watermark: a dApp's
+    /// sign_payload, a multisig proposal, Mt Pelerin's address check. AirGap Vault's transaction
+    /// sign request carries operations only.
+    var signsMessages: Bool { canSign && self != .airgap }
 
     /// Base58 prefixes of octez-encrypted secret keys.
     static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"]

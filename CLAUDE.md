@@ -556,6 +556,39 @@ automatic download is off by default. The updater is not started under the test 
   (hardened runtime) and `NSCameraUseContinuityCameraDeviceType` in `Info.plist`.
   `QRScanTests` covers classification, the clipboard and the routing; the camera itself can
   only be checked by hand.
+  **AirGap Vault.** Vault's "Pair Account" code (QR Code V3) is an AirGap IAC message:
+  `gzip(CBOR([3, [[1, type, protocol, id, payload]]]))` (`Signet/Models/AirGap.swift`; the
+  payload is the message type's JSON schema as an array of its properties in alphabetical
+  order, hex-looking strings as bytes behind a one-byte tag) carried as a Blockchain Commons
+  Uniform Resource, `ur:bytes/…` in Bytewords, or `ur:bytes/n-m/…` frames of an animated code
+  whose frames after the first m are fountain-coded mixes
+  (`Signet/Models/UniformResource.swift`: Bytewords, CRC-32, a bounded CBOR reader/writer,
+  Xoshiro256**, the alias sampler and the decoder, matched to `@ngraveio/bc-ur`). Scan QR code
+  classifies frames as `.uniformResource`, gathers them in `UniformResource.Decoder` (any
+  order, mixed frames included; the sheet shows progress) and hands the Tezos account shares
+  (`AirGap.accounts`, protocol `xtz`, ed25519, hex public key) to `AddAirGapAccountSheet`
+  through `ScanHandoff.airGap`. `WalletViewModel.addAirGapAccount` derives the address from
+  the public key and writes an octez alias whose `secret_keys` locator is
+  `airgap://<master fingerprint>/<path>` (`KeyKind.airgap`; octez-client lists it as "airgap
+  sk known" and leaves it alone); the header tags it "AirGap". `airgap-…://?ur=` links are read
+  too; the old `?d=` format (`.airGapLegacy`) gets a note to pick QR Code V3. **Signing.**
+  `KeyKind.airgap.canSign` is true and `SigningKey.airgap(publicKey:address:)` goes to the
+  bridge as `{kind: "airgap", publicKey, address}`; `src/airgap.js`'s signer accepts only the
+  operation watermark (0x03), hands the forged hex to Swift through `__signet.airgapSign`
+  (no deadline, like every signing call) and checks the returned signature with
+  `verifySignature` against the account's `edpk` before Taquito uses it (`test/airgap.cjs`).
+  Swift's `AirGapSigning.shared` (`Signet/Services/AirGapSigning.swift`) opens one panel at a
+  time as an AppKit sheet on the deepest sheet of the front window, so every sheet that signs
+  works unchanged: it shows the type 5 request (`AirGap.signRequest`, `callbackURL`
+  `airgap-wallet://?d=` which Vault requires; `UniformResource.encode` at 200 bytes a frame,
+  pure frames cycled every 250 ms), then scans the Vault's type 6 reply with the camera or a
+  pasted screenshot (`AirGapSignSession`), and `AirGap.signature(in:id:forged:)` takes the
+  signature only from a reply to that id carrying exactly the bytes sent. Messages cannot be
+  signed with the Vault (`KeyKind.signsMessages` is false: dApp sign_payload, multisig
+  proposals, Mt Pelerin's check); multisig submission and dApp operations can. The Vault's old
+  Tezos code decodes the operation to show it, so a newer encoding (a reveal) may not display.
+  `AirGapTests` uses vectors made with
+  `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

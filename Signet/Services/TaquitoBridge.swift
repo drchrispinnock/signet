@@ -472,6 +472,26 @@ final class TaquitoBridge: @unchecked Sendable {
         }
         native.setObject(ledgerDevices, forKeyedSubscript: "ledgerDevices" as NSString)
         native.setObject(ledgerExchange, forKeyedSubscript: "ledgerExchange" as NSString)
+
+        // AirGap Vault: the bridge's signer hands over the forged operation; the user carries
+        // it to the phone and back by QR codes (`AirGapSigning`), and the checked 64-byte
+        // signature, or why there is none, goes back to `__signet_airgapDone`.
+        let airgapSign: @convention(block) (Int, String) -> Void = { [weak self] id, json in
+            guard let self else { return }
+            let generation = self.contextGeneration
+            self.trace("airgap #\(id) sign request")
+            Task { @MainActor in
+                let reply: (String, String?)
+                do { reply = (Hex.encode(try await AirGapSigning.shared.sign(requestJSON: json)), nil) }
+                catch { reply = ("", error.localizedDescription) }
+                self.queue.async {
+                    guard self.contextGeneration == generation else { return }
+                    self.trace("airgap #\(id) \(reply.1 == nil ? "signed" : "not signed")")
+                    self.context?.objectForKeyedSubscript("__signet_airgapDone")?.call(withArguments: [id, reply.0, reply.1 ?? NSNull()])
+                }
+            }
+        }
+        native.setObject(airgapSign, forKeyedSubscript: "airgapSign" as NSString)
         context.setObject(native, forKeyedSubscript: "__signet" as NSString)
     }
 
