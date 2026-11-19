@@ -20,7 +20,7 @@ There are other wallets for Tezos and I encourage you to try them out. Wallet so
 
 **Temple -** A browser extension that works on Chrome and Edge and also a mobile app. It offers a flexible Tezos experience with asset swapping. Recently included EVM support for Etherlink and other EVM-style chains. 
 
-**Umami** - Originally an electron wallet running on the desktop, Umami has evolved into a multi-chain mobile and web wallet.
+**Umami** - Originally a wallet running on the desktop, Umami has evolved into a multi-chain mobile and web wallet.
 
 **AirGap** - A mobile wallet with the facility to hold the key in a second mobile, hence using an "Air Gap" security model.
 

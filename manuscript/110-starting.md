@@ -46,7 +46,7 @@ The Linux version is written in [Swift](https://www.swift.org) using the code fr
 
 The easiest Linux platform to install Signet on is Debian Linux 13 on an Intel/AMD processor because there are pre-built packages in an APT repository. However, on the [release page](https://github.com/drchrispinnock/signet-gtk) there are other packages and more formats will be supported in the future. To use Signet on Debian Linux 13, you'll need to be running a graphical desktop environment. You can, of course, run the application and display it on another machine using X11 forwarding, but this is beyond the scope of the book. We'll assume that you are running on the desktop directly and that you have an account with enough access to install software. We will use `sudo` to do this.
 
-To install Signet on Linux, follow the instructions at [apt.signetwallet.org](https://apt.signetwallet.org). We will add the APT repository to our system and then install the packages from it. Open the Terminal application and type the commands below. On Debian Linux installation, the terminal application can be found in different places depending on the desktop environment. For example, on Xfce it can be found in the applications menu. Sometimes it can be found in the dock at the bottom of the screen. It's the icon with the symbols `>_`.
+To install Signet on Linux, follow the instructions at [apt.signetwallet.org](https://apt.signetwallet.org). We will add the APT repository to our system and then install the packages from it. Open the Terminal application and type the commands below. On a Debian Linux installation, the terminal application can be found in different places depending on the desktop environment. For example, on Xfce it can be found in the applications menu. Sometimes it can be found in the dock at the bottom of the screen. It's the icon with the symbols `>_`.
 
 ![](110/TerminalLinux.png)
 
@@ -98,7 +98,7 @@ $ sudo apt update
 $ sudo apt install -y signet-gtk
 ```
 
-You can then run Signet. It depends on your desktop environment but on most of them you can run an application by pressing `ALT+F2`. For example, press `ALT+F2` and type `signet-gtk` to run Signet. Some desktop environments have an application menu or launcher that you can search for Signet and then run it.
+You can then run Signet. It depends on your desktop environment but on most of them you can run an application by pressing `ALT+F2`. For example, press `ALT+F2` and type `signet-gtk` to run Signet. Some desktop environments have an application menu or launcher in which you can search for Signet and then run it.
 
 ![](110/ApplicationFinder.png)
 
@@ -121,7 +121,7 @@ Next you will be given some options to set up an account for use on the Tezos ne
 
 ![](110/coldstart.png)
 
-To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key pair - a public key and a private key - suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
+To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key pair - a public key and a private key - suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. Confirm the password by entering it again and then click `Create`. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
 ![](110/create.png)
 The key you have made is generated on your machine and stored there too. We haven't introduced it to the network yet. Later we will fund the account, either from an exchange on *Mainnet* or from a *faucet* on a test network. When we start to do things on the blockchain, we will *reveal* our public key to it. At no point will our secret key be stored on the blockchain.
 
