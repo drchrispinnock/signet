@@ -35,7 +35,7 @@ Click `Open` and continue.
 
 The Windows version is written in C# and was ported from the Mac version by Claude. Claude and I chose C# over Swift. At the moment, Swift can build Windows applications, including GUI apps, but the tooling, especially for user interfaces, is still immature. Maybe in the future, we will rewrite the Windows version in Swift to help unify the three platforms.
 
-To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file. Windows may warn you that the `exe` file isn't commonly downloaded. If it does, click the three dots and choose `Keep`. The next window will show you that the file is signed by me. Change the `Delete` button to `Keep anyway`. Then click `Open file` and the installer will run.
+To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file. Windows may warn you that the `exe` file isn't commonly downloaded. If it does, click the three dots and choose `Keep`. The next window will show you that the file is signed by me. Choose `Keep anyway` instead of `Delete`. Then click `Open file` and the installer will run.
 
 Signet will install and Windows will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
 
