@@ -1,4 +1,4 @@
-{#id: STANDARDS_1_Standards}
+{id: STANDARDS_1_Standards}
 # Standards
 
 - Network names should be in italics, like this *Mainnet* and S*hadownet*. Also make their first letter capitals. 
@@ -8,7 +8,7 @@
 - It should be TzEL (not tzel etc)
 - `tz` addresses should be written as code (for now) - e.g. `tz1`, `tz2`, `tz3`, `tz4`, `tz5`, `tz6`.
 
-{#id: STANDARDS_1_Early}
+{id: STANDARDS_1_Early}
 # Early on
 
 - Our blockchain protagonists are Alice and Bob, like everywhere. Then Christopher, Diana, Edward, ...

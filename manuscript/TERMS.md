@@ -1,11 +1,11 @@
-{#id: TERMS_1_Terms}
+{id: TERMS_1_Terms}
 # Terms and introduction coverage
 
 Review of the 28 October 2026 PDF preview and the active chapters in `Book.txt`. The introduction is currently a placeholder. This is a coverage checklist for writing it and adding local explanations; it is not a demand to put every technical term into the introduction.
 
 “No explanation” means no adequate working explanation was found in the active book, not merely that an acronym is unexpanded. Entries also flag terms explained only later or explained inaccurately. Terms proposed to close a conceptual gap are explicitly identified. Locations point to representative uses, usually early uses; they are not an exhaustive occurrence index.
 
-{#id: TERMS_2_Minimum}
+{id: TERMS_2_Minimum}
 ## Minimum introduction coverage
 
 1. What a blockchain records; blocks, consensus and public history.
@@ -19,7 +19,7 @@ Review of the 28 October 2026 PDF preview and the active chapters in `Book.txt`.
 9. One paragraph placing layer 1, Etherlink/layer 2 and experimental TzEL in context.
 10. A reading route: beginner essentials first, then optional DeFi/NFT, key-management, baker and node chapters.
 
-{#id: TERMS_2_Term}
+{id: TERMS_2_Term}
 ## Term checklist
 
 | Term or concept                                             | Representative location                                         | Current coverage                                            | What to explain or correct                                                                                                                                                                                                                                          | Best placement                                      |
@@ -78,12 +78,12 @@ Review of the 28 October 2026 PDF preview and the active chapters in `Book.txt`.
 | sudo; shell prompt; line continuation; systemctl; launchctl | [910-apx-ownnode.md:108](910-apx-ownnode.md#L108)               | Commands shown; conventions not introduced                  | State that $ is the prompt, a trailing backslash continues a command, sudo requests administrative privilege, and the service managers start software at boot.                                                                                                      | Node appendix                                       |
 | AI; vibe coding; Git repository; SDK/library; beta; API key | [005-Preface.md:22](005-Preface.md#L22)                         | Development-story jargon largely unexplained                | A short local note/glossary is sufficient. The author explicitly warns the story contains unfamiliar terms, so these need not crowd the blockchain introduction. Explain Fable by its intended product/model name if retained.                                      | Developing Signet sidebar or glossary               |
 
-{#id: TERMS_2_Terms}
+{id: TERMS_2_Terms}
 ## Terms already substantially explained later
 
 The book does give useful local explanations of account aliases, the address book, faucets, CEX/fiat currency, delegation versus staking, seed-phrase import, secret-key export, forgetting an account, multisig committees/thresholds, minting, Tezos Domains, DAO and the five governance periods. These are not all missing definitions. A brief introduction mention and a forward reference will often be sufficient. See REVIEW.md for inaccuracies within some of those explanations.
 
-{#id: TERMS_2_Suggested}
+{id: TERMS_2_Suggested}
 ## Suggested introduction shape
 
 Begin with the concrete activity: a user signs a request in Signet, a node submits it, the network includes it, and the balance/contract state changes. Use that example to introduce keys, addresses, tez and fees. Then explain the public ledger and test networks. Finish with short overviews of staking/governance, smart contracts/dApps, and layer 2, followed by the reading route. Keep signing algorithms, governance arithmetic and server administration in their later chapters.
