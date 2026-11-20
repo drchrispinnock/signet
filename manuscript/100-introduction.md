@@ -4,12 +4,22 @@
 
 *This will be the last chapter to be written. And probably the hardest. Oh the sweet irony!*
 
+{id: ID100-introduction_2_Blockchain}
+## Blockchains and Cryptocurrencies
 
 
+{id: ID100-introduction_2_What_2}
+## What is Tezos?
+xx
 
 {id: ID100-introduction_2_What}
-## Introducing Signet
+## What is a Wallet?
+xx
 
+
+{id: ID100-introduction_2_What_3}
+## What is Signet?
+xxx
 
 {id: ID100-introduction_2_Other}
 ## Other Wallets
