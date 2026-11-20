@@ -4,17 +4,27 @@
 
 *This will be the last chapter to be written. And probably the hardest. Oh the sweet irony!*
 
+{id: ID100-introduction_2_Blockchain}
+## Blockchains and Cryptocurrencies
 
 
+{id: ID100-introduction_2_What_2}
+## What is Tezos?
+xx
 
 {id: ID100-introduction_2_What}
-## Introducing Signet
+## What is a Wallet?
+xx
 
+
+{id: ID100-introduction_2_What_3}
+## What is Signet?
+xxx
 
 {id: ID100-introduction_2_Other}
 ## Other Wallets
 
-There are other wallets for Tezos and I encourage you to try them out. Wallet software is a matter of personal preference. For example, Signet is a desktop wallet and you might prefer to work on your mobile. Here is an overview of some other wallets that support Tezos:
+There are other wallets for Tezos and I encourage you to try them out.  I haven't written Signet to rule the world and I would prefer that you used a wallet you are comfortable with. Wallet software is a matter of personal preference. For example, Signet is a desktop wallet and you might prefer to work on your mobile. Here is an overview of some other wallets that support Tezos:
 
 **Kukai** - A Tezos-only web and mobile-based wallet. You can use your Google account or social login to create an account.
 
