@@ -152,7 +152,7 @@ On the production network *Mainnet*, your tez coins are valuable. Back up your k
 
 ![](110/export.png)
 
-As a beginner, the best way to back up your key is to use the `Recovery Sheet...` button and print two copies. Store each copy in different offline places such as a safe or a vault. We will go into more detail on key storage later on. But please do this step before you do anything involving real-world value.
+As a beginner, the best way to back up your key is to use the `Recovery Sheet...` button and print two copies. Store the copies in different offline places, such as a safe and a vault. We will go into more detail on key storage later on. But please do this step before you do anything involving real-world value.
 
 2\. Don't get too attached to your account.
 

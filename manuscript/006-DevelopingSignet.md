@@ -91,7 +91,7 @@ The Etherlink work was done with about 30 minutes of Thomas's wisdom, a bit of t
 
 There were several other releases that week. Features included:
 
-- A network settings page, so that the node, block explorer, TzKT API, the faucet (on a test network) could be set for each network
+- A network settings page, so that the node, block explorer, TzKT API and faucet (on a test network) could be set for each network
 - Signet attempts to check that the connected node is on the correct network (except for a custom network)
 - Etherlink account linking - to create the corresponding 0x address from a `tz1`, `tz2` or `tz3` address.
 - Helper links to Coinbase, Kraken and Transak to buy tez
@@ -99,7 +99,7 @@ There were several other releases that week. Features included:
 
 Unfortunately for Coinbase, Kraken and Transak I needed to open links in the browser. Transak offer a widget that can be embedded into Signet, like the Mt Pelerin one, but I have to get a developer API key and I want to avoid too much administration at the moment.
 
-On Thursday 15th, I was talking with some colleagues about other Tezos features under development. One big feature is the [Tezos Encrypted Ledger (TzEL)](https://tzel.tezos.com). On the Thursday, I had a quick conversation with Arthur about it and on Friday, had a 30 minute meeting with Devon Nathan, who had set up the infrastructure on *Shadownet*. TzEL is a rollup and you bridge tez into it, much like you do with Etherlink. On TzEL you can make private transactions using post-quantum keys and signing. Having had these conversations, I asked Claude to start researching. I decided that I needed three new functions:
+On Thursday 15th, I was talking with some colleagues about other Tezos features under development. One big feature is the [Tezos Encrypted Ledger (TzEL)](https://tzel.tezos.com). On the Thursday, I had a quick conversation with Arthur about it and on Friday, had a 30-minute meeting with Devon Nathan, who had set up the infrastructure on *Shadownet*. TzEL is a rollup and you bridge tez into it, much like you do with Etherlink. On TzEL you can make private transactions using post-quantum keys and signing. Having had these conversations, I asked Claude to start researching. I decided that I needed three new functions:
 
 1. Shield tez (where you bridge tez into the rollup).
 2. Unshield tez (where you bridge tez out of the rollup).

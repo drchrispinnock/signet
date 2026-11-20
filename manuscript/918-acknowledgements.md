@@ -18,6 +18,7 @@ Luke Youngblood
 Marco Schurtenberger  
 Nicolas Ochem  
 Pierre Boutillier  
+Richard Ayotte 
 Roland Dowdeswell  
 Roman Schnider  
 Ryan Tanaka  

@@ -3,7 +3,7 @@
 
 In 2023, smart rollups were introduced to the Tezos blockchain. A *rollup* is a means of processing transactions away from the main blockchain, "rolling them up" and injecting them back to the main chain later on. A Tezos *smart* *rollup* is one managed by a computer program, usually written in Rust and compiled to WebAssembly (Wasm). These rollups are managed by a separate set of servers from the layer 1. There are *operators* which collect together, batch and commit the operations. There are *observers* that just listen to the rollup and record it. There are *endpoints* (also called *nodes*) which wallets and applications use to communicate with the rollup.
 
-Etherlink is the first official rollup on Tezos and it brings an Ethereum compatible virtual machine to Tezos. This means that you can deploy an Ethereum smart contract on the Etherlink rollup without modification. Now Tezos smart contracts (written in a language called Michelson) can be deployed in the rollup and they can interact with the EVM contracts.
+Etherlink is the first official rollup on Tezos and it brings an Ethereum-compatible virtual machine to Tezos. This means that you can deploy an Ethereum smart contract on the Etherlink rollup without modification. Now Tezos smart contracts (written in a language called Michelson) can be deployed in the rollup and they can interact with the EVM contracts.
 
 Tezos X is the strategic target architecture of Tezos and a potential outcome is a fast, but simple, layer 1 that does settling and staking, together with a rollup compatible with both EVM and Tezos. It's likely that dApps and day-to-day transactions will live on the rollup. The good news is Signet is capable of working with Etherlink and you don't have to understand much about rollups to use it.
 
@@ -66,21 +66,21 @@ Signet can connect to Michelson dApps on Etherlink. These are the dApps that hav
 
 We saw [TezInvaders](#ID170-dapps_2_TezInvader) in the dApps chapter. This dApp has versions on Etherlink as well as the native Tezos chain. In fact, TezInvaders was designed to help with Signet development. On either *Mainnet* or *Shadownet*, you can play TezInvaders and participate in the competitions on layer 2, by clicking the layer 2 button `L2`. Then connect your wallet and play as normal.
 
-There will be more applications appearing on Etherlink soon. Work is being done to allow Tezos addresses to use EVM dApps as well. Once the support is in Etherlink, we will add it to Signet as well.
+There will be more applications appearing on Etherlink soon. Work is being done to allow Tezos addresses to use EVM dApps as well via an address mapping. Once the support is in Etherlink, we will add it to Signet as well.
 
 {id: ID200-etherlink_2_Voting}
 ## Voting in the Etherlink Governance Process
 
 If you are a baker, you can use Signet to vote in the Etherlink Governance process. There is a [slow governance process ](https://governance.etherlink.com/governance/slow)for regular upgrades and a [fast governance process](https://governance.etherlink.com/governance/fast) for security upgrades. There's also a process to vote on who runs the sequencer. In Signet, you can vote on the slow and fast processes. At the moment, you have to do this with the master baking key. In future versions, you'll be able to do it with a delegated governance key. 
 
-The processes have a proposal period and a promotion period. In the proposal period, proposals are made and upvoted like in the layer 1 governance process. In the promotion period, the bakers vote `Yea`, `Nay` and `Pass` (or abstain).
+The processes have a proposal period and a promotion period. In the proposal period, proposals are made and upvoted like in the layer 1 governance process. In the promotion period, the bakers vote `Yea`, `Nay` or `Pass` (or abstain).
 
 To vote, go to the `Governance...` menu (which will only be there if your account is a baker), then click the `Etherlink` tab.
 We are going to show you a vote in the recent Etherlink 7.3 fast security upgrade. Captain Stake upvoted the proposal  that was already proposed. Signet found this proposal and he clicked the `Upvote` button. 
 
 ![](200/ethgov/upvote.png)
 
-And then confirmed it:
+He then confirmed it:
 
 ![](200/ethgov/upvote2.png)
 

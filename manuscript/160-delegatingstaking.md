@@ -1,7 +1,7 @@
 {id: delegating}
 # Delegating and Staking
 
-From its inception, a Tezos account holder has been able to *delegate* their tez to a baker. By doing this, the extra coins contribute to the baker's power on the network. They get more baking opportunities and more power in the governance process. Sometimes a baker will pay a small reward to the account holder in return for delegating their tez. A baker that does this is called a *public baker*. All delegation reward payments are handled off chain and at the baker's discretion.
+Since Tezos launched, account holders have been able to *delegate* their tez to a baker. By doing this, the extra coins contribute to the baker's power on the network. They get more baking opportunities and more power in the governance process. Sometimes a baker will pay a small reward to the account holder in return for delegating their tez. A baker that does this is called a *public baker*. All delegation reward payments are handled off chain and at the baker's discretion.
 
 In 2024, account *staking* was added as a feature to Tezos in the Paris protocol update. A baker has always had a stake on the network, usually 10% of the total balance including the delegators. But after this change, a baker can stake more than 10% and normal account holders can stake too. Their stake contributes to the baker's security bond. The baker sets a fee as a parameter and the account holders automatically receive rewards on the network.
 
@@ -9,7 +9,7 @@ Delegated funds are liquid in that they can be spent at any time. Staked funds c
 
 The account has a spendable fund balance and a staked fund balance. You can see the separate balances in the main Signet screen if you click the arrow at the end of the Tezos balance line.
 
-The network effectively creates tez when a block is baked and gives it to the baker and related stakers. This means that tez is subject to inflation. By delegating and staking, and subsequently receiving rewards you are keeping up with inflation to some degree.
+The network effectively creates tez when a block is baked and gives it to the baker and related stakers. This means that tez is subject to inflation. By delegating and staking and subsequently receiving rewards, you are keeping up with inflation to some degree.
 
 It's not an accurate analogy but you can think of your Tezos account as a current account at the bank. You don't get any interest on it and if you do nothing, the money just sits there. Delegating is a bit like an instant access savings account. Provided your baker pays you some rewards, you get something in return, and you can spend the money at any time. Staking is more like a higher interest savings account where you have to lock your money in for a period of time.
 
@@ -25,7 +25,7 @@ Choosing a baker is a matter of personal preference. We've tried to make the pro
 ![](160/tzktbakers.png)
 The delegation information shown here is information that the bakers have submitted themselves. Bakers set their staking parameters on-chain, so the staking information is read from there. 
 
-A public baker is a baker that has declared itself public by telling TzKT. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to grow by 2.21% APY if you delegate with them. 
+A public baker is a baker that has declared itself public by telling TzKT. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins likely to earn an APY of 2.21% if you delegate with them. 
 
 Clicking on the TezOasis link takes me to their account page in TzKT where there are details to contact them. They have 965k tz capacity, so they are a possibility to delegate to. Also, if you click the `SCHEDULE` tab you will be able to see their performance. On the day I wrote this, TezOasis's performance was very good - it had a few network misses but this is perfectly normal.
 
@@ -48,13 +48,13 @@ With staking there is a further consideration because your funds are at risk. Yo
 {id: ID160-delegatingstaking_2_Delegating}
 ## Delegating
 
-Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the last days researching and decided to delegate them to Captain Stake. 
+Delegating to a baker is easy in Signet. For the purpose of this exercise, I have set up a new account with 2tz. I want to delegate them to a baker. I've spent the past few days researching and have decided to delegate them to Captain Stake. 
 ![](160/notdelegated.png)
 To delegate, I can click on `Not delegated`. If you click Stake you will also go to the delegation workflow, because you need to delegate before you stake.
 
 ![](160/stakingmenu.png)
 
-Now click `Delegate...` and choose your baker either from the list or type in the address:
+Now click `Delegate...` and either choose your baker from the list or type in the address:
 
 ![](160/bakers.png)
 Signet lists the public bakers, some detail about them and whether they accept staking. If you want to stake later, you'll need a baker that accepts staking. It doesn't list all the bakers and Captain Stake is not on the list. His address is:

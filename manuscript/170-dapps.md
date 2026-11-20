@@ -1,7 +1,7 @@
 {id: ID170-dapps_1_Distribute}
 # Decentralised Apps
 
-*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will play [TezInvaders](https://tezinvaders.xyz), a game that stores the high score on the Tezos chain. We will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art. We will mint an NFT at the art site [Teia](https://teia.art). We will buy a Tezos domain at [Tezos Domains](https://tezos.domains). These are handy names to make it easier to remember addresses on the Tezos network. We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3route](https://3route.io/).
+*Decentralised Apps* (*dApps*) are applications that interact with the blockchain. As a beginner, you'll come across these as sites to buy digital artwork or at a *decentralised exchange (DEX)* to swap tez with other coins. There are other applications of course. In this section, we will play [TezInvaders](https://tezinvaders.xyz), a game that stores the high score on the Tezos chain. We will connect Signet to the art site [Objkt.com](https://objkt.com) and purchase a piece of art. We will mint an NFT at the art site [Teia](https://teia.art). We will buy a Tezos domain at [Tezos Domains](https://tezos.domains). These are handy names to make it easier to remember addresses on the Tezos network. We will also swap some tez for another coin at the DEX [QuipuSwap](https://quipuswap.com) and also at the cross-DEX aggregator [3Route](https://3route.io/).
 
 {id: ID170-dapps_2_Connecting}
 ## Connecting to a dApp
@@ -23,7 +23,7 @@ Where a dApp offers a compatible Octez Connect pairing code, you can use this me
 
 This dApp is an application specifically made for testing wallets on the test networks, but also runs on *Mainnet.* It's a Space Invaders clone, but you can buy a ticket to participate in a competition. The competition lasts 1 day and at the end of the day, the account with the highest score wins the tez in the pool. If you'd prefer not to play with real-valued tez, you can play it on the test networks.
 ![](170/tezinvaders.png)
-TezInvaders includes Signet in the wallet list. To connect your wallet, click `Connect Wallet` , show more and choose Signet from the list.
+TezInvaders includes Signet in the wallet list. To connect your wallet, click `Connect Wallet`, show more and choose Signet from the list.
 
 ![](170/octezconnect.png)
 
@@ -80,7 +80,7 @@ And the NFT was mine. The transaction is in the list:
 
 ![](170/objkt-signet-tx.png)
 
-And also appears in the NFT tab in Signet:
+The NFT also appears in the NFTs tab in Signet:
 
 ![](170/objkt-signet-nft.png)
 
@@ -100,7 +100,7 @@ Note that the artwork is usually too big to be stored on the blockchain itself, 
 
 It may be possible to buy more than one copy of each artwork. These can share a token identifier with quantities held by different accounts. 
 
-NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. Some marketplaces include a rule that pays the creator a share of each sale made through that marketplace. This means the artist gets a cut of every sale of their artwork, despite not owning it.
+NFTs are implemented as smart contracts and often there are some interesting rules that don't happen for physical art. Some marketplaces include a rule that pays the creator a share of each sale made through that marketplace. This means the artist gets a cut of each resale through a marketplace that honours the royalty, despite no longer owning the NFT.
 
 People tend to refer to digital art whose purchases have been recorded on blockchains as NFTs, but it is the record of ownership that is the NFT really.
 
@@ -119,13 +119,13 @@ On Teia, click the burger menu and under Create, choose `Mint`.
 
 ![](170/teiadetail.png)
 
-I fill out the detail - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I should receive 10% on sales through marketplaces that honour the royalty (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
+I fill out the details - the name of the artwork, a description of it and some tags. I'm going to mint 5 editions of it, which means there will be 5 of these available on the network. I'm setting the royalties to 10%. If the artwork is sold by someone else later on, I should receive 10% on sales through marketplaces that honour the royalty (despite not owning it anymore). Under Artefact, I upload the image and click `Submit`. Then I can preview my submission:
 
 ![](170/preview.png)
 Scrolling down and checking all the details, I click `Mint`. Then Signet receives a request for signing the operation:
 
 ![](170/teiasign.png)
-After this Teia mints the NFT and asks me how many I want to swap. This lists them on the Teia marketplace. I want to swap 4 and I'm going to price them at 1tz. I fill in the detail and sign the operation in Signet.
+After this Teia mints the NFT and asks me how many I want to swap. This lists them on the Teia marketplace. I want to swap 4 and I'm going to price them at 1tz. I fill in the details and sign the operation in Signet.
 
 After some time, the NFT appears in my NFT view in Signet.
 
@@ -210,7 +210,7 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 
 ![](170/3route.png)
 
-To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with the other dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps...` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
+To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with some dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard,  paste it into the `dApps...` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
 
 <!-- ![](170/3route-selectted.png) -->
 ![](170/3route-clickswap.png)
