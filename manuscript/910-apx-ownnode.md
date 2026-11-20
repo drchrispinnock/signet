@@ -85,6 +85,8 @@ Password: (enter the root password)
 # exit
 ```
 
+You'll need to log out completely and log in again to get the new group membership.
+
 For Debian Linux 13, you can install the release version of `octez-node`, the node, as follows:
 
 As a user with `sudo` access:

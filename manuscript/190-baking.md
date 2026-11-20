@@ -9,11 +9,11 @@ A baker also has some parameters to manage regarding staking. They can set their
 
 The bakers also vote in the on-chain governance elections and this is done by signing operations with the master key.
 
-The good news is that you can do all of these operations with the Signet wallet. You just need to import the master key into the wallet or connect the ledger that the key is held on. This, of course, works particularly well if you want to use a separate key for consensus. 
+The good news is that you can do all of these operations with the Signet wallet. You just need to import the master key into the wallet or connect the Ledger that the key is held on. This, of course, works particularly well if you want to use a separate key for consensus. 
 
 A good way to manage the key is to hold the master key on a Ledger and delegate consensus and companion to two `tz4` keys. Also, the Tezos X roadmap needs the baking community to adopt `tz4` keys, so this is a good starting point.
 
-Using a consensus key allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and manage the spendable balance of the baking key.
+Using a consensus key allows you to manage the baking key away from the baking environment. There are still risks with this method as the consensus key can bake and drain the spendable balance of the baking key.
 
 
 {id: ID190-baking_2_Registerin}
@@ -66,7 +66,7 @@ Public Key: BLpk1zRVPqHjeXjsfyv82oPbNgYs97BHEaYa5BHEBmudNmAUMqJGT5BF677Xd5bTfxjb
 ```
 
 
-To use the keys Bonnie and Clyde, I'll need to generate a proof of possession signature. To do this `octez-client` must be connected to a node.
+To use the keys Bonnie and Clyde, I'll need to generate a separate proof-of-possession signature for each key. To do this, `octez-client` must be connected to a node.
 
 ```
 $ octez-client create bls proof for Bonnie
@@ -87,7 +87,7 @@ If you have the keys in your wallet already, you can select them from the addres
 
 Signet cannot get the public key from the `tz4` address, which is a hash of the public key and it complains. This would have worked if the address was created in our wallet or if the key had been revealed on the network.
 
-Anyway, now you have set the consensus and companion key for your baker and we can see all the operations on the block explorer. Now you need to finalise setting up your baker with the companion and consensus key. It takes 2 cycles after the current cycle for these to take effect, so you have plenty of time to do this.
+Anyway, now you have set the consensus and companion keys for your baker and we can see all the operations on the block explorer. Now you need to finalise setting up your baker with the companion and consensus keys. It takes 2 cycles after the current cycle for these to take effect, so you have plenty of time to do this.
 
 ![](190/blkexplorer.png)
 
@@ -113,7 +113,7 @@ Most of the time, a network is in the proposal period.  During the proposal peri
 PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
 ```
 
-We can see this here in the governance window. Choose a key that is a baking key and go to `Governance...`. Here we are in the proposal period, there are 254 blocks remaining and our voting power is 999999tz:
+We can see this here in the governance window. Choose a key that is a baking key and go to `Governance...`. Here we are in the proposal period. There are 254 blocks remaining and our voting power is 999999tz:
 
 ![](gvn/propose.png)
 (Note that when I wrote this, the Tezos chain was running the Ushuaia protocol and there were no new proposals. To demonstrate the governance feature, I set up a test network with short cycles and governance periods. The test network ran the Tallinn protocol. We will vote for the Ushuaia protocol on the network.)
@@ -142,7 +142,7 @@ The next phase of the governance process is Cooldown. During this period, blockc
 The next phase is the Promotion period. By this stage, the bakers are confident that the protocol proposal is fit for purpose. If they are not, this is their chance to vote against it. Again, they can vote for, against or pass. Here we are in the Promotion period:
 
 ![](gvn/promotion.png)
-We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol. Promotion requires both participation quorum and the supermajority, just like Exploration.
+We are going to vote `Yay` again by clicking `Yay` and confirming the transaction in the next window. Now in this case, the other bakers also voted positively and the vote was yes for the new protocol. Promotion requires both a participation quorum and the supermajority, just like Exploration.
 
 The last phase is Adoption. There is nothing more to do from a governance perspective. It's time to make sure all of our applications are up to date. If we are running a baker, we'll need to update it to the latest Octez. Essentially the governance process is complete. The Adoption period gives the blockchain participants time to update their applications and systems.
 
@@ -156,7 +156,7 @@ If you are a baker and you are having trouble figuring out how to vote in a gove
 {id: ID190-baking_2_Baking}
 ## Baking Key Considerations
 
-Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or double attest - that is bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.
+Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double bake or double attest, that is, bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double bakes, they lose some or all of their stake.
 
 It's unlikely a baker will do this with a sensible baking setup. Usually bakers run one instance of the software at a time and protect their keys with a piece of software called a remote signer. This checks to see if a baker has tried to sign a block at the same slot before and prevents the signing.
 

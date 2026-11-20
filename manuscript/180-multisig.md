@@ -29,7 +29,7 @@ Each of the signers must have revealed their public key on the network (e.g. by 
 
 Then I set the required number of signatures to 3 with the arrows. This means that I need 3 signatures to sign transactions on the multisig account.
 
-Finally I fund the account with 10tz and press the `Create` button. This creates the account, in this case the address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10tz and code to enforce the rules of the committee. The multisig account is created.
+Finally I fund the account with 10tz and press the `Create` button. This creates the account, which is really a smart contract. The address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10tz and code to enforce the rules of the committee. The multisig account is created.
 
 {id: ID180-multisig_2_Add}
 ## Add an Existing Multisig Account
@@ -45,15 +45,15 @@ Now Bob's wallet is aware of the multisig account.
 
 We want to send an account `tz1etTUnFd6cYsmrZuS9awPSppFPwH1G3e9Q` 5tz, but we want to do it from the multisig account. Any of the signatories can start the process, but the signing is not done on-chain - it has to be submitted later. In this case, Alice, Bob and Edward are going to sign the transaction. Alice and Bob are using Signet, and Edward is using `octez-client`. Alice will submit the transaction to the chain. Let's start with Alice.
 
-Alice chooses `Sign multisig transaction...` from the burger menu and fills out the detail. She adds the amount and the address to send the tez to. Notice at the top, the multisig wallet is listed. If Alice has access to more than one multisig wallet, she can choose which one to sign for here.
+Alice chooses `Sign multisig transaction...` from the burger menu and fills in the details. She adds the amount and the address to send the tez to. Notice at the top, the multisig wallet is listed. If Alice has access to more than one multisig wallet, she can choose which one to sign for here.
 
 ![](180/alicesign.png)
 
-Click `Sign` and Alice receives a signature. Signet will keep hold of the signature for submission later on. If one of the others in the committee were submitting the transaction, Alice should send them the signature string. They are safe to send in plain text.
+Click `Sign` and Alice receives a signature. Signet will keep hold of the signature for submission later on. If one of the others in the committee were submitting the transaction, Alice should send them the signature string. Signature strings are safe to send in plain text.
 
 ![](180/alicesig.png)
 
-Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills out the same detail. Then he clicks sign. He saves the signature string
+Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills in the same details. Then he clicks sign. He saves the signature string
 
 `edsigtu...CBzvsUJ7G2hSucjZ`
 
@@ -82,7 +82,7 @@ Once all the necessary parties have signed the transaction, it can be submitted 
 
 ![](180/submit.png)
 
-Alice chooses the transaction that Signet has remembered for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add signatures`. She then clicks `Submit`. Provided the transactions match the signatures, the multisig account smart contract will execute and move the funds to the target account.
+Alice chooses the transaction that Signet has remembered for her in the top drop down. Then she pastes in the signatures from Bob and Edward, and clicks `Add signatures`. She then clicks `Submit`. Provided the signatures are valid for the transaction, the multisig account smart contract will execute and move the funds to the target account.
 
 Note also that Alice can `Discard proposal`. This is used to delete the record of the multisig transaction if it is no longer needed.
 

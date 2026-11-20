@@ -6,9 +6,9 @@
 
 **Tezos**
 
-[1] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger White Paper](https://tezos.com/whitepaper.pdf)*, 2014.
+[1] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://tezos.com/position-paper.pdf)*, 2014.
 
-[2] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger Position Paper](https://tezos.com/position-paper.pdf)*, 2014.
+[2] L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger White Paper](https://tezos.com/whitepaper.pdf)*, 2014.
 
 [3] [Tezos website](https://tezos.com)
 
@@ -38,7 +38,7 @@
 
 [14] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
-[15] Andreas M. Antonopoulos and David A Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+[15] Andreas M. Antonopoulos and David A. Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
 [16] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 

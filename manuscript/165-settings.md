@@ -8,7 +8,7 @@ You can configure Signet using its Settings facility. Additionally you can chang
 
 You can get to the general settings for Signet either by choosing `Settings...` in the burger menu, in the Operations menu, in the Signet menu or by pressing Command and , (`Cmd+,`). Here are the options:
 ![](165/settings.png)
-Firstly, you can set the appearance of the application. You can choose either Light or Dark mode, or you can follow the OS preference. The images in this book were made in Light mode. I prefer Dark mode for day to day use.
+Firstly, you can set the appearance of the application. You can choose either Light or Dark mode, or you can follow the OS preference. The images in this book were made in Light mode. I prefer Dark mode for day-to-day use.
 
 You can set the wallet directory. Signet stores its files including your keys in your home directory in a folder called `.signet`. You can change the location if you want.
 
