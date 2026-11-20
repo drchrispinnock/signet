@@ -2,8 +2,9 @@
 {id: ID100-introduction_1_Introducti}
 # Introduction
 
-*This will be the last chapter to be written. And probably the hardest. Oh the sweet irony!*
+*To be written.*
 
+<!--
 {id: ID100-introduction_2_Blockchain}
 ## Blockchains and Cryptocurrencies
 
@@ -51,3 +52,4 @@ The `octez-client` command is typically used by developers and infrastructure us
 
 
 
+-->
