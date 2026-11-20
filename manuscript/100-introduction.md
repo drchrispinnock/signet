@@ -2,9 +2,6 @@
 {id: ID100-introduction_1_Introducti}
 # Introduction
 
-*To be written.*
-
-<!--
 {id: ID100-introduction_2_Blockchain}
 ## Blockchains and Cryptocurrencies
 
@@ -50,6 +47,3 @@ The `octez-client` command is typically used by developers and infrastructure us
 | [Ledger Wallet](https://shop.ledger.com/pages/ledger-wallet-download) | [Ledger](https://www.ledger.com)                      | Yes    | No          | Multi-asset              |
 | `octez-client`                                                        | [Nomadic Labs](https://www.nomadic-labs.com) *et al.* | No     | No          | Yes                      |
 
-
-
--->

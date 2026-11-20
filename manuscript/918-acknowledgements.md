@@ -1,7 +1,6 @@
 {id: ID008-acknowledgements_1_Acknowledg}
 # Acknowledgements
 
-<!--
 For the Signet project, I thank Simon Keusen, who got me into the vibe coding mood. Thanks also to Fabrice Trutmann, who tested things, reviewed texts and made suggestions. Devon Nathan helped me with the TzEL implementation (not covered in this book).
 
 There are many people who have helped me whilst I've been working on the Tezos project, but specifically I would like to thank:
@@ -28,5 +27,3 @@ Yann Régis-Gianas
 Zaynah Dargaye  
 
 I also thank the Tezos Foundation.
-
--->
