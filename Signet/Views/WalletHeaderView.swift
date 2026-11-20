@@ -16,14 +16,10 @@ struct WalletIdentityView: View {
 
     private var identity: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // The tags sit beside the menu, not in its label: AppKit draws that label and drops
-            // backgrounds and overlays.
-            HStack(spacing: 8) {
-                walletPicker
-                if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
-                if wallet.keyKind == .ledger { ledgerTag }
-                if wallet.isSessionOnly { sessionTag }
-            }
+            walletPicker
+            // The tags sit on the address line, not beside the alias: a long alias left them no
+            // room and they wrapped into a column. (Not in the menu's label either: AppKit draws
+            // that label and drops backgrounds and overlays.)
             HStack(spacing: 6) {
                 Text(wallet.address.shortened())
                     .font(.body.monospaced())
@@ -35,6 +31,15 @@ struct WalletIdentityView: View {
                 .buttonStyle(.borderless)
                 .help("Copy address")
                 .accessibilityLabel("Copy address")
+                Group {
+                    if wallet.address.isContract { contractTag } else if wallet.keyKind == .none { watchOnlyTag }
+                    if wallet.keyKind == .ledger { ledgerTag }
+                    if wallet.keyKind == .airgap { airGapTag }
+                    if wallet.keyKind == .remote { remoteTag }
+                    if wallet.isSessionOnly { sessionTag }
+                }
+                .fixedSize()
+                .padding(.leading, 2)
             }
             ForEach(model.domains, id: \.self) { domain in
                 Text(domain)
@@ -116,6 +121,26 @@ struct WalletIdentityView: View {
             .help("This key lives on a Ledger\(wallet.ledgerKey.map { " (\($0.fullPath))" } ?? ""). Operations are approved on the device.")
     }
 
+    private var remoteTag: some View {
+        Label("Remote signer", systemImage: "server.rack")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("This key is held by a remote signer\(wallet.remoteSigner.map { " at \($0.endpoint)" } ?? ""). Signet sends it what is to be signed and checks every signature against the account's key.")
+    }
+
+    private var airGapTag: some View {
+        Label("AirGap", systemImage: "iphone")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.quaternary))
+            .foregroundStyle(.secondary)
+            .help("This key lives in AirGap Vault on a phone. Signet holds only the address and public key.")
+    }
+
     private func pickerItem(_ candidate: Wallet) -> some View {
         Button {
             model.select(candidate)
@@ -177,6 +202,10 @@ struct OperationsMenuItems: View {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
             Button("Connect Ledger…") { model.isPresentingConnectLedger = true }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+            Button("Connect Remote Signer…") { model.isPresentingConnectRemoteSigner = true }
+            if model.hasCamera {
+                Button("Scan QR code…") { model.isPresentingScanQR = true }
+            }
             Button("Rename account…") { model.isPresentingRenameWallet = true }
                 .disabled(model.selectedWallet == nil)
             Button("Export secret key…") { model.isPresentingExportKey = true }

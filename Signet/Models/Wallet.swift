@@ -8,7 +8,12 @@ enum KeyKind: String, Codable, Sendable {
     case encrypted
     /// `ledger://...`
     case ledger
-    /// `http(s)://`, `tcp://`, `unix:`, `remote:` — a remote signer such as octez-signer.
+    /// `airgap://<fingerprint>/<path>` — the key is in AirGap Vault on a phone; Signet holds the
+    /// public key, and operations go to the Vault and back by QR code.
+    case airgap
+    /// `http(s)://`, `tcp://`, `unix:` — a remote signer such as octez-signer, holding the key
+    /// elsewhere; Signet sends what is to be signed and checks the signature it gets back.
+    /// (`remote:tz1…` names a signer configured in octez-client and is `.unknown` here.)
     case remote
     /// Some other scheme we do not understand.
     case unknown
@@ -24,14 +29,21 @@ enum KeyKind: String, Codable, Sendable {
         case "unencrypted": self = .unencrypted
         case "encrypted": self = .encrypted
         case "ledger": self = .ledger
-        case "http", "https", "tcp", "unix", "remote": self = .remote
+        case "airgap": self = .airgap
+        case "http", "https", "tcp", "unix": self = .remote
         default: self = .unknown
         }
     }
 
-    /// Kinds Signet can sign with: clear-text keys, encrypted keys once the user supplies the
-    /// password, and Ledger keys when the device is plugged in.
-    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger }
+    /// Kinds Signet can sign operations with: clear-text keys, encrypted keys once the user
+    /// supplies the password, Ledger keys when the device is plugged in, AirGap Vault keys by a
+    /// QR round trip with the phone, and keys on a remote signer.
+    var canSign: Bool { self == .unencrypted || self == .encrypted || self == .ledger || self == .airgap || self == .remote }
+
+    /// Kinds that can also sign raw bytes without the operation watermark: a dApp's
+    /// sign_payload, a multisig proposal, Mt Pelerin's address check. AirGap Vault's transaction
+    /// sign request carries operations only.
+    var signsMessages: Bool { canSign && self != .airgap }
 
     /// Base58 prefixes of octez-encrypted secret keys.
     static let encryptedKeyPrefixes: Set<String> = ["edesk", "spesk", "p2esk", "BLesk", "mdesk"]
@@ -57,6 +69,8 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     var keyKind: KeyKind
     /// Where the key lives on a Ledger, when `keyKind` is `.ledger` and the locator parsed.
     var ledgerKey: LedgerKey?
+    /// Where the key is held when `keyKind` is `.remote` and the locator parsed.
+    var remoteSigner: RemoteSignerLocator?
     /// A paper key imported for this run only: its secret is in memory (`SessionKeyStore`), not
     /// in the wallet directory, and is gone when Signet quits.
     var isSessionOnly = false
@@ -65,16 +79,17 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
     /// unrevealed tz4 account needs it; it is never stored (the reveal publishes it on chain).
     var proofOfPossession: String?
 
-    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil) {
+    init(alias: String, address: Address, scheme: AddressScheme? = nil, publicKey: String? = nil, keyKind: KeyKind = .none, ledgerKey: LedgerKey? = nil, remoteSigner: RemoteSignerLocator? = nil) {
         self.alias = alias
         self.address = address
         self.scheme = scheme ?? address.scheme ?? .tz1
         self.publicKey = publicKey
         self.keyKind = keyKind
         self.ledgerKey = ledgerKey
+        self.remoteSigner = remoteSigner
     }
 
-    enum CodingKeys: String, CodingKey { case alias, address, scheme, publicKey, keyKind, ledgerKey, isSessionOnly }
+    enum CodingKeys: String, CodingKey { case alias, address, scheme, publicKey, keyKind, ledgerKey, remoteSigner, isSessionOnly }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -84,6 +99,7 @@ struct Wallet: Identifiable, Hashable, Codable, Sendable {
         publicKey = try values.decodeIfPresent(String.self, forKey: .publicKey)
         keyKind = try values.decode(KeyKind.self, forKey: .keyKind)
         ledgerKey = try values.decodeIfPresent(LedgerKey.self, forKey: .ledgerKey)
+        remoteSigner = try values.decodeIfPresent(RemoteSignerLocator.self, forKey: .remoteSigner)
         isSessionOnly = try values.decodeIfPresent(Bool.self, forKey: .isSessionOnly) ?? false
     }
 }

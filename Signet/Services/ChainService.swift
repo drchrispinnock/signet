@@ -7,6 +7,9 @@ protocol ChainService: Sendable {
     func etherlinkBalance(for address: Address) async throws -> Decimal
     func tokenBalances(for address: Address) async throws -> [AssetBalance]
     func domains(for address: Address) async throws -> [String]
+    /// Every Tezos Domains name the account owns or that points at it (the Domains tab);
+    /// `nil` when the network has no Tezos Domains.
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]?
     func nfts(for address: Address) async throws -> [NFT]
     /// Tokens and NFTs from one indexer snapshot, with whether it is complete (S26).
     func portfolio(for address: Address) async throws -> Portfolio
@@ -72,7 +75,9 @@ protocol ChainService: Sendable {
 
     // Etherlink governance: layer 1 contracts, called with an ordinary fee.
     /// The bakers `address` is the Etherlink voting key of on `contract` (the delegation contract's `list_voters`).
-    func etherlinkVotingRights(for address: Address, contract: Address) async throws -> [Address]
+    /// The bakers `address` votes for on governance `contract`, from `votingContract` (the
+    /// voting-rights contract set in Networks) or, when `nil`, the one `contract` names.
+    func etherlinkVotingRights(for address: Address, contract: Address, votingContract: Address?) async throws -> [Address]
     func etherlinkGovernanceState(contract: Address, for address: Address) async throws -> EtherlinkGovernance.State
     func estimateEtherlinkGovernance(_ operation: EtherlinkGovernance.Operation, contract: Address, from wallet: Wallet) async throws -> TransferEstimate
     /// Signs and injects the call with exactly the approved `limits` (S14).
@@ -125,6 +130,8 @@ struct Portfolio: Equatable, Sendable {
 }
 
 extension ChainService {
+    func tezosDomains(for address: Address) async throws -> [TezosDomain]? { nil }
+
     func pendingOperation(for address: Address) async throws -> SentOperation? { nil }
     func portfolio(for address: Address) async throws -> Portfolio {
         async let tokens = tokenBalances(for: address)

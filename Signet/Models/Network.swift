@@ -40,6 +40,14 @@ struct Network: Hashable, Identifiable, Sendable {
     var l2DefaultRPCURL: URL? = nil
     var l2RPCURL: URL? = nil
     var l2Enabled = false
+    /// Whether Layer 2 starts on: off everywhere except a network that exists only for its
+    /// Layer 2 (Shadownet (Previewnet)). Saved state records only a choice that differs.
+    let l2EnabledByDefault: Bool
+    /// What the Layer 2 is called on screen: "Etherlink", or "Previewnet" for Tezos X Previewnet.
+    var l2Name = "Etherlink"
+    /// The `chain` of `layer2`; `etherlink-<chain>` unless the rollup has a name of its own,
+    /// so two rollups on one layer 1 are never taken for the same chain.
+    var l2Chain: String? = nil
     /// The names dApps use for this network in a TZIP-10 request's `network.type`
     /// (Octez Connect's `NetworkType`): `dappType` for the network itself, `nil` when it has
     /// no such name (Custom, which dApps identify by endpoint), and `l2DAppType` for its
@@ -76,6 +84,11 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Networks sheet under Layer 2; a process without a contract is not offered.
     var etherlinkGovernance: [EtherlinkGovernance.Process: Address] = [:]
     let defaultEtherlinkGovernance: [EtherlinkGovernance.Process: Address]
+    /// The contract recording which key votes for which baker in Etherlink governance (its
+    /// `voting_delegations` big map; bakers `propose_voting_key`, keys `claim_voting_rights`).
+    /// `nil` uses the one each governance contract names in its storage.
+    var etherlinkVotingContract: Address?
+    let defaultEtherlinkVotingContract: Address?
 
     enum FaucetKind: Sendable {
         /// tacoinfra/tezos-faucet: `/info`, `/challenge` (proof of work), `/verify`.
@@ -88,10 +101,17 @@ struct Network: Hashable, Identifiable, Sendable {
          faucetKind: FaucetKind = .teztnets, explorerURL: URL? = nil, expectedChainID: String? = nil,
          l2RPCURL: URL? = nil, l2DAppType: String? = nil, expectedL2ChainID: String? = nil, l2BridgeHelper: String? = nil, l2Rollup: String? = nil,
          l2TzKTURL: URL? = nil, l2ExplorerURL: URL? = nil, etherlinkGovernance: [EtherlinkGovernance.Process: String] = [:],
+         etherlinkVotingContract: String? = nil,
+         l2Name: String = "Etherlink", l2Chain: String? = nil, l2EnabledByDefault: Bool = false,
          shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
+        self.l2Name = l2Name
+        self.l2Chain = l2Chain
+        self.l2EnabledByDefault = l2EnabledByDefault
         self.defaultEtherlinkGovernance = etherlinkGovernance.mapValues(Address.init)
         self.etherlinkGovernance = self.defaultEtherlinkGovernance
+        self.defaultEtherlinkVotingContract = etherlinkVotingContract.map(Address.init)
+        self.etherlinkVotingContract = self.defaultEtherlinkVotingContract
         self.shieldedAvailable = shieldedAvailable
         self.shielded = shielded
         self.shieldedDefault = shielded
@@ -111,7 +131,7 @@ struct Network: Hashable, Identifiable, Sendable {
         self.expectedChainID = expectedChainID
         self.l2DefaultRPCURL = l2RPCURL
         self.l2RPCURL = l2RPCURL
-        self.l2Enabled = false   // off until the user turns Layer 2 on in the Networks sheet
+        self.l2Enabled = l2EnabledByDefault   // off until the user turns Layer 2 on in the Networks sheet, except where the network is its Layer 2
         self.shieldedEnabled = false
         self.expectedL2ChainID = expectedL2ChainID
         self.l2BridgeHelper = l2BridgeHelper.map(Address.init)
@@ -125,10 +145,11 @@ struct Network: Hashable, Identifiable, Sendable {
     /// TzKT and explorer are Etherlink's. `nil` unless Layer 2 is on with a node.
     var layer2: Network? {
         guard hasL2, let node = l2RPCURL else { return nil }
-        var copy = Network(name: "\(name) · Etherlink", chain: "etherlink-\(chain)", rpcURL: node, tezosDomainsURL: nil,
+        var copy = Network(name: "\(name) · \(l2Name)", chain: l2Chain ?? "etherlink-\(chain)", rpcURL: node, tezosDomainsURL: nil,
                            tzktURL: l2TzKTURL, explorerURL: l2ExplorerURL, expectedChainID: expectedL2ChainID)
         copy.layerNumber = 2
         copy.dappType = l2DAppType
+        copy.l2Name = l2Name
         return copy
     }
 
@@ -153,6 +174,15 @@ struct Network: Hashable, Identifiable, Sendable {
     /// The processes with a contract, in display order.
     var etherlinkGovernanceProcesses: [EtherlinkGovernance.Process] { EtherlinkGovernance.Process.allCases.filter { etherlinkGovernance[$0] != nil } }
     func isUsingDefaultEtherlinkGovernance(_ process: EtherlinkGovernance.Process) -> Bool { etherlinkGovernance[process] == defaultEtherlinkGovernance[process] }
+
+    var isUsingDefaultEtherlinkVotingContract: Bool { etherlinkVotingContract == defaultEtherlinkVotingContract }
+
+    /// The same network reading voting keys from `contract` (`nil`: the one each governance contract names).
+    func usingEtherlinkVotingContract(_ contract: Address?) -> Network {
+        var copy = self
+        copy.etherlinkVotingContract = contract
+        return copy
+    }
 
     /// The same network with `process` governed through `contract` (`nil` turns the process off).
     func usingEtherlinkGovernance(_ contract: Address?, for process: EtherlinkGovernance.Process) -> Network {
@@ -321,7 +351,9 @@ struct Network: Hashable, Identifiable, Sendable {
         l2TzKTURL: URL(string: "https://api.etherlink.tzkt.io")!,
         l2ExplorerURL: URL(string: "https://etherlink.tzkt.io")!,
         // The contracts of the Ganesha update (May 2026); the earlier ones still answer but count for nothing.
-        etherlinkGovernance: [.slow: "KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb", .fast: "KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo"]
+        etherlinkGovernance: [.slow: "KT1AXRU3wLc87WNhLhVGrgqDGubLACUMUgPb", .fast: "KT19oUVQPnVLuUBYXrBVd46WJnNAMpqkKSwo"],
+        // What both governance contracts name as their delegation_contract (November 2026).
+        etherlinkVotingContract: "KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH"
     )
     static let shadownet = Network(
         name: "Shadownet",
@@ -342,6 +374,39 @@ struct Network: Hashable, Identifiable, Sendable {
         shieldedAvailable: true,
         shielded: .shadownet
     )
+    /// Tezos X Previewnet: a second Etherlink-style rollup on Shadownet, where Tezos X features
+    /// arrive before they reach Etherlink (github.com/trilitech/tezos-x-previewnet). Layer 1 is
+    /// Shadownet itself, so its accounts, faucet, shielded wallet and pending operations are
+    /// Shadownet's; the Layer 2 is the Previewnet rollup instead of Etherlink's, and is on from
+    /// the start. Offered only while Shadownet has Layer 2 on (`WalletViewModel.offeredNetworks`).
+    /// Octez Connect has no network type for Previewnet, so dApps reach it only by naming its
+    /// node as a custom network, and a dApp asking for "shadownet" gets the Shadownet entry
+    /// (this one carries no `dappType`). The rollup is reset now and then, and this entry with it.
+    static let shadownetPreviewnet: Network = {
+        var network = Network(
+        name: "Shadownet (Previewnet)",
+        chain: "shadownet",
+        rpcURL: URL(string: "https://rpc.shadownet.teztnets.com")!,
+        tezosDomainsURL: nil,
+        tzktURL: URL(string: "https://api.shadownet.tzkt.io")!,
+        faucetURL: URL(string: "https://faucet.shadownet.teztnets.com")!,
+        explorerURL: URL(string: "https://shadownet.tzkt.io")!,
+        expectedChainID: "NetXsqzbfFenSTS",
+        l2RPCURL: URL(string: "https://michelson.previewnet.tezosx.nomadic-labs.com")!,
+        expectedL2ChainID: "NetXY2oPPzkxUW1",
+        l2BridgeHelper: "KT1DUaf49SNALJRSB8R45TvEtgVi2xZnCh8B",
+        l2Rollup: "sr1BvTT7tVNneG2TeP18sixq57TxsZELebLu",
+        l2TzKTURL: URL(string: "https://api.previewnet.tezosx.tzkt.io")!,
+        l2ExplorerURL: URL(string: "https://previewnet.tezosx.tzkt.io")!,
+        l2Name: "Previewnet",
+        l2Chain: "previewnet",
+        l2EnabledByDefault: true,
+        shieldedAvailable: true,
+        shielded: .shadownet
+        )
+        network.dappType = nil
+        return network
+    }()
     static let bakingnet = Network(
         name: "Bakingnet",
         chain: "bakingnet",
@@ -417,7 +482,7 @@ struct Network: Hashable, Identifiable, Sendable {
     )
 
     /// Networks offered in the Networks sheet and the badge, in display order, each with its default node.
-    static var all: [Network] { [.mainnet, .shadownet, .bakingnet, .ushuaianet, .weeklynet, .quantumnet, .custom] }
+    static var all: [Network] { [.mainnet, .shadownet, .shadownetPreviewnet, .bakingnet, .ushuaianet, .weeklynet, .quantumnet, .custom] }
 
     static func named(_ name: String?) -> Network? {
         all.first { $0.name == name }

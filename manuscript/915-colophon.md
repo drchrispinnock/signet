@@ -1,4 +1,4 @@
-{#id: 915-colophon_1_Colophon}
+{id: ID915-colophon_1_Colophon}
 # Colophon
 
 Although the Signet wallet was written wholly with AI tools, this book was not. I wrote the text. However, writing it was easier than usual because I knew the application inside out.

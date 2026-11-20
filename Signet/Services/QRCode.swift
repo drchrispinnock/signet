@@ -19,9 +19,12 @@ enum QRCode {
     }
 
     /// Decodes the first QR code found in `image`, for tests and round-trip checks.
-    static func decode(_ image: NSImage) -> String? {
-        guard let tiff = image.tiffRepresentation, let ciImage = CIImage(data: tiff) else { return nil }
+    static func decode(_ image: NSImage) -> String? { decodeAll(image).first }
+
+    /// Every QR code found in `image`: a page of a recovery sheet can carry several.
+    static func decodeAll(_ image: NSImage) -> [String] {
+        guard let tiff = image.tiffRepresentation, let ciImage = CIImage(data: tiff) else { return [] }
         let detector = CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh])
-        return detector?.features(in: ciImage).compactMap { ($0 as? CIQRCodeFeature)?.messageString }.first
+        return detector?.features(in: ciImage).compactMap { ($0 as? CIQRCodeFeature)?.messageString } ?? []
     }
 }

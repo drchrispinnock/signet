@@ -28,7 +28,7 @@ struct BuySheet: View {
     @State private var currentURL: URL?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var canSign: Bool { wallet?.keyKind.canSign == true }
+    private var canSign: Bool { wallet?.keyKind.signsMessages == true }
     private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
 
@@ -142,6 +142,8 @@ struct BuySheet: View {
                 Text("Signet signs a short message with this key so \(provider.title) knows the address is yours.").font(.callout).foregroundStyle(.secondary)
             } else if signsOnLedger {
                 Text("Your Ledger will ask you to sign a short message proving the address is yours.").font(.callout).foregroundStyle(.secondary)
+            } else if wallet?.keyKind == .airgap {
+                Text("AirGap Vault cannot sign the short message \(provider.title) uses to check an address, so \(provider.title) will ask you to confirm it in the widget.").font(.callout).foregroundStyle(.secondary)
             } else if !canSign {
                 Text("Signet holds no key for this address, so \(provider.title) will ask you to confirm it in the widget.").font(.callout).foregroundStyle(.secondary)
             }

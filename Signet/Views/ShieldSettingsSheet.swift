@@ -17,7 +17,7 @@ struct ShieldSettingsSheet: View {
             Form {
                 Section {
                     Picker("Network", selection: $editingNetworkName) {
-                        ForEach(Network.all) { network in
+                        ForEach(model.offeredNetworks) { network in
                             Text(network.name + (network.name == model.network.name ? "  (in use)" : "")).tag(network.name)
                         }
                     }

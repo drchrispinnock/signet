@@ -115,7 +115,7 @@ struct WalletBackup: Sendable {
     /// The shielded (TzEL) wallet file of every network (master keys, notes, the operator
     /// token, the address book). The 2 MB signing trees beside it are left out; they are
     /// rebuilt from the master key.
-    static let shieldedFiles = Network.all.map { FileShieldedWalletStore.walletFile(chain: $0.chain) }
+    static let shieldedFiles = Network.all.map { FileShieldedWalletStore.walletFile(chain: $0.chain) }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
 
     /// - Parameter force: write a generation even if the latest one already matches (explicit user action).
     func run(now: Date = Date(), force: Bool = false) throws -> Outcome {

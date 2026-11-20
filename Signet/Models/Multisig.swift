@@ -21,7 +21,7 @@ struct MultisigInfo: Hashable, Sendable {
 
     /// Our wallets that can sign for this multisig.
     func signers(among wallets: [Wallet]) -> [Wallet] {
-        wallets.filter { wallet in wallet.keyKind.canSign && wallet.publicKey.map(keys.contains) == true }
+        wallets.filter { wallet in wallet.keyKind.signsMessages && wallet.publicKey.map(keys.contains) == true }
     }
 
     /// Any of our wallets whose key is listed, signing or not (watch-only Ledger entries etc.).

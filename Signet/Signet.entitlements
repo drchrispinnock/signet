@@ -9,5 +9,9 @@
 	     (and especially PBKDF2 for encrypted keys) runs interpreted and is orders of magnitude slower. -->
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
+	<!-- Scan QR code reads the camera in this process (AVFoundation), which the hardened runtime
+	     refuses without this. -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
 </dict>
 </plist>

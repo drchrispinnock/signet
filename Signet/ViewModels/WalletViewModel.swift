@@ -40,13 +40,13 @@ final class WalletViewModel {
     private nonisolated static func etherlinkRow(for address: Address, on network: Network, chain: any ChainService) async -> AssetBalance? {
         guard network.hasL2, address.isUsableOnEtherlink else { return nil }
         do {
-            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: network.l2Name, symbol: "tz", amount: try await chain.etherlinkBalance(for: address))
         } catch {
-            return AssetBalance(id: "etherlink", kind: .etherlink, name: "Etherlink", symbol: "tz", amount: 0, unavailable: "Etherlink balance unavailable: \(error.localizedDescription)")
+            return AssetBalance(id: "etherlink", kind: .etherlink, name: network.l2Name, symbol: "tz", amount: 0, unavailable: "\(network.l2Name) balance unavailable: \(error.localizedDescription)")
         }
     }
 
-    /// Etherlink's side of the account's history, for the Recent transactions list: the same
+    /// Etherlink's side of the account's history, for the Activity list: the same
     /// TzKT shape read from Etherlink's indexer through the Layer 2 service, each row tagged as
     /// layer 2. Nothing without Layer 2 on, for a key the rollup refuses, or when Etherlink's
     /// indexer cannot be read, in which case the layer 1 list stands alone.
@@ -111,6 +111,9 @@ final class WalletViewModel {
     var isPresentingStaking = false
     var isPresentingBaking = false
     var isPresentingConnectLedger = false
+    var isPresentingConnectRemoteSigner = false
+    /// How Connect Remote Signer reaches a signer; tests put a mock here.
+    var remoteSigners: any RemoteSignerService = RemoteSigners.service
     var isPresentingImportAccount = false
     var isPresentingExportKey = false
     var isPresentingProofOfPossession = false
@@ -136,12 +139,75 @@ final class WalletViewModel {
         isPresentingConnectDApp = true
     }
 
+    // MARK: Scan QR code
+
+    /// Whether this Mac has a camera right now; `CameraWatcher` keeps it current. The Scan QR
+    /// code items show only while it is true.
+    var hasCamera = false
+    var isPresentingScanQR = false
+    /// What the scan sheet found, routed to the sheet that deals with it once the scan sheet has
+    /// gone (only one sheet can be up at a time).
+    var pendingScan: ScanHandoff?
+    /// What the Import account, Add address and Send sheets open on after a scan. Each sheet
+    /// takes its value when it appears and clears it.
+    var importPrefill: ImportPrefill?
+    var addAddressPrefill: Address?
+    var sendPrefill: Address?
+
+    /// Where a scanned code goes next.
+    enum ScanHandoff: Equatable {
+        case pair(code: String)
+        case importKey(ImportPrefill)
+        case addAddress(Address)
+        case send(Address)
+        case airGap([AirGap.Account])
+    }
+
+    /// The accounts an AirGap Vault shared, while the Add AirGap account sheet is up.
+    var airGapImport: [AirGap.Account]?
+
+    /// Opens the sheet for what was scanned. Called when the scan sheet has been dismissed.
+    func routePendingScan() {
+        guard let handoff = pendingScan else { return }
+        pendingScan = nil
+        switch handoff {
+        case .pair(let code):
+            pendingPairingCode = code
+            isPresentingConnectDApp = true
+        case .importKey(let prefill):
+            importPrefill = prefill
+            isPresentingImportAccount = true
+        case .addAddress(let address):
+            addAddressPrefill = address
+            isPresentingAddAddress = true
+        case .send(let address):
+            guard selectedWallet != nil else { return }
+            sendPrefill = address
+            isPresentingSend = true
+        case .airGap(let accounts):
+            airGapImport = accounts
+        }
+    }
+
+    /// The address a scanned public key belongs to, derived locally.
+    func address(forScannedPublicKey key: String) async throws -> Address {
+        let address = try await multisig.address(forPublicKey: key)
+        guard address.isValidAccount else { throw WalletError.invalidAddress }
+        return address
+    }
+
+    /// Whether Send can be offered for a scanned address: the same rule as the Send button.
+    var canSendFromSelected: Bool {
+        guard let wallet = selectedWallet else { return false }
+        return wallet.keyKind.canSign && !wallet.address.isContract && !accountNotOnChain
+    }
+
     /// Export shows keys Signet holds on disk; Ledger and watch-only entries have nothing to show.
     var canExportSelectedKey: Bool { [.unencrypted, .encrypted].contains(selectedWallet?.keyKind) }
-    /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds: the
-    /// proof is the key's signature over its own public key, and Taquito's Ledger signer cannot
-    /// make one.
-    var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && canExportSelectedKey }
+    /// Create proof of possession is for a tz4 (BLS) account whose secret key Signet holds or a
+    /// remote signer holds (octez-signer makes it on request): the proof is the key's signature
+    /// over its own public key, and Taquito's Ledger signer cannot make one.
+    var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && (canExportSelectedKey || selectedWallet?.remoteSigner != nil) }
     var isPresentingGovernance = false
     var isPresentingBridge = false
     /// The NFTs a Transfer or Burn was started on from the grid's context menu; the sheet shows while set.
@@ -201,18 +267,37 @@ final class WalletViewModel {
     private(set) var portfolioState: Portfolio.State = .complete
     private(set) var transactions: [TezosTransaction] = []
     private(set) var delegateInfo: DelegateInfo?
-    /// Bakers the selected account votes for in Etherlink governance (their voting key), as of
-    /// the last refresh; empty when Layer 2 is off or the account votes for nobody.
-    private(set) var etherlinkVotesFor: [Address] = []
+    /// Bakers each of our signing accounts votes for in Etherlink governance (its voting key),
+    /// checked for every account at launch and whenever the network, its Layer 2 and
+    /// governance settings or the account list change (`checkEtherlinkVotingKeys`); only
+    /// accounts with rights are listed.
+    private(set) var etherlinkVotingKeys: [Address: [Address]] = [:]
+    /// What `etherlinkVotingKeys` was checked for; a different value means check again.
+    private var etherlinkVotingKeysContext: String?
+
+    /// Bakers the selected account votes for in Etherlink governance; empty when Layer 2 is off
+    /// or the account votes for nobody.
+    var etherlinkVotesFor: [Address] { selectedWallet.flatMap { etherlinkVotingKeys[$0.address] } ?? [] }
     static let recentTransactionLimit = 25
 
     enum ActivityTab: String, CaseIterable, Identifiable {
-        case transactions = "Recent transactions"
+        case transactions = "Activity"
         case assets = "Assets"
         case nfts = "NFTs"
+        case domains = "Domains"
         var id: String { rawValue }
     }
     var activityTab: ActivityTab = .transactions
+
+    /// The Domains tab's list, read when the tab is shown, for the account and network in `key`.
+    enum DomainListState: Equatable {
+        case loading
+        case loaded([TezosDomain])
+        /// The network has no Tezos Domains (only mainnet does).
+        case unavailable
+        case failed(String)
+    }
+    var domainList: (key: String, state: DomainListState)?
 
     /// Which layers the activity tabs show while Layer 2 is on: the Tezos and Etherlink
     /// toggles beside the activity picker, both on to begin with. Ignored without Layer 2,
@@ -222,7 +307,7 @@ final class WalletViewModel {
     /// Whether the layer toggles apply: Layer 2 is on for the network in use.
     var filtersLayers: Bool { network.hasL2 }
 
-    /// The rows the Recent transactions list shows: everything loaded, cut to the chosen layers
+    /// The rows the Activity list shows: everything loaded, cut to the chosen layers
     /// while Layer 2 is on.
     var visibleTransactions: [TezosTransaction] { visible(transactions, by: \.layer) }
     /// The Assets tab's tokens, cut the same way.
@@ -298,7 +383,6 @@ final class WalletViewModel {
         nfts = []
         transactions = []
         delegateInfo = nil
-        etherlinkVotesFor = []
         tezBalance = nil
         accountNotOnChain = false
         portfolioState = .complete
@@ -354,6 +438,13 @@ final class WalletViewModel {
     }
 
     /// Whether the Etherlink balance is shown for `base` (saved or default), without switching.
+    /// The networks the badge, Networks and Shielded settings offer: every one, except that
+    /// Shadownet (Previewnet) appears only while Shadownet has Layer 2 on (or it is in use).
+    var offeredNetworks: [Network] {
+        let previewnet = Network.shadownetPreviewnet.name
+        return Network.all.filter { $0.name != previewnet || network.name == previewnet || isL2Enabled(for: .shadownet) }
+    }
+
     func isL2Enabled(for base: Network) -> Bool { resolved(Network.named(base.name) ?? base).l2Enabled }
 
     /// The Etherlink node in use for `base`, if it has one.
@@ -398,6 +489,29 @@ final class WalletViewModel {
 
     func useDefaultEtherlinkGovernanceContract(for process: EtherlinkGovernance.Process, in base: Network) {
         change(base) { $0.usingEtherlinkGovernance($0.defaultEtherlinkGovernance[process], for: process) }
+    }
+
+    /// The voting-rights contract in use on `base` ("" when the governance contracts' own is used).
+    func etherlinkVotingContract(in base: Network) -> String {
+        resolved(Network.named(base.name) ?? base).etherlinkVotingContract?.value ?? ""
+    }
+
+    /// Reads voting keys from the contract typed in Networks, or from the governance contracts'
+    /// own for empty text. False (and no change) when the text is not a contract address.
+    @discardableResult
+    func setEtherlinkVotingContract(_ text: String, in base: Network) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var contract: Address?
+        if !trimmed.isEmpty {
+            guard let parsed = EtherlinkGovernance.contractAddress(from: trimmed) else { return false }
+            contract = parsed
+        }
+        change(base) { $0.usingEtherlinkVotingContract(contract) }
+        return true
+    }
+
+    func useDefaultEtherlinkVotingContract(in base: Network) {
+        change(base) { $0.usingEtherlinkVotingContract($0.defaultEtherlinkVotingContract) }
     }
 
     /// Whether shielded transactions are on for `base` (saved or default), without switching.
@@ -676,7 +790,7 @@ final class WalletViewModel {
                 return try await service.waitForConfirmation(of: hash)
             },
             // Only a Layer 2 the user turned on in Networks is served, on the node in use there.
-            layer2: { [unowned self] in Network.all.compactMap { self.resolved($0).layer2 } },
+            layer2: { [unowned self] in self.offeredNetworks.compactMap { self.resolved($0).layer2 } },
             wallets: { [unowned self] in self.wallets },
             signer: { [unowned self] wallet, passphrase in try self.signingKey(for: wallet, passphrase: passphrase) }
         )
@@ -786,6 +900,9 @@ final class WalletViewModel {
         let shieldedBridge = self.shieldedBridge
         isLoading = true
         errorMessage = nil
+        // Which accounts are Etherlink voting keys is checked beside this account's load and
+        // apart from it, so a failing balance or history read cannot hide Governance.
+        async let votingKeys: Void = checkEtherlinkVotingKeys()
 
         struct Snapshot {
             var tezBalance: TezBalance?
@@ -795,7 +912,6 @@ final class WalletViewModel {
             var domains: [String] = []
             var transactions: [TezosTransaction] = []
             var delegateInfo: DelegateInfo?
-            var etherlinkVotesFor: [Address] = []
             var notOnChain = false
             var error: String?
         }
@@ -809,7 +925,6 @@ final class WalletViewModel {
             async let etherlinkHoldings = Self.etherlinkPortfolio(for: address, on: network, chain: layer2)
             async let delegation = chain.delegateInfo(for: address)
             async let etherlink = Self.etherlinkRow(for: address, on: network, chain: chain)
-            async let votesFor = Self.etherlinkVotesFor(address, on: network, chain: chain)
             async let shielded = Self.shieldedSnapshot(for: address, on: network, store: shieldedStore, rollup: shieldedRollup, bridge: shieldedBridge)
 
             let tezBalance = try await tez
@@ -822,7 +937,6 @@ final class WalletViewModel {
             snapshot.domains = try await names
             snapshot.transactions = Self.mergedHistory(try await history, await etherlinkHistory, limit: Self.recentTransactionLimit)
             snapshot.delegateInfo = (try? await delegation) ?? nil
-            snapshot.etherlinkVotesFor = await votesFor
         } catch ChainError.accountNotOnChain {
             // Not on layer 1: no balance rows at all, the Etherlink one included.
             snapshot.notOnChain = true
@@ -832,6 +946,7 @@ final class WalletViewModel {
             snapshot.error = error.localizedDescription
         }
 
+        await votingKeys
         // Publish only into the context the load was started for.
         guard currentContext == mine else { return }
         isLoading = false
@@ -856,23 +971,46 @@ final class WalletViewModel {
         domains = snapshot.domains
         transactions = snapshot.transactions
         delegateInfo = snapshot.delegateInfo
-        etherlinkVotesFor = snapshot.etherlinkVotesFor
         accountNotOnChain = snapshot.notOnChain
     }
 
-    /// The bakers `address` is the Etherlink voting key of, across the network's governance
-    /// contracts; empty when Layer 2 is off, no contract is set, or the lookup fails (the
-    /// Governance item then shows for bakers alone).
-    private static func etherlinkVotesFor(_ address: Address, on network: Network, chain: any ChainService) async -> [Address] {
-        guard network.canGovernEtherlink else { return [] }
-        var bakers: [Address] = []
-        for process in network.etherlinkGovernanceProcesses {
-            guard let contract = network.etherlinkGovernance[process] else { continue }
-            for baker in (try? await chain.etherlinkVotingRights(for: address, contract: contract)) ?? [] where !bakers.contains(baker) {
-                bakers.append(baker)
-            }
+    /// Finds which of our signing accounts are some baker's Etherlink voting key, unless that
+    /// was already found for this network, these settings and these accounts. Off with Layer 2
+    /// off. A lookup that fails leaves the context unchecked, so the next refresh tries again.
+    func checkEtherlinkVotingKeys() async {
+        let network = self.network
+        let candidates = wallets.filter { $0.keyKind.canSign && $0.address.isValidAccount && !$0.address.isContract }.map(\.address)
+        let contracts = network.etherlinkGovernanceProcesses.compactMap { network.etherlinkGovernance[$0] }
+        let context = ([network.name, network.rpcURL.absoluteString, String(network.canGovernEtherlink), network.etherlinkVotingContract?.value ?? "-"]
+                       + contracts.map(\.value) + candidates.map(\.value).sorted()).joined(separator: "|")
+        guard context != etherlinkVotingKeysContext else { return }
+        guard network.canGovernEtherlink, !candidates.isEmpty else {
+            etherlinkVotingKeys = [:]
+            etherlinkVotingKeysContext = context
+            return
         }
-        return bakers
+        etherlinkVotingKeysContext = context  // one check at a time for this context
+        let chain = self.chain
+        let voting = network.etherlinkVotingContract
+        let found = await withTaskGroup(of: (Address, [Address]?).self) { group in
+            for address in candidates {
+                group.addTask {
+                    var bakers: [Address] = []
+                    for contract in contracts {
+                        guard let list = try? await chain.etherlinkVotingRights(for: address, contract: contract, votingContract: voting) else { return (address, nil) }
+                        for baker in list where !bakers.contains(baker) { bakers.append(baker) }
+                    }
+                    return (address, bakers)
+                }
+            }
+            var result: [Address: [Address]?] = [:]
+            for await (address, bakers) in group { result[address] = bakers }
+            return result
+        }
+        guard etherlinkVotingKeysContext == context else { return }
+        etherlinkVotingKeys = found.compactMapValues { $0 }.filter { !$0.value.isEmpty }
+        // Try again on the next refresh if any account could not be looked up.
+        if found.values.contains(where: { $0 == nil }) { etherlinkVotingKeysContext = nil }
     }
 
     func select(_ wallet: Wallet) {
@@ -1417,9 +1555,34 @@ final class WalletViewModel {
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
-        case .remote, .unknown, .none:
+        case .airgap:
+            guard let publicKey = wallet.publicKey, publicKey.hasPrefix("edpk") else { return nil }
+            return .airgap(publicKey: publicKey, address: wallet.address)
+        case .remote:
+            guard let signer = wallet.remoteSigner, signer.address == wallet.address, let publicKey = wallet.publicKey else { return nil }
+            return .remote(signer, publicKey: publicKey)
+        case .unknown, .none:
             return nil
         }
+    }
+
+    /// Adds an account whose key is in AirGap Vault: its address and public key, with an
+    /// `airgap://` locator in `secret_keys` (octez-client lists it as "airgap sk known" and
+    /// cannot sign with it). The address is derived from the public key here, never taken
+    /// from the code.
+    func addAirGapAccount(alias: String, account: AirGap.Account) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        let address = try await address(forScannedPublicKey: account.publicKey)
+        guard address.scheme == .tz1 else { throw WalletError.invalidAddress }
+        if let existing = wallets.first(where: { $0.address == address }) { throw WalletError.addressExists(existing.alias) }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        let wallet = Wallet(alias: name, address: address, scheme: .tz1, publicKey: account.publicKey, keyKind: .airgap)
+        try walletStore.add(wallet, locator: account.locator)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
     }
 
     /// Adds a key that lives on a Ledger. The device shows the address and the user approves it
@@ -1440,6 +1603,23 @@ final class WalletViewModel {
 
         let wallet = Wallet(alias: name, address: derived.address, scheme: curve.scheme, publicKey: derived.publicKey, keyKind: .ledger, ledgerKey: key)
         try walletStore.add(wallet, locator: key.locator)
+        wallets = (try? walletStore.load()) ?? wallets + [wallet]
+        select(wallet)
+        await backUp()
+    }
+
+    /// Connect Remote Signer: checks the signer again (`checkRemoteSigner`) and adds the account with the signer's locator in `secret_keys`.
+    func connectRemoteSigner(alias: String, signer: RemoteSignerLocator) async throws {
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw WalletError.emptyAlias }
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == signer.address }) { throw WalletError.addressExists(existing.alias) }
+        let check = try await checkRemoteSigner(signer)
+        // The list may have changed while the signer was asked.
+        guard !wallets.contains(where: { $0.alias == name }) else { throw WalletError.aliasExists(name) }
+        if let existing = wallets.first(where: { $0.address == signer.address }) { throw WalletError.addressExists(existing.alias) }
+        let wallet = Wallet(alias: name, address: signer.address, publicKey: check.publicKey, keyKind: .remote, remoteSigner: signer)
+        try walletStore.add(wallet, locator: signer.locator)
         wallets = (try? walletStore.load()) ?? wallets + [wallet]
         select(wallet)
         await backUp()

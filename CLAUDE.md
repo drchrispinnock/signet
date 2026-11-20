@@ -131,8 +131,8 @@ automatic download is off by default. The updater is not started under the test 
   `FileMultisigProposalStore` and `WalletBackup` use the same primitive. Proposal changes go
   through `MultisigProposalStore.update(_:)`, which merges into what is on disk under the lock,
   and oversized proposals another program wrote are left out (S19). A `Wallet` is therefore an octez alias; `keyKind` records whether its secret is
-  unencrypted, encrypted, on a ledger, remote or absent. Clear, encrypted and ledger keys can sign
-  (`KeyKind.canSign`); remote signers cannot yet. `WalletStore.add(_:locator:)` writes any
+  unencrypted, encrypted, on a ledger, in AirGap Vault, remote or absent. Clear, encrypted, Ledger,
+  AirGap and remote-signer keys can sign (`KeyKind.canSign`). `WalletStore.add(_:locator:)` writes any
   `secret_keys` locator; `add(_:secretKey:)` is the convenience for keys on disk.
   `importWallets(from:)` (S09) first takes the source's own locks and rolls back any journal it
   finds there, copies all three key files as one snapshot, releases that lock and only then takes
@@ -159,9 +159,9 @@ automatic download is off by default. The updater is not started under the test 
   A backup folder that is the wallet directory, inside it or around it is refused
   (`BackupError.overlapsWallet`).
   If `~/.signet` already has keys the app opens on the dashboard. On a cold start (no keys)
-  `NoWalletsView` offers four ways in: create a new account (first and highlighted), import an
-  existing key or phrase, connect a Ledger, or, last and only when one exists, import
-  `~/.tezos-client` (an exact file copy). The merge
+  `NoWalletsView` offers its ways in: create a new account (first and highlighted), import an
+  existing key or phrase, connect a Ledger, import from a QR code when a camera is attached, or,
+  last and only when one exists, import `~/.tezos-client` (an exact file copy). The merge
   path in `TezosClientStore.importWallets` remains but is not exposed in the menu. The app is
   deliberately not sandboxed so it can reach both directories.
 - **Keys.** `KeyGenerator` makes tz1 and tz3 keys with CryptoKit and encodes them in Swift, so
@@ -242,6 +242,28 @@ automatic download is off by default. The updater is not started under the test 
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
   copied too), then the key masked with a reveal toggle and a Copy button. `WalletViewModel.
   exportSecretKey(passphrase:)` returns `ExportedKey(clear:encrypted:)`; nothing is written anywhere.
+  **Recovery sheet.** Once the key is shown, "Recovery Sheet…" prints one page
+  (`Signet/Views/RecoverySheet.swift`, after the sketch `docs/spec/recoverysheet.HEIC`): the
+  app icon, "Signet Tezos Wallet Recovery Sheet", the alias and date, a QR code of the secret
+  key, then the address, public key and secret key in full. The key is printed as it is stored
+  (`RecoverySheet.secretKey` is `encrypted ?? clear`), so an encrypted account's sheet carries
+  the `edesk…` form and an empty Password box to fill in by hand; a clear key's sheet says it
+  has no password instead. The QR code is the bare key, which Scan QR code classifies as a
+  secret key and hands to Import account, and octez-client reads too. `RecoverySheetPrinter`
+  renders `RecoverySheetPage` with `ImageRenderer` into PDF data in memory (an unhosted
+  `NSHostingView` draws a blank page) and prints it through PDFKit's print operation; Signet
+  writes no file. A key too long for one QR code (tz5, about 5,300 characters: `hasQRCode` false)
+  is printed over several pages instead: the public key as numbered text on the first, then
+  the secret key as several codes four to a page (`RecoverySheetCodesPage`, `keyParts`), then
+  in full as numbered lines of 90 characters (`RecoverySheetKeyPage`) for when a code cannot
+  be read. A part is `signet-key:<index>/<count>:<id>:<chunk>` (`KeyPart` in `QRPayload.swift`,
+  680 characters a part, the id the first four bytes of the key's SHA-256; Signet's own
+  format). Scan QR code classifies each as `.keyPart`, shows which parts are still missing and
+  joins them in any order with `KeyPartCollector`, which accepts the result only when the id
+  matches and the joined text is a checksummed secret key; the camera reports every code in
+  view and an image or clipboard picture gives all of its codes (`QRCode.decodeAll`).
+  `RecoverySheetTests`; set `TEST_RUNNER_SIGNET_RECOVERY_SHEET_OUTPUT=<path>.pdf` to keep the
+  rendered page for a look.
 - **Forget (0.6).** "Forget account…" (both menus, under Add address) opens `ForgetAccountSheet`:
   one warning for everything, a second one when Signet holds the secret key (clear or encrypted;
   Ledger and watch-only entries get only the first), the password for encrypted keys (checked by
@@ -354,11 +376,18 @@ automatic download is off by default. The updater is not started under the test 
   `AppState.etherlinkGovernance` only where they differ, "" for a process turned off), and
   `Network.canGovernEtherlink` is Layer 2 on with at least one contract. The item shows
   (`WalletViewModel.canGovern` / `canGovernEtherlink`) for a baker, or for an account the
-  delegation contract (named in each governance contract's storage) lists as some baker's
-  voting key: `refresh` asks the bridge's `etherlinkVotingRights` (what the delegation
-  contract's `list_voters(address, Some contract)` view answers, read from its
-  `voting_delegations` big map: `votersFrom`) and keeps the bakers in `etherlinkVotesFor`; a
-  voting key that is not a baker opens on the Etherlink tab and the Tezos tab says so.
+  voting-rights contract lists as some baker's voting key. That contract is a Networks
+  setting, "Voting rights contract" (`Network.etherlinkVotingContract`, Mainnet
+  `KT1Ut6kfrTV9tK967tDYgQPMvy9t578iN7iH`, what both governance contracts name as their
+  `delegation_contract`; saved under `AppState.etherlinkGovernance[name]["voting"]`, empty
+  meaning the one each governance contract names). `checkEtherlinkVotingKeys` asks the
+  bridge's `etherlinkVotingRights` (what the contract's `list_voters(address, Some contract)`
+  view answers, read from its `voting_delegations` big map: `votersFrom`) for every signing
+  account, beside and apart from the selected account's refresh (a failed balance or history
+  read used to hide Governance), once per network, settings and account list
+  (`etherlinkVotingKeysContext`), again after any failed lookup; `etherlinkVotingKeys` maps
+  account to bakers, `etherlinkVotesFor` is the selected account's. A voting key that is not a
+  baker gets the Etherlink tab alone.
   **No views are run**: public nodes such as rpc.tzbeta.net refuse `run_script_view` and
   `pack_data` (401), so `getEtherlinkGovernanceState` (`src/etherlink-governance.js`) computes
   the period from the storage's `config` and the head level exactly as the contract does
@@ -508,13 +537,114 @@ automatic download is off by default. The updater is not started under the test 
   `signMultisigProposal`, `addMultisigSignature`, `submitMultisig`. `ShadownetMultisigTests` is the
   live 2-of-3 round trip (a transfer, then a delegate change) and checks local packing against
   the node's `pack_data`.
+- **Scan QR code.** "Scan QR code…" (both menus, after Connect Ledger) and the welcome screen's
+  "Import from QR code" show only while `WalletViewModel.hasCamera` is true; `CameraWatcher`
+  (`Signet/Services/QRScanner.swift`, made by `SignetApp`, never under the test host) sets it
+  from an AVFoundation discovery session (built-in, external and Continuity cameras) and the
+  connect/disconnect notifications. `ScanQRSheet` shows the camera (`QRCaptureSession`: frames
+  to Vision's barcode request on a private queue, each distinct code yielded on an
+  `AsyncStream`; nothing is recorded or logged, since a code may be a secret key), a camera
+  picker when there are several, and "Paste from Clipboard" (Cmd-V: a QR code in a clipboard
+  image such as a screenshot, else the clipboard's text, `QRCamera.textFromPasteboard`) and
+  "Choose Image…", because a camera cannot see a code on this Mac's own screen.
+  `QRPayload.classify` (`Signet/Models/QRPayload.swift`, pure) decides by shape and base58
+  checksum what the text is: a pairing code (any `…?type=tzip10&data=…` link,
+  `DAppPairingLink.code(fromScanned:)`, or bare base58check over JSON), an address (also as a
+  `tezos:` URI), a public key, a secret key (clear or octez-encrypted) or a recovery phrase by
+  shape. The scan sheet acts on nothing itself: it sets `pendingScan` (`ScanHandoff`) and
+  dismisses, and its `onDismiss` calls `routePendingScan`, which opens the dApps sheet with
+  `pendingPairingCode`, Import account on `importPrefill` (the key in its `SecureField` or the
+  phrase tab, so alias, encryption and session-only are still chosen there), Add address on
+  `addAddressPrefill` or Send on `sendPrefill`; each sheet clears its prefill when it appears.
+  An address (or a public key, hashed locally by `address(forScannedPublicKey:)`) is shown in
+  the scan sheet first with Add to Address Book… and, when `canSendFromSelected`, Send…; it is
+  the only scanned content ever displayed. A pairing code is refused until an account that can
+  sign exists. The camera needs `com.apple.security.device.camera` in `Signet.entitlements`
+  (hardened runtime) and `NSCameraUseContinuityCameraDeviceType` in `Info.plist`.
+  `QRScanTests` covers classification, the clipboard and the routing; the camera itself can
+  only be checked by hand.
+  **AirGap Vault.** Vault's "Pair Account" code (QR Code V3) is an AirGap IAC message:
+  `gzip(CBOR([3, [[1, type, protocol, id, payload]]]))` (`Signet/Models/AirGap.swift`; the
+  payload is the message type's JSON schema as an array of its properties in alphabetical
+  order, hex-looking strings as bytes behind a one-byte tag) carried as a Blockchain Commons
+  Uniform Resource, `ur:bytes/…` in Bytewords, or `ur:bytes/n-m/…` frames of an animated code
+  whose frames after the first m are fountain-coded mixes
+  (`Signet/Models/UniformResource.swift`: Bytewords, CRC-32, a bounded CBOR reader/writer,
+  Xoshiro256**, the alias sampler and the decoder, matched to `@ngraveio/bc-ur`). Scan QR code
+  classifies frames as `.uniformResource`, gathers them in `UniformResource.Decoder` (any
+  order, mixed frames included; the sheet shows progress) and hands the Tezos account shares
+  (`AirGap.accounts`, protocol `xtz`, ed25519, hex public key) to `AddAirGapAccountSheet`
+  through `ScanHandoff.airGap`. `WalletViewModel.addAirGapAccount` derives the address from
+  the public key and writes an octez alias whose `secret_keys` locator is
+  `airgap://<master fingerprint>/<path>` (`KeyKind.airgap`; octez-client lists it as "airgap
+  sk known" and leaves it alone); the header tags it "AirGap". `airgap-…://?ur=` links are read
+  too; the old `?d=` format (`.airGapLegacy`) gets a note to pick QR Code V3. **Signing.**
+  `KeyKind.airgap.canSign` is true and `SigningKey.airgap(publicKey:address:)` goes to the
+  bridge as `{kind: "airgap", publicKey, address}`; `src/airgap.js`'s signer accepts only the
+  operation watermark (0x03), hands the forged hex to Swift through `__signet.airgapSign`
+  (no deadline, like every signing call) and checks the returned signature with
+  `verifySignature` against the account's `edpk` before Taquito uses it (`test/airgap.cjs`).
+  Swift's `AirGapSigning.shared` (`Signet/Services/AirGapSigning.swift`) opens one panel at a
+  time as an AppKit sheet on the deepest sheet of the front window, so every sheet that signs
+  works unchanged: it shows the type 5 request (`AirGap.signRequest`, `callbackURL`
+  `airgap-wallet://?d=` which Vault requires; `UniformResource.encode` at 200 bytes a frame,
+  pure frames cycled every 250 ms), then scans the Vault's type 6 reply with the camera or a
+  pasted screenshot (`AirGapSignSession`), and `AirGap.signature(in:id:forged:)` takes the
+  signature only from a reply to that id carrying exactly the bytes sent. Messages cannot be
+  signed with the Vault (`KeyKind.signsMessages` is false: dApp sign_payload, multisig
+  proposals, Mt Pelerin's check); multisig submission and dApp operations can. The Vault's old
+  Tezos code decodes the operation to show it, so a newer encoding (a reveal) may not display.
+  **Remote signers** (anything speaking octez-signer's protocol: octez-signer, Signatory,
+  Russignol; user-facing text names none of them as *the* signer). "Connect Remote Signer…" (both menus after Connect Ledger,
+  and the welcome screen) opens `ConnectRemoteSignerSheet`: HTTP, HTTPS or TCP with
+  octez-signer's default ports (6732, 443, 7732; `RemoteSignerLocator.Transport.defaultPort`,
+  any port may be typed), host, the key's address (or "List Keys", `known_keys`, which
+  octez-signer 21 and earlier do not answer), and a name. `WalletViewModel.checkRemoteSigner`
+  asks the signer for the key's public key and derives the address from it locally (a key for
+  another address is `RemoteSignerError.keyMismatch`), and reports a signer started with
+  `--require-authentication`, which Signet cannot authenticate to yet; `connectRemoteSigner`
+  checks again and writes octez-client's locator (`tcp://host:port/tz1…`,
+  `http(s)://host:port[/path]/tz1…`, `unix:/path?pkh=…` read too) in both `secret_keys` and
+  `public_keys`. Plain HTTP is only for local or private hosts (`EndpointPolicy`, plus
+  `NSAllowsLocalNetworking`); TCP may go anywhere with a note that it is unencrypted.
+  `KeyKind.remote` signs operations and messages; `remote:tz1…` (a signer configured in
+  octez-client) is `.unknown`. `SigningKey.remote(locator, publicKey:)` goes to the bridge's
+  `src/remote.js` signer, which asks Swift through `__signet.remoteSign` (watermark in front of
+  the bytes), puts the reply in the key's form (base58, often generic `sig…`, over HTTP; raw
+  bytes over a socket; BLS/ML-DSA get the `ff03`/`ff04` operation marker) and uses it only
+  when `verifySignature` accepts it for the account's key (`test/remote-signer.cjs`); tz4
+  proofs of possession come from `bls_prove_possession` and are verified too. Swift's
+  `NetworkRemoteSignerService` (`Signet/Services/RemoteSignerClient.swift`) speaks the JSON RPC
+  over URLSession with `BoundedHTTP`, and the binary protocol (`SignerWire` in
+  `Signet/Models/RemoteSigner.swift`, from octez's `signer_messages.ml`: 2-byte length frames,
+  one-byte request kind, `00`/`01` result tag, an absent trailing optional field written as
+  nothing, lists behind a 4-byte length inside unions) over Network.framework, asking for
+  `authorized_keys` and signing on one connection as octez-client does, with a 120 s deadline.
+  A tz4 sign request names the key with its signature version (`03 ‖ pkh ‖ 03`). tz4 needs
+  octez-signer 23 or later: Octez 23 moved BLS signing from the augmented scheme to the
+  proof-of-possession one the chain checks, so an older signer's tz4 signature fails the
+  bridge's check (and over TCP it cannot read the request and closes), both reported as such.
+  `RemoteSignerTests` uses bytes captured between octez-client and octez-signer 21. A refusal
+  (`RemoteSignerError.declined`) names the signer, the request and the key with the signer's
+  own reason, which octez writes as a BSON document in the error trace (`SignerWire.errorReason`).
+  `AirGapTests` uses vectors made with
+  `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
-  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
+  share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Scan QR code when a camera is attached, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
   dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
-  has Cmd-comma. File has Create Backup (`backUp(force: true)`).
+  has Cmd-comma. File has Create Backup (`backUp(force: true)`). Help has Getting Started and Signet Website (`websiteURL`,
+  https://signetwallet.org) in place of the default help item (`HelpMenuItems`). Getting Started
+  opens a window of its own (`GettingStartedView`, a `Window` scene) showing the book's chapter
+  `manuscript/110-starting.md` with its screenshots `manuscript/resources/110`, both bundled as
+  resources by `project.yml`, rendered by `Markua` (`Signet/Models/Markua.swift`: the subset of
+  Leanpub's Markua the book uses; `<!-- -->` author notes dropped; everything escaped; pictures
+  only from beside the chapter) in a web view with JavaScript off; links within the chapter
+  scroll, other chapters go to Leanpub (`Markua.bookURL`), other links open in the browser.
+  Re-copying the chapter is all an update needs; `GettingStartedTests` checks every picture it
+  shows is in the bundle.
 - **Disclaimer.** `showsLaunchDisclaimer()` (`DisclaimerAlert.swift`) puts up the "very new
   software" alert (OK / Exit) when the main window appears; the `showsDisclaimer` UserDefault,
   toggled in Settings under Appearance, turns it off. Suppressed under the test host.
@@ -572,7 +702,7 @@ automatic download is off by default. The updater is not started under the test 
   bytes of Keccak-256 over the base58 address string, as the EVM node's
   `tez_getTezosEthereumAddress` answers, computed by `Keccak.swift` since CryptoKit has none; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
   `WalletViewModel.requestTestTez(amount:)`; on Mainnet Buy opens `BuySheet`. Sell was dropped for good: it would mean handling bank accounts), `AssetListView` (tez, then Etherlink, then
-  other tokens) and `ActivityTabsView`, a segmented bottom section: `TransactionListView` (last 25
+  other tokens) and `ActivityTabsView`, a segmented bottom section (Activity, Assets, NFTs, Domains; `WalletViewModel.ActivityTab`). The Domains tab (`DomainListView`) lists the Tezos Domains names the account owns or that point at it, the published reverse record first, with owner, target and expiry (orange under 30 days, red once expired), read when the tab is shown (`loadDomainList`, `TezosDomainsService.domains(of:)`: the API answers at most 50 names a request, so owned and pointing names are paged with its `after` cursors, up to 10 pages; `ChainService.tezosDomains`, `nil` off mainnet) and kept per account and network (`domainListKey`). The tab is offered only where Tezos Domains exists (`activityTabs`, `shownActivityTab`), i.e. Mainnet. Activity is `TransactionListView` (last 25
   operations from TzKT `/v1/accounts/{address}/operations`, parsed by `TzKTService.parseOperations`
   into `TezosTransaction`; with Layer 2 on, Etherlink's operations for the account are read the same way from Etherlink's TzKT through `layer2Chain` and merged in newest first (`WalletViewModel.mergedHistory`), each tagged `layer` 2 (`onLayer2`, id prefixed `l2:`) and shown with a small Etherlink logo beside the amount, its tooltip and explorer link being Etherlink's; while Layer 2 is on, two logo toggles right of the activity picker (`LayerToggles`, Tezos and Etherlink, both on by default, `shownLayers`) cut all three tabs to the chosen layers (`visibleTransactions` / `visibleTokens` / `visibleNFTs`, `layerEmptyText` wording an empty tab); the Assets and NFTs tabs likewise take Etherlink's token listing through `layer2Chain` (`etherlinkPortfolio`, `Portfolio.onLayer2` / `adding`; tokens and NFTs carry `layer`, id prefixed `l2:`, and show the `EtherlinkMark`), though as of October 2026 Etherlink's TzKT indexes no Michelson-side tokens at all; an internal operation a contract made because we called it, such as a multisig payout (sender the contract, `initiator` us), is outgoing with `via` the contract, not money coming in from it; rows show the counterparty's avatar and name, our alias with a green seal
   when it is one of ours, else TzKT's alias, via `WalletViewModel.displayName`), `TokenListView`
@@ -580,7 +710,7 @@ automatic download is off by default. The updater is not started under the test 
   `TzKTService.fungibleTokens`: anything with decimal places or FA1.2, amount divided by the
   decimals, logo from thumbnailUri/icon, kept in `WalletViewModel.tokens`, not in the top balance
   list; **metadata fallback (0.9.11):** a balance row TzKT reports with `metadata` null (an indexer without a metadata resolver, such as Etherlink's TzKT, or a very fresh mint) is filled by `TokenMetadataResolver` before classification: the contract's `token_metadata` big map entry is read through the same indexer (`TzKTService.tokenInfo`, hex-decoded `token_info`), its `""` URI is fetched from the IPFS gateways or a public HTTPS address through `PublicHTTPClient` with a 256 KB cap and a JSON budget (`tezos-storage:` is not followed), direct `token_info` entries override the document, at most 12 rows are resolved per load and hits and misses are cached in `TokenMetadataCache` for the process; `Metadata` decodes leniently, with `decimals` a number or a string) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
-  decimals and an image, newest first by the balance row's `lastTime` across both layers (`Portfolio.newestFirst`), a video or sound artifact (`NFT.isMoving`, from the artifact's format) wearing a play badge since its tile is only a still, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast); `TzKTService.bestImageURLs` lists displayUri first, because marketplaces often use a generic thumbnail, then thumbnailUri, then an image artifactUri, each on every gateway, and the loader answers a gateway's "too large" (curl exit 63 past `maxBytes`, 8 MB, mapped to `ImageLoader.Fetch.tooLarge`) by skipping that content on the other gateways and moving to the next image, since collections such as Collect United ship 11 to 15 MB display renders with 200 KB thumbnails). **Artwork cache.** The production loader (`ImageLoader.shared`) keeps every downsampled thumbnail on disk in `ArtworkCache` (`Signet/Services/ArtworkCache.swift`, `~/Library/Caches/Signet/artwork`, `nil` under the test host): IPFS content is keyed by its `<cid>[/path]`, so one entry answers every gateway's URL and never expires, other HTTPS artwork (avatars) is keyed by URL and expires after a week, "too large" is remembered for 30 days so the oversized renders cost no request on later launches, entries are `PrivateFile` PNGs, the folder is capped at 256 MB with the oldest removed first (`prune`, once per process before the first write), and the loader checks the disk for every candidate before asking the network. `ArtworkCacheTests` covers it). **NFT operations (0.9.13).** Tiles select like Finder files (click, Cmd-click, Shift-click; `NFTGridView.selection`) and a right-click opens `NFTContextMenu` for the clicked tile, or for the whole selection when the tile is in it: Transfer… and Burn… (both for one or many tokens, never across the two layers at once, never for a token whose TZIP-21 `isTransferable` is false, `NFT.isTransferable`, and only when `WalletViewModel.canTransferTokens(on:)` says the account can sign on that layer), then for a single token Open in Explorer (`Network.explorerURL(token:id:)`, tzkt.io's token page), Open on objkt.com (`objktURL`, mainnet layer 1 only), View Artwork (`NFT.artifactURLs`, the full artifact on a gateway) and the copies, then Select All / Deselect All. Both operations open `TransferNFTSheet` on `WalletViewModel.nftOperation` (`NFTOperation`: kind, tokens, layer): a stepper per token held in several editions, the recipient resolved by a `SendViewModel` as the Send sheet does (names, suggestions, tz1–tz3 only on Etherlink), or for a burn the burn address `tz1burnburnburnburnburnburnburjAYjjX` (what objkt burns to; FA2 has no standard burn entrypoint) behind an "I understand" toggle, the fee and storage burn, the password or Ledger prompt, the result with the explorer link. The chain call is `ChainService.estimateTokenTransfer` / `sendTokenTransfer` on a `TokenTransferRequest` (recipient plus `TokenTransfer` rows, at most 100): the bridge's `src/tokens.js` builds one FA2 `transfer` call per contract (`tokenTransferParams`, `from_` always the signer's own address) and sends them as one operation group through the batch form of the approved-limits path (`operations.js`: `approvedBatchEstimate`, `parseBatchLimits`, `checkApprovedBatch`, `sendApprovedBatch`; Swift `BatchLimits`, one fee/gas/storage per operation plus the reveal budget, S14) with `sendTokenTransfer` a signing call; `WalletViewModel.estimateTokenTransfer(_:on:)` returns a `TokenTransferApproval` bound to the request, layer and `BridgeContext`, and `transferTokens` refuses any other (S31). `NFTOperationTests` and `test/tokens.cjs` cover it; a live transfer has not been exercised yet. **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts` as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
+  decimals and an image, newest first by the balance row's `lastTime` across both layers (`Portfolio.newestFirst`), a video or sound artifact (`NFT.isMoving`, from the artifact's format) wearing a play badge since its tile is only a still, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast); `TzKTService.bestImageURLs` lists displayUri first, because marketplaces often use a generic thumbnail, then thumbnailUri, then an image artifactUri, each on every gateway, and the loader answers a gateway's "too large" (curl exit 63 past `maxBytes`, 8 MB, mapped to `ImageLoader.Fetch.tooLarge`) by skipping that content on the other gateways and moving to the next image, since collections such as Collect United ship 11 to 15 MB display renders with 200 KB thumbnails). **Artwork cache.** The production loader (`ImageLoader.shared`) keeps every downsampled thumbnail on disk in `ArtworkCache` (`Signet/Services/ArtworkCache.swift`, `~/Library/Caches/Signet/artwork`, `nil` under the test host): IPFS content is keyed by its `<cid>[/path]`, so one entry answers every gateway's URL and never expires, other HTTPS artwork (avatars) is keyed by URL and expires after a week, "too large" is remembered for 30 days so the oversized renders cost no request on later launches, entries are `PrivateFile` PNGs, the folder is capped at 256 MB with the oldest removed first (`prune`, once per process before the first write), and the loader checks the disk for every candidate before asking the network. `ArtworkCacheTests` covers it). **NFT operations (0.9.13).** Tiles select like Finder files (click, Cmd-click, Shift-click; `NFTGridView.selection`) and a right-click opens `NFTContextMenu` for the clicked tile, or for the whole selection when the tile is in it: Transfer… and Burn… (both for one or many tokens, never across the two layers at once, never for a token whose TZIP-21 `isTransferable` is false, `NFT.isTransferable`, and only when `WalletViewModel.canTransferTokens(on:)` says the account can sign on that layer), then for a single token Open in Explorer (`Network.explorerURL(token:id:)`, tzkt.io's token page), Open on objkt.com (`objktURL`, mainnet layer 1 only), View Artwork (`NFT.artifactURLs`, the full artifact on a gateway) and the copies, then Select All / Deselect All. Both operations open `TransferNFTSheet` on `WalletViewModel.nftOperation` (`NFTOperation`: kind, tokens, layer): a stepper per token held in several editions, the recipient resolved by a `SendViewModel` as the Send sheet does (names, suggestions, tz1–tz3 only on Etherlink), or for a burn the burn address `tz1burnburnburnburnburnburnburjAYjjX` (what objkt burns to; FA2 has no standard burn entrypoint) behind an "I understand" toggle, the fee and storage burn, the password or Ledger prompt, the result with the explorer link. The chain call is `ChainService.estimateTokenTransfer` / `sendTokenTransfer` on a `TokenTransferRequest` (recipient plus `TokenTransfer` rows, at most 100): the bridge's `src/tokens.js` builds one FA2 `transfer` call per contract (`tokenTransferParams`, `from_` always the signer's own address) and sends them as one operation group through the batch form of the approved-limits path (`operations.js`: `approvedBatchEstimate`, `parseBatchLimits`, `checkApprovedBatch`, `sendApprovedBatch`; Swift `BatchLimits`, one fee/gas/storage per operation plus the reveal budget, S14) with `sendTokenTransfer` a signing call; `WalletViewModel.estimateTokenTransfer(_:on:)` returns a `TokenTransferApproval` bound to the request, layer and `BridgeContext`, and `transferTokens` refuses any other (S31). `NFTOperationTests` and `test/tokens.cjs` cover it; a live transfer has not been exercised yet. **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts/<account address>` (or straight into `nfts` when Settings' "Arrange NFTs by address" is off; `NFTDownloadSettings`, UserDefaults `arrangeNFTsByAddress`, on by default; files saved before are not moved) as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
   schemes, tz1 first and recommended; tz6 is not offered) is reached from the hamburger menu, the
   Operations menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
@@ -822,6 +952,21 @@ automatic download is off by default. The updater is not started under the test 
   (`ShieldedNote.memo`). The research, verified Shadownet
   parameters and the step plan are in `docs/tzel/RESEARCH.md` (section 8); the spec note is
   `docs/spec/shield.md` and the protocol is https://github.com/trilitech/tzel/.
+- **Shadownet (Previewnet)** (`Network.shadownetPreviewnet`) is Tezos X Previewnet
+  (github.com/trilitech/tezos-x-previewnet), a second Etherlink-style rollup on Shadownet: layer 1
+  is Shadownet's (node, chain id, TzKT, faucet, shielded pool and pending operations are shared),
+  Layer 2 is the Previewnet rollup (`sr1BvTT7tVNneG2TeP18sixq57TxsZELebLu`, Michelson node
+  `michelson.previewnet.tezosx.nomadic-labs.com`, chain `NetXY2oPPzkxUW1`, bridge helper
+  `KT1DUaf49SNALJRSB8R45TvEtgVi2xZnCh8B` with the same `deposit` entrypoint as Etherlink's, TzKT
+  `api.previewnet.tezosx.tzkt.io`). Its Layer 2 is on by default (`l2EnabledByDefault`; saved
+  state records only a differing choice), it is named on screen by `l2Name` ("Previewnet": the
+  dashboard row, Bridge, the Send chain picker, the activity toggles) and its `layer2` chain is
+  `l2Chain` "previewnet". The badge, Networks and Shielded settings list
+  `WalletViewModel.offeredNetworks`, which shows it only while Shadownet has Layer 2 on or it is
+  in use, and dApps are served its Layer 2 only then. It carries no `dappType` (a dApp asking for
+  "shadownet" gets Shadownet) and Octez Connect has no Previewnet type, so dApps reach its rollup
+  only by naming its node as a custom network. Previewnet is reset from time to time; the rollup,
+  helper and chain id then change here.
 - Networks live in `Network.swift` (`Network.all` is what Settings offers). Ghostnet was retired in
   2026; Shadownet is the long-running public testnet and the bridge tests use it. Weeklynet
   restarts every Wednesday and its hosts carry the launch date, so `Network.weeklynet` builds the

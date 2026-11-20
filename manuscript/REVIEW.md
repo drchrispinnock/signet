@@ -1,68 +1,7 @@
-{#id: REVIEW_1_Book}
-# Book review - updated 15 November 2026
+{id: REVIEW_1_Book}
+# Book review - consistency 15/11/2026
 
-Rechecked against the saved manuscript on 15 November 2026, including edits saved during this review. Each remaining numbered finding was reread; the consistency and verification lists were also refreshed. Primary documentation was checked for governance, staking, bridging, reserves, FA2, IPFS and derivation paths. Selected application claims were checked against the local app source, which is not evidence of every released build. No wallet operations, Docker/Debian installation, new PDF rendering or screenshot verification was performed. PDF page references below refer to the original reviewed PDF.
-
-{#id: REVIEW_2_Substantiv}
-## Substantive corrections and inconsistencies
-
-{#id: REVIEW_3_5}
-### 5. Complete the governance success conditions
-
-[190-baking.md:121](190-baking.md#L121), [126](190-baking.md#L126), [139](190-baking.md#L139), [142](190-baking.md#L142)
-
-**Partially corrected — rechecked 15 November 2026.** The 80% supermajority is now mentioned in both voting periods and Pass is correctly said to contribute to participation. Still outstanding: the Proposal paragraph conflates proposal support with the moving ballot-participation quorum. State the separate 5% proposal-support threshold and that a tie restarts Proposal. Promotion also needs participation quorum. Clarify that the supermajority is measured using Yea/(Yea + Nay), with Pass excluded. No need to rename UI buttons that display `Yay`. [Octez voting rules](https://octez.tezos.com/docs/active/voting.html). Original PDF pp. 158–166.
-
-{#id: REVIEW_3_14}
-### 14. Qualify burn and royalty guarantees
-
-[170-dapps.md:94](170-dapps.md#L94), [104](170-dapps.md#L104), [123](170-dapps.md#L123)
-
-**Narrowed to royalty wording — rechecked 15 November 2026.** The burn passages at lines 94 and 138 concern the particular Objkt/Teia examples, so a blanket accusation that the book promises burn for all FA2 tokens is too strong. A short “where the contract supports it” qualification is optional. The substantive remaining issue is the guaranteed royalty wording: line 104 says the artist gets a cut of every sale, and line 123 says “I will receive 10%” on a later sale. Limit this to sales through a marketplace/contract that honours those royalties. FA2 itself does not require a burn entrypoint or royalty enforcement. [FA2 specification overview](https://docs.tezos.com/architecture/tokens/FA2). Original PDF pp. 107–110.
-
-{#id: REVIEW_3_15}
-### 15. Clarify off-chain artwork storage
-
-[170-dapps.md:100](170-dapps.md#L100)
-
-**Small clarification still useful — rechecked 15 November 2026.** The text already says artwork is “usually” too large for on-chain storage; do not flag it as claiming on-chain artwork is impossible. However, the following sentence presents IPFS as the storage location generally. Make it specific to this example, and briefly say availability relies on someone retaining/pinning the file. [IPFS persistence documentation](https://docs.ipfs.tech/concepts/persistence/). Original PDF p. 107.
-
-{#id: REVIEW_3_18}
-### 18. Correct the derivation-path explanation
-
-[150-othertypesofaccount.md:91](150-othertypesofaccount.md#L91)
-
-**Still outstanding — rechecked 15 November 2026.** Line 91 should identify `m` as the master/root private node, rather than leaving it as “the private key”, which can be read as the imported account key. Line 95 still says “44 means legacy”; it identifies the BIP44 purpose. Explain that the four-component hardened Tezos path shown at line 83 differs from the five-level BIP44 template. Line 101 still conflates mnemonic entropy with the derived seed; briefly distinguish the mnemonic, derived seed and optional BIP39 passphrase. [BIP44](https://bips.dev/44/), [BIP39](https://bips.dev/39/). Original PDF pp. 51–54.
-
-{#id: REVIEW_3_19}
-### 19. Do not equate splitting a string with a robust sharing scheme
-
-[150-othertypesofaccount.md:131](150-othertypesofaccount.md#L131)
-
-**Still outstanding — rechecked 15 November 2026.** Lines 131 and 133 still recommend cutting a secret key or hardware-wallet recovery phrase into halves and storing the pieces separately. This is literal splitting, not a threshold secret-sharing scheme: each piece reveals partial information and both parts are needed for recovery. Explain those limitations or remove the recommendation from the beginner instructions. Original PDF p. 57.
-
-{#id: REVIEW_3_20}
-### 20. Make backup and restore instructions precise
-
-[165-settings.md:17](165-settings.md#L17)
-
-**Still outstanding; backup format now source-checked — rechecked 15 November 2026.** The manuscript still calls the backup a “file” and says it can be moved to `~/.signet`. In the local implementation, a backup is a timestamped directory containing selected wallet files and a `.signet-backup` manifest, not an archive or a single wallet file ([WalletBackup.swift](../Signet/Services/WalletBackup.swift#L49)). Specify quitting Signet, preserving the existing configured wallet directory, and restoring the selected generation’s wallet contents to that configured location without nesting the generation directory or mixing generations. The exact user-facing procedure still needs a check with isolated test data. Startup backup may reuse an unchanged generation, so “every time” does not mean a new copy is always created. No real wallet files were inspected. Original PDF p. 79.
-
-{#id: REVIEW_3_25}
-### 25. Finish the command-line prerequisite and example corrections
-
-[910-apx-ownnode.md:24](910-apx-ownnode.md#L24), [112](910-apx-ownnode.md#L112), [147](910-apx-ownnode.md#L147)
-
-**Text corrections complete; execution not verified — rechecked 15 November 2026.** The Linux example and output use `ip -br addr`; prerequisites include `extrepo` and `wget`; Mac downloads use `curl`; and the `$` prompt convention is explained. There is no remaining factual text correction established by this finding. The Debian 13 sequence has not been executed in this review, so retain this only as a validation task. The unprefixed `docker logs` example is a separate presentation detail.
-
-{#id: REVIEW_3_35}
-### 35. Supply the promised introduction
-
-[100-introduction.md:5](100-introduction.md#L5)
-
-**Partially written — rechecked 15 November 2026.** The earlier “only a placeholder” description is obsolete: the introduction now has an Other Wallets comparison and prose. Its opening remains a placeholder, “Introducing Signet” remains empty, and it still does not supply the governance introduction referred to at `190-baking.md:108`. Use TERMS.md as a coverage checklist. Acknowledgements is now written; remove that part of the finding. Original PDF pp. xv, 1, 157.
-
-{#id: REVIEW_2_Consistenc}
+{id: REVIEW_2_Consistenc}
 ## Consistency and presentation pass
 
 Rechecked against the active chapters in `Book.txt` on 15 November 2026. These are local edits or optional presentation choices, not additional numbered factual findings.
@@ -78,7 +17,7 @@ Rechecked against the active chapters in `Book.txt` on 15 November 2026. These a
 - **Publication placeholders:** resolve the Mac signing comment and Windows distribution/screenshot note at [110-starting.md:30](110-starting.md#L30) and [36](110-starting.md#L36), plus the Etherlink comments at [200-etherlink.md:40](200-etherlink.md#L40) and [54](200-etherlink.md#L54). The introduction placeholder is covered by finding 35.
 - **Previously stale wording:** “a key pair and an address ready” is fixed at [110-starting.md:112](110-starting.md#L112). The two U+FFFC characters remain only in excluded `networks-material.md`, lines 6–7; they are not an outstanding published-book finding. Earlier image-path/anchor checks and Bob screenshot verification remain historical checks, not checks rerun in this pass.
 
-{#id: REVIEW_2_Claims}
+{id: REVIEW_2_Claims}
 ## Claims still requiring author or release-specific verification
 
 Every previous entry was reconsidered against the current prose. The items below are scoped checks, not assertions that the claims are false. Author-supplied experience and decisions remain accepted. External release history, provider terms, live networks and application binaries were not comprehensively audited in this pass.
@@ -97,18 +36,14 @@ Every previous entry was reconsidered against the current prose. The items below
 - **Double signing — still needs precision:** “same level” remains at [160-delegatingstaking.md:105](160-delegatingstaking.md#L105). Its next paragraph now specifies two baking instances using the same signer, which addresses part of the old concern. Qualify protection by the signer’s enabled, persistent anti-double-signing state. The broader discussion at [190-baking.md:156](190-baking.md#L156) and [158](190-baking.md#L158) should use the relevant level/round context and tie stake loss to the offence/protocol.
 - **Key reuse across chains — clarification only:** [150-othertypesofaccount.md:37](150-othertypesofaccount.md#L37) and [006-DevelopingSignet.md:84](006-DevelopingSignet.md#L84) describe compatible secp256k1 key material. They do not actually say addresses are identical, and the latter distinguishes Tezos and 0x addresses. A short format/address distinction may help; the old suggestion that the manuscript recommends routine cross-chain reuse was too strong.
 - **Book promises — no demonstrated gap:** minting and listing for sale are worked through at [170-dapps.md:123](170-dapps.md#L123) and [129](170-dapps.md#L129), alongside purchasing and swaps. That reasonably supports the preface’s buy/sell promise. A separate resale walkthrough is optional, not unfinished promised content.
+<<<<<<< HEAD
+=======
 
-{#id: REVIEW_2_DONE}
+{id: REVIEW_2_DONE}
 ## DONE
 
-{#id: REVIEW_3_4}
+{id: REVIEW_3_4}
 ### 4. Correct baker eligibility requirements
 
 **Resolved — 15 November 2026.** [190-baking.md:32](190-baking.md#L32) now specifies 6,000 tez of baking power, at least 600 tez staked by the baker, and presents the solo-baker amount as a straightforward approach rather than a universal eligibility minimum. The mandatory 10% sentence has been removed. The internal variable name does not need changing. This records the resolution agreed with the author in this session.
-
-{#id: REVIEW_3_23}
-### 23. Keep the Docker history mode consistent with the snapshot
-
-[910-apx-ownnode.md:27](910-apx-ownnode.md#L27), [34](910-apx-ownnode.md#L34), [48](910-apx-ownnode.md#L48), [58](910-apx-ownnode.md#L58)
-
-**Resolved as a factual finding — rechecked 15 November 2026.** Docker configuration explicitly uses rolling history, matching the rolling snapshot, and the command continuations are correct. The remaining use of `latest` (explicit in the pull, implicit in subsequent commands) is a reproducibility choice, not evidence of a history-mode error. Pinning one tested image tag throughout is optional release preparation. No Docker/node execution was performed.
+>>>>>>> 6c12bbf0cdb044ef3634eb7a5dc1b3dc5ee4d823

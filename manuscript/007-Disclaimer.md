@@ -1,5 +1,4 @@
-{sample: true}
-{#id: 006-Disclaimer_1_Disclaimer}
+{id: ID006-Disclaimer_1_Disclaimer, sample: true}
 # Disclaimer
 
 This is a book about a cryptocurrency wallet called Signet. The software is provided with absolutely no warranty. At the time of writing, it's still under development.

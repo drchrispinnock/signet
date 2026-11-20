@@ -31,6 +31,12 @@ targets:
           - "Services/tzel_blake2s.c"
       - path: Signet/Resources/taquito-bridge.js
         buildPhase: resources
+      # Help > Getting Started: the book's chapter and its screenshots, rendered in a window.
+      - path: manuscript/110-starting.md
+        buildPhase: resources
+      - path: manuscript/resources/110
+        type: folder
+        buildPhase: resources
       # The shielded wallet's hashing: optimised in every configuration (44 million hashes per address).
       - path: Signet/Services/tzel_blake2s.c
         compilerFlags: "-O3"

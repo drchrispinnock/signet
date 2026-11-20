@@ -23,17 +23,19 @@ struct AppState: Codable, Equatable, Sendable {
     var serviceURLs: [String: [String: String]]?
     /// Etherlink governance contracts by network name, then by `EtherlinkGovernance.Process`
     /// raw value, only where the user replaced what we ship; an empty string turns the process off.
+    /// The voting-rights contract is kept here too, under `votingRightsKey`; empty means "the
+    /// one the governance contracts name".
     var etherlinkGovernance: [String: [String: String]]?
 }
 
 extension AppState {
     /// `base` with everything saved for it applied: its node, its Layer 2 switch and node, and
-    /// its links. Saved text that is not a URL is ignored; Layer 2 is off unless saved on.
+    /// its links. Saved text that is not a URL is ignored; Layer 2 is as the network ships it (off, but for Previewnet) unless saved otherwise.
     func resolved(_ base: Network) -> Network {
         var network = base
         if let saved = nodeURLs?[base.name], let url = Network.nodeURL(from: saved) { network = network.usingNode(url) }
         let l2Node = l2NodeURLs?[base.name].flatMap(Network.nodeURL(from:)) ?? base.l2DefaultRPCURL
-        network = network.usingL2(enabled: l2Enabled?[base.name] ?? false, node: l2Node)
+        network = network.usingL2(enabled: l2Enabled?[base.name] ?? base.l2EnabledByDefault, node: l2Node)
         network = network.usingShielded(enabled: shieldedEnabled?[base.name] ?? false)
         let fields = shieldedFields(for: base)
         var shielded = ShieldedConfig(fields: fields)
@@ -58,8 +60,13 @@ extension AppState {
                 network = network.usingEtherlinkGovernance(contract, for: process)
             }
         }
+        if let saved = etherlinkGovernance?[base.name]?[Self.votingRightsKey] {
+            network = network.usingEtherlinkVotingContract(saved.isEmpty ? nil : EtherlinkGovernance.contractAddress(from: saved) ?? base.defaultEtherlinkVotingContract)
+        }
         return network
     }
+
+    static let votingRightsKey = "voting"
 
     /// Records `net`'s node, Layer 2 choices and links, each only where it differs from the
     /// defaults, so the maps stay sparse and `nil` when nothing is custom.
@@ -83,7 +90,7 @@ extension AppState {
         nodes[net.name] = net.isUsingDefaultL2Node ? nil : net.l2RPCURL?.absoluteString
         l2NodeURLs = nodes.isEmpty ? nil : nodes
         var flags = l2Enabled ?? [:]
-        flags[net.name] = net.l2Enabled ? true : nil
+        flags[net.name] = net.l2Enabled == net.l2EnabledByDefault ? nil : net.l2Enabled
         l2Enabled = flags.isEmpty ? nil : flags
     }
 
@@ -133,6 +140,7 @@ extension AppState {
         for process in EtherlinkGovernance.Process.allCases {
             contracts[process.rawValue] = net.isUsingDefaultEtherlinkGovernance(process) ? nil : (net.etherlinkGovernance[process]?.value ?? "")
         }
+        contracts[Self.votingRightsKey] = net.isUsingDefaultEtherlinkVotingContract ? nil : (net.etherlinkVotingContract?.value ?? "")
         all[net.name] = contracts.isEmpty ? nil : contracts
         etherlinkGovernance = all.isEmpty ? nil : all
     }

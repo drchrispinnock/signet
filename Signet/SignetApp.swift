@@ -3,6 +3,10 @@ import SwiftUI
 @main
 struct SignetApp: App {
     /// True when this process is the host for `SignetTests`.
+    /// The Getting Started chapter of the Signet book online, for when the bundled copy is missing.
+    static let gettingStartedURL = URL(string: "https://leanpub.com/read/tezossignet/ID110-starting_1_Getting")!
+    /// Signet's website, opened from the Help menu.
+    static let websiteURL = URL(string: "https://signetwallet.org")!
     static var isTestHost: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
 
     init() {
@@ -48,6 +52,8 @@ struct SignetApp: App {
     @State private var model = SignetApp.makeModel()
     // Sparkle: checks the GitHub release appcast daily and on "Check for Updates…". Not started
     // under the test host, which would otherwise reach the network and may put up a dialog.
+    // Shows the Scan QR code items while a camera is attached. Not under the test host.
+    @State private var cameraWatcher: CameraWatcher?
     @State private var updater = UpdaterService(starting: !SignetApp.isTestHost)
 
     var body: some Scene {
@@ -56,6 +62,10 @@ struct SignetApp: App {
             WalletHomeView(model: model)
                 // signet://?type=tzip10&data=<pairing code>: what a dApp's wallet list opens for desktop wallets.
                 .onOpenURL { url in model.handleIncomingURL(url) }
+                .task {
+                    guard !Self.isTestHost, cameraWatcher == nil else { return }
+                    cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
+                }
         }
         .windowResizability(.contentMinSize)
         .commands {
@@ -67,11 +77,22 @@ struct SignetApp: App {
                 Button("Create Backup") { Task { await model.backUp(force: true) } }
                     .disabled(model.backupDirectory == nil)
             }
+            // Help: the book's Getting Started chapter in a window of its own, and the website
+            // (replacing the default item, which only says no help is available).
+            CommandGroup(replacing: .help) {
+                HelpMenuItems()
+            }
             // The same actions as the burger menu, in the menu bar.
             CommandMenu("Operations") {
                 OperationsMenuItems(model: model)
             }
         }
+
+        Window("Getting Started", id: GettingStartedView.windowID) {
+            GettingStartedView()
+                .appliesStoredAppearance()
+        }
+        .defaultSize(width: 860, height: 780)
 
         Settings {
             SettingsView(model: model, updater: updater)
