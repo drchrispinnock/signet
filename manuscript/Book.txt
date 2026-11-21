@@ -2,6 +2,7 @@
 006-DevelopingSignet.md
 007-Disclaimer.md
 100-introduction.md
+101-introduction.md
 110-starting.md
 140-transactions.md
 150-othertypesofaccount.md
@@ -16,4 +17,5 @@
 910-apx-ownnode.md
 915-colophon.md
 918-acknowledgements.md
+919-acknowledgements.md
 920-bibliography.md
