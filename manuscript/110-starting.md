@@ -132,7 +132,7 @@ The key you have made is generated on your machine and stored there too. We have
 
 The name "My Account" is local and is your alias for the account. No-one else will know this name, unless you tell them of course. It isn't stored on the blockchain.
 
-There are four other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The `Import an existing account` option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
+There are five other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The `Import an existing account` option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
 
 ![](110/secret.png)
 

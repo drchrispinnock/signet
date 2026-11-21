@@ -36,8 +36,6 @@ Every previous entry was reconsidered against the current prose. The items below
 - **Double signing — still needs precision:** “same level” remains at [160-delegatingstaking.md:105](160-delegatingstaking.md#L105). Its next paragraph now specifies two baking instances using the same signer, which addresses part of the old concern. Qualify protection by the signer’s enabled, persistent anti-double-signing state. The broader discussion at [190-baking.md:156](190-baking.md#L156) and [158](190-baking.md#L158) should use the relevant level/round context and tie stake loss to the offence/protocol.
 - **Key reuse across chains — clarification only:** [150-othertypesofaccount.md:37](150-othertypesofaccount.md#L37) and [006-DevelopingSignet.md:84](006-DevelopingSignet.md#L84) describe compatible secp256k1 key material. They do not actually say addresses are identical, and the latter distinguishes Tezos and 0x addresses. A short format/address distinction may help; the old suggestion that the manuscript recommends routine cross-chain reuse was too strong.
 - **Book promises — no demonstrated gap:** minting and listing for sale are worked through at [170-dapps.md:123](170-dapps.md#L123) and [129](170-dapps.md#L129), alongside purchasing and swaps. That reasonably supports the preface’s buy/sell promise. A separate resale walkthrough is optional, not unfinished promised content.
-<<<<<<< HEAD
-=======
 
 {id: REVIEW_2_DONE}
 ## DONE
@@ -46,4 +44,3 @@ Every previous entry was reconsidered against the current prose. The items below
 ### 4. Correct baker eligibility requirements
 
 **Resolved — 15 November 2026.** [190-baking.md:32](190-baking.md#L32) now specifies 6,000 tez of baking power, at least 600 tez staked by the baker, and presents the solo-baker amount as a straightforward approach rather than a universal eligibility minimum. The mandatory 10% sentence has been removed. The internal variable name does not need changing. This records the resolution agreed with the author in this session.
->>>>>>> 6c12bbf0cdb044ef3634eb7a5dc1b3dc5ee4d823
