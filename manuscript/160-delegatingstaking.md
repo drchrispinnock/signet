@@ -25,7 +25,7 @@ Choosing a baker is a matter of personal preference. We've tried to make the pro
 ![](160/tzktbakers.png)
 The delegation information shown here is information that the bakers have submitted themselves. Bakers set their staking parameters on-chain, so the staking information is read from there. 
 
-A public baker is a baker that has declared itself public by telling TzKT. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins likely to earn an APY of 2.21% if you delegate with them. 
+A public baker is a baker that has declared itself public by telling TzKT. There is practically no difference on-chain between a public baker and a "private" one. The list tells you if the baker is active in the governance process and how they voted. It tells you what delegation fee they take and the rough APY your funds will receive if you delegate with them. For example, TezOasis takes a fee of 4% and your delegated coins are likely to earn an APY of 2.21% if you delegate with them. 
 
 Clicking on the TezOasis link takes me to their account page in TzKT where there are details to contact them. They have 965k tz capacity, so they are a possibility to delegate to. Also, if you click the `SCHEDULE` tab you will be able to see their performance. On the day I wrote this, TezOasis's performance was very good - it had a few network misses but this is perfectly normal.
 

@@ -122,7 +122,9 @@ You can export your secret keys from Signet at any time. The easiest way to back
 ![](150/export.png)
 To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet has access to your keys.
 ![](150/recovery.png)
-You can import a key from a recovery sheet into Signet by using the `Scan QR code...` option on the burger menu.
+You can import a key from a recovery sheet into Signet by using the `Scan QR code...` option on the burger menu. The recovery sheet has the account alias, public key hash, public key and secret key on it, along with the secret key encoded as a QR code.
+
+![](150/recoverysheet.png)
 
 In addition to the Recovery Sheet feature, Signet displays the key obscured until you click the view button or the copy button. You need to be incredibly careful handling this key. It's best not to use the copy function if this key will be related to real funds. When you are alone, use the view button and write the key down safely. Avoid storing the key online anywhere. If someone gets into your files, they get your keys and then they have your funds. If the exported key is encrypted, you will need both the complete exported key and its password to restore access. Keep a secure backup of the password separately.
 
