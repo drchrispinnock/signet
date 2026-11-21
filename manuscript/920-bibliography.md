@@ -16,7 +16,7 @@
 
 [5] [Octez](https://octez.tezos.com), the reference implementation of the Tezos blockchain.
 
-[6] Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, In Preparation.
+[6] Chris Pinnock, *[Running Tezos Infrastructure](https://leanpub.com/tezosinfra)*, Leanpub, in preparation.
 
 [7] Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
 
@@ -34,13 +34,13 @@
 
 [12] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
 
-[13] Peter Kent and Tyler Bain, *Bitcoin For Dummies*, For Dummies, 2022.
+[13] Peter Kent and Tyler Bain, *Bitcoin for Dummies*, For Dummies, 2022.
 
 [14] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
 [15] Andreas M. Antonopoulos and David A. Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
-[16] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolo Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+[16] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolò Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 
 [17] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
 

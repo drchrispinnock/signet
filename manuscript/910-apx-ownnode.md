@@ -9,10 +9,11 @@ You can connect to any Tezos node from Signet. We will cover running a node on y
 
 In the case of running the node on the same machine as Signet, the node address will be `http://localhost:8732`. For the server, on your home network, you'll need the IP address. For example, if it is 192.168.1.140, the node address will be `http://192.168.1.140:8732`.
 
-In Signet, go to the `Networks...` page and choose `Custom`. Fill out the node address in the dialogue:
+In Signet, go to the `Networks...` page and choose *Custom*. Fill out the node address in the dialogue:
 
 ![](910/custom.png)
-By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet,* you can simply change the node in the settings for *Mainnet*.
+
+By default, Signet will try to use the node on the local machine. Alternatively, if you are running the node on *Mainnet*, you can simply change the node in the settings for *Mainnet*.
 
 {id: ID910-apx-ownnode_2_Running_2}
 ## Running Directly on a Mac
@@ -25,7 +26,7 @@ $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/
 
 The `$` represents the shell prompt; do not type it.
 
-Then to install the node and related software you can use my Homebrew packages. They are based on work by Nomadic Labs. 
+Then to install the node and related software you can use my Homebrew packages. They are based on work by Nomadic Labs.
 
 ```
 $ brew tap drchrispinnock/octez
@@ -130,11 +131,10 @@ $ sudo systemctl start octez-node
 
 Connect Signet to the node as per the first section in this Appendix. If the node is running on your local machine, you can use `http://localhost:8732`. For another machine, you'll need its IP address. You can get this on most Linux systems using `ip -br addr` - for example, in this case `192.168.1.140`.
 
-
 ```
 $ ip -br addr
 lo               UNKNOWN        127.0.0.1/8 ::1/128
-eno1             UP             192.168.1.140/24 
+eno1             UP             192.168.1.140/24
 ```
 
 {id: ID910-apx-ownnode_2_Running_5}
@@ -161,4 +161,4 @@ If you want to run a node on a different network to *Mainnet*, replace `mainnet`
 | *Ushuaianet* | https://snapshots.tzinit.org/ushuaianet/rolling                         |
 | *Quantumnet* | https://quantumnet.pqpark.dal.nomadic-labs.com/snapshots/latest.rolling |
 
-For *Weeklynet*, refer to the instructions at the [Teztnets site](https://teztnets.com), as it reboots every week. 
+For *Weeklynet*, refer to the instructions at the [Teztnets site](https://teztnets.com), as it reboots every week.
