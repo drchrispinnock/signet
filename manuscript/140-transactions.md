@@ -1,27 +1,29 @@
 {id: ID140-transactions_1_Making}
 # Transactions and Addresses
 
-*Please note that the addresses on the Tezos blockchain used in the chapter are shown for demonstrative purposes only. Please do not send funds to them.*
+*Please note that the addresses on the Tezos blockchain used in the chapter are shown for demonstration purposes only. Please do not send funds to them.*
 
-When Bitcoin first appeared, it was novel in the way that it offered the possibility to transfer value between two people using a completely decentralised system. There is no bank, no intermediary. The transactions happen on chain and the users sign the transactions with their private key. 
+When Bitcoin first appeared, it was novel in the way that it offered the possibility to transfer value between two people using a completely decentralised system. There is no bank, no intermediary. The transactions happen on chain and the users sign the transactions with their secret key.
 
 Tezos is no different. You can replace the basic banking functions of transferring value over the network. We will concentrate on sending and receiving tez in this chapter. You can also send other tokens to other accounts on Tezos including DeFi assets and NFTs. You can also use your account to sign other operations too.
 
 {id: ID140-transactions_2_Receiving}
 ## Receiving
 
-Receiving tez in your Signet account is a passive operation. All you need to do is give the sender your address. You can either copy it from the top left of your Signet menu, or click the Receive button. 
+Receiving tez in your Signet account is a passive operation. All you need to do is give the sender your address. You can either copy it from the top left of your Signet window, or click the `Receive` button.
 
 ![](140/receive.png)
-This screen lets you copy your address and also displays a bar code. Some mobile wallets will read the bar code and use it as the recipient address. This is useful if you are near to the person that wants to send you the funds.
 
-In this case, someone has kindly sent my account 1tz on *Shadownet.* You can see the transaction in the list, with the most recent transaction first. The first transaction is the inbound 1tz. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Faucet*). 
+This screen lets you copy your address and also displays a QR code. Some mobile wallets will read the QR code and use it as the recipient address. This is useful if you are near to the person that wants to send you the funds.
+
+In this case, someone has kindly sent my account 1 tez on *Shadownet*. You can see the transaction in the list, with the most recent transaction first. The first transaction is the inbound 1 tez. The second transaction is where I got funds from the faucet (on the test networks, the faucet account is called *Farrah Faucet*).
 
 ![](140/tx.png)
+
 {id: ID140-transactions_2_Sending}
 ## Sending
 
-Sending is where we need to be a bit more careful, as we cannot fix mistakes. To send tez, you need the address of the recipient. In this example, we will send 15tz on *Shadownet* to another account that we know the address for:
+Sending is where we need to be a bit more careful, as we cannot fix mistakes. To send tez, you need the address of the recipient. In this example, we will send 15 tez on *Shadownet* to another account that we know the address for:
 
 ```
 tz1ULZN2uHvhcnbkyfBnvJhGf3n5gRs3QbN4
@@ -35,23 +37,31 @@ Now we can enter an address in several ways. We can:
 
 1. Enter a Tezos address, such as the one above.
 2. Use an address book entry (such as Captain Stake shown above).
-3. Use a .tez name. These are *Tezos Domains.* You can register a name such as `drchris.tez` or `captstake.tez`, and it can be used as an identifier for your account. Note that these work on *Mainnet.*
+3. Use a .tez name. These are *Tezos Domains*. You can register a name such as `drchris.tez` or `captstake.tez`, and it can be used as an identifier for your account. Note that these work on *Mainnet*.
 
 In this case, we are going to use the address above, so I type that in:
 
 ![](140/sendfill.png)
 
-Signet doesn't recognise the address, because it is not in its address book, but we know the recipient so we will continue. We are going to send 15tz as in the dialogue. We click `Continue`:
+Signet doesn't recognise the address, because it is not in its address book, but we know the recipient so we will continue. We are going to send 15 tez as in the dialogue. We click `Continue`:
 
 ![](140/confirm.png)
-
 
 There is a final confirmation window. We click `Confirm and Send`. And the transaction goes through:
 
 ![](140/confirmed.png)
-We can click the `View in explorer` link and look at the transaction on the block explorer. I'd recommend that you try this on your own when you make a transaction. The long string beginning `oo` is the operation hash, used to identify the operation on the blockchain.
 
-It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. Before trying a transaction again, it is wise to wait a little while and check that it has not gone through. Usually Signet will update itself against the network state quickly, but you can go to the block explorer TzKT to look at your account if you want further confirmation. 
+We can click the `View in explorer` link and look at the transaction on the block explorer. I'd recommend that you try this on your own when you make a transaction. The long string beginning `o` is the operation hash, used to identify the operation on the blockchain.
+
+It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. Before trying a transaction again, it is wise to wait a little while and check that it has not gone through. Usually Signet will update itself against the network state quickly, but you can go to the block explorer TzKT to look at your account if you want further confirmation. You can search for the operation hash displayed in the sending dialogue on TzKT to see if it was included in the network by clicking the `View in explorer` link. For example, in this case:
+
+![](140/senddia.png)
+
+the operation hash is:
+
+```
+oosM1Ar4h7iYVKHbDVcBsG7hqrmQJxTz8TFbdH4tRmqaPyg59gM
+```
 
 Let's pop back to the address window again. Let's enter the following address into the `Send` dialogue:
 
@@ -61,9 +71,9 @@ tz1Xf8zdT3DbAX9cHw3c3CXh79rc4nK4gCe8
 
 ![](140/dictator.png)
 
-In this case, Signet has looked the address up on TzKT and found that it has a name. It's still not verified, because anyone with an account can update their name at TzKT using [profiles.tzkt.io](https://profiles.tzkt.io). 
+In this case, Signet has looked the address up on TzKT and found that it has a name. It's still not verified, because anyone with an account can update their name at TzKT using [profiles.tzkt.io](https://profiles.tzkt.io).
 
-On *Mainnet*, we can also use `.tez` addresses. For example, we can put in `etherlink.tez`*.* This resolves to
+On *Mainnet*, we can also use `.tez` addresses. For example, we can put in `etherlink.tez`. This resolves to
 
 ```
 tz1VBLpuDKMoJuHRLZ4HrCgRuiLpEr7zZx2E
@@ -78,14 +88,15 @@ And we can send to it in the same way:
 
 As we have said before and will probably say again, there is no central authority to help you out if you send tez to the wrong place. So you need to be careful. Firstly, do not send tez to an address that you don't know. (By the way, that includes the addresses in this book which are provided for example only.) It's a good idea to add commonly used addresses to the address book.
 
-Secondly, if you are making a large transaction of tez, make sure you are in contact with the receiver. It's best practice to send 1tz first, make sure it arrives in the right place and then send the rest with another transaction. 
+Secondly, if you are making a large transaction of tez, make sure you are in contact with the receiver. It's best practice to send 1 tez first, make sure it arrives in the right place and then send the rest with another transaction.
 
 {id: ID140-transactions_2_Address}
 ## The Address Book
 
-Signet has an address book so that you can store other addresses that you use a lot. In the address book, you just store the tz address (or a KT1 smart contract address). You can give it a friendly name and refer to it by that in all the other Signet menus. 
+Signet has an address book so that you can store other addresses that you use a lot. In the address book, you just store the `tz` address (or a `KT1` smart contract address). You can give it a friendly name and refer to it by that in all the other Signet menus.
 
-Suppose that you have a friend called Trevor and they have an account 
+Suppose that you have a friend called Trevor and they have an account
+
 ```
 tz1ho3Aexyse2LDTA9tp1qYD62zHsnXsPMsc
 ```
@@ -93,9 +104,11 @@ tz1ho3Aexyse2LDTA9tp1qYD62zHsnXsPMsc
 We can add this to our address book by using the burger menu and choosing `Add address...`, then entering the detail:
 
 ![](140/address.png)
+
 Now I can refer to Trevor when I'm making a transaction, such as a Send:
 
 ![](140/trevor.png)
+
 It's better to keep addresses in the address book so that we are sure who we are sending funds to when we make transactions.
 
 {id: ID140-transactions_2_Selling}

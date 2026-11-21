@@ -61,34 +61,37 @@ never flag or change them, even when an ID's prefix doesn't match the file name.
   Transak are links out to the browser.
 - The book says "vibe coding" (no hyphen) for the noun, and defines it in `006-DevelopingSignet.md`.
 
-## Review status (11th November 2026)
+## Review status (21st November 2026)
 
-`REVIEW.md` is the authoritative numbered progress tracker. Preserve its finding numbers,
-anchors and original findings; move completed items into DONE with dated completion notes.
-Do not interpret original findings archived under DONE as active requests.
+`REVIEW.md` is the progress tracker. Outstanding items are `- [ ]` checkboxes, grouped as
+placeholders, style and wording, layout, then claims to verify, with line numbers as of
+21 November. When an item is fixed, move it under DONE with a dated note. Keep the `{id:}`
+lines and finding 4, the only numbered finding still recorded. Treat anything under DONE as
+history, not as a request.
 
-Completed numbered findings: 1, 2, 3, 6, 10, 11, 12, 16, 17, 21, 22, 24, 26, 27, 28,
-29, 30, 31, 32, 33, 34, 36. Finding 23 has only Docker version pinning outstanding.
-Finding 25's text is corrected; complete Debian 13 execution validation remains unverified.
-Other active findings have not been resolved by this targeted session.
+On 21 November every open item was rechecked against the chapters on disk. The style items
+are mostly fixed: network italics, Ledger/3Route/IPFS, "QR code", the `Stake` button, the
+placeholder comments in 110 and 200, and "a key pair and an address ready". The Docker section
+has been taken out of `910-apx-ownnode.md`, so the Docker items (old findings 23 and 24) no
+longer apply. Still open, most important first:
 
-The 11 November work was a series of targeted source checks, not a fresh whole-book or PDF
-review. The Bob signing and 15 tez send/confirmation screenshots were visually verified.
-No nodes, wallet operations or Debian installs were run. No new PDF was generated.
+- The introduction is unwritten: four sections of `100-introduction.md` are empty or `xx`.
+- The key-type table in 150 has four columns but `{column-widths}` gives only three.
+- Commented-out images in 170 and a hidden section in 250 need a keep-or-delete decision.
+- A few wording items, plus claims to scope or check (protocol constants, double-signing
+  precision, consensus/companion key roles, the chain-ID warning, release assets, dated
+  market figures, the Etherlink "first official rollup" source).
 
-Earlier prose reviews covered 005, 006, 007, 915 and 918. Do not call entire other chapters
-finished merely because individual findings are done. Installation placeholders in 110 remain;
-the earlier doubled “the the” is fixed. Remaining small typo: 110 line 112 says “a key pair
-and an address are ready”; remove “are”. Two stray U+FFFC characters remain only in the unused
-`networks-material.md` draft, not the published passages covered by finding 31.
+None of this was a whole-book prose or PDF review. No nodes, wallet operations or Debian
+installs were run and no new PDF was generated. Earlier prose reviews covered 005, 006, 007,
+915 and 918. Don't call other chapters finished just because their individual items are done.
+Two stray U+FFFC characters remain only in the unused `networks-material.md` draft.
 
 ## Decisions and details from the 11 November review
 
-- The author runs Docker with a 16GB memory limit successfully. Accept this tested setting;
-  the text now makes readers' choice hardware-dependent. Do not reopen finding 24 as a claim
-  that the configuration cannot work.
-- Docker RPC must listen on 0.0.0.0 inside the container; the same-Mac example publishes it
-  on host 127.0.0.1:8732:8732. The unnecessary -P is removed. Do not confuse these bindings.
+- The Docker instructions were later taken out of the book. If they come back: the author
+  runs Docker with a 16GB memory limit successfully, and the RPC listens on 0.0.0.0 inside the
+  container, published on host 127.0.0.1:8732:8732.
 - The author confirms Octez Connect support was patched. Updated dApps can offer direct
   Signet pairing; manual pairing depends on a compatible code being available.
 - The Preface is dated 14 November 2026. The development story now covers just over a month

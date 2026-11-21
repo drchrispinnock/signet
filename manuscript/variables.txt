@@ -7,3 +7,6 @@ paramchange|5
 minfrozen|6000
 minstake|600
 stakepercent|10%
+doublebake|156
+governancelen|14
+stakelimit|9

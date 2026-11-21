@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Signet Wallet – Tezos wallet for Mac, Windows, Linux and FreeBSD</title>
+        <meta name="description" content="Signet is a free, open-source Tezos wallet for Mac, Windows, Linux and FreeBSD. Manage keys, use a Ledger, view NFTs, use multisig, bake and vote.">
+        <link rel="canonical" href="https://signetwallet.org/">
+        <link rel="icon" type="image/png" href="/img/signet-256.png">
+        <link rel="apple-touch-icon" href="/img/signet-256.png">
+        <meta name="theme-color" content="#000000">
+
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Signet Wallet">
+        <meta property="og:title" content="Signet Wallet – Tezos wallet for Mac, Windows, Linux and FreeBSD">
+        <meta property="og:description" content="A free, open-source Tezos wallet. Manage keys, use a Ledger, view NFTs, use multisig, bake and vote in on-chain governance.">
+        <meta property="og:url" content="https://signetwallet.org/">
+        <meta property="og:image" content="https://signetwallet.org/img/signet-256.png">
+        <meta property="og:image:width" content="256">
+        <meta property="og:image:height" content="256">
+        <meta property="og:image:alt" content="Signet: a gold signet ring engraved with the Tezos ꜩ">
+        <meta name="twitter:card" content="summary">
+
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Signet Wallet",
+            "url": "https://signetwallet.org/",
+            "image": "https://signetwallet.org/img/signet-256.png",
+            "description": "A Tezos blockchain wallet: manage keys, use a Ledger, view assets and NFTs, use multisig wallets, bake and vote in on-chain governance.",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "macOS, Windows, Linux, FreeBSD",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@type": "Person", "name": "Chris Pinnock" },
+            "sameAs": [
+                "https://github.com/drchrispinnock/signet",
+                "https://github.com/drchrispinnock/signet-windows",
+                "https://github.com/drchrispinnock/signet-gtk"
+            ]
+        }
+        </script>
+        <style>
+            :root {
+                color-scheme: dark;
+                --background: #000;
+                --text: #f4f4f4;
+                --muted: #b8b8b8;
+                --line: #454545;
+                --green: rgb(9, 221, 9);
+                --gold: #e9c878;
+            }
+            * { box-sizing: border-box; }
+            html { background: var(--background); }
+            body {
+                max-width: 1040px;
+                margin: 0 auto;
+                padding: 48px 28px 30px;
+                background: var(--background);
+                color: var(--text);
+                font-family: Verdana, Geneva, sans-serif;
+                font-size: 15px;
+                line-height: 1.75;
+            }
+            h1 {
+                margin: 0 0 26px;
+                font-size: clamp(29px, 4.6vw, 43px);
+                line-height: 1.2;
+                letter-spacing: -0.035em;
+            }
+            p { max-width: 900px; margin: 22px auto; }
+            a { color: var(--green); text-underline-offset: 4px; }
+            a:hover { color: #a3fba3; }
+            a:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
+            body > p:first-of-type img { width: 140px; height: 140px; }
+            .notice {
+                padding: 19px 23px;
+                margin: 30px auto;
+                border: 1px solid #776132;
+                border-radius: 3px;
+                background: #151107;
+                color: #eadfc4;
+                font-size: 13px;
+            }
+            .notice strong { color: var(--gold); }
+            table {
+                width: 100%;
+                max-width: 760px;
+                margin: 32px auto;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            td {
+                width: 25%;
+                text-align: center;
+                padding: 14px 20px;
+                border: 1px solid var(--line);
+            }
+            tr:first-child { background: #101010; }
+            tr:hover { background: #090909; }
+            td img { display: inline-block; margin: 4px 0; }
+            iframe {
+                display: block;
+                max-width: 100%;
+                height: auto;
+                aspect-ratio: 16 / 9;
+                margin: 34px auto;
+                border: 1px solid var(--line);
+                border-radius: 3px;
+            }
+            .credits {
+                max-width: none;
+                margin: 36px 0 0;
+                padding-top: 22px;
+                border-top: 1px solid var(--line);
+                color: var(--muted);
+                font-size: 13px;
+            }
+            @media (max-width: 600px) {
+                body { padding: 30px 17px 24px; font-size: 14px; }
+                body > p:first-of-type img { width: 112px; height: 112px; }
+                .notice { padding: 16px 18px; }
+                table { font-size: 11px; }
+                td { padding: 12px 6px; }
+            }
+        </style>
+    </head>
+    <body>
+        <h1 align="center">Signet Wallet for Tezos</h1>
+
+<p align="center">
+  <img src="img/signet-256.png" width="160" height="160" alt="Signet: a gold signet ring engraved with the Tezos ꜩ">
+</p>
+
+<p align="center">Signet is a multi-featured wallet for the <a href="https://tezos.com/">Tezos</a> blockchain.
+    You can manage your keys, use a <a href="https://www.ledger.com/">Ledger</a> and do blockchain transactions.
+    Additionally, you can view your assets and NFTs. It has some basic functionality on <a href="https://etherlink.com">Etherlink</a>. You can make and use multisig wallets.
+    It works on Mainnet and the <a href="https://teztnets.com/">test networks</a>, including <a href="https://quantumnet.pqpark.dal.nomadic-labs.com/">Quantumnet</a>, the <a href="https://spotlight.tezos.com/why-post-quantum-why-now/">post-quantum Tezos test network</a>.
+    You can manage your baking key with it and vote in the on-chain governance.</p>
+
+<p align="center">Signet is written in <a href="https://www.swift.org/">Swift</a> for Mac and <a href="https://www.gtk.org/">GTK</a> platforms such as <a href="https://www.kernel.org/">Linux</a> and <a href="https://www.freebsd.org/">FreeBSD</a>. The Windows port is written in C#. Signet uses <a href="https://taquito.io/">Taquito</a> but will switch to <a href="https://octez-js.tezos.com/">Octez.js</a> soon.
+    Signet also uses <a href="https://octez-connect.tezos.com/">Octez Connect</a> to interact with decentralised apps such as <a href=https://objkt.com>Objkt</a> and <a href="https://teia.art">Teia</a>.</p>
+
+<p align="center" class="notice"><em><strong>Disclaimer:</strong></em> Use this software at your own risk. It comes with absolutely no warranty.<br>
+    All versions have been vibe-coded with <a href="https://claude.com/claude-code">Claude Code</a>. Version 0.9.14 has been checked with <a href="https://chatgpt.com/">ChatGPT</a>/<a href="https://openai.com/codex/">Codex</a>,
+but no formal security audit has been done. <a href="audit/AUDIT_REPORT-20261105.html">Latest AI audit report.</a></p>
+
+<table align="center">
+    <tr>
+        <td><img src="img/apple.svg" height="40" alt=""><br>Mac</td>
+        <td><img src="img/windows.svg" height="40" alt=""><br>Windows</td>
+        <td><img src="img/linux.svg" height="40" alt=""><br>Linux</td>
+        <td><img src="img/freebsd.svg" height="40" alt=""><br>FreeBSD</td>
+    </tr>
+    <tr>
+        <td><a href="https://github.com/drchrispinnock/signet">Source</a></td>
+        <td><a href="https://github.com/drchrispinnock/signet-windows">Source</a></td>
+        <td><a href="https://github.com/drchrispinnock/signet-gtk">Source</a></td>
+        <td><a href="https://github.com/drchrispinnock/signet-gtk">Source</a></td>
+    </tr>
+    <tr>
+        <td><a href="https://github.com/drchrispinnock/signet/releases">Downloads</a></td>
+        <td><a href="https://github.com/drchrispinnock/signet-windows/releases">Downloads</a></td>
+        <td><a href="https://github.com/drchrispinnock/signet-gtk/releases">Downloads</a> / <a href="https://apt.signetwallet.org">APT</a></td>
+        <td>-</td>
+    </tr>
+
+    <!-- Maybe add a block on last audit
+    <tr>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    -->
+</table>
+
+<center>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/h6CWcxuJQyE?si=nX1WdP6eq90S7UYM" title="Signet Wallet demo video" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</center>
+
+<p align="center" class="credits"><small>Platform icons by <a href="https://fontawesome.com/">Font Awesome</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</small></p>
+
+       </body>
+       </html>
