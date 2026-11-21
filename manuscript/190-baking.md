@@ -3,7 +3,7 @@
 
 If you are not going to bake on Tezos, you can safely skip this chapter.
 
-We introduced the concept of baking in the [Delegating and Staking](#delegating) chapter. Signet supports baker operations and you can hold your baking key in the wallet. A baker can use a different key to the one holding the funds (the master key) on the baking server. This is called a *consensus key*. It is still possible to do damage if someone has access to it, but it is possible to rotate it. Additionally, there is a key called a *companion key* that is used with the Data Availability Layer (DAL). The baker uses the consensus key to sign blocks and the companion key to attest using the DAL. These keys can be set by signing an operation with the master key.
+We introduced the concept of baking in the [Delegating and Staking](#delegating) chapter. Signet supports baker operations and you can hold your baking key in the wallet. A baker can use a different key to the one holding the funds (the master key) on the baking server. This is called a *consensus key*. It is still possible to do damage if someone has access to it, but it is possible to rotate it. Additionally, there is a key called a *companion key* that is used with the Data Availability Layer (DAL). The baker uses the consensus key to sign and attest blocks, and the companion key to attest using the DAL. These keys can be set by signing an operation with the master key.
 
 A baker also has some parameters to manage regarding staking. They can set their *Staking over Baking Limit*, which is the multiplier used to determine how much external stake they can accept. They can also set their *Edge of Baking over Staking* (sometimes called the *Staking Fee*). This is the fee the baker takes from the staking reward provided to the staker.
 
@@ -98,16 +98,18 @@ Now go back to the `Baking...` menu and scroll to the bottom of it.
 
 ![](190/stakingparameters.png)
 
-Here you can set the two staking parameters. The Limit of staking over baking controls the amount of external stake you can accept from other accounts. If it is set to 0 (the default), you cannot accept staking requests. The maximum value is 9. The Edge of baking over staking is the amount of reward you take as a baker from the block reward. The rest goes to the external stakers in proportion to their stake. The default is 100%, so any staker would not get any rewards. If you are going to offer staking, it's up to you what you set these parameters to. There's probably no good reason not to set the limit to 9 if you are accepting staking. Then you need to choose a rate that is attractive enough to stakers, but good enough for you to make a fee.
+Here you can set the two staking parameters. The Limit of Staking over Baking controls the amount of external stake you can accept from other accounts. If it is set to 0 (the default), you cannot accept staking requests. The maximum value is <!-- MARKUPTAG stakelimit-->9<!-- ENDMARKUPTAG -->. The Edge of Baking over Staking is the amount of reward you take as a baker from the block reward. The rest goes to the external stakers in proportion to their stake. The default is 100%, so any staker would not get any rewards. If you are going to offer staking, it's up to you what you set these parameters to. There's probably no good reason not to set the limit to <!-- MARKUPTAG stakelimit-->9<!-- ENDMARKUPTAG --> if you are accepting staking. Then you need to choose a rate that is attractive enough to stakers, but good enough for you to make a fee.
 
 You can change these parameters at any time, but the changes take <!-- MARKUPTAG paramchange-->5<!-- ENDMARKUPTAG --> cycles to take effect.
+
+Note also that the <!-- MARKUPTAG paramchange-->5<!-- ENDMARKUPTAG --> cycle delay and the maximum value <!-- MARKUPTAG stakelimit-->9<!-- ENDMARKUPTAG --> of the Limit of Staking over Baking are tied to the protocol in use.
 
 {id: ID190-baking_2_Governance}
 ## Governance
 
 Signet also supports governance operations for baking keys. We discussed governance in the [Introduction](#ID100-introduction_1_Introducti). The discussion around the governance process happens at [Tezos Agora](https://tezosagora.org). It's possible for bakers to participate in the on-chain governance process from Signet. If a key is registered for baking, then an extra option appears in the burger menu called `Governance...`. The flow detects what period of governance the chain is in and provides the right actions to the bakers.
 
-Most of the time, a network is in the proposal period. During the proposal period, bakers can propose new protocols and upvote other proposals. A new protocol proposal is represented by a hash. For Ushuaia, the hash is:
+The governance process is divided up into five periods: Proposal, Exploration, Cooldown, Promotion and Adoption. Each period lasts <!-- MARKUPTAG governancelen-->14<!-- ENDMARKUPTAG --> cycles on *Mainnet* (roughly <!-- MARKUPTAG governancelen-->14<!-- ENDMARKUPTAG --> days). During a proposal period, bakers can propose new protocols and upvote other proposals. A new protocol proposal is represented by a hash. For Ushuaia, the hash is:
 
 ```
 PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY
@@ -159,12 +161,14 @@ After this period, the network switches to the new protocol and returns to the P
 
 If you are a baker and you are having trouble figuring out how to vote in a governance election, the most pragmatic thing to do is vote pass. This contributes to the participation and allows the process to go ahead, whilst letting the other bakers decide the outcome. If there are not enough votes in the Proposal, Exploration and Promotion phases, the process stops and the network returns to the Proposal stage.
 
+Note that on the test networks, the governance process works as well, but typically it is not used. On a test network there is usually a dictator account, capable of switching the network between protocols. When a new protocol has successfully passed into Adoption on *Mainnet*, *Bakingnet* is usually switched to it a week or two before *Mainnet* switches to test the switchover one last time. *Shadownet* is switched over to the new protocol shortly after *Mainnet.* The idea is to keep *Shadownet* as a "production quality" test network.
+
 {id: ID190-baking_2_Baking}
 ## Baking Key Considerations
 
-Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double-bake or double-attest, that is, bake (or attest) two different blocks at the allotted time. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double-bakes, they lose some or all of their stake.
+Bakers need to be careful when setting up their infrastructure. The worst thing you can do as a baker is double-bake or double-attest, that is, bake (or attest) two different blocks at the same level and round. The reason for this is that it can cause chain confusion. Some operations might not be included in the other block or they might be an attempt to double spend. If a baker double-bakes or double-attests and another baker reports it on chain, the protocol slashes part of their stake, and their stakers' funds too.
 
-It's unlikely a baker will do this with a sensible baking setup. Usually bakers run one instance of the software at a time and protect their keys with a piece of software called a remote signer. This checks to see if a baker has tried to sign a block at the same level before and prevents the signing.
+It's unlikely a baker will do this with a sensible baking setup. Usually bakers run one instance of the software at a time and protect their keys with a piece of software called a remote signer. With high-watermark checking turned on, it records the highest level and round it has signed for each key and refuses to sign again at or below them.
 
 There's far more to it than my explanation, but it's safe to say that all bakers want to protect their baking key, as someone else having access to it can cause serious problems. Another person could cause the baker to double-bake. So storing your key away from your baking environment where you can manage the balance, baking operations and parameters is a good thing. This is why the baking and governance menus were added to Signet.
 

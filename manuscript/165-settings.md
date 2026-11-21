@@ -42,7 +42,7 @@ It shows that the network is the one we are using at the moment next to the netw
 
 When choosing a node, it is important to understand that the node provider could control your data unexpectedly. Although they cannot change your signed operations, they could censor them and not submit them to the network. They could also provide you with incorrect information. Choose a node provider that you trust. You can also run your own node if you want - we cover this in [the appendix](#ID910-apx-ownnode_1_Running).
 
-Signet will attempt to check that the node is running on the correct network. If we try to use a node on *Shadownet* in the *Mainnet* configuration, Signet will warn us.
+Signet will attempt to check that the node is running on the correct network. For example, if we try to use a node on *Shadownet* in the *Mainnet* configuration, Signet will warn us.
 
 ![](165/warn.png)
 

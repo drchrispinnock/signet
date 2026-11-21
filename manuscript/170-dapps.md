@@ -44,7 +44,7 @@ You can now play the game and participate. As you score more points, you get NFT
 
 We will cover what a non-fungible token (NFT) is more precisely at the end of this section. For the purposes of this exercise, you can think of an NFT as being a unique record of ownership of a digital asset. We are going to buy a piece of digital art from Objkt and the ownership will be recorded on the Tezos blockchain.
 
-Objkt is the largest digital art marketplace on Tezos. At the time of writing there are over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. Some items have a fixed price; for others, you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
+Objkt is the largest digital art marketplace on Tezos. In 2026, there were over 7 million pieces of art on the site. You can use the site to buy and sell artworks, but also to showcase your work too. Some items have a fixed price; for others, you can make offers. There are also auctions. Once you have connected Signet to the Objkt site, you can buy, sell or participate in the auctions by signing transactions.
 
 We are going to buy *[Vespera Blackthorn](https://objkt.com/tokens/KT1Hg4HcS78G8HoJjk74oeCDN7nmS6mYJvvp/11)* by the artist Monika (monikasart.tez).
 
@@ -98,7 +98,7 @@ You can do various other things here with the NFT. For example, you can transfer
 
 Let's end the section with some terminology about NFTs.
 
-A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT.
+A *fungible token* is a digital asset that can be interchanged with another one of the same type and value. A tez coin is an example of a fungible token. A *non-fungible token (NFT)* is a unique digital token representing ownership of an item or asset. We have purchased a piece of art and received an NFT to record our ownership. We can sell or transfer this NFT. Owning the NFT doesn't usually mean you own the copyright in the artwork: the artist normally keeps that, and what you may do with the image depends on the licence the artist or platform attaches to it.
 
 Note that the artwork is usually too big to be stored on the blockchain itself, but the NFT is on the blockchain and proves our ownership of the token. A lot of NFT art is stored on a distributed file service called the *InterPlanetary File System (IPFS)*. Availability of the file relies on someone retaining or pinning the file. Some NFT platforms provide pinning, but you can also pin them with a service like [Pinata](https://pinata.cloud).
 
@@ -195,10 +195,6 @@ One word of caution. You might want to live anonymously on a blockchain. It's di
 
 To swap at QuipuSwap, click `Connect Wallet` and then `Other wallets`. Choose `Show more` and then `Show QR code`. Choose `Beacon`, then copy the code to the clipboard. As we did with Objkt, open Signet, choose the account you want to use, go to `dApps...` in the burger menu and paste the code into the dialogue. Click `Pair` and then `Connect`. You should now be logged into QuipuSwap.
 
-<!--
-![](170/quipuswap-tokens.png)
--->
-
 Click the burger icon on the right-hand side and choose `Swap`. For the target token, I can select and choose any available token for swap. I'm going to choose USDtz and click `Swap`. (On the day I did this, the value of 1 tez was about $0.30 and so I was getting about 0.30 USDtz, worth approximately $0.30, in return.)
 
 ![](170/quipuswap-usdtzsend.png)
@@ -219,8 +215,6 @@ And once I've signed, the tez has been swapped for USDtz and I can see it in my 
 ![](170/3route.png)
 
 To use 3Route, open [3route.io](https://3route.io) in your web browser. Click `Swap` and then `Connect Wallet`. As with some dApps, our wallet isn't on the list yet, so choose `Show more`, then `Show QR code`. Choose `octez.connect` and copy the code to the clipboard, paste it into the `dApps...` menu, then click `Pair` and then `Connect` in the next screen. You are now connected to 3route.io with your Signet wallet.
-
-<!-- ![](170/3route-selectted.png) -->
 
 ![](170/3route-clickswap.png)
 

@@ -7,12 +7,6 @@ Signet is still under development and I will continue to add features for the fo
 
 The user interface is too wordy and isn't necessarily the best. Over time I will refine it to give the user the best experience.
 
-<!--
-**Octez.js vs Taquito**
-
-Taquito is the library that does most of the magic behind the scenes. I started with Taquito because it added `tz5` addresses early and I wanted to get Signet on Quantumnet. Octez.js is a fork of Taquito and is likely to have more features to use Tezos X in the future. Therefore I shall probably switch to Octez.js.
--->
-
 **Better Etherlink/Tezos X support**
 
 At the moment, we support `tz` addresses on the layer 2. These can be mapped to an EVM address and then that address can be used on the chain with EVM dApps and contracts. We need to add the ability to use a native EVM address in the application. We also need to be able to connect to dApps using EVM addresses, which means adding WalletConnect support. Generally, EVM accounts need to be treated as first-class citizens.

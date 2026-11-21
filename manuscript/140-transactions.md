@@ -53,7 +53,15 @@ There is a final confirmation window. We click `Confirm and Send`. And the trans
 
 We can click the `View in explorer` link and look at the transaction on the block explorer. I'd recommend that you try this on your own when you make a transaction. The long string beginning `o` is the operation hash, used to identify the operation on the blockchain.
 
-It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. Before trying a transaction again, it is wise to wait a little while and check that it has not gone through. Usually Signet will update itself against the network state quickly, but you can go to the block explorer TzKT to look at your account if you want further confirmation.
+It is possible sometimes that the transaction does not go through. Usually this is due to a congested or busy node. We will show you how to change nodes later on. Before trying a transaction again, it is wise to wait a little while and check that it has not gone through. Usually Signet will update itself against the network state quickly, but you can go to the block explorer TzKT to look at your account if you want further confirmation. You can search for the operation hash displayed in the sending dialogue on TzKT to see if it was included in the network by clicking the `View in explorer` link. For example, in this case:
+
+![](140/senddia.png)
+
+the operation hash is:
+
+```
+oosM1Ar4h7iYVKHbDVcBsG7hqrmQJxTz8TFbdH4tRmqaPyg59gM
+```
 
 Let's pop back to the address window again. Let's enter the following address into the `Send` dialogue:
 

@@ -19,7 +19,7 @@ The first thing we need to do is install Signet. Let's look at each platform in 
 {id: ID110-starting_3_Mac}
 ### Mac
 
-The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store.
+The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store. Also, we only support Macs with Apple Silicon.
 
 Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the Applications folder. Go to the release page and download the DMG file. Double-click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your Applications folder.
 
@@ -203,7 +203,7 @@ This should resolve as Captain Stake. Signet looks up addresses on the block exp
 {id: ID110-starting_2_Getting}
 ## Getting Your First tez
 
-In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pelerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
+In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Two examples are [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are also brokers and on-ramp services such as [Mt Pelerin](https://www.mtpelerin.com/). There are some things to be aware of:
 
 1. Buying tez or any crypto-asset for the first time might require significant patience on your part.
 2. In your country, there may be laws around purchasing cryptocurrencies. I'm afraid it's up to you to find out what is possible where you live.
@@ -232,7 +232,7 @@ Mt Pelerin is the only provider that is directly integrated into Signet. Unfortu
 
 ![](110/coinbase.png)
 
-Here we get a page with our address details, instructions and a button to click. The button will take us to the Coinbase website. You'll have to sign up there, buy the tez and transfer it to your wallet.
+Here we get a page with our address details, instructions and a button to click. The button will take us to the Coinbase website. You'll have to sign up there, buy the tez and transfer it to your Signet account.
 
 Now I could improve this piece of Signet and in fact Transak will allow wallets to embed it, as will other providers. But that requires some extra work and developer API access. This may come later on depending on demand for the feature.
 
