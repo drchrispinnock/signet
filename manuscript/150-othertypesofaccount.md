@@ -31,7 +31,7 @@ The secret key, as the name suggests, needs to be kept secret. If someone else g
 
 The first key type uses the [EdDSA signature scheme](https://en.wikipedia.org/wiki/EdDSA). Two of the key types use the ECDSA signing scheme ([Elliptic Curve Digital Signature Algorithm](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)). Both schemes use [elliptic curves](https://en.wikipedia.org/wiki/Elliptic_curve) - abstract geometric mathematical objects suitable for use in cryptography. Each type uses a different elliptic curve. The other keys use different signing schemes. Here are the key types available on Tezos today:
 
-{column-widths: "5% 20% 65% 10%"}
+{width: "100%", column-widths: "5% 20% 65% 10%"}
 | Key type | Type      | Notes                                                                                                                                                                                     | Networks                    |
 | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `tz1`    | Ed25519   | EdDSA signing scheme with the Curve25519 curve.                                                                                                                                           | All                         |
