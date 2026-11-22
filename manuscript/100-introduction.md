@@ -113,7 +113,7 @@ The protocol test networks are just for testing the current and proposed protoco
 
 Here is a list of test networks. If you want to try something out as a user, the best network to try is *Shadownet*. For most test networks, the detail is at [teztnets.com](https://teztnets.com).
 
-{column-widths: "15% 10% 75%"}
+{width: "100%", column-widths: "20% 20% 60%"}
 | Network      | Type      | Purpose                                                                                                                                                                                                                                        |
 | ------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | *Shadownet*  | Long-term | A production-like network for testing Tezos applications. It runs the same version of Tezos as *Mainnet*. When *Mainnet* is upgraded, *Shadownet* is upgraded soon after.                                                                      |
