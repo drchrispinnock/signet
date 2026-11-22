@@ -20,7 +20,7 @@ xxx
 {id: networks-material_2_Networks}
 ## Networks
 
-The Tezos production blockchain is called *mainnet.* By default, most wallets will connect to it including Signet. The Tezos coins, tez, have real-world value on this network. Obviously it is where the action happens, but there are also some test networks. On a test network, the coins do not have real-world value, so in theory you can make mistakes and it won't matter. Test networks are the place the people learn about blockchans, where application developers build distributed applications and where the blockchain developers test their software.
+The Tezos production blockchain is called *mainnet.* By default, most wallets will connect to it including Signet. The Tezos coins, tez, have real-world value on this network. Obviously it is where the action happens, but there are also some test networks. On a test network, the coins do not have real-world value, so in theory you can make mistakes and it won't matter. Test networks are the place the people learn about blockchains, where application developers build distributed applications and where the blockchain developers test their software.
 
 At the time of writing there are at least five test networks, each with a different purpose. The long-term test networks allow the users and bakers to build up applications and state over time. The protocol test networks are just for testing the current and proposed protocols of Tezos. Weeklynet is for developers who want to try something out quickly. Quantumnet is being used to trial new post-quantum key features on Tezos.
 
