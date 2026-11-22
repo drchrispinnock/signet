@@ -140,9 +140,9 @@ Alternatively if you have a recovery phrase, you can use the Recovery phrase tab
 
 ![](110/recovery.png)
 
-If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect a Ledger` option. You can also connect to a remote signer, but as a beginner you are unlikely to need this feature. A remote signer provides access to keys and prevents unwanted transactions. They are using used in Tezos baking setups. Examples of remote signer software include `octez-signer`, [Signatory](https://signatory.io), [Russignol ](https://russignol.com)and [TezSign](https://docs.tez.capital/tezsign/). `octez-signer` is part of Octez, the reference Tezos implementation.
+If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect a Ledger` option. You can also connect to a remote signer but this is an advanced topic and we don't cover it in detail in this book.
 
-If you have a QR code representing your account, you can use the `Import from QR code` method to restore your key. Signet can print a recovery sheet of your account details and you can use this to restore the account. This option can also be used to add other people's addresses to Signet or pair with the [Airgap Vault](https://airgap.it) keystore.
+If you have a QR code representing your account, you can use the `Import from QR code` method to restore your key. Signet can print a recovery sheet of your account details and you can use this to restore the account. This option can also be used to add other people's addresses to Signet or pair with the [Airgap Vault](https://airgap.it) key-store.
 
 Finally, if you happen to have used the command-line wallet `octez-client`, Signet will detect its wallet directory and offer you the option to import it. This option does not appear if the directory is not detected. As it happens, Signet's wallet directory is compatible with `octez-client`'s.
 

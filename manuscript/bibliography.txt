@@ -8,6 +8,8 @@ L. M. Goodman, *[Tezos: A Self-Amending Crypto-Ledger White Paper](https://tezos
 9ac4bf2d|Chris Pinnock, [Quick Start Guide for Impatient Tezos Bakers](https://chrispinnock.com/tezos/quickstart/).
 6d7f2a11|Chris Pinnock, [Running Octez at boot on Macs](https://chrispinnock.com/2026/07/03/launchctl.html).
 eaa71d7e|Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
+5a9bea80|Tezos Commons, [Ushuaianet is Live!](https://spotlight.tezos.com/ushuaia-is-live/)
+d56b99d2|[Tezos Governance and Protocols](https://tezos.com/about/governance/)
 SEC|Signet resources
 [Signet Wallet website](https://signetwallet.org), https://signetwallet.org
 [Signet Videos](https://www.youtube.com/playlist?list=PLaeBlcwTd5PY), https://www.youtube.com/playlist?list=PLaeBlcwTd5PY

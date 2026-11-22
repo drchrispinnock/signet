@@ -166,3 +166,8 @@ It then warns you again. To forget the key, click `Forget for good`.
 There is one caveat here. The key might be stored in the backup folder still. The most reliable way to get rid of the key is to delete all the backups, but this is not necessarily recommended. You could go into `Settings`, take a backup and then delete the previous backups. You'll have to do this by hand. Forgetting accounts is not recommended, unless you really know what you are doing.
 
 You can also use `Forget account...` to delete an address book entry.
+
+{id: ID150-othertypesofaccount_2_Other}
+## Other Options
+
+You can also connect to a remote signer, but as a beginner you are unlikely to need this feature. A remote signer provides access to keys and prevents unwanted transactions. They are using used in Tezos baking setups. Examples of remote signer software include `octez-signer`, [Signatory](https://signatory.io), [Russignol ](https://russignol.com)and [TezSign](https://docs.tez.capital/tezsign/). `octez-signer`, like `octez-client` is part of the Octez suite.

@@ -24,25 +24,29 @@
 
 [9] Chris Pinnock, [Running Tezos on Windows](https://chrispinnock.com/2026/04/26/running-tezos-on-windows.html).
 
+[10] Tezos Commons, [Ushuaianet is Live!](https://spotlight.tezos.com/ushuaia-is-live/)
+
+[11] [Tezos Governance and Protocols](https://tezos.com/about/governance/)
+
 **Signet resources**
 
-[10] [Signet Wallet website](https://signetwallet.org), https://signetwallet.org
+[12] [Signet Wallet website](https://signetwallet.org), https://signetwallet.org
 
-[11] [Signet Videos](https://www.youtube.com/playlist?list=PLaeBlcwTd5PY), https://www.youtube.com/playlist?list=PLaeBlcwTd5PY
+[13] [Signet Videos](https://www.youtube.com/playlist?list=PLaeBlcwTd5PY), https://www.youtube.com/playlist?list=PLaeBlcwTd5PY
 
 **Other chains**
 
-[12] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
+[14] Dominic Frisby, *Bitcoin: The Future of Money*, Unbound, 2014.
 
-[13] Peter Kent and Tyler Bain, *Bitcoin for Dummies*, For Dummies, 2022.
+[15] Peter Kent and Tyler Bain, *Bitcoin for Dummies*, For Dummies, 2022.
 
-[14] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
+[16] Antony Lewis, *The Basics of Bitcoins and Blockchains*, Mango, 2018.
 
-[15] Andreas M. Antonopoulos and David A. Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
+[17] Andreas M. Antonopoulos and David A. Harding, *Mastering Bitcoin*, O'Reilly Media, 2023.
 
-[16] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolò Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
+[18] Andreas M. Antonopoulos, Gavin Wood, Carlo Parisi, Alessandro Mazza and Niccolò Pozzolini, *Mastering Ethereum*, O'Reilly Media, 2025.
 
-[17] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
+[19] Michael G. Solomon, *Ethereum for Dummies*, For Dummies, 2019.
 
 {end-hanging-paragraphs}
 <!-- ENDMARKUPBIBLIOGRAPHY -->
