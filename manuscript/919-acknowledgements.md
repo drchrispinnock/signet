@@ -1,5 +1,7 @@
 For the Signet project, I thank Simon Keusen, who got me into the vibe coding mood. Thanks also to Fabrice Trutmann, who tested things, reviewed texts and made suggestions. Devon Nathan helped me with the TzEL implementation (not covered in this book).
 
+I managed to find some non-crypto guinea pigs to test Signet. Thanks to Phill, Robert and Sophia.
+
 There are many people who have helped me whilst I've been working on the Tezos project, but specifically I would like to thank:
 
 Arrigo Triulzi  
