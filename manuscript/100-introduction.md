@@ -143,6 +143,7 @@ There are other wallets for Tezos and I encourage you to try them out. I haven't
 
 **Umami** - Originally a wallet running on the desktop, Umami has evolved into a multi-chain mobile and web wallet.
 
+{width: "100%"}
 | Wallet                                                                | Developer                                             | Mobile | Web Browser | Supports                 |
 | --------------------------------------------------------------------- | ----------------------------------------------------- | ------ | ----------- | ------------------------ |
 | [AirGap](https://airgap.it)                                           | [Papers](https://papers.ch)                           | Yes    | No          | Multi-asset              |
