@@ -10,3 +10,4 @@ stakepercent|10%
 doublebake|156
 governancelen|14
 stakelimit|9
+govtimes|21

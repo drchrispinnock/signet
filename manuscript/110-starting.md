@@ -238,6 +238,13 @@ Now I could improve this piece of Signet and in fact Transak will allow wallets 
 
 Please make sure that you record all your crypto-asset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
 
+{id: ID110-starting_2_Using}
+## Using a Test Network
+
+We covered test networks in the introduction. If you want to try something out without worrying about losing money, you can try it on one of the test networks. You can switch Signet between networks very easy by choosing the network in the selector at the top right of the window:
+
+![](120/networks.png)
+
 {id: ID110-starting_2_Getting_2}
 ## Getting tez on a Test Network
 
