@@ -6,8 +6,7 @@
 
 [Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org). The repositories for each project are here:
 
-{column-widths: "20% 80%"}
-
+{width: "100%", column-widths: "20% 80%"}
 | Platform                                                    | Repository                                       |
 | ----------------------------------------------------------- | ------------------------------------------------ |
 | [Mac](https://github.com/drchrispinnock/signet)             | https://github.com/drchrispinnock/signet         |
