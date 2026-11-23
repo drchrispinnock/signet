@@ -154,4 +154,4 @@ There are other wallets for Tezos and I encourage you to try them out. I haven't
 | [Temple](https://www.templewallet.com)                                | [Madfish](https://mad.fish)                           | Yes    | Yes         | Tezos, EVM-style chains. |
 | [Umami](https://www.umamiwallet.com)                                  | [Trilitech](https://www.trili.tech)                   | Yes    | Yes         | Tezos, EVM-style chains. |
 
-There are other multi-chain wallets that support Tezos. Also we encourage you to look at other chains. There are some recommended books in the Further Reading section at the end of the book.
+There are other multi-chain wallets that support Tezos. Also we encourage you to look at other chains. There are some recommended books in the [Further Reading](#ID920-bibliography_1_Further) section at the end of the book.
