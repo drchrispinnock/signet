@@ -13,7 +13,7 @@ I wanted a "burger" menu for options, details about my account (an alias MyWalle
 
 - I will ask Claude to write a simple Tezos Wallet.
 - It should run natively on the Mac and the source should be compilable by Xcode. Swift is preferred.
-- It needs to support multiple addresses and all Tezos address types `tz1` to 6
+- It needs to support multiple addresses and all Tezos address types `tz1` to `tz6`
 - It should use the Taquito library where possible to talk to the chain
 - The default screen is in the file EXAMPLE.png *(the picture above)*
 - Top left is the wallet alias (set by the user when the wallet is created) and the wallet tz address shortened (e.g. `tz132...4N`). There should be a copy button next to the address. On the right, should be any Tezos Domain aliases.
@@ -41,7 +41,7 @@ I decided that Signet must have good dApp support, or there was little point in 
 
 On Thursday 8th October 2026, I logged into X to see that Taquito had added `tz5` key support. These keys are based on the ML-DSA-44 signing scheme and are designed to resist classical and quantum attacks. Once we have a sufficiently capable quantum computer available, our traditional crypto keys will not be safe. This is a current topic of discussion in the tech world.
 
-Recently, the development team launched *Quantumnet*, an experimental post-quantum test network for Tezos. On that Thursday morning over coffee, I realised that I could make the first transaction on *Quantumnet* with a graphical wallet.
+Recently, the development team at Nomadic Labs launched *Quantumnet*, an experimental post-quantum test network for Tezos. On that Thursday morning over coffee, I realised that I could make the first transaction on *Quantumnet* with a graphical wallet.
 
 I asked Claude to use the beta version of Taquito and at 13:35 on the same day, I [tweeted](https://x.com/chrispinnock/status/2108174370967368073):
 
@@ -69,9 +69,9 @@ Buying tez worked via a widget with Mt Pelerin. The only disadvantage that I cou
 
 Then I took a day off.
 
-On Saturday 10th October, I spent the day ferrying people around in my car, but I had a couple of hours free in the afternoon. One thing that is missing from most Tezos wallets is multisig account support. A multisig account is one where more than one account signs the operations. You can have a committee of accounts as signers and at deployment time, choose how many are needed to sign the transactions. For example, you can set up a multisig account with 5000tz with 5 signers of which 3 are needed.
+On Saturday 10th October, I spent the day ferrying people around in my car, but I had a couple of hours free in the afternoon. One thing that is missing from most Tezos wallets is multisig account support. A multisig account is one where more than one account signs the operations. You can have a committee of accounts as signers and at deployment time, choose how many are needed to sign the transactions. For example, you can set up a multisig account with 5000 tez with 5 signers of which 3 are needed.
 
-I asked Claude to get me a list of commands to use a multisig wallet using `octez-client`. It wrote me a nice "how to" document, which I tried myself. I summarised it in a [text file](https://github.com/drchrispinnock/signet/blob/main/docs/spec/multisig.txt). I decided we needed four new menu items, `Create multisig...` (to create a new multisig account), `Add multisig...` (to add an existing multisig contract to Signet), `Sign multisig transaction...` and `Submit multisig transaction`. Claude read the Octez sources and figured out how to implement these functions.
+I asked Claude to get me a list of commands to use a multisig account using `octez-client`. It wrote me a nice "how to" document, which I tried myself. I summarised it in a [text file](https://github.com/drchrispinnock/signet/blob/main/docs/spec/multisig.txt). I decided we needed four new menu items, `Create multisig...` (to create a new multisig account), `Add multisig...` (to add an existing multisig contract to Signet), `Sign multisig transaction...` and `Submit multisig transaction...`. Claude read the Octez sources and figured out how to implement these functions.
 
 At 16:33, I released Signet v0.8 with multisig account support. (On 12th October, I made a [video demonstrating multisig](https://www.youtube.com/watch?v=CV-jszi9uuk) and showed that the smart contracts are the same as the ones originated by `octez-client` for multisig accounts.)
 
@@ -81,7 +81,7 @@ I took a break on the Sunday and resumed on Monday 12th. The good thing about us
 
 On the same day, I carried out a further audit with Codex (v0.8.2), added support for session-only keys (which Signet forgets when it quits), added the ability to fund a multisig at creation in the UI and added *Ushuaianet* to the list of test networks (v0.8.3). At this point, Signet worked on the production network *Mainnet* and all the test networks for Tezos.
 
-Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Bitcoin, Ethereum and on other EVM-based chains. I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
+Etherlink is a smart rollup on Tezos and you can deploy an Ethereum smart contract on it. You can use Ethereum-style accounts on it too - these are addresses that start with 0x. They use the same cryptographic curve as Tezos's `tz2` addresses and so you can use your `tz2` key pair on Bitcoin, on Ethereum and other EVM-based chains. I'd wondered whether this was the right starting point. But recently there was an update to Etherlink that added Michelson smart contracts. These are contracts that already run on Tezos. Also, since the update you can use `tz1`, `tz2` and `tz3` Tezos addresses on Etherlink via the Michelson interface. Then you can use a derived 0x address to communicate with the Ethereum-style contracts.
 
 I cannot remember in the timeline when I did this, but I had a call with Thomas Letan to talk about this interface. As a result of that call, I decided this style of address was the right one to start with on Signet. There would be no need to create new addresses and the Taquito library should be able to use the Michelson interface on Etherlink as it uses a similar remote procedure call scheme (RPC) to the Tezos layer 1 RPC.
 

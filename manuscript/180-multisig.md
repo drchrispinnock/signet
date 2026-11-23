@@ -12,7 +12,7 @@ The functions available in Signet are:
 - Sign a multisig transaction
 - Submit a multisig transaction
 
-Signet will remember any multisig transactions signed in the wallet and they will be available to submit later on. You will just need the signatures from the other parties to complete the transaction. In this section, we will create a multisig wallet containing 10tz and with five signatories: Alice, Bob, Christopher, Diana and Edward. We will require 3 of their signatures to sign a transaction. We'll do it on Shadownet as well.
+Signet will remember any multisig transactions signed in the wallet and they will be available to submit later on. You will just need the signatures from the other parties to complete the transaction. In this section, we will create a multisig account containing 10 tez and with five signatories: Alice, Bob, Christopher, Diana and Edward. We will require 3 of their signatures to sign a transaction. We'll do it on *Shadownet* as well.
 
 {id: ID180-multisig_2_Creating}
 ## Create a Multisig Account
@@ -21,7 +21,7 @@ Creating a multisig account is straightforward. You need to have the addresses o
 
 Fill in the details. I'm going to call mine `My Multisig Account`.
 
-In the Signers section, I drop down on Add account and add Alice (although I don't have to add the originating wallet as a signing party). Then I add Bob and Christopher. I can do this because I have them in my address book. For Diana and Edward, I add their addresses directly in the dialogue and press `Add`. They are `tz1ULZN2uHvhcnbkyfBnvJhGf3n5gRs3QbN4` and `tz1RupNMvGtytrekvWx4FkBdEyeFKV5Vr2jT` respectively.
+In the Signers section, I drop down on Add account and add Alice (although I don't have to add the originating account as a signing party). Then I add Bob and Christopher. I can do this because I have them in my address book. For Diana and Edward, I add their addresses directly in the dialogue and press `Add`. They are `tz1ULZN2uHvhcnbkyfBnvJhGf3n5gRs3QbN4` and `tz1RupNMvGtytrekvWx4FkBdEyeFKV5Vr2jT` respectively.
 
 ![](180/multisig.png)
 
@@ -29,7 +29,7 @@ Each of the signers must have revealed their public key on the network (e.g. by 
 
 Then I set the required number of signatures to 3 with the arrows. This means that I need 3 signatures to sign transactions on the multisig account.
 
-Finally I fund the account with 10tz and press the `Create` button. This creates the account, which is really a smart contract. The address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10tz and code to enforce the rules of the committee. The multisig account is created.
+Finally I fund the account with 10 tez and press the `Create` button. This creates the account, which is really a smart contract. The address is `KT1Bx9kfAML973xrSVyMw5KA7EXMaLSjcozA`. This is a smart contract with a balance of 10 tez and code to enforce the rules of the committee. The multisig account is created.
 
 {id: ID180-multisig_2_Add}
 ## Add an Existing Multisig Account
@@ -43,9 +43,9 @@ Now Bob's wallet is aware of the multisig account.
 {id: ID180-multisig_2_Sign}
 ## Sign a Multisig Transaction
 
-We want to send an account `tz1etTUnFd6cYsmrZuS9awPSppFPwH1G3e9Q` 5tz, but we want to do it from the multisig account. Any of the signatories can start the process, but the signing is not done on-chain - it has to be submitted later. In this case, Alice, Bob and Edward are going to sign the transaction. Alice and Bob are using Signet, and Edward is using `octez-client`. Alice will submit the transaction to the chain. Let's start with Alice.
+We want to send 5 tez to `tz1etTUnFd6cYsmrZuS9awPSppFPwH1G3e9Q`, but we want to do it from the multisig account. Any of the signatories can start the process, but the signing is not done on-chain - it has to be submitted later. In this case, Alice, Bob and Edward are going to sign the transaction. Alice and Bob are using Signet, and Edward is using `octez-client`. Alice will submit the transaction to the chain. Let's start with Alice.
 
-Alice chooses `Sign multisig transaction...` from the burger menu and fills in the details. She adds the amount and the address to send the tez to. Notice at the top, the multisig wallet is listed. If Alice has access to more than one multisig wallet, she can choose which one to sign for here.
+Alice chooses `Sign multisig transaction...` from the burger menu and fills in the details. She adds the amount and the address to send the tez to. Notice at the top, the multisig account is listed. If Alice has access to more than one multisig account, she can choose which one to sign for here.
 
 ![](180/alicesign.png)
 
@@ -53,7 +53,7 @@ Click `Sign` and Alice receives a signature. Signet will keep hold of the signat
 
 ![](180/alicesig.png)
 
-Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills in the same details. Then he clicks sign. He saves the signature string
+Now Bob needs to sign the transaction as well. He does exactly the same as Alice in Signet. He selects `Sign multisig transaction...` and fills in the same details. Then he clicks `Sign`. He saves the signature string:
 
 `edsigtu...CBzvsUJ7G2hSucjZ`
 

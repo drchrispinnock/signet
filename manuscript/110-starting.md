@@ -6,6 +6,7 @@
 
 [Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org). The repositories for each project are here:
 
+{width: "100%", column-widths: "20% 80%"}
 | Platform                                                    | Repository                                       |
 | ----------------------------------------------------------- | ------------------------------------------------ |
 | [Mac](https://github.com/drchrispinnock/signet)             | https://github.com/drchrispinnock/signet         |
@@ -17,9 +18,9 @@ The first thing we need to do is install Signet. Let's look at each platform in 
 {id: ID110-starting_3_Mac}
 ### Mac
 
-The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store.
+The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store. Also, we only support Macs with Apple Silicon.
 
-Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the application folder. Go to the release page and download the DMG file. Click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your applications folder.
+Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the Applications folder. Go to the release page and download the DMG file. Double-click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your Applications folder.
 
 ![](110/finder.png)
 
@@ -31,7 +32,6 @@ Click `Open` and continue.
 
 {id: ID110-starting_3_Windows}
 ### Windows
-
 
 The Windows version is written in C# and was ported from the Mac version by Claude. Claude and I chose C# over Swift. At the moment, Swift can build Windows applications, including GUI apps, but the tooling, especially for user interfaces, is still immature. Maybe in the future, we will rewrite the Windows version in Swift to help unify the three platforms.
 
@@ -57,9 +57,11 @@ $ su -
 Password: (enter the root password)
 # apt update
 # apt install -y sudo
+# usermod -aG sudo <yourusername>
+# exit
 ```
 
-Then edit `/etc/group` and add your user account to the `sudo` group. Then log out and in again on the machine.
+Then log out and in again on the machine.
 
 To install Signet:
 
@@ -121,13 +123,15 @@ Next you will be given some options to set up an account for use on the Tezos ne
 
 ![](110/coldstart.png)
 
-To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key pair - a public key and a private key - suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. Confirm the password by entering it again and then click `Create`. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
+To create a new account, click the option on the menu and you'll move to a dialogue to create a key pair. What you are doing is creating a public-private cryptographic key pair - a public key and a secret key - suitable for use on a blockchain. This option will generate a new key pair which will allow you to use the Tezos blockchain. You can use the `tz1` key type for now - we'll cover the other types in a later chapter. Simply choose a name for your account ("My Account" is the default) and supply a password. Confirm the password by entering it again and then click `Create`. The password encrypts the keys on disk making it harder for someone to steal them. If this is your first time using a blockchain and cryptocurrency, welcome. You now have a key pair and an address ready to receive funds.
+
 ![](110/create.png)
+
 The key you have made is generated on your machine and stored there too. We haven't introduced it to the network yet. Later we will fund the account, either from an exchange on *Mainnet* or from a *faucet* on a test network. When we start to do things on the blockchain, we will *reveal* our public key to it. At no point will our secret key be stored on the blockchain.
 
-The name "My Account" is local and is your alias for the account. No-one else will know this name, unless you tell them of course. It isn't stored on the blockchain. 
+The name "My Account" is local and is your alias for the account. No-one else will know this name, unless you tell them of course. It isn't stored on the blockchain.
 
-There are four other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The `Import an existing account` option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
+There are five other options to start with Signet. We will touch on them briefly now, but will cover them in more detail later on. If you have used Tezos before, you can import an existing account. The `Import an existing account` option allows you to bring your keys from another wallet. First you'll need to export the secret key from the wallet, then paste it into the dialogue below. You choose a name for it and optionally encrypt it with a password. If the key was protected with a password, you'll be asked for it when you import it.
 
 ![](110/secret.png)
 
@@ -135,9 +139,9 @@ Alternatively if you have a recovery phrase, you can use the Recovery phrase tab
 
 ![](110/recovery.png)
 
-If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect a Ledger...` option.
+If your key is already set up on a Ledger with the Tezos Wallet application installed, you can use the key with Signet. Plug the Ledger in and run the Tezos Wallet application, then use the `Connect a Ledger` option. You can also connect to a remote signer but this is an advanced topic and we don't cover it in detail in this book.
 
-If you have a QR code representing your account, you can use the `Import from QR code` method to restore your key. Signet can print a recovery sheet of your account details and you can use this to restore the account.
+If you have a QR code representing your account, you can use the `Import from QR code` method to restore your key. Signet can print a recovery sheet of your account details and you can use this to restore the account. This option can also be used to add other people's addresses to Signet or pair with the [Airgap Vault](https://airgap.it) key-store.
 
 Finally, if you happen to have used the command-line wallet `octez-client`, Signet will detect its wallet directory and offer you the option to import it. This option does not appear if the directory is not detected. As it happens, Signet's wallet directory is compatible with `octez-client`'s.
 
@@ -165,7 +169,7 @@ The main screen of Signet has four buttons, a burger menu and information about 
 
 By dropping down next to `My Account`, you can switch between accounts if you have more than one.
 
-On the right is the network name *Mainnet*. This is the production Tezos network. You can drop this down and switch to another network, usually a test network. We'll cover networks in a section below. Below these are four buttons: `Send`, `Receive`, `Buy` and `Stake`. `Send` is for sending tez coins to other accounts. `Receive` is to get details about your Tezos address so that others can send coins to you. `Buy` takes you to a menu to buy tez from a centralised exchange. `Stake` is for delegation and staking, and we will cover these much later.
+On the right is the network name *Mainnet*. This is the production Tezos network. You can drop this down and switch to another network, usually a test network. We'll cover networks in a section below. Below these are four buttons: `Send`, `Receive`, `Buy` and `Stake`. `Send` is for sending tez coins to other accounts. `Receive` is to get details about your Tezos address so that others can send coins to you. `Buy` takes you to a menu to buy tez from a provider. `Stake` is for delegation and staking, and we will cover these much later.
 
 ![](110/main.png)
 
@@ -198,14 +202,14 @@ This should resolve as Captain Stake. Signet looks up addresses on the block exp
 {id: ID110-starting_2_Getting}
 ## Getting Your First tez
 
-In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Three examples are [Mt Pelerin](https://www.mtpelerin.com/), [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are some things to be aware of:
+In the first days of cryptocurrencies, you would have to find someone else who had some and persuade them to give you some, usually for cash. Things are different now. There are *centralised exchanges* (CEX) offering cryptocurrencies in exchange for money (or *fiat currency*). Two examples are [Coinbase](https://coinbase.com/) and [Kraken](https://kraken.com/). There are also brokers and on-ramp services such as [Mt Pelerin](https://www.mtpelerin.com/). There are some things to be aware of:
 
-1. Buying tez or any cryptoasset for the first time might require significant patience on your part.
+1. Buying tez or any crypto-asset for the first time might require significant patience on your part.
 2. In your country, there may be laws around purchasing cryptocurrencies. I'm afraid it's up to you to find out what is possible where you live.
 3. You will have to provide details about yourself when you buy cryptocurrency. It is increasingly difficult to buy cryptocurrencies anonymously.
 4. There may be some waiting times between signing up to a centralised exchange and being able to trade. There may even be waiting times between purchasing and receiving the coins.
 
-For example, UK rules require a cooling-off period of at least 24 hours before a new consumer can be shown a direct-offer cryptoasset financial promotion. Such exchanges are required to show a disclaimer such as [this one](https://www.kraken.com/legal/uk/disclaimer):
+For example, UK rules require a cooling-off period of at least 24 hours before a new consumer can be shown a direct-offer crypto-asset financial promotion. Such exchanges are required to show a disclaimer such as [this one](https://www.kraken.com/legal/uk/disclaimer):
 
 ![](110/kraken.png)
 
@@ -213,12 +217,11 @@ Make sure you read and understand the disclaimer. The key thing is that the UK g
 
 Additionally, some providers have further delay periods before sending you your cryptocurrency. When I first used Mt Pelerin, it took seven days to receive my tez. It depends on where you live and how much information you provide about yourself. But you will need some patience at the beginning of your crypto journey.
 
-
 To get tez in your new Signet account, you can use the `Buy` button. Click the button and you will be presented with some options:
 
 ![](110/buy.png)
 
-The provider is selectable and so is the currency. In my case I'm using British pounds sterling (GBP) and Mt Pelerin. Clicking `Continue` takes us to a dialogue where we can choose how much tez we want to buy. Clicking `Buy` takes us to an account signup process. If you are sure you want to buy tez, you can follow this process and use your credit card to get some tez. 
+The provider is selectable and so is the currency. In my case I'm using British pounds sterling (GBP) and Mt Pelerin. Clicking `Continue` takes us to a dialogue where we can choose how much tez we want to buy. Clicking `Buy` takes us to an account signup process. If you are sure you want to buy tez, you can follow this process and use your credit card to get some tez.
 
 If you'd rather not use the widget, you can click the `Open in browser instead` button and use your web browser.
 
@@ -228,20 +231,27 @@ Mt Pelerin is the only provider that is directly integrated into Signet. Unfortu
 
 ![](110/coinbase.png)
 
-Here we get a page with our address details, instructions and a button to click. The button will take us to the Coinbase website. You'll have to sign up there, buy the tez and transfer it to your wallet.
+Here we get a page with our address details, instructions and a button to click. The button will take us to the Coinbase website. You'll have to sign up there, buy the tez and transfer it to your Signet account.
 
 Now I could improve this piece of Signet and in fact Transak will allow wallets to embed it, as will other providers. But that requires some extra work and developer API access. This may come later on depending on demand for the feature.
 
-Please make sure that you record all your cryptoasset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
+Please make sure that you record all your crypto-asset purchases - when you bought them and what you paid for them. You will need this detail for your tax filings, particularly if you sell them later.
+
+{id: ID110-starting_2_Using}
+## Using a Test Network
+
+We covered test networks in the introduction. If you want to try something out without worrying about losing money, you can try it on one of the test networks. You can switch Signet between networks very easy by choosing the network in the selector at the top right of the window:
+
+![](120/networks.png)
 
 {id: ID110-starting_2_Getting_2}
 ## Getting tez on a Test Network
 
-If you don't want to spend any money at this stage, you can always use a test network. When you switch to a test network in Signet, the Buy button becomes a Get button. A test network usually has a *faucet* that gives out tez to participants. As the tez don't have real-world value, this is possible. Signet is integrated with the faucets on the test networks.
+If you don't want to spend any money at this stage, you can always use a test network. When you switch to a test network in Signet, the `Buy` button becomes a `Get` button. A test network usually has a *faucet* that gives out tez to participants. As the tez don't have real-world value, this is possible. Signet is integrated with the faucets on the test networks.
 
 ![](110/faucet.png)
 
-The best test network to try things on for a beginner is *Shadownet*. Change to *Shadownet* by clicking on *Mainnet* and choosing *Shadownet* from the drop-down. The Buy button will now be a Get button. Click it, choose an amount of tez and click `Request` to get the tez. It takes a little while because there is a "proof-of-work challenge" to do to stop people draining the faucet of funds. Signet takes care of this for you. You can request more funds or click `Done` when you have finished.
+The best test network to try things on for a beginner is *Shadownet*. Change to *Shadownet* by clicking on *Mainnet* and choosing *Shadownet* from the drop-down. The `Buy` button will now be a `Get` button. Click it, choose an amount of tez and click `Request` to get the tez. It takes a little while because there is a "proof-of-work challenge" to do to stop people draining the faucet of funds. Signet takes care of this for you. You can request more funds or click `Done` when you have finished.
 
 After a minute or two, you will have some tez in your account.
 

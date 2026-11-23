@@ -7,16 +7,19 @@ You can configure Signet using its Settings facility. Additionally you can chang
 ## General Settings
 
 You can get to the general settings for Signet either by choosing `Settings...` in the burger menu, in the Operations menu, in the Signet menu or by pressing Command and , (`Cmd+,`). Here are the options:
+
 ![](165/settings.png)
+
 Firstly, you can set the appearance of the application. You can choose either Light or Dark mode, or you can follow the OS preference. The images in this book were made in Light mode. I prefer Dark mode for day-to-day use.
 
 You can set the wallet directory. Signet stores its files including your keys in your home directory in a folder called `.signet`. You can change the location if you want.
 
 Signet automatically backs up its wallet directory every time you start it. You can change the destination of the backups here and you can also change the number of backups that Signet keeps. By default, it keeps 10 copies.
 
-Restoring needs some care. Open the backup location using `Show in Finder` and select the dated backup you want to restore. Quit Signet. Move your current wallet directory somewhere safe, then create an empty directory at its original location. Copy the contents of the selected backup into it, rather than copying the dated folder itself. Restart Signet and check your accounts. Use your configured wallet directory, which defaults to ~/.signet. Keep the original directory safe: it may contain keys created after the backup.
+Restoring needs some care. Open the backup location using `Show in Finder` and select the dated backup you want to restore. Quit Signet. Move your current wallet directory somewhere safe, then create an empty directory at its original location. Copy the contents of the selected backup into it, rather than copying the dated folder itself. Restart Signet and check your accounts. Use your configured wallet directory, which defaults to `~/.signet`. Keep the original directory safe: it may contain keys created after the backup.
 
 ![](165/finder.png)
+
 You can also initiate a backup with the `Back Up Now` button.
 
 Finally, Signet uses the Sparkle framework and can update itself. You can choose if you want to check for software updates automatically, and also download and install them automatically. You can check now for updates with the button. There is also an option in the Signet menu in the menu bar.
@@ -24,8 +27,10 @@ Finally, Signet uses the Sparkle framework and can update itself. You can choose
 {id: ID165-Settings_2_Network}
 ## Network Settings
 
-The network settings are for advanced users. They are accessed from the burger menu from `Networks...`. You can drop down the network and change it. The networks available are *Mainnet*, *Shadownet, Bakingnet, Ushuaianet, Weeklynet, Quantumnet* and *Custom.* Custom allows you to connect to any nodes. This is the page for *Mainnet*:
+The network settings are for advanced users. They are accessed from the burger menu from `Networks...`. You can drop down the network and change it. The networks available are *Mainnet*, *Shadownet*, *Bakingnet*, *Ushuaianet*, *Weeklynet*, *Quantumnet* and *Custom*. *Custom* allows you to connect to any nodes. This is the page for *Mainnet*:
+
 ![](165/networks.png)
+
 It shows that the network is the one we are using at the moment next to the network name. We can do several things here. We can change the node we use to communicate with the Tezos network. By default, Signet uses [rpc.tzbeta.net](https://rpc.tzbeta.net) which is provided by the Tezos Foundation. There are other public nodes. At the time of writing:
 
 | Mainnet node                   | Provider                                     |
@@ -37,25 +42,27 @@ It shows that the network is the one we are using at the moment next to the netw
 
 When choosing a node, it is important to understand that the node provider could control your data unexpectedly. Although they cannot change your signed operations, they could censor them and not submit them to the network. They could also provide you with incorrect information. Choose a node provider that you trust. You can also run your own node if you want - we cover this in [the appendix](#ID910-apx-ownnode_1_Running).
 
-Signet will attempt to check that the node is running on the correct network. If we try to use a node on *Shadownet* in the *Mainnet* configuration, Signet will warn us.
+Signet will attempt to check that the node is running on the correct network. For example, if we try to use a node on *Shadownet* in the *Mainnet* configuration, Signet will warn us.
 
 ![](165/warn.png)
 
-We can continue anyway but Signet won't work properly on *Mainnet.* You can always reset each node to the default with `Use Default`.
+We can continue anyway but Signet won't work properly on *Mainnet*. You can always reset each node to the default with `Use Default`.
 
 You can also change the API service for TzKT and the URL for the block explorer. You are unlikely to need to change these, but you can replace the URL with another block explorer's address. If you run your own TzKT API node (e.g. for development purposes), you can use it by changing this field.
 
-You can also turn on Layer 2 support in this screen. Flicking the switch makes Signet capable of working on Etherlink, a network implemented in a smart rollup on Tezos. 
+You can also turn on layer 2 support in this screen. Flicking the switch makes Signet capable of working on Etherlink, a network implemented in a smart rollup on Tezos.
 
 ![](165/withether.png)
-Now we can change the layer 2 Michelson endpoint node. This is the Tezos compatible RPC node on Etherlink. You are unlikely to need to change this for now, but more node providers will appear in the future. If you go back to the main screen, you will see the Etherlink logo and a balance for it. Please see the [Etherlink chapter](#ID200-etherlink_1_Etherlink) below for more detail.
+
+Now we can change the layer 2 Michelson endpoint node. This is the Tezos-compatible RPC node on Etherlink. You are unlikely to need to change this for now, but more node providers will appear in the future. If you go back to the main screen, you will see the Etherlink logo and a balance for it. Please see the [Etherlink chapter](#ID200-etherlink_1_Etherlink) below for more detail.
 
 If we switch to *Shadownet*, we'll see that test networks have one further setting.
 
 ![](165/shadow.png)
+
 We can change the faucet address here. It's unlikely that we will need to do this, but I wanted to make Signet as configurable as possible. And *Quantumnet* uses a different scheme of links. You can check the differences in Signet yourself.
 
-Finally, we can add a *Custom* network. You can use *Custom* to quickly switch to an alternative node, or one you've set up yourself. If you are a developer, you can use *Custom* to connect to your own Tezos test network. 
+Finally, we can add a *Custom* network. You can use *Custom* to quickly switch to an alternative node, or one you've set up yourself. If you are a developer, you can use *Custom* to connect to your own Tezos test network.
 
 {id: ID165-Settings_2_Shielded}
 ## Shielded Settings
