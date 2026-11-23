@@ -240,7 +240,7 @@ Please make sure that you record all your crypto-asset purchases - when you boug
 {id: ID110-starting_2_Using}
 ## Using a Test Network
 
-We covered test networks in the introduction. If you want to try something out without worrying about losing money, you can try it on one of the test networks. You can switch Signet between networks very easy by choosing the network in the selector at the top right of the window:
+We covered test networks in the introduction. If you want to try something out without worrying about losing money, you can try it on one of the test networks. You can switch Signet between networks easily by choosing the network in the selector at the top right of the window:
 
 ![](120/networks.png)
 
