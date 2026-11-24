@@ -6,13 +6,13 @@ This is a book about using the Tezos blockchain. Usually a user of a blockchain 
 
 The good news is that you don't have to fully understand the background to be able to use Tezos, so feel free to skip over the detail if you want. We will explain the key concepts in this chapter and we will assume that you are a beginner. Our aim is to convey understanding and we will explain the concepts in simple terms. This means we will skip some of the in-depth technical detail, which as a beginner you will not need anyway. Feel free to dip in and out of this chapter, and move straight to [Getting Started](#ID110-starting_1_Getting).
 
-It's very likely that you've heard about Bitcoin. Bitcoin is considered to be the first decentralised currency and was created in 2008. No-one knows the identity of the person who created it, but they were prominent member of the cryptography community. They have since disappeared, even leaving their Bitcoin accounts alone. 
+It's very likely that you've heard about Bitcoin. Bitcoin is considered to be the first decentralised currency and was created in 2008. No-one knows the identity of the person who created it, but they were a prominent member of the cryptography community. They have since disappeared, even leaving their Bitcoin accounts alone. 
 
 Anyone can use the Bitcoin network to send value to someone else without using a central organisation such as a bank. Furthermore, the ledger that stores the transactions is distributed and fault tolerant.
 
 Under the hood of Bitcoin is a blockchain, which is used to record the transactions on the network. Many computers on the internet hold a copy of the blockchain and these are called *nodes.* Users sign transactions with *wallet* software using public key cryptography and submit them to the nodes. New blocks containing the transactions are created by a process called *mining.*
 
-Since Bitcoin was introduced, they have been other cryptocurrencies and blockchain platforms set up to provide different features. One example is Ethereum, devised in 2013 and launched in 2015, which has smart contract capabilities. A *smart contract* is a computer program stored on the blockchain that runs when a transaction calls it. These can be used in the same way as a traditional contract. For example, you could fund a smart contract designed to implement payroll and have it pay designated users on a payday. Smart contracts are the technology behind NFTs (non-fungible tokens) which you have probably heard about in the context of blockchain art.
+Since Bitcoin was introduced, there have been other cryptocurrencies and blockchain platforms set up to provide different features. One example is Ethereum, devised in 2013 and launched in 2015, which has smart contract capabilities. A *smart contract* is a computer program stored on the blockchain that runs when a transaction calls it. These can be used in the same way as a traditional contract. For example, you could fund a smart contract designed to implement payroll and have it pay designated users on a payday. Smart contracts are the technology behind NFTs (non-fungible tokens) which you have probably heard about in the context of blockchain art.
 
 Another example is Tezos. Tezos was designed to address some shortcomings in the Bitcoin protocol. It was described in the Position Paper <!-- MARKUPBIBTAG 20cdb1d3 -->[1]<!-- ENDMARKUPBIBTAG --> and White Paper <!-- MARKUPBIBTAG 1d054870 -->[2]<!-- ENDMARKUPBIBTAG --> by one of the co-founders working under the pseudonym L. M. Goodman in 2014. On Tezos, you can also send value to other users of Tezos. It is a fully functioning smart contract platform. You can participate in decentralised finance applications, along with buying digital art and everything you would expect from a modern chain.
 
@@ -23,7 +23,7 @@ One key thing is that Tezos can be easily upgraded and the set of rules for how 
 
 Tezos is based on blockchain technology, so let's examine this concept first. A *blockchain* is a sequential chain of blocks, starting with a first block called the *Genesis* block. Each block has a header and a list of operations. The header contains information about the block and the operations include things like transactions (actually much more, but we are going to keep the explanations simple). The blocks are numbered, usually from 0 and the block's number is called its *height* or *level.*
 
-A blockchain is designed to be tamper-free. This is done with something called a *hash.* Hashes are used everything in blockchains and cryptography. A hash is a short, fixed-length fingerprint of a piece of data, computed by a one-way function. If the data is changed, the hash will change to.
+A blockchain is designed to be tamper-free. This is done with something called a *hash.* Hashes are used everywhere in blockchains and cryptography. A hash is a short, fixed-length fingerprint of a piece of data, computed by a one-way function. If the data is changed, the hash will change too.
 
 In a blockchain, each block contains a hash of the previous block. Therefore it's possible to tell if the block has been tampered with or not, because one can check the hash. The Genesis block is the only block not to hold a hash like this because it is the first block of the chain.
 
@@ -39,7 +39,7 @@ Blockchains need participants that produce the blocks. The block production on T
 ![](100/networkback.png)
 
 
-Each baker is allocated slots to produce blocks. They also *attest* other bakers blocks to check for validity. A baker connects to the Tezos network using a node, usually one running on the same server. The nodes gather together submitted transactions into a memory pool (called the *mempool*). These can be transactions directly submitted or shared via the gossip network. When it is a bakers turn to produce a block, they pick the operations from the mempool and add them to the block. The other bakers check the block and it is accepted into the blockchain.
+Each baker is allocated slots to produce blocks. They also *attest* other bakers' blocks to check for validity. A baker connects to the Tezos network using a node, usually one running on the same server. The nodes gather together submitted transactions into a memory pool (called the *mempool*). These can be transactions directly submitted or shared via the gossip network. When it is a baker's turn to produce a block, they pick the operations from the mempool and add them to the block. The other bakers check the block and it is accepted into the blockchain.
 
 Of course, given that this is happening over the whole internet, it's entirely possible that part of the network doesn't see the block straight away. If for some reason a baker cannot submit a block, another baker in the schedule can take over. There are algorithms in place so that the network can resolve which block should be the accepted one. So, it's possible that a block might be replaced with another one and that might mean that a transaction isn't included. 
 
@@ -79,7 +79,7 @@ Let's circle back and look at what Tezos offers as a blockchain. The original po
 3. Smart Contract support is minimal.
 4. Correctness xxx
 
-One of the aims of Tezos was to provide a blockchain wihtout these shortcomings.
+One of the aims of Tezos was to provide a blockchain without these shortcomings.
 
 Tezos introduced an on-chain governance facility early on in its development. 
 
@@ -88,7 +88,7 @@ Tezos is a proof-of-stake blockchain. A baker has an account on the Tezos chain,
 {id: ID105-networks_2_Protocols}
 ## Tezos Protocols and Governance
 
-One of the key features of Tezos is the ability to upgrade the rules of the network and to do so via a governance process. The set of rules for how the chains works including consensus, transaction validation, smart contract execution and governance is called a *protocol.* As I write this in November 2026, the protocol running on Tezos *Mainnet* is *Ushuaia.* This protocol introduced performance improvements and also some test features such as quantum-resistant accounts (`tz5` addresses). Please see <!-- MARKUPBIBTAG 5a9bea80 -->[10]<!-- ENDMARKUPBIBTAG --> for the full details.
+One of the key features of Tezos is the ability to upgrade the rules of the network and to do so via a governance process. The set of rules for how the chain works including consensus, transaction validation, smart contract execution and governance is called a *protocol.* As I write this in November 2026, the protocol running on Tezos *Mainnet* is *Ushuaia.* This protocol introduced performance improvements and also some test features such as quantum-resistant accounts (`tz5` addresses). Please see <!-- MARKUPBIBTAG 5a9bea80 -->[10]<!-- ENDMARKUPBIBTAG --> for the full details.
 
 The first protocols were called *Alpha I, II* and *III.* These were used to get the Tezos network working in its early days. Then *Athens* was introduced by governance in May 2019. *Ushuaia* is the 21st upgrade activated via the governance process. The naming convention since *Athens* is to use names of historic cities of the world in alphabetical order.
 
@@ -99,13 +99,13 @@ Some of the features (e.g. staking) affect users directly. Others are under the 
 {id: ID120-networks_2_Networks}
 ## Tezos Networks
 
-The Tezos production network is called *Mainnet.* Most wallets connect directly to *Mainnet* and more users work only on this network. The Tezos coins have real-world value on this network. It's where users send real-life transactions, buy art and use dApps with real tez. *Mainnet* is running the *Ushuaia* protocol.
+The Tezos production network is called *Mainnet.* Most wallets connect directly to *Mainnet* and most users work only on this network. The Tezos coins have real-world value on this network. It's where users send real-life transactions, buy art and use dApps with real tez. *Mainnet* is running the *Ushuaia* protocol.
 
-There are also test networks. On a test network, the coins do not have real-world value, so in theory you can make mistakes and it won't matter. Test networks are the place the people learn about blockchains, where application developers build distributed applications and where the blockchain developers test their software. It's also where new versions of the protocol are tested.
+There are also test networks. On a test network, the coins do not have real-world value, so in theory you can make mistakes and it won't matter. Test networks are the place where people learn about blockchains, where application developers build distributed applications and where the blockchain developers test their software. It's also where new versions of the protocol are tested.
 
 As far as a user and an application are concerned, there is no difference in terms of software, other than perhaps a test network is running a newer version or a different protocol. One main difference however is that on a test network you don't have to invest money to get tez coins. You can get them from a website called a *faucet.* 
 
-There's around five public test networks, each with a different purpose. The long-term test networks allow the users and bakers to build up applications and state over time. 
+There are around five public test networks, each with a different purpose. The long-term test networks allow the users and bakers to build up applications and state over time. 
 
 The protocol test networks are just for testing the current and proposed protocols of Tezos. When the next protocol is ready to be stabilised, there is usually a test network called *Nextnet* for testing it. This network is usually restarted as bugs are found. When a new protocol is under consideration in governance, there is usually an accompanying protocol network. *Ushuaianet* was started when Ushuaia was proposed in the governance process and continues to run so that users can test their applications.
 
@@ -124,7 +124,7 @@ Here is a list of test networks. If you want to try something out as a user, the
 
 As a general user of Tezos, the best place for you to try things out is on *shadownet*. 
 
-Signet will work on all of the test networks and of course mainnet. Your accounts will work on all networks, except that some of the new key types like `tz5` will not work on *mainnet* yet. To change the network, you simply click the network name in the top-left of the Signet window. What this really does under the hood is change the network node XXX
+Signet will work on all of the test networks and of course mainnet. Your accounts will work on all networks, except that some of the new key types like `tz5` will not work on *mainnet* yet. To change the network, you simply click the network name in the top-right of the Signet window. What this really does under the hood is change the network node XXX
 
 {id: ID100-introduction_2_Other}
 ## Other Tezos Wallets
