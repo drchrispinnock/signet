@@ -170,4 +170,4 @@ You can also use `Forget account...` to delete an address book entry.
 {id: ID150-othertypesofaccount_2_Other}
 ## Other Options
 
-You can also connect to a remote signer, but as a beginner you are unlikely to need this feature. A remote signer provides access to keys and prevents unwanted transactions. They are using used in Tezos baking setups. Examples of remote signer software include `octez-signer`, [Signatory](https://signatory.io), [Russignol ](https://russignol.com)and [TezSign](https://docs.tez.capital/tezsign/). `octez-signer`, like `octez-client` is part of the Octez suite.
+You can also connect to a remote signer, but as a beginner you are unlikely to need this feature. A remote signer provides access to keys and prevents unwanted transactions. They are usually used in Tezos baking setups. Examples of remote signer software include `octez-signer`, [Signatory](https://signatory.io), [Russignol ](https://russignol.com)and [TezSign](https://docs.tez.capital/tezsign/). `octez-signer`, like `octez-client` is part of the Octez suite.
