@@ -1,7 +1,11 @@
 {id: ID005-Preface_1_AI, sample: true}
 # Developing Signet
 
+<!--
 Before we start, I want to tell you a story about AI application development. As I'm typing this, Signet has been in development for just over a month. I'm going to tell you how I developed it. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can describe it.
+-->
+
+I want to tell you a story about AI application development. As I'm typing this, Signet has been in development for just over a month. I'm going to tell you how I developed it. You can skip over this if you like. I'm going to use a lot of terms, which you might not understand. What I want you to take away is this: it's incredibly easy to get an application written using AI tools, provided you know what you want and you can describe it.
 
 Recently, I've had an urge to write an application using AI. Over the summer, I tried to use Claude Code to write a graphical Tezos wallet based on `octez-client`, the command-line wallet. I managed to get something usable but the user interface was not good. Most Tezos wallets use the library Octez.js (or Taquito). This library has many functions to interact with the Tezos blockchain. I asked Claude to replace the `octez-client` interface with the library but later abandoned the project and moved on to other things. The point here is that I didn't start off with a good enough design and I had let Claude do the work.
 
@@ -123,4 +127,8 @@ I finished the first draft of this book in November 2026 - not long after I star
 
 I'm typing this text into [Markup](https://github.com/drchrispinnock/markup), a Markdown editor that I got Claude to write. It has a formatted view and a Markdown view - you can write in both. It handles images, formatting, hyperlinks, tables, citations and crosslinks. It is the editor I've always needed. And Claude wrote it in hours.
 
+I hope that you enjoyed reading this book and learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
+
+<!--
 But let's get back to the main topics. We are here to show you how to use the Tezos blockchain with the Signet wallet. I hope you enjoy reading this book and learning about blockchain. But I also hope it will inspire you to look further into AI tools if you haven't already.
+-->
