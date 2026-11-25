@@ -103,7 +103,7 @@ The `m` is the master/root private node which is not included in our account ref
 | change        | 0 for receiving addresses and 1 for internal addresses                                                                                 |
 | address_index | A sequence number for an individual address                                                                                            |
 
-In this path, an apostrophe marks a hardened derivation, which requires the parent private key. A recovery phrase (mnemonic) is used to derive a seed; in BIP39, an optional passphrase can also be used. The seed then generates the master key and its child keys. The same recovery phrase can therefore generate accounts on multiple blockchains, as Ledger does. Some other wallets work this way too.
+In this path, an apostrophe marks a hardened derivation, which requires the parent private key. A recovery phrase (mnemonic) is used to derive a seed; in BIP39, an optional passphrase can also be used. The seed then generates the master key and its child keys. The same recovery phrase can therefore generate accounts on multiple blockchains, as Ledger does. Some other wallets work this way too. 
 
 {id: ID150-othertypesofaccount_2_Connecting}
 ## Connecting a Ledger
@@ -127,10 +127,10 @@ You can export your secret keys from Signet at any time. The easiest way to back
 
 ![](150/export.png)
 
-To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet has access to your keys.
-
+To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. 
 ![](150/recovery.png)
-
+**Warning:**  Only print recovery sheets on printers that you trust and if you use a wireless printer, on networks that you trust. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet has access to your keys. Print the sheets out when you are in private and store them securely.
+ 
 You can import a key from a recovery sheet into Signet by using the `Scan QR code...` option on the burger menu. The recovery sheet has the account alias, public key hash, public key and secret key on it, along with the secret key encoded as a QR code.
 
 ![](150/recoverysheet.png)
