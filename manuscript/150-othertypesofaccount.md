@@ -129,7 +129,7 @@ You can export your secret keys from Signet at any time. The easiest way to back
 
 To make a Recovery Sheet, click the `Recovery Sheet...` button and you will be able to print the sheet to a printer or save it to a PDF file. 
 ![](150/recovery.png)
-**Warning:**  Only print recovery sheets on printers that you trust and if you use a wireless printer, on networks that you trust. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet has access to your keys. 
+**Warning:**  Only print recovery sheets on printers that you trust and if you use a wireless printer, on networks that you trust. Be careful where you store the sheet or PDF file. Anyone who has a copy of this sheet has access to your keys. Print the sheets out when you are in private and store them securely.
  
 You can import a key from a recovery sheet into Signet by using the `Scan QR code...` option on the burger menu. The recovery sheet has the account alias, public key hash, public key and secret key on it, along with the secret key encoded as a QR code.
 
