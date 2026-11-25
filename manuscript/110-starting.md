@@ -4,7 +4,11 @@
 {id: ID110-starting_2_Installati}
 ## Installation
 
-[Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org). The repositories for each project are here:
+[Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org) and there are direct download links for Mac and Windows there. For Linux, you can download the packages or for Debian Linux, you can use APT.
+
+![](110/downloadlinks.png)
+
+You can also build Signet from the source code, but we will leave that for the adventurous. The source code repositories for each project are here:
 
 {width: "100%", column-widths: "20% 80%"}
 | Platform                                                    | Repository                                       |
@@ -20,7 +24,7 @@ The first thing we need to do is install Signet. Let's look at each platform in 
 
 The Mac version is written in [Swift](https://www.swift.org) and is built with the standard Xcode tools from Apple. Pre-built binaries are available from the [release page](https://github.com/drchrispinnock/signet/releases). At the moment, it is not in the Mac App Store. Also, we only support Macs with Apple Silicon.
 
-Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the Applications folder. Go to the release page and download the DMG file. Double-click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your Applications folder.
+Installing Signet is the same as most stand-alone Apple Mac applications: download the latest version and move it to the Applications folder. Go to [signetwallet.org](https://signetwallet.org) and under the Mac section in the table, click the download link. Double-click the file in your Downloads directory and your Mac will open it. Drag the Signet application into your Applications folder.
 
 ![](110/finder.png)
 
@@ -35,7 +39,7 @@ Click `Open` and continue.
 
 The Windows version is written in C# and was ported from the Mac version by Claude. Claude and I chose C# over Swift. At the moment, Swift can build Windows applications, including GUI apps, but the tooling, especially for user interfaces, is still immature. Maybe in the future, we will rewrite the Windows version in Swift to help unify the three platforms.
 
-To install Signet on Windows, go to the [release page](https://github.com/drchrispinnock/signet-windows) and choose the right `exe` file for your platform. If you have an Intel/AMD-based desktop, use `SignetWallet-win-x64-Setup.exe`. If you have an ARM-based desktop, use `SignetWallet-win-arm64-Setup.exe`. Download the file. Windows may warn you that the `exe` file isn't commonly downloaded. If it does, click the three dots and choose `Keep`. The next window will show you that the file is signed by me. Choose `Keep anyway` instead of `Delete`. Then click `Open file` and the installer will run.
+To install Signet on Windows, go to [signetwallet.org](https://signetwallet.org) and choose the right link from the table under the Windows section If you have an Intel/AMD-based machine, choose `x64`. If you have an ARM-based machine, use `arm64`. Download the file. Windows may warn you that the `exe` file isn't commonly downloaded. If it does, click the three dots and choose `Keep`. The next window will show you that the file is signed by me. Choose `Keep anyway` instead of `Delete`. Then click `Open file` and the installer will run.
 
 Signet will install and Windows will put an icon on your Desktop so that you can find and run it easily. You can also pin it to your taskbar when you run it.
 
