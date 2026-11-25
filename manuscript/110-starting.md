@@ -4,11 +4,11 @@
 {id: ID110-starting_2_Installati}
 ## Installation
 
-[Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org) and there are direct download links for Mac and Windows there. For Linux, you can download the packages or for Debian Linux, you can use APT.
+[Signet](https://signetwallet.org) is an open-source project and the source code is available from GitHub. The original version was written for the Mac, but it's recently been ported to Windows and Linux. Each version has its own GitHub repository and release page. The main website for Signet is at [signetwallet.org](https://signetwallet.org) and there are direct download links for Mac and Windows there. For Linux, you can download the packages or for Debian Linux, you can use APT. 
 
 ![](110/downloadlinks.png)
 
-You can also build Signet from the source code, but we will leave that for the adventurous. The source code repositories for each project are here:
+You can also build Signet from the source code, but we will leave that for the adventurous. The Linux version also builds on FreeBSD. The source code repositories for each project are here:
 
 {width: "100%", column-widths: "20% 80%"}
 | Platform                                                    | Repository                                       |
