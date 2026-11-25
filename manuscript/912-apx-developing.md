@@ -1,4 +1,4 @@
-{id: ID005-Preface_1_AI, sample: true}
+{id: ID005-Preface_1_AI}
 # Developing Signet
 
 <!--
@@ -11,9 +11,7 @@ Recently, I've had an urge to write an application using AI. Over the summer, I 
 
 For some reason, I picked up the project on Monday 5th October 2026. It would be a wallet for Tezos, but this time it would be different. I started a blank Git repository, mulled over a few ideas, and picked up a pencil and drew a user interface. It is probably the least interesting user interface ever designed, but here it is:
 
-<!--
 ![](006/paper.png)
--->
 
 I wanted a "burger" menu for options, details about my account (an alias MyWallet, my address and my .tez name), buttons to Send, Receive, Buy and Sell, then my balances on Tezos and Etherlink. Also at the bottom would be my NFT collection. I wrote a very [simple specification](https://github.com/drchrispinnock/signet/blob/main/docs/spec/SPEC.md). You can find this in the source tree of Signet, but here it is:
 

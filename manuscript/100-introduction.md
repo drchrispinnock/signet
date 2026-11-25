@@ -47,6 +47,15 @@ On the Tezos network, the consensus algorithm (called *Tenderbake)* guarantees t
 
 To summarise, the blockchain is a distributed ledger containing all the transactions. The nodes keep a live online copy of the blockchain. Applications and users submit transactions to the nodes. The bakers add new blocks to the blockchain including new transactions and check other blocks baked by other bakers.
 
+{id: ID100-introduction_2_What_3}
+## What do people use blockchains for?
+
+- Store of value
+- Defi
+- Speculation
+- NFT and artwork
+- Gaming 
+
 {id: ID100-introduction_2_What}
 ## Wallets
 
