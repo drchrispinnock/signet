@@ -44,6 +44,8 @@ Each baker is allocated slots to produce blocks. They also *attest* other bakers
 Of course, given that this is happening over the whole internet, it's entirely possible that part of the network doesn't see the block straight away. If for some reason a baker cannot submit a block, another baker in the schedule can take over. There are algorithms in place so that the network can resolve which block should be the accepted one. So, it's possible that a block might be replaced with another one and that might mean that a transaction isn't included. 
 
 On the Tezos network, the consensus algorithm (called *Tenderbake)* guarantees that XXX 2 blocks help!
+XXX What is consensus?
+
 
 To summarise, the blockchain is a distributed ledger containing all the transactions. The nodes keep a live online copy of the blockchain. Applications and users submit transactions to the nodes. The bakers add new blocks to the blockchain including new transactions and check other blocks baked by other bakers.
 
