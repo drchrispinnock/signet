@@ -5,7 +5,9 @@
 
 A blockchain wallet is the user's interface to the blockchain. It is where they store their cryptographic keys. These keys represent their accounts on the blockchain. The wallet is also where they sign operations. But it is usually more. It can display information about the user's balances and their assets. It can connect to decentralised apps (dApps) on the internet. It can help the user participate in Tezos's on-chain governance. Signet has been in development since 5th October 2026, but it can already do most things a wallet should, particularly on Tezos's layer 1 network.
 
-In this book, you will learn about Tezos and how to use the Signet wallet to interact with it. By the end of the book you will have set up an account, be able to send and receive coins, and be able to interact with dApps too. You'll be able to buy and sell artwork on NFT sites. You'll also know enough to buy and sell other assets on the chain using decentralised exchanges (DEXes).
+People use blockchains for different things. The most popular things are financial: trading, stablecoins, decentralised finance including lending and borrowing, holding a store of value and tokenising real-world assets like gold. But also people collect art and other digital collectibles. They play games where the high scores and game artefacts are stored on a blockchain.
+
+In this book, you will learn about Tezos and how to use the Signet wallet to interact with it. By the end of the book you will have set up an account, be able to send and receive coins, and be able to interact with dApps too. You'll be able to buy digital artwork on NFT sites. You'll also know enough to buy and sell other assets on the chain using decentralised exchanges (DEXes).
 
 You will need a modern desktop computer and some patience. Buying cryptocurrency for the first time can take a few days due to cooling-off rules. It depends on where you live, of course. But you can practise on the test networks. It's better to make mistakes on the test networks, where the coins have no value, than on *Mainnet*, where they do.
 

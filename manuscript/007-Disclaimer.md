@@ -14,3 +14,5 @@ Before trying anything on Tezos's production network, *Mainnet*, it's prudent to
 The addresses on the Tezos blockchain used in the book are shown for demonstration purposes only. Please do not send funds to them.
 
 As the Signet software develops, the user interface may change. Sometimes the changes will be small, other times large. It's possible that the book will be out of step with the current release of the software, although efforts will be made to keep it up to date.
+
+If the user wants, Signet outputs a recovery sheet containing an account's secret key. This sheet can be used by anyone to recover the account. You should only print these sheets on printers that you own and you should keep the sheets in safe places, such as a home safe or safety deposit box.
