@@ -1,6 +1,6 @@
-005-Preface.md
+004-preface.md
 #006-DevelopingSignet.md
-007-Disclaimer.md
+008-disclaimer.md
 100-introduction.md
 110-starting.md
 140-transactions.md
