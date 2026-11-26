@@ -27,9 +27,19 @@ enum Layer2Branding: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The stored choice. The test host shares the app's UserDefaults, so under it the
+    /// standard defaults are ignored and the default branding is used (other defaults, as the
+    /// tests pass them, are read as usual).
     static func current(_ defaults: UserDefaults = .standard) -> Layer2Branding {
-        defaults.string(forKey: key).flatMap(Layer2Branding.init(rawValue:)) ?? .etherlink
+        if defaults == .standard, SignetApp.isTestHost { return .etherlink }
+        return defaults.string(forKey: key).flatMap(Layer2Branding.init(rawValue:)) ?? .etherlink
     }
+}
+
+/// Experimental (Settings > Experimental Features): show tez, Layer 2 and Shielded as one
+/// tez balance that expands into its parts. Off by default; kept in UserDefaults.
+enum ConsolidatedBalances {
+    static let key = "consolidatedBalances"
 }
 
 /// Shorthands for user-facing text: `"On \(Brand.l2)"`, `Image(Brand.l2Logo)`.

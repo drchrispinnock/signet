@@ -636,8 +636,14 @@ automatic download is off by default. The updater is not started under the test 
   `\(Brand.l2)` and images use `Brand.l2Logo`, never the literal name or `EtherlinkLogo`;
   `Network.l2Name` follows the setting for Etherlink and keeps a rollup's own name (Previewnet).
   Code names, contracts, URLs and chain data stay Etherlink's. Changing it redraws the
-  dashboard and refreshes (`WalletHomeView`); open sheets pick it up when reopened.
-  `Layer2BrandingTests`.
+  dashboard and refreshes (`WalletHomeView`); open sheets pick it up when reopened. The test
+  host shares the app's UserDefaults, so under it the stored branding is ignored.
+  `Layer2BrandingTests`. **Consolidated balances** (`ConsolidatedBalances`, UserDefaults
+  `consolidatedBalances`, off by default): the dashboard's tez, Layer 2 and Shielded rows
+  become one tez row (`AssetBalance.consolidated`, applied in `AssetListView`) whose amount
+  is all of them and whose breakdown is spendable, staked, unstaking, then a line per folded
+  row; an unreadable row adds nothing and its line says "unavailable". Tokens are untouched.
+  `ConsolidatedBalancesTests`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

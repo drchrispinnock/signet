@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// Key balances: tez first, Etherlink second, then any other tokens.
+/// Key balances: tez first, Etherlink second, then any other tokens. With the experimental
+/// "Consolidated balances" on, tez, Etherlink and Shielded are one tez row that expands into
+/// its parts (`AssetBalance.consolidated`).
 struct AssetListView: View {
     let assets: [AssetBalance]
+    @AppStorage(ConsolidatedBalances.key) private var consolidates = false
 
     var body: some View {
         VStack(spacing: 12) {
-            ForEach(assets) { asset in
+            ForEach(consolidates ? AssetBalance.consolidated(assets) : assets) { asset in
                 AssetRowView(asset: asset)
             }
         }
@@ -58,8 +61,12 @@ struct AssetRowView: View {
                             Text(line.label)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text(AssetBalance.format(line.amount, symbol: asset.symbol))
-                                .font(.body.monospacedDigit())
+                            if let unavailable = line.unavailable {
+                                Text("unavailable").foregroundStyle(.secondary).help(unavailable)
+                            } else {
+                                Text(AssetBalance.format(line.amount, symbol: asset.symbol))
+                                    .font(.body.monospacedDigit())
+                            }
                         }
                     }
                 }
