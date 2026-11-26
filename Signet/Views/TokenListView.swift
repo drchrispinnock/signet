@@ -97,7 +97,7 @@ struct TokenRowView: View {
             }
         }
         .padding(.vertical, 8)
-        .help((token.isLayer2 ? "On Etherlink\n" : "") + (contract.map { "\(token.name)\n\($0)" } ?? token.name))
+        .help((token.isLayer2 ? "On \(Brand.l2)\n" : "") + (contract.map { "\(token.name)\n\($0)" } ?? token.name))
         .contextMenu {
             if let contract {
                 Button("Copy contract address") {
@@ -110,7 +110,7 @@ struct TokenRowView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(token.name) \(token.formattedAmount)\(token.isLayer2 ? ", on Etherlink" : "")")
+        .accessibilityLabel("\(token.name) \(token.formattedAmount)\(token.isLayer2 ? ", on \(Brand.l2)" : "")")
     }
 
     @ViewBuilder

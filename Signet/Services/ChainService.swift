@@ -192,10 +192,10 @@ enum ChainError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .accountNotOnChain: "Key not found on chain"
-        case .noEtherlinkNode: "Etherlink is not enabled for this network."
-        case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
+        case .noEtherlinkNode: "\(Brand.l2) is not enabled for this network."
+        case .noEtherlinkBridge: "Signet knows no \(Brand.l2) bridge for this network."
         case .notALayer2Service: "This needs the Layer 2 node."
-        case .etherlinkAliasNotUpgraded: "This network has not upgraded to Etherlink 8.0 yet, which changes the account's address on the EVM side. Linking waits for the upgrade."
+        case .etherlinkAliasNotUpgraded: "This network has not upgraded to \(Brand.l2) 8.0 yet, which changes the account's address on the EVM side. Linking waits for the upgrade."
         case .invalidTokenTransfer: "Choose at least one token and a whole number of editions, up to \(TokenTransferRequest.maxTokens) tokens at once."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .proofOfPossessionRequired: "This account's first operation reveals its key with a proof of possession, which needs the secret key."

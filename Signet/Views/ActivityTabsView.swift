@@ -46,12 +46,12 @@ struct ActivityTabsView: View {
 /// are shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
 struct LayerToggles: View {
     @Binding var shown: Set<Int>
-    var layer2Name = "Etherlink"
+    var layer2Name = Brand.l2
 
     var body: some View {
         HStack(spacing: 4) {
             toggle(layer: 1, logo: "TezosToken", name: "Tezos")
-            toggle(layer: 2, logo: "EtherlinkLogo", name: layer2Name)
+            toggle(layer: 2, logo: Brand.l2Logo, name: layer2Name)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chains shown")
@@ -78,11 +78,11 @@ struct EtherlinkMark: View {
     var size: CGFloat = 14
 
     var body: some View {
-        Image("EtherlinkLogo")
+        Image(Brand.l2Logo)
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
-            .help("On Etherlink")
+            .help("On \(Brand.l2)")
             .accessibilityHidden(true)
     }
 }
@@ -192,7 +192,7 @@ struct TransactionRowView: View {
         .onTapGesture { openExplorer() }
         .help(helpText)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")\(transaction.isLayer2 ? ", on Etherlink" : "")")
+        .accessibilityLabel("\(headline), \(subtitle), \(transaction.amount > 0 ? signedAmount : "")\(transaction.isLayer2 ? ", on \(Brand.l2)" : "")")
     }
 
     // MARK: Pieces
@@ -275,7 +275,7 @@ struct TransactionRowView: View {
 
     private var helpText: String {
         var lines = [transaction.hash, "Block \(transaction.level.formatted())", transaction.timestamp.formatted(date: .abbreviated, time: .shortened)]
-        if transaction.isLayer2 { lines.insert("On Etherlink", at: 0) }
+        if transaction.isLayer2 { lines.insert("On \(Brand.l2)", at: 0) }
         if let address = transaction.counterparty { lines.append(address.value) }
         if network?.explorerURL(operation: transaction.hash) != nil { lines.append("Click to view in the explorer") }
         return lines.joined(separator: "\n")

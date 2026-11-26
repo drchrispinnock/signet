@@ -5,7 +5,7 @@ import SwiftUI
 enum ChainSide: String, CaseIterable, Identifiable {
     case tezos = "Tezos", etherlink = "Etherlink"
     var id: String { rawValue }
-    var logo: String { self == .tezos ? "TezosToken" : "EtherlinkLogo" }
+    var logo: String { self == .tezos ? "TezosToken" : Brand.l2Logo }
 }
 
 /// The chain's logo and, when `canSwitch`, a standard pop-up button beside it (native bezel and
@@ -16,7 +16,7 @@ struct ChainSidePicker: View {
     @Binding var side: ChainSide
     var canSwitch: Bool
     /// What the Layer 2 side is called on this network ("Etherlink", or "Previewnet").
-    var layer2Name = ChainSide.etherlink.rawValue
+    var layer2Name = Brand.l2
 
     private func title(_ side: ChainSide) -> String { side == .etherlink ? layer2Name : side.rawValue }
 

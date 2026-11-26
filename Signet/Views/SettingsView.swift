@@ -18,6 +18,7 @@ struct SettingsView: View {
             }
             nftSection
             updatesSection
+            experimentalSection
             developerSection
         }
         .formStyle(.grouped)
@@ -77,6 +78,26 @@ struct SettingsView: View {
             Text("New releases are fetched from GitHub and verified against the key built into the app before they are installed. Only Signet itself is replaced; your accounts stay in the wallet folder.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @AppStorage(Layer2Branding.key) private var layer2Branding: Layer2Branding = .etherlink
+
+    /// Features being tried out; each says what it changes.
+    private var experimentalSection: some View {
+        Section {
+            Picker("Layer 2 branding", selection: $layer2Branding) {
+                ForEach(Layer2Branding.allCases) { branding in
+                    Label { Text(branding.name) } icon: { Image(branding.logo).resizable().frame(width: 16, height: 16) }.tag(branding)
+                }
+            }
+            Text(layer2Branding == .tezosX
+                 ? "The Layer 2 is called Tezos X throughout Signet and shown with the Tezos X logo. Only the name and logo change: nodes, contracts and accounts are the same."
+                 : "The Layer 2 is called Etherlink, with Etherlink's logo.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Experimental Features")
         }
     }
 

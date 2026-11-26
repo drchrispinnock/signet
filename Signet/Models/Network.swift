@@ -44,7 +44,11 @@ struct Network: Hashable, Identifiable, Sendable {
     /// Layer 2 (Shadownet (Previewnet)). Saved state records only a choice that differs.
     let l2EnabledByDefault: Bool
     /// What the Layer 2 is called on screen: "Etherlink", or "Previewnet" for Tezos X Previewnet.
-    var l2Name = "Etherlink"
+    /// What the Layer 2 is called on screen: the shipped name, except that Etherlink follows
+    /// the Layer 2 branding setting (`Brand.l2`); a rollup with a name of its own (Previewnet) keeps it.
+    var l2Name: String { l2Name(for: Layer2Branding.current()) }
+    func l2Name(for branding: Layer2Branding) -> String { l2BaseName == "Etherlink" ? branding.name : l2BaseName }
+    var l2BaseName = "Etherlink"
     /// The `chain` of `layer2`; `etherlink-<chain>` unless the rollup has a name of its own,
     /// so two rollups on one layer 1 are never taken for the same chain.
     var l2Chain: String? = nil
@@ -105,7 +109,7 @@ struct Network: Hashable, Identifiable, Sendable {
          l2Name: String = "Etherlink", l2Chain: String? = nil, l2EnabledByDefault: Bool = false,
          shieldedAvailable: Bool = false, shielded: ShieldedConfig? = nil) {
         self.name = name
-        self.l2Name = l2Name
+        self.l2BaseName = l2Name
         self.l2Chain = l2Chain
         self.l2EnabledByDefault = l2EnabledByDefault
         self.defaultEtherlinkGovernance = etherlinkGovernance.mapValues(Address.init)
@@ -149,7 +153,7 @@ struct Network: Hashable, Identifiable, Sendable {
                            tzktURL: l2TzKTURL, explorerURL: l2ExplorerURL, expectedChainID: expectedL2ChainID)
         copy.layerNumber = 2
         copy.dappType = l2DAppType
-        copy.l2Name = l2Name
+        copy.l2BaseName = l2BaseName
         return copy
     }
 

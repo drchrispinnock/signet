@@ -104,9 +104,9 @@ struct BridgeSheet: View {
             }
             .buttonStyle(.borderless)
             .disabled(step != .compose)
-            .help(direction == .toEtherlink ? "Tezos to Etherlink. Click to reverse." : "Etherlink to Tezos. Click to reverse.")
-            .accessibilityLabel(direction == .toEtherlink ? "Direction: Tezos to Etherlink" : "Direction: Etherlink to Tezos")
-            side(image: "EtherlinkLogo", title: network.l2Name, balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
+            .help(direction == .toEtherlink ? "Tezos to \(Brand.l2). Click to reverse." : "\(Brand.l2) to Tezos. Click to reverse.")
+            .accessibilityLabel(direction == .toEtherlink ? "Direction: Tezos to \(Brand.l2)" : "Direction: \(Brand.l2) to Tezos")
+            side(image: Brand.l2Logo, title: network.l2Name, balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
         }
         .frame(maxWidth: .infinity)
     }

@@ -629,6 +629,15 @@ automatic download is off by default. The updater is not started under the test 
   own reason, which octez writes as a BSON document in the error trace (`SignerWire.errorReason`).
   `AirGapTests` uses vectors made with
   `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
+- **Experimental features.** Settings has an "Experimental Features" section. **Layer 2
+  branding** (`Layer2Branding`, UserDefaults `layer2Branding`, Etherlink by default): with
+  Tezos X chosen, every user-facing "Etherlink" reads "Tezos X" and the Etherlink logo becomes
+  `TezosXLogo` (the Tezos coin with a white X at its top right). User-facing text says
+  `\(Brand.l2)` and images use `Brand.l2Logo`, never the literal name or `EtherlinkLogo`;
+  `Network.l2Name` follows the setting for Etherlink and keeps a rollup's own name (Previewnet).
+  Code names, contracts, URLs and chain data stay Etherlink's. Changing it redraws the
+  dashboard and refreshes (`WalletHomeView`); open sheets pick it up when reopened.
+  `Layer2BrandingTests`.
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

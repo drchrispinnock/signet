@@ -4,6 +4,8 @@ import SwiftUI
 /// With no wallets yet it shows a prompt to create the first address instead.
 struct WalletHomeView: View {
     @Bindable var model: WalletViewModel
+    /// Experimental Layer 2 branding: a change redraws the dashboard and reloads its rows' names.
+    @AppStorage(Layer2Branding.key) private var branding: Layer2Branding = .etherlink
 
     var body: some View {
         VStack(spacing: 0) {
@@ -13,6 +15,8 @@ struct WalletHomeView: View {
             Divider()
             NodeStatusBar(monitor: model.nodeMonitor, layer2: model.l2Monitor)
         }
+        .id(branding)
+        .onChange(of: branding) { Task { await model.refresh() } }
         .frame(minWidth: 480, minHeight: 720)
         .appliesStoredAppearance()
         .showsLaunchDisclaimer()
