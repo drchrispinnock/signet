@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Moves tez between Tezos layer 1 and the selected account on Etherlink (0.9.1): Tezos on the
-/// left, Etherlink on the right, the arrow between them sets the direction. Only layer 1 →
-/// Etherlink can be carried out today: Etherlink does not yet offer withdrawals from
-/// Michelson-interface (tz) accounts, so that direction, with its Fast / Slow choice, is shown
-/// but cannot be confirmed.
+/// left, Etherlink on the right, the arrow between them sets the direction. Etherlink → Tezos
+/// (slow) works where the Layer 2 node runs Etherlink 8.0, the first kernel that pays out
+/// withdrawals from Michelson-interface (tz) accounts (`canWithdrawFromEtherlink`); the tez
+/// arrive after the rollup's challenge window. Fast withdrawals are shown but not offered yet.
 struct BridgeSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -17,7 +17,9 @@ struct BridgeSheet: View {
     enum Step: Hashable { case compose, working, done(hash: String, level: Int) }
 
     @State private var direction: Direction = .toEtherlink
-    @State private var speed: Speed = .fast
+    @State private var speed: Speed = .slow
+    /// Whether this network's Etherlink pays out withdrawals from tz accounts; `nil` while asking.
+    @State private var withdrawalsSupported: Bool?
     @State private var amountText = ""
     /// The estimate and the context it was made in (S31); refreshed whenever that context moves.
     @State private var estimate: WalletViewModel.BridgeEstimate?
@@ -39,12 +41,17 @@ struct BridgeSheet: View {
         guard let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), value > 0, value.isFinite else { return nil }
         return value
     }
+    /// What the tez leave from: Tezos for a deposit, Etherlink for a withdrawal.
+    private var sourceSpendable: Decimal? { direction == .toEtherlink ? spendable : model.etherlinkSpendable }
     private var exceedsBalance: Bool {
-        guard let amount, let spendable else { return false }
-        return amount + (estimate?.estimate.fee ?? 0) > spendable
+        guard let amount, let sourceSpendable else { return false }
+        return amount + (estimate?.estimate.fee ?? 0) > sourceSpendable
+    }
+    private var directionAvailable: Bool {
+        direction == .toEtherlink || (speed == .slow && withdrawalsSupported == true)
     }
     private var canConfirm: Bool {
-        direction == .toEtherlink && amount != nil && estimate?.amount == amount
+        directionAvailable && amount != nil && estimate?.amount == amount && estimate?.isWithdrawal == (direction == .toTezos)
             && estimate?.context == model.bridgeContext && !exceedsBalance && model.canBridge
             && !(needsPassphrase && passphrase.isEmpty) && step == .compose
     }
@@ -60,9 +67,9 @@ struct BridgeSheet: View {
                 sides
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Bridging \(AssetBalance.format(amount ?? 0, symbol: "tz")) to Etherlink…").font(.callout).foregroundStyle(.secondary)
+                    Text("Bridging \(AssetBalance.format(amount ?? 0, symbol: "tz")) to \(direction == .toEtherlink ? network.l2Name : "Tezos")…").font(.callout).foregroundStyle(.secondary)
                 }
-                if signsOnLedger { LedgerPromptLabel(text: "Confirm the deposit on your Ledger…") }
+                if signsOnLedger { LedgerPromptLabel(text: direction == .toEtherlink ? "Confirm the deposit on your Ledger…" : "Confirm the withdrawal on your Ledger…") }
             case .done(let hash, let level):
                 doneView(hash: hash, level: level)
             }
@@ -71,7 +78,8 @@ struct BridgeSheet: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task(id: EstimateKey(direction: direction, amount: amountText, context: model.bridgeContext, step: step)) { await refreshEstimate() }
+        .task(id: EstimateKey(direction: direction, speed: speed, amount: amountText, context: model.bridgeContext, step: step, supported: withdrawalsSupported)) { await refreshEstimate() }
+        .task(id: model.bridgeContext) { withdrawalsSupported = nil; withdrawalsSupported = await model.canWithdrawFromEtherlink() }
     }
 
     // MARK: Pieces
@@ -133,30 +141,36 @@ struct BridgeSheet: View {
             }
             switch direction {
             case .toEtherlink:
-                if let estimate = estimate?.estimate {
-                    LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz"))
-                    LabeledContent("Total", value: AssetBalance.format(estimate.total, symbol: "tz"))
-                } else if amount != nil {
-                    LabeledContent("Fee") {
-                        if let estimateError { Text(estimateError).font(.callout).foregroundStyle(.orange).multilineTextAlignment(.trailing) }
-                        else { ProgressView().controlSize(.small) }
-                    }
-                }
-                Text("The tez leave this account on Tezos through Etherlink's bridge and arrive on Etherlink under the same address within about a minute.")
+                fee
+                Text("The tez leave this account on Tezos through \(network.l2Name)'s bridge and arrive on \(network.l2Name) under the same address within about a minute.")
                     .font(.callout).foregroundStyle(.secondary)
             case .toTezos:
                 Picker("Speed", selection: $speed) {
                     ForEach(Speed.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Text(speed == .fast
-                     ? "Fast: a liquidity provider pays out on Tezos within about a minute for a small fee."
-                     : "Slow: the tez arrive on Tezos after the rollup's 15-day withdrawal period, with no fee.")
-                    .font(.callout).foregroundStyle(.secondary)
-                Label("Etherlink does not yet offer withdrawals from accounts on its Michelson interface (tz addresses). This direction will work once it does.", systemImage: "clock.badge.exclamationmark")
-                    .font(.callout).foregroundStyle(.orange)
+                switch speed {
+                case .fast:
+                    Text("Fast: a liquidity provider pays out on Tezos within about a minute for a small fee.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Label("Fast withdrawals from tz accounts are not offered yet. Choose Slow.", systemImage: "clock.badge.exclamationmark")
+                        .font(.callout).foregroundStyle(.orange)
+                case .slow:
+                    if withdrawalsSupported == true { fee }
+                    Text("Slow: the tez leave this account on \(network.l2Name) now and arrive on Tezos under the same address once the rollup's commitment is final, about two weeks from now.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    switch withdrawalsSupported {
+                    case nil:
+                        HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Checking whether \(network.l2Name) pays out withdrawals…").font(.callout).foregroundStyle(.secondary) }
+                    case false?:
+                        Label("\(network.l2Name) on this network does not pay out withdrawals from tz accounts yet. That comes with Etherlink 8.0.", systemImage: "clock.badge.exclamationmark")
+                            .font(.callout).foregroundStyle(.orange)
+                    case true?:
+                        EmptyView()
+                    }
+                }
             }
-            if direction == .toEtherlink, needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if directionAvailable, needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
             if !model.canBridge {
                 Text("Bridging needs Layer 2 on for this network and a tz1, tz2 or tz3 account Signet can sign for.").font(.callout).foregroundStyle(.orange)
             }
@@ -165,14 +179,32 @@ struct BridgeSheet: View {
         .scrollDisabled(true)
     }
 
+    /// The estimate's fee and total, or why there is none yet.
+    @ViewBuilder
+    private var fee: some View {
+        if let estimate = estimate?.estimate {
+            LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz"))
+            LabeledContent("Total", value: AssetBalance.format(estimate.total, symbol: "tz"))
+        } else if amount != nil {
+            LabeledContent("Fee") {
+                if let estimateError { Text(estimateError).font(.callout).foregroundStyle(.orange).multilineTextAlignment(.trailing) }
+                else { ProgressView().controlSize(.small) }
+            }
+        }
+    }
+
     private func doneView(hash: String, level: Int) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Sent \(AssetBalance.format(amount ?? 0, symbol: "tz")) to the bridge", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-            Text("Included in block \(level.formatted()). Etherlink credits \(wallet?.alias ?? "the account") within about a minute; the Etherlink balance updates on the next refresh.")
+        let withdrawal = submitted?.isWithdrawal ?? (direction == .toTezos)
+        let explorerNetwork = withdrawal ? (network.layer2 ?? network) : network
+        return VStack(alignment: .leading, spacing: 10) {
+            Label(withdrawal ? "Withdrew \(AssetBalance.format(amount ?? 0, symbol: "tz")) from \(network.l2Name)" : "Sent \(AssetBalance.format(amount ?? 0, symbol: "tz")) to the bridge", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+            Text(withdrawal
+                 ? "Included in \(network.l2Name) block \(level.formatted()). The tez arrive in \(wallet?.alias ?? "the account") on Tezos once the rollup's commitment is final, about two weeks from now."
+                 : "Included in block \(level.formatted()). \(network.l2Name) credits \(wallet?.alias ?? "the account") within about a minute; the \(network.l2Name) balance updates on the next refresh.")
                 .font(.callout).foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 Text(hash).font(.callout.monospaced()).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
-                if let url = network.explorerURL(operation: hash) { Link("View in explorer", destination: url) }
+                if let url = explorerNetwork.explorerURL(operation: hash) { Link("View in explorer", destination: url) }
             }
         }
     }
@@ -199,19 +231,21 @@ struct BridgeSheet: View {
     /// or wallet directory drops the old estimate and asks again (S31).
     private struct EstimateKey: Hashable {
         let direction: Direction
+        let speed: Speed
         let amount: String
         let context: WalletViewModel.BridgeContext?
         let step: Step
+        let supported: Bool?
     }
 
     private func refreshEstimate() async {
         estimate = nil
         estimateError = nil
-        guard step == .compose, direction == .toEtherlink, let amount, model.canBridge else { return }
+        guard step == .compose, directionAvailable, let amount, model.canBridge else { return }
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
         do {
-            let result = try await model.estimateBridgeDeposit(amount: amount)
+            let result = direction == .toEtherlink ? try await model.estimateBridgeDeposit(amount: amount) : try await model.estimateBridgeWithdrawal(amount: amount)
             if !Task.isCancelled { estimate = result }
         } catch {
             if !Task.isCancelled { estimateError = error.localizedDescription }
@@ -219,12 +253,15 @@ struct BridgeSheet: View {
     }
 
     private func bridge() async {
-        guard let amount, let approved = estimate, direction == .toEtherlink else { return }
+        guard let amount, let approved = estimate, directionAvailable else { return }
         errorMessage = nil
         submitted = approved
         step = .working
         do {
-            let (hash, level) = try await model.bridgeToEtherlink(amount: amount, approved: approved, passphrase: needsPassphrase ? passphrase : nil)
+            let passphrase = needsPassphrase ? passphrase : nil
+            let (hash, level) = approved.isWithdrawal
+                ? try await model.bridgeToTezos(amount: amount, approved: approved, passphrase: passphrase)
+                : try await model.bridgeToEtherlink(amount: amount, approved: approved, passphrase: passphrase)
             step = .done(hash: hash, level: level)
         } catch {
             errorMessage = error.localizedDescription

@@ -279,6 +279,40 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
+    // MARK: Etherlink withdrawals (8.0), on the Layer 2 service
+
+    /// Etherlink 8.0 ("Horus") is the first kernel that pays out tez withdrawn from the
+    /// Michelson interface; its gateway is also the first with `%materialize_alias`, which is
+    /// what is asked for here. An older kernel is never sent a withdrawal.
+    func etherlinkWithdrawalsSupported() async throws -> Bool {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        try await verifyChain()
+        var request = URLRequest(url: network.rpcURL.appendingPathComponent("chains/main/blocks/head/context/contracts/\(Network.etherlinkGateway.value)/entrypoints"))
+        request.timeoutInterval = 20
+        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.smallReplyBytes)
+        guard reply.isSuccess, let object = try JSONSerialization.jsonObject(with: reply.data) as? [String: Any],
+              let entrypoints = object["entrypoints"] as? [String: Any] else { throw URLError(.cannotParseResponse) }
+        return entrypoints["materialize_alias"] != nil
+    }
+
+    func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
+        try await verifyChain()
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateEtherlinkWithdrawal", [network.rpcURL.absoluteString, wallet.address.value, publicKey, Network.etherlinkGateway.value, Mutez.fromTez(amount)], timeout: 120) }
+        return try Self.estimate(from: result)
+    }
+
+    func sendEtherlinkWithdrawal(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendEtherlinkWithdrawal", [network.rpcURL.absoluteString, signer.bridgeSpec, Network.etherlinkGateway.value, Mutez.fromTez(amount), limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected withdrawal payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
     func pendingOperation(for address: Address) async throws -> SentOperation? {
         try await verifyChain()
         let value = try await bridge.call("pendingOperation", [network.rpcURL.absoluteString, address.value], timeout: 30)

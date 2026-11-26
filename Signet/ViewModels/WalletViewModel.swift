@@ -1358,11 +1358,13 @@ final class WalletViewModel {
         BridgeContext(wallet: wallet, network: network, directoryRevision: walletDirectoryRevision, generation: operationGeneration)
     }
 
-    /// A deposit estimate together with the context it is valid for.
+    /// A deposit or withdrawal estimate together with the context it is valid for.
     struct BridgeEstimate: Sendable {
         let estimate: TransferEstimate
         let context: BridgeContext
         let amount: Decimal
+        /// Etherlink → Tezos; a deposit's estimate is never good for a withdrawal or the other way round.
+        var isWithdrawal = false
     }
 
     func estimateBridgeDeposit(amount: Decimal) async throws -> BridgeEstimate {
@@ -1382,13 +1384,55 @@ final class WalletViewModel {
     func bridgeToEtherlink(amount: Decimal, approved: BridgeEstimate?, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
         guard let approved, let limits = approved.estimate.limits else { throw WalletError.notEstimated }
-        guard approved.context == bridgeContext else { throw WalletError.contextChanged }
+        guard approved.context == bridgeContext, !approved.isWithdrawal else { throw WalletError.contextChanged }
         guard canBridge else { throw ChainError.noEtherlinkBridge }
         guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
         guard amount == approved.amount else { throw WalletError.contextChanged }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
         let chain = self.chain
         let sent = try await chain.sendEtherlinkDeposit(from: wallet, signer: signer, amount: amount, limits: limits)
+        let level: Int
+        do {
+            level = try await chain.waitForConfirmation(of: sent.hash)
+        } catch where !sent.injected {
+            throw WalletError.outcomeUnknown(sent.hash)
+        }
+        await refreshAfterOperation()
+        return (sent.hash, level)
+    }
+
+    // MARK: Etherlink withdrawals (8.0)
+
+    /// Whether the selected account can withdraw from Etherlink to Tezos: the Bridge rules, and
+    /// a Layer 2 node whose kernel pays out withdrawals from the Michelson interface (Etherlink
+    /// 8.0, asked of the node). `false` while the network is on an older kernel.
+    func canWithdrawFromEtherlink() async -> Bool {
+        guard canBridge, let chain = layer2Chain else { return false }
+        return (try? await chain.etherlinkWithdrawalsSupported()) ?? false
+    }
+
+    func estimateBridgeWithdrawal(amount: Decimal) async throws -> BridgeEstimate {
+        guard let wallet = selectedWallet, let context = bridgeContext else { throw WalletError.emptyAlias }
+        guard canBridge, let chain = layer2Chain else { throw ChainError.noEtherlinkBridge }
+        guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
+        guard try await chain.etherlinkWithdrawalsSupported() else { throw ChainError.etherlinkWithdrawalsUnavailable }
+        let estimate = try await chain.estimateEtherlinkWithdrawal(from: wallet, amount: amount)
+        guard bridgeContext == context else { throw WalletError.contextChanged }
+        return BridgeEstimate(estimate: estimate, context: context, amount: amount, isWithdrawal: true)
+    }
+
+    /// Withdraws `amount` tez from the selected account on Etherlink to the same account on
+    /// Tezos with the approved limits (S14), and waits for the Etherlink block. The tez reach
+    /// layer 1 when the rollup's commitment is cemented (about two weeks) and its outbox message
+    /// is executed. Bound to the context the estimate was made in (S31).
+    func bridgeToTezos(amount: Decimal, approved: BridgeEstimate?, passphrase: String?) async throws -> (hash: String, level: Int) {
+        guard let wallet = selectedWallet else { throw WalletError.emptyAlias }
+        guard let approved, approved.isWithdrawal, let limits = approved.estimate.limits else { throw WalletError.notEstimated }
+        guard approved.context == bridgeContext else { throw WalletError.contextChanged }
+        guard canBridge, let chain = layer2Chain else { throw ChainError.noEtherlinkBridge }
+        guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)), amount == approved.amount else { throw WalletError.contextChanged }
+        guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
+        let sent = try await chain.sendEtherlinkWithdrawal(from: wallet, signer: signer, amount: amount, limits: limits)
         let level: Int
         do {
             level = try await chain.waitForConfirmation(of: sent.hash)

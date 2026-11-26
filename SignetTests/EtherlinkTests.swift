@@ -739,3 +739,78 @@ struct EtherlinkHistoryTests {
         #expect(WalletBackup.shieldedFiles.count == Set(WalletBackup.shieldedFiles).count)
     }
 }
+
+/// Etherlink → Tezos (Etherlink 8.0): offered only where the Layer 2 node's kernel pays out
+/// withdrawals from tz accounts, estimated and sent through the Layer 2 service, and an
+/// estimate is good only for its own direction and context (S31).
+@MainActor
+struct EtherlinkWithdrawalTests {
+    struct OldKernel: TestChainService {
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1) }
+    }
+
+    func model(chain: any ChainService) throws -> WalletViewModel {
+        let store = InMemoryWalletStore()
+        try store.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: [WalletViewModel.sampleWallets[0]], chain: chain, walletStore: store)
+        model.setL2Enabled(true, for: .mainnet)
+        return model
+    }
+
+    @Test func withdrawalsGoThroughTheLayer2ServiceInTheirOwnContext() async throws {
+        let model = try model(chain: MockChainService())
+        #expect(model.canBridge)
+        #expect(await model.canWithdrawFromEtherlink())
+        let approved = try await model.estimateBridgeWithdrawal(amount: 2)
+        #expect(approved.isWithdrawal && approved.amount == 2 && approved.estimate.limits != nil)
+        // A deposit's estimate cannot send a withdrawal, nor the other way round, nor another amount.
+        let deposit = try await model.estimateBridgeDeposit(amount: 2)
+        await #expect(throws: WalletViewModel.WalletError.notEstimated) { _ = try await model.bridgeToTezos(amount: 2, approved: deposit, passphrase: nil) }
+        await #expect(throws: WalletViewModel.WalletError.contextChanged) { _ = try await model.bridgeToEtherlink(amount: 2, approved: approved, passphrase: nil) }
+        await #expect(throws: WalletViewModel.WalletError.contextChanged) { _ = try await model.bridgeToTezos(amount: 3, approved: approved, passphrase: nil) }
+        let (hash, level) = try await model.bridgeToTezos(amount: 2, approved: approved, passphrase: nil)
+        #expect(hash == "ooMockWithdraw" && level > 0)
+    }
+
+    @Test func anOlderKernelIsNeverAskedToWithdraw() async throws {
+        let model = try model(chain: OldKernel())
+        #expect(await model.canWithdrawFromEtherlink() == false)
+        await #expect(throws: ChainError.etherlinkWithdrawalsUnavailable) { _ = try await model.estimateBridgeWithdrawal(amount: 1) }
+        #expect(TaquitoBridge.kind(of: "sendEtherlinkWithdrawal") == .signing)
+    }
+}
+
+extension EtherlinkLiveTests {
+    /// Previewnet runs Etherlink 8.0: a fresh account deposits from Shadownet, then withdraws
+    /// back through the gateway; the Etherlink balance drops by the amount and the fee. The
+    /// tez reach layer 1 only after the challenge window (about 14 days), so that is not waited for.
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
+    func withdrawsFromPreviewnetToTezos() async throws {
+        let layer1 = TaquitoChainService(network: Network.shadownetPreviewnet)
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownetPreviewnet.layer2))
+        #expect(try await layer2.etherlinkWithdrawalsSupported())
+        let material = try await KeyGenerator().generate(scheme: .tz1)
+        let wallet = Wallet(alias: "withdraw-test", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
+        let signer = SigningKey.secret(material.secretKey, passphrase: nil, address: wallet.address)
+        let faucet = try #require(FaucetService(network: .shadownet))
+        _ = try await faucet.requestTez(to: wallet.address, amount: 10)
+        var funded = false
+        for _ in 0..<40 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.tezBalance(for: wallet.address), b.spendable >= 10 { funded = true; break } }
+        #expect(funded)
+        let deposit = try await layer1.estimateEtherlinkDeposit(from: wallet, amount: 3)
+        let sent = try await layer1.sendEtherlinkDeposit(from: wallet, signer: signer, amount: 3, limits: try #require(deposit.limits))
+        _ = try await layer1.waitForConfirmation(of: sent.hash)
+        var credited = false
+        for _ in 0..<45 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.etherlinkBalance(for: wallet.address), b >= 3 { credited = true; break } }
+        #expect(credited)
+
+        let before = try await layer1.etherlinkBalance(for: wallet.address)
+        let estimate = try await layer2.estimateEtherlinkWithdrawal(from: wallet, amount: 1)
+        let withdrawal = try await layer2.sendEtherlinkWithdrawal(from: wallet, signer: signer, amount: 1, limits: try #require(estimate.limits))
+        print("etherlink withdrawal \(withdrawal.hash)")
+        #expect(try await layer2.waitForConfirmation(of: withdrawal.hash) > 0)
+        let after = try await layer1.etherlinkBalance(for: wallet.address)
+        // The amount and at most the approved fee: Etherlink 8.0 refunds unused gas.
+        #expect(before - after > 1 && before - after <= 1 + estimate.fee)
+    }
+}
