@@ -279,21 +279,7 @@ struct TaquitoChainService: ChainService {
         return sent
     }
 
-    // MARK: Etherlink withdrawals (8.0), on the Layer 2 service
-
-    /// Etherlink 8.0 ("Horus") is the first kernel that pays out tez withdrawn from the
-    /// Michelson interface; its gateway is also the first with `%materialize_alias`, which is
-    /// what is asked for here. An older kernel is never sent a withdrawal.
-    func etherlinkWithdrawalsSupported() async throws -> Bool {
-        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
-        try await verifyChain()
-        var request = URLRequest(url: network.rpcURL.appendingPathComponent("chains/main/blocks/head/context/contracts/\(Network.etherlinkGateway.value)/entrypoints"))
-        request.timeoutInterval = 20
-        let reply = try await BoundedHTTP.data(for: request, session: session, limit: Self.smallReplyBytes)
-        guard reply.isSuccess, let object = try JSONSerialization.jsonObject(with: reply.data) as? [String: Any],
-              let entrypoints = object["entrypoints"] as? [String: Any] else { throw URLError(.cannotParseResponse) }
-        return entrypoints["materialize_alias"] != nil
-    }
+    // MARK: Etherlink withdrawals, on the Layer 2 service
 
     func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
         guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }

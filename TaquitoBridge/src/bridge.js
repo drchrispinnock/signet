@@ -7,13 +7,13 @@
 // `xtz_deposit_michelson.py` builds it: `0x01 ++ rlp([[0x01, forged tz address], []])`. The
 // kernel refuses originated (KT1) receivers, and tz4 keys are not on the rollup yet.
 //
-// A withdrawal (Etherlink 8.0, "Horus") goes the other way from the account itself on the
+// A withdrawal goes the other way from the account itself on the
 // Michelson interface: the gateway's `%call_evm` to the EVM's tez withdrawal precompile
 // (`withdraw_base58(string)`, the layer 1 receiver in base58) with the tez attached, which the
 // gateway passes on as the call's value. The precompile emits the withdrawal from the
 // account's EVM alias and the rollup's outbox pays it out on layer 1 once the commitment is
-// cemented (about two weeks). Checked on Previewnet, 26 November 2026; older kernels are not
-// asked (the Swift side offers it only where the gateway has `%materialize_alias`).
+// cemented (about two weeks). Checked on 26 November 2026 on Previewnet (Etherlink 8.0) and on
+// Shadownet's Etherlink (7.x), where the withdrawal comes from the account's older alias.
 
 import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";

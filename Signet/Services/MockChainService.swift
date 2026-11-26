@@ -130,8 +130,6 @@ struct MockChainService: ChainService {
         return Self.linkedAliases.contains(address) ? .linked(evmAddress: alias) : .unlinked(evmAddress: alias)
     }
 
-    func etherlinkWithdrawalsSupported() async throws -> Bool { true }
-
     func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
         TransferEstimate(fee: Decimal(string: "0.001541")!, burn: 0, total: amount + Decimal(string: "0.001541")!, gasLimit: 6138, storageLimit: 0,
                          limits: OperationLimits(feeMutez: "1541", gasLimit: 6138, storageLimit: 0))

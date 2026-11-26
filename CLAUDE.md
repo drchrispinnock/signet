@@ -768,23 +768,23 @@ automatic download is off by default. The updater is not started under the test 
   `xtz_deposit_michelson.py` builds it (`src/bridge.js`, `michelsonRoutingData`; vectors in
   `test/bridge.cjs`); `estimateEtherlinkDeposit` / `sendEtherlinkDeposit` go through the
   approved-limits path and `WalletViewModel.bridgeToEtherlink` waits for the layer 1 block (the
-  rollup credits the account within about a minute). **Etherlink → Tezos (Etherlink 8.0).** Slow withdrawals work where the Layer 2 node runs
-  Etherlink 8.0, the first kernel that pays out withdrawals from Michelson-interface accounts:
-  `etherlinkWithdrawalsSupported` asks whether the gateway has `%materialize_alias` (new in
-  8.0), and `WalletViewModel.canWithdrawFromEtherlink` / the sheet say so where it does not.
-  A withdrawal is the gateway's `%call_evm` to the EVM tez withdrawal precompile
-  `0xff00000000000000000000000000000000000001`, `withdraw_base58(string)` with the account's
-  own tz address ABI-encoded, tez attached (`src/bridge.js` `withdrawParams` /
+  rollup credits the account within about a minute). **Etherlink → Tezos.** Slow withdrawals from Michelson-interface accounts work wherever
+  Layer 2 is on (`WalletViewModel.canWithdrawFromEtherlink`, the Bridge rules). The October
+  2026 belief that Etherlink did not offer them was wrong: on 26 November 2026 they worked on
+  Previewnet (Etherlink 8.0) and on Shadownet's Etherlink (a 7.x kernel); mainnet (7.3) was
+  not tried with real tez. A withdrawal is the gateway's `%call_evm` to the EVM tez withdrawal
+  precompile `0xff00000000000000000000000000000000000001`, `withdraw_base58(string)` with the
+  account's own tz address ABI-encoded, tez attached (`src/bridge.js` `withdrawParams` /
   `estimateEtherlinkWithdrawal` / `sendEtherlinkWithdrawal`, a signing call, receiver always
   the signer); the gateway passes the tez on as the call's value, and the precompile emits the
-  withdrawal from the account's 8.0 alias. `estimateBridgeWithdrawal` returns a
-  `BridgeEstimate` with `isWithdrawal`, and `bridgeToTezos` refuses any other estimate (S31)
-  and waits for the Etherlink block. The tez reach layer 1 once the rollup's commitment is
-  cemented (challenge window about 14 days on Shadownet and mainnet); on Shadownet an executor
-  account (`tz1QCxt7…` for Previewnet) runs the outbox messages, so nothing is claimed by hand.
-  8.0 refunds unused gas, so the fee paid can be below the estimate. Fast withdrawals are
-  shown but not offered. `EtherlinkLiveTests.withdrawsFromPreviewnetToTezos` is the live
-  check (26 November 2026: Previewnet on 8.0, Shadownet and mainnet not yet). `ShadownetBridgeTests` is the live deposit round trip. **Send on Etherlink.** `Network.layer2`
+  withdrawal from the account's EVM alias (the old-style one before 8.0) to the tz receiver.
+  `estimateBridgeWithdrawal` returns a `BridgeEstimate` with `isWithdrawal`, and
+  `bridgeToTezos` refuses any other estimate (S31) and waits for the Etherlink block. The tez
+  reach layer 1 once the rollup's commitment is cemented (challenge window about 14 days on
+  Shadownet and mainnet); on Shadownet an executor account runs the outbox messages, so
+  nothing is claimed by hand. 8.0 refunds unused gas, so the fee paid can be below the
+  estimate. Fast withdrawals are shown but not offered. `EtherlinkLiveTests.
+  withdrawsFromPreviewnetToTezos` is the live check. `ShadownetBridgeTests` is the live deposit round trip. **Send on Etherlink.** `Network.layer2`
   is the Michelson interface as a network of its own (the Layer 2 node, its pinned chain id,
   Etherlink's TzKT `api.etherlink.tzkt.io` / `api.shadownet.etherlink.tzkt.io` and explorer,
   `layerNumber` 2) and `WalletViewModel.layer2Chain` a chain service for it; the Send sheet's

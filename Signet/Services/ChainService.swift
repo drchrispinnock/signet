@@ -63,9 +63,8 @@ protocol ChainService: Sendable {
     func estimateEtherlinkLink(from wallet: Wallet) async throws -> TransferEstimate
     /// Signs and injects the link call with exactly the approved `limits` (S14).
     func sendEtherlinkLink(from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation
-    /// Withdrawals from the Michelson interface to Tezos (Etherlink 8.0): whether this Layer 2
-    /// node's kernel has them, and the approved-limits estimate and send. Layer 2 services only.
-    func etherlinkWithdrawalsSupported() async throws -> Bool
+    /// Withdrawals from the Michelson interface to Tezos: the approved-limits estimate and send.
+    /// Layer 2 services only.
     func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate
     /// A signing call: pays `amount` out to the same account on layer 1 after the rollup's challenge window.
     func sendEtherlinkWithdrawal(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation
@@ -137,7 +136,6 @@ struct Portfolio: Equatable, Sendable {
 
 extension ChainService {
     func tezosDomains(for address: Address) async throws -> [TezosDomain]? { nil }
-    func etherlinkWithdrawalsSupported() async throws -> Bool { false }
     func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate { throw ChainError.notALayer2Service }
     func sendEtherlinkWithdrawal(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation { throw ChainError.notALayer2Service }
 
@@ -180,8 +178,6 @@ enum ChainError: LocalizedError, Equatable {
     case notALayer2Service
     /// The Layer 2 node still derives EVM aliases as before Etherlink 8.0.
     case etherlinkAliasNotUpgraded
-    /// The Layer 2 node's kernel does not pay out withdrawals from the Michelson interface (before Etherlink 8.0).
-    case etherlinkWithdrawalsUnavailable
     /// A token transfer with no tokens, a bad contract, token id or amount, or an amount of 0.
     case invalidTokenTransfer
     /// A node answered with another chain's id than the one pinned for it (S12).
@@ -199,7 +195,6 @@ enum ChainError: LocalizedError, Equatable {
         case .noEtherlinkNode: "Etherlink is not enabled for this network."
         case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
         case .notALayer2Service: "This needs the Layer 2 node."
-        case .etherlinkWithdrawalsUnavailable: "This network's Etherlink does not pay out withdrawals from tz accounts yet; that comes with Etherlink 8.0."
         case .etherlinkAliasNotUpgraded: "This network has not upgraded to Etherlink 8.0 yet, which changes the account's address on the EVM side. Linking waits for the upgrade."
         case .invalidTokenTransfer: "Choose at least one token and a whole number of editions, up to \(TokenTransferRequest.maxTokens) tokens at once."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."

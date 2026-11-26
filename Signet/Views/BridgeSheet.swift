@@ -2,9 +2,8 @@ import SwiftUI
 
 /// Moves tez between Tezos layer 1 and the selected account on Etherlink (0.9.1): Tezos on the
 /// left, Etherlink on the right, the arrow between them sets the direction. Etherlink → Tezos
-/// (slow) works where the Layer 2 node runs Etherlink 8.0, the first kernel that pays out
-/// withdrawals from Michelson-interface (tz) accounts (`canWithdrawFromEtherlink`); the tez
-/// arrive after the rollup's challenge window. Fast withdrawals are shown but not offered yet.
+/// (slow) pays out to the same account on Tezos after the rollup's challenge window. Fast
+/// withdrawals are shown but not offered yet.
 struct BridgeSheet: View {
     @Bindable var model: WalletViewModel
     @Environment(\.dismiss) private var dismiss
@@ -18,8 +17,6 @@ struct BridgeSheet: View {
 
     @State private var direction: Direction = .toEtherlink
     @State private var speed: Speed = .slow
-    /// Whether this network's Etherlink pays out withdrawals from tz accounts; `nil` while asking.
-    @State private var withdrawalsSupported: Bool?
     @State private var amountText = ""
     /// The estimate and the context it was made in (S31); refreshed whenever that context moves.
     @State private var estimate: WalletViewModel.BridgeEstimate?
@@ -48,7 +45,7 @@ struct BridgeSheet: View {
         return amount + (estimate?.estimate.fee ?? 0) > sourceSpendable
     }
     private var directionAvailable: Bool {
-        direction == .toEtherlink || (speed == .slow && withdrawalsSupported == true)
+        direction == .toEtherlink || (speed == .slow && model.canWithdrawFromEtherlink)
     }
     private var canConfirm: Bool {
         directionAvailable && amount != nil && estimate?.amount == amount && estimate?.isWithdrawal == (direction == .toTezos)
@@ -78,8 +75,7 @@ struct BridgeSheet: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task(id: EstimateKey(direction: direction, speed: speed, amount: amountText, context: model.bridgeContext, step: step, supported: withdrawalsSupported)) { await refreshEstimate() }
-        .task(id: model.bridgeContext) { withdrawalsSupported = nil; withdrawalsSupported = await model.canWithdrawFromEtherlink() }
+        .task(id: EstimateKey(direction: direction, speed: speed, amount: amountText, context: model.bridgeContext, step: step)) { await refreshEstimate() }
     }
 
     // MARK: Pieces
@@ -156,18 +152,9 @@ struct BridgeSheet: View {
                     Label("Fast withdrawals from tz accounts are not offered yet. Choose Slow.", systemImage: "clock.badge.exclamationmark")
                         .font(.callout).foregroundStyle(.orange)
                 case .slow:
-                    if withdrawalsSupported == true { fee }
+                    fee
                     Text("Slow: the tez leave this account on \(network.l2Name) now and arrive on Tezos under the same address once the rollup's commitment is final, about two weeks from now.")
                         .font(.callout).foregroundStyle(.secondary)
-                    switch withdrawalsSupported {
-                    case nil:
-                        HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Checking whether \(network.l2Name) pays out withdrawals…").font(.callout).foregroundStyle(.secondary) }
-                    case false?:
-                        Label("\(network.l2Name) on this network does not pay out withdrawals from tz accounts yet. That comes with Etherlink 8.0.", systemImage: "clock.badge.exclamationmark")
-                            .font(.callout).foregroundStyle(.orange)
-                    case true?:
-                        EmptyView()
-                    }
                 }
             }
             if directionAvailable, needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
@@ -235,7 +222,6 @@ struct BridgeSheet: View {
         let amount: String
         let context: WalletViewModel.BridgeContext?
         let step: Step
-        let supported: Bool?
     }
 
     private func refreshEstimate() async {

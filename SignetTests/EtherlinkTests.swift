@@ -740,15 +740,10 @@ struct EtherlinkHistoryTests {
     }
 }
 
-/// Etherlink → Tezos (Etherlink 8.0): offered only where the Layer 2 node's kernel pays out
-/// withdrawals from tz accounts, estimated and sent through the Layer 2 service, and an
-/// estimate is good only for its own direction and context (S31).
+/// Etherlink → Tezos: estimated and sent through the Layer 2 service, and an estimate is good
+/// only for its own direction and context (S31).
 @MainActor
 struct EtherlinkWithdrawalTests {
-    struct OldKernel: TestChainService {
-        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1) }
-    }
-
     func model(chain: any ChainService) throws -> WalletViewModel {
         let store = InMemoryWalletStore()
         try store.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
@@ -760,7 +755,7 @@ struct EtherlinkWithdrawalTests {
     @Test func withdrawalsGoThroughTheLayer2ServiceInTheirOwnContext() async throws {
         let model = try model(chain: MockChainService())
         #expect(model.canBridge)
-        #expect(await model.canWithdrawFromEtherlink())
+        #expect(model.canWithdrawFromEtherlink)
         let approved = try await model.estimateBridgeWithdrawal(amount: 2)
         #expect(approved.isWithdrawal && approved.amount == 2 && approved.estimate.limits != nil)
         // A deposit's estimate cannot send a withdrawal, nor the other way round, nor another amount.
@@ -772,23 +767,24 @@ struct EtherlinkWithdrawalTests {
         #expect(hash == "ooMockWithdraw" && level > 0)
     }
 
-    @Test func anOlderKernelIsNeverAskedToWithdraw() async throws {
-        let model = try model(chain: OldKernel())
-        #expect(await model.canWithdrawFromEtherlink() == false)
-        await #expect(throws: ChainError.etherlinkWithdrawalsUnavailable) { _ = try await model.estimateBridgeWithdrawal(amount: 1) }
+    @Test func withdrawalsNeedLayer2AndASigningKey() async throws {
+        let model = try model(chain: MockChainService())
+        model.setL2Enabled(false, for: .mainnet)
+        #expect(!model.canWithdrawFromEtherlink)
+        await #expect(throws: ChainError.noEtherlinkBridge) { _ = try await model.estimateBridgeWithdrawal(amount: 1) }
         #expect(TaquitoBridge.kind(of: "sendEtherlinkWithdrawal") == .signing)
     }
 }
 
 extension EtherlinkLiveTests {
-    /// Previewnet runs Etherlink 8.0: a fresh account deposits from Shadownet, then withdraws
+    /// A fresh account deposits from Shadownet to Previewnet (Etherlink 8.0), then withdraws
     /// back through the gateway; the Etherlink balance drops by the amount and the fee. The
-    /// tez reach layer 1 only after the challenge window (about 14 days), so that is not waited for.
+    /// tez reach layer 1 only after the challenge window (about 14 days), so that is not waited
+    /// for. Shadownet's own Etherlink (a 7.x kernel) behaved the same on 26 November 2026.
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
     func withdrawsFromPreviewnetToTezos() async throws {
         let layer1 = TaquitoChainService(network: Network.shadownetPreviewnet)
         let layer2 = TaquitoChainService(network: try #require(Network.shadownetPreviewnet.layer2))
-        #expect(try await layer2.etherlinkWithdrawalsSupported())
         let material = try await KeyGenerator().generate(scheme: .tz1)
         let wallet = Wallet(alias: "withdraw-test", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
         let signer = SigningKey.secret(material.secretKey, passphrase: nil, address: wallet.address)

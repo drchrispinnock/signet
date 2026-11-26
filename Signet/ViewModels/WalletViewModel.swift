@@ -1401,21 +1401,15 @@ final class WalletViewModel {
         return (sent.hash, level)
     }
 
-    // MARK: Etherlink withdrawals (8.0)
+    // MARK: Etherlink withdrawals
 
-    /// Whether the selected account can withdraw from Etherlink to Tezos: the Bridge rules, and
-    /// a Layer 2 node whose kernel pays out withdrawals from the Michelson interface (Etherlink
-    /// 8.0, asked of the node). `false` while the network is on an older kernel.
-    func canWithdrawFromEtherlink() async -> Bool {
-        guard canBridge, let chain = layer2Chain else { return false }
-        return (try? await chain.etherlinkWithdrawalsSupported()) ?? false
-    }
+    /// Whether the selected account can withdraw from Etherlink to Tezos: the Bridge rules and a Layer 2 service.
+    var canWithdrawFromEtherlink: Bool { canBridge && layer2Chain != nil }
 
     func estimateBridgeWithdrawal(amount: Decimal) async throws -> BridgeEstimate {
         guard let wallet = selectedWallet, let context = bridgeContext else { throw WalletError.emptyAlias }
         guard canBridge, let chain = layer2Chain else { throw ChainError.noEtherlinkBridge }
         guard amount > 0, Mutez.isValid(Mutez.fromTez(amount)) else { throw SendViewModel.SendError.invalidAmount }
-        guard try await chain.etherlinkWithdrawalsSupported() else { throw ChainError.etherlinkWithdrawalsUnavailable }
         let estimate = try await chain.estimateEtherlinkWithdrawal(from: wallet, amount: amount)
         guard bridgeContext == context else { throw WalletError.contextChanged }
         return BridgeEstimate(estimate: estimate, context: context, amount: amount, isWithdrawal: true)
