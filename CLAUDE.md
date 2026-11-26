@@ -251,6 +251,19 @@ automatic download is off by default. The updater is not started under the test 
   remembered passwords". Sheets ask `needsPassphrase(for:)` and show `PasswordField`
   ("Remembered until 14:05", Forget) in place of the field. Export secret key and Forget
   account do not use it and always ask. `PassphraseCacheTests`.
+- **Domain expiry reminders.** Settings > Notifications, "Remind me before my Tezos Domains
+  names expire" (`DomainReminderSettings`, UserDefaults `domainExpiryReminders`, on by
+  default). `DomainReminders` (pure) gives each name's reminders: 2 months, 1 month, 2 weeks,
+  1 week, then 6 to 1 days and the day itself, at 9:00 local time. `DomainReminderService`
+  (`.shared`, never under the test host) schedules those still to come as macOS user
+  notifications (`UNCalendarNotificationTrigger`, so they appear without Signet running),
+  replacing the previous set on every scan, earliest 60 only (the system's per-app limit), and
+  shows the latest one already due at once, once (`domainExpiryRemindersShown`). `SignetApp`
+  scans at launch and every 24 hours while running: `WalletViewModel.ownedDomainNamesForReminders`
+  reads mainnet Tezos Domains for every account and contract except address book entries,
+  second-level names only, and answers `nil` (keep what is scheduled) when any read fails.
+  Clicking a reminder opens the name on app.tezos.domains. "Send a test reminder" shows one
+  for the soonest name. `DomainRemindersTests`.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be

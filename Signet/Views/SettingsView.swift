@@ -17,6 +17,7 @@ struct SettingsView: View {
                 backupSection(backupDirectory)
             }
             passwordsSection
+            notificationsSection
             nftSection
             updatesSection
             experimentalSection
@@ -64,6 +65,36 @@ struct SettingsView: View {
             Text("Passwords")
         }
         .onChange(of: passwordMinutes) { model.forgetRememberedPassphrases() }
+    }
+
+    @AppStorage(DomainReminderSettings.key) private var domainReminders = true
+    @State private var testReminderNote: String?
+
+    private var notificationsSection: some View {
+        Section {
+            Toggle("Remind me before my Tezos Domains names expire", isOn: $domainReminders)
+            Text(domainReminders
+                 ? "Signet notifies you 2 months, 1 month, 2 weeks and 1 week before a name one of your accounts owns expires, then every day for the last week, at 9:00. The reminders come even when Signet is not running; it looks again at launch and once a day, so a renewal moves them. Clicking one opens the name on Tezos Domains. macOS asks once whether Signet may notify you."
+                 : "No reminders about Tezos Domains names.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if domainReminders, !SignetApp.isTestHost {
+                HStack {
+                    Button("Send a test reminder") { Task { await sendTestReminder() } }
+                    if let testReminderNote { Text(testReminderNote).font(.callout).foregroundStyle(.secondary) }
+                }
+            }
+        } header: {
+            Text("Notifications")
+        }
+    }
+
+    private func sendTestReminder() async {
+        testReminderNote = "Looking up your names…"
+        guard let names = await model.ownedDomainNamesForReminders() else { testReminderNote = "Tezos Domains could not be read."; return }
+        guard !names.isEmpty else { testReminderNote = "None of your accounts owns a Tezos Domains name."; return }
+        let sent = await DomainReminderService.shared.sendTest(names)
+        testReminderNote = sent ? "Sent. If nothing appears, allow Signet in System Settings > Notifications." : "Notifications are off for Signet: allow them in System Settings > Notifications."
     }
 
     @AppStorage(NFTDownloadSettings.arrangeByAddressKey) private var arrangeNFTsByAddress = true

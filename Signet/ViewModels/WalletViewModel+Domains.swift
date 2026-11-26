@@ -52,6 +52,23 @@ extension WalletViewModel {
         domainList = (key, .loaded(names))
     }
 
+    /// The mainnet Tezos Domains names the user's accounts own, for expiry reminders: every
+    /// account and contract in the list except address book entries (other people's), whatever
+    /// network is in use, subdomains left out (they expire with their parent). `nil` when any
+    /// account could not be read, so the reminders already scheduled stay as they are.
+    func ownedDomainNamesForReminders(service: TezosDomainsService? = nil) async -> [DomainReminderService.OwnedName]? {
+        guard let service = service ?? Network.mainnet.tezosDomainsURL.map({ TezosDomainsService(endpoint: $0) }) else { return [] }
+        var seen = Set<String>()
+        var owned: [DomainReminderService.OwnedName] = []
+        for account in wallets where (account.keyKind != .none || account.address.isContract) && seen.insert(account.address.value).inserted {
+            guard let names = try? await service.domains(of: account.address) else { return nil }
+            for name in names where name.isOwned(by: account.address) {
+                if let expires = name.expires { owned.append(.init(name: name.name, expires: expires, owner: account.alias)) }
+            }
+        }
+        return owned
+    }
+
     func reloadDomainList() async {
         domainList = nil
         await loadDomainList()

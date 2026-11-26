@@ -55,6 +55,15 @@ struct SignetApp: App {
     // Shows the Scan QR code items while a camera is attached. Not under the test host.
     @State private var cameraWatcher: CameraWatcher?
     @State private var updater = UpdaterService(starting: !SignetApp.isTestHost)
+    // Tezos Domains expiry reminders (Settings > Notifications). Not under the test host.
+    @AppStorage(DomainReminderSettings.key) private var domainRemindersOn = true
+
+    /// Looks up the names the user's accounts own and replaces the scheduled reminders.
+    @MainActor private func scheduleDomainReminders() async {
+        let service = DomainReminderService.shared
+        guard domainRemindersOn else { await service.removeScheduled(); return }
+        if let names = await model.ownedDomainNamesForReminders() { await service.update(names) }
+    }
 
     var body: some Scene {
         // A single window: a WindowGroup would open a second one when a signet:// link arrives.
@@ -66,6 +75,15 @@ struct SignetApp: App {
                     guard !Self.isTestHost, cameraWatcher == nil else { return }
                     cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
                 }
+                // Domain expiry reminders: at launch, then once a day while Signet runs.
+                .task {
+                    guard !Self.isTestHost else { return }
+                    while !Task.isCancelled {
+                        await scheduleDomainReminders()
+                        try? await Task.sleep(for: .seconds(24 * 3600))
+                    }
+                }
+                .onChange(of: domainRemindersOn) { Task { await scheduleDomainReminders() } }
                 // Remembered passwords go when the Mac sleeps, its screens sleep or it locks.
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in model.forgetRememberedPassphrases() }
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidSleepNotification)) { _ in model.forgetRememberedPassphrases() }
