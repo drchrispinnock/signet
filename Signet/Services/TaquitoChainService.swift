@@ -240,7 +240,8 @@ struct TaquitoChainService: ChainService {
         return try Self.aliasStatus(from: reply.data, for: address)
     }
 
-    /// Pure parser for the view's reply; the address it names must be the one we derive.
+    /// Pure parser for the view's reply; the address it names must be the one we derive, or
+    /// the one from before Etherlink 8.0 (`awaitingUpgrade`: the network has not upgraded yet).
     static func aliasStatus(from data: Data, for address: Address) throws -> EtherlinkAliasStatus {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let some = object["data"] as? [String: Any], some["prim"] as? String == "Some",
@@ -249,6 +250,9 @@ struct TaquitoChainService: ChainService {
               let kind = args[0]["int"] as? String, let named = args[1]["string"] as? String
         else { throw URLError(.cannotParseResponse) }
         let expected = EtherlinkAlias.address(for: address)
+        if named.lowercased() != expected, named.lowercased() == EtherlinkAlias.legacyAddress(for: address), ["0", "1"].contains(kind) {
+            return .awaitingUpgrade
+        }
         guard named.lowercased() == expected else { throw URLError(.cannotParseResponse) }
         switch kind {
         case "0": return .linked(evmAddress: expected)
@@ -271,6 +275,26 @@ struct TaquitoChainService: ChainService {
         let result = try await signing { try await bridge.sign("sendEtherlinkLink", [network.rpcURL.absoluteString, signer.bridgeSpec, Network.etherlinkGateway.value, limits.json]) }
         guard let sent = SentOperation(result) else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected link payload: \(String(describing: result))")
+        }
+        return sent
+    }
+
+    // MARK: Etherlink withdrawals, on the Layer 2 service
+
+    func estimateEtherlinkWithdrawal(from wallet: Wallet, amount: Decimal) async throws -> TransferEstimate {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        let publicKey = try Self.publicKeyArgument(for: wallet)
+        try await verifyChain()
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateEtherlinkWithdrawal", [network.rpcURL.absoluteString, wallet.address.value, publicKey, Network.etherlinkGateway.value, Mutez.fromTez(amount)], timeout: 120) }
+        return try Self.estimate(from: result)
+    }
+
+    func sendEtherlinkWithdrawal(from wallet: Wallet, signer: SigningKey, amount: Decimal, limits: OperationLimits) async throws -> SentOperation {
+        guard network.layerNumber == 2 else { throw ChainError.notALayer2Service }
+        try await verifyChain()
+        let result = try await signing { try await bridge.sign("sendEtherlinkWithdrawal", [network.rpcURL.absoluteString, signer.bridgeSpec, Network.etherlinkGateway.value, Mutez.fromTez(amount), limits.json]) }
+        guard let sent = SentOperation(result) else {
+            throw TaquitoBridge.BridgeError.javaScript("unexpected withdrawal payload: \(String(describing: result))")
         }
         return sent
     }

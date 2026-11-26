@@ -6,7 +6,14 @@
 // data is version 1 RLP naming the implicit receiver, exactly as baking-bad's
 // `xtz_deposit_michelson.py` builds it: `0x01 ++ rlp([[0x01, forged tz address], []])`. The
 // kernel refuses originated (KT1) receivers, and tz4 keys are not on the rollup yet.
-// Withdrawals from Michelson-interface accounts are not offered by Etherlink yet (October 2026).
+//
+// A withdrawal goes the other way from the account itself on the
+// Michelson interface: the gateway's `%call_evm` to the EVM's tez withdrawal precompile
+// (`withdraw_base58(string)`, the layer 1 receiver in base58) with the tez attached, which the
+// gateway passes on as the call's value. The precompile emits the withdrawal from the
+// account's EVM alias and the rollup's outbox pays it out on layer 1 once the commitment is
+// cemented (about two weeks). Checked on 26 November 2026 on Previewnet (Etherlink 8.0) and on
+// Shadownet's Etherlink (7.x), where the withdrawal comes from the account's older alias.
 
 import { TezosToolkit } from "@tezos-x/octez.js";
 import { signerFor, readOnlySigner } from "./signers.js";
@@ -108,6 +115,51 @@ export async function estimateEtherlinkLink(rpcUrl, source, publicKey, gateway) 
   const tk = new TezosToolkit(rpcUrl);
   tk.setSignerProvider(readOnlySigner(publicKey, source));
   return approvedEstimate(tk, "transaction", params, await tk.estimate.transfer(params));
+}
+
+/** The EVM's tez withdrawal precompile (Etherlink's XTZ bridge). */
+export const WITHDRAWAL_PRECOMPILE = "0xff00000000000000000000000000000000000001";
+
+/** Solidity ABI encoding of one `string` argument: offset, length, bytes padded to 32. */
+export function abiEncodeString(text) {
+  const bytes = new TextEncoder().encode(text);
+  const word = (n) => n.toString(16).padStart(64, "0");
+  const body = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").padEnd(Math.ceil(bytes.length / 32) * 64, "0");
+  return word(32) + word(bytes.length) + body;
+}
+
+/**
+ * `%call_evm` to the withdrawal precompile, paying `amountMutez` out to `receiver` on layer 1.
+ * The receiver is always the signing account itself (the Bridge sheet moves an account's own tez).
+ */
+export function withdrawParams(gateway, receiver, amountMutez) {
+  if (!/^KT1[1-9A-HJ-NP-Za-km-z]{33}$/.test(gateway)) throw new Error(`Not a gateway contract: ${gateway}`);
+  if (!/^tz[1-3][1-9A-HJ-NP-Za-km-z]{33}$/.test(receiver)) throw new Error(`Not an account Etherlink can pay out to: ${receiver}`);
+  const amount = typeof amountMutez === "string" && /^[1-9][0-9]*$/.test(amountMutez) ? Number(amountMutez) : NaN;
+  if (!Number.isSafeInteger(amount)) throw new Error(`Not an amount of tez: ${amountMutez}`);
+  return {
+    to: gateway,
+    amount,
+    mutez: true,
+    parameter: { entrypoint: "call_evm", value: { prim: "Pair", args: [{ string: WITHDRAWAL_PRECOMPILE }, { string: "withdraw_base58(string)" }, { bytes: abiEncodeString(receiver) }, { prim: "None" }] } },
+  };
+}
+
+/** Fee and limits for withdrawing `amountMutez` from `source` on the Michelson interface node `rpcUrl` to `source` on layer 1. */
+export async function estimateEtherlinkWithdrawal(rpcUrl, source, publicKey, gateway, amountMutez) {
+  const params = withdrawParams(gateway, source, amountMutez);
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(readOnlySigner(publicKey, source));
+  return approvedEstimate(tk, "transaction", params, await tk.estimate.transfer(params));
+}
+
+/** Signs and injects the withdrawal with exactly the approved limits (S14); `{ hash, injected, signedBytes }` (S15). The receiver is the signer's own address. */
+export async function sendEtherlinkWithdrawal(rpcUrl, signerSpec, gateway, amountMutez, limitsJson) {
+  const limits = parseLimits(limitsJson);
+  const tk = new TezosToolkit(rpcUrl);
+  tk.setSignerProvider(await signerFor(signerSpec));
+  const params = withdrawParams(gateway, await tk.signer.publicKeyHash(), amountMutez);
+  return sendApproved(tk, rpcUrl, "transaction", params, limits);
 }
 
 /** Signs and injects the link call with exactly the approved limits (S14); `{ hash, injected, signedBytes }` (S15). */

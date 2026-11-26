@@ -51,4 +51,19 @@ async function load(file) {
   for (const bad of ['tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb', 'KT1short', '']) assert.throws(() => bridge.linkParams(bad), /Not a gateway contract/);
   await assert.rejects(bridge.sendEtherlinkLink('https://offline.invalid', JSON.stringify({ kind: 'secret', key: 'edsk', address: 'tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb' }), 'KT1short', '{}'), /Not a gateway contract/);
   console.log('PASS 0.9.3: the Etherlink link call targets the gateway with a zero-tez no-op and refuses a bad gateway before signing');
+
+  // Etherlink 8.0 withdrawal: these exact parameters withdrew 1 tez on Previewnet (operation
+  // opaQ8263yiKnwqrpCsb37BrJ2MGu7HoQPrYMxTFniLpEpK7gJus, withdrawal event from the account's alias).
+  const me = 'tz1P8tYig9tpCKvH9JwBwiDviAmAUX3gPKkr';
+  const withdraw = JSON.parse(JSON.stringify(bridge.withdrawParams(bridge.ETHERLINK_GATEWAY, me, '1000000')));
+  assert.deepEqual(withdraw, { to: bridge.ETHERLINK_GATEWAY, amount: 1000000, mutez: true, parameter: { entrypoint: 'call_evm', value: { prim: 'Pair', args: [
+    { string: '0xff00000000000000000000000000000000000001' }, { string: 'withdraw_base58(string)' },
+    { bytes: '00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024747a31503874596967397470434b7648394a77427769447669416d4155583367504b6b7200000000000000000000000000000000000000000000000000000000' },
+    { prim: 'None' }] } } });
+  assert.equal(bridge.abiEncodeString(''), '0'.repeat(62) + '20' + '0'.repeat(64));
+  for (const bad of ['0', '-1', '1.5', '01', '', '9007199254740993', 5]) assert.throws(() => bridge.withdrawParams(bridge.ETHERLINK_GATEWAY, me, bad), /Not an amount of tez/, String(bad));
+  for (const bad of ['tz4HVR6aty9KwsQFHh81C1G7gBdhxT8kuytm', 'KT18oDJJKXMKhfE1bSuAPGp92pYcwVDiqsPw', '']) assert.throws(() => bridge.withdrawParams(bridge.ETHERLINK_GATEWAY, bad, '1'), /Not an account/);
+  assert.throws(() => bridge.withdrawParams('KT1short', me, '1'), /Not a gateway contract/);
+  await assert.rejects(bridge.sendEtherlinkWithdrawal('https://offline.invalid', JSON.stringify({ kind: 'secret', key: 'edsk', address: me }), bridge.ETHERLINK_GATEWAY, '0', '{}'), /not estimated|Invalid operation|Not an amount/);
+  console.log('PASS 8.0: an Etherlink withdrawal calls the withdrawal precompile through the gateway with the tez attached, to the signer itself');
 })().catch((error) => { console.error('FAIL', error); process.exit(1); });

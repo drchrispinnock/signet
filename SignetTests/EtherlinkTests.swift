@@ -246,16 +246,36 @@ struct EtherlinkAliasTests {
 
     @Test func viewRepliesAreParsedAndCheckedAgainstTheDerivedAddress() throws {
         let me = Address("tz1VSVEv2mCtMYczcTDyeVg4DRUvy57ENN8E")
-        let alias = "0x68767b38768e554a31735268b2d356d5cc75d96c"
+        let alias = "0xfc6caaaee1482a2243dcbebfeccaa10e495d985a"     // Etherlink 8.0
+        let legacy = "0x68767b38768e554a31735268b2d356d5cc75d96c"    // before 8.0
         func reply(_ kind: String, _ named: String) -> Data {
             Data(#"{"data":{"prim":"Some","args":[{"prim":"Pair","args":[{"int":"\#(kind)"},{"string":"\#(named)"}]}]}}"#.utf8)
         }
-        // As the Shadownet gateway answered, checksum-cased.
-        #expect(try TaquitoChainService.aliasStatus(from: reply("0", "0x68767b38768E554A31735268b2d356d5Cc75D96c"), for: me) == .linked(evmAddress: alias))
+        #expect(try TaquitoChainService.aliasStatus(from: reply("0", "0xFC6caaAEe1482a2243DCbebfECCaa10E495D985a"), for: me) == .linked(evmAddress: alias))
         #expect(try TaquitoChainService.aliasStatus(from: reply("1", alias), for: me) == .unlinked(evmAddress: alias))
+        // A node before Etherlink 8.0, as the Shadownet gateway answered (checksum-cased): no alias yet.
+        #expect(try TaquitoChainService.aliasStatus(from: reply("0", "0x68767b38768E554A31735268b2d356d5Cc75D96c"), for: me) == .awaitingUpgrade)
+        #expect(try TaquitoChainService.aliasStatus(from: reply("1", legacy), for: me) == .awaitingUpgrade)
+        #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: reply("2", legacy), for: me) }
         #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: reply("0", "0x16142132dd616dd8f61b8972ae4b9fcf8a22a450"), for: me) }
         #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: reply("2", alias), for: me) }
         #expect(throws: (any Error).self) { try TaquitoChainService.aliasStatus(from: Data(#"{"data":{"prim":"None"}}"#.utf8), for: me) }
+    }
+
+    /// A Layer 2 node still on the old kernel: linking would make the alias that stops being the
+    /// account's at the upgrade, so it is refused before anything is signed.
+    @Test @MainActor func linkingWaitsForEtherlink8() async throws {
+        struct OldKernel: TestChainService {
+            func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1) }
+            func etherlinkAliasStatus(for address: Address) async throws -> EtherlinkAliasStatus { .awaitingUpgrade }
+            func sendEtherlinkLink(from wallet: Wallet, signer: SigningKey, limits: OperationLimits) async throws -> SentOperation { Issue.record("signed on an old kernel"); return SentOperation(hash: "ooNo") }
+        }
+        let store = InMemoryWalletStore()
+        try store.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: [WalletViewModel.sampleWallets[0]], chain: OldKernel(), walletStore: store)
+        model.setL2Enabled(true, for: .mainnet)
+        #expect(try await model.etherlinkAliasStatus() == .awaitingUpgrade)
+        await #expect(throws: ChainError.etherlinkAliasNotUpgraded) { _ = try await model.linkToEtherlink(limits: OperationLimits(feeMutez: "1", gasLimit: 1, storageLimit: 0), passphrase: nil) }
     }
 
     @Test func layer1ServicesRefuseAliasCalls() async throws {
@@ -267,12 +287,23 @@ struct EtherlinkAliasTests {
 }
 
 extension EtherlinkLiveTests {
+    /// Previewnet runs Etherlink 8.0: its gateway answers the new derivation for every scheme.
+    @Test(.tags(.network), .liveNetwork)
+    func previewnetAnswersTheEtherlink8Alias() async throws {
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownetPreviewnet.layer2))
+        for tz in ["tz1aAdmy1MiGhnRkw8RWS6xbUpTuSRh3ZB4y", "tz2BFTyPeYRzxd5aiBchbXN3WCZhx7BqbMBq", "tz3WXYtyDUNL91qfiCJtVUX746QpNv5i5ve5"] {
+            let status = try await layer2.etherlinkAliasStatus(for: Address(tz))
+            #expect(status.evmAddress == EtherlinkAlias.address(for: Address(tz)), Comment(rawValue: tz))
+        }
+    }
+
     /// A fresh account is only derived on Etherlink until it links itself; after the gateway
     /// no-op the view records it. The account needs tez on Etherlink first (bridge deposit).
+    /// Run on Previewnet, which has Etherlink 8.0 (layer 1 is Shadownet's).
     @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
     func linksAFreshAccountToItsEtherlinkAlias() async throws {
-        let layer1 = TaquitoChainService(network: Network.shadownet.l2On)
-        let layer2 = TaquitoChainService(network: try #require(Network.shadownet.l2On.layer2))
+        let layer1 = TaquitoChainService(network: Network.shadownetPreviewnet)
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownetPreviewnet.layer2))
         let material = try await KeyGenerator().generate(scheme: .tz1)
         let wallet = Wallet(alias: "link-test", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
         let signer = SigningKey.secret(material.secretKey, passphrase: nil, address: wallet.address)
@@ -706,5 +737,76 @@ struct EtherlinkHistoryTests {
 
     @Test func backupListsTheShadownetShieldedFileOnce() {
         #expect(WalletBackup.shieldedFiles.count == Set(WalletBackup.shieldedFiles).count)
+    }
+}
+
+/// Etherlink → Tezos: estimated and sent through the Layer 2 service, and an estimate is good
+/// only for its own direction and context (S31).
+@MainActor
+struct EtherlinkWithdrawalTests {
+    func model(chain: any ChainService) throws -> WalletViewModel {
+        let store = InMemoryWalletStore()
+        try store.add(WalletViewModel.sampleWallets[0], secretKey: "edskSAMPLE")
+        let model = WalletViewModel(wallets: [WalletViewModel.sampleWallets[0]], chain: chain, walletStore: store)
+        model.setL2Enabled(true, for: .mainnet)
+        return model
+    }
+
+    @Test func withdrawalsGoThroughTheLayer2ServiceInTheirOwnContext() async throws {
+        let model = try model(chain: MockChainService())
+        #expect(model.canBridge)
+        #expect(model.canWithdrawFromEtherlink)
+        let approved = try await model.estimateBridgeWithdrawal(amount: 2)
+        #expect(approved.isWithdrawal && approved.amount == 2 && approved.estimate.limits != nil)
+        // A deposit's estimate cannot send a withdrawal, nor the other way round, nor another amount.
+        let deposit = try await model.estimateBridgeDeposit(amount: 2)
+        await #expect(throws: WalletViewModel.WalletError.notEstimated) { _ = try await model.bridgeToTezos(amount: 2, approved: deposit, passphrase: nil) }
+        await #expect(throws: WalletViewModel.WalletError.contextChanged) { _ = try await model.bridgeToEtherlink(amount: 2, approved: approved, passphrase: nil) }
+        await #expect(throws: WalletViewModel.WalletError.contextChanged) { _ = try await model.bridgeToTezos(amount: 3, approved: approved, passphrase: nil) }
+        let (hash, level) = try await model.bridgeToTezos(amount: 2, approved: approved, passphrase: nil)
+        #expect(hash == "ooMockWithdraw" && level > 0)
+    }
+
+    @Test func withdrawalsNeedLayer2AndASigningKey() async throws {
+        let model = try model(chain: MockChainService())
+        model.setL2Enabled(false, for: .mainnet)
+        #expect(!model.canWithdrawFromEtherlink)
+        await #expect(throws: ChainError.noEtherlinkBridge) { _ = try await model.estimateBridgeWithdrawal(amount: 1) }
+        #expect(TaquitoBridge.kind(of: "sendEtherlinkWithdrawal") == .signing)
+    }
+}
+
+extension EtherlinkLiveTests {
+    /// A fresh account deposits from Shadownet to Previewnet (Etherlink 8.0), then withdraws
+    /// back through the gateway; the Etherlink balance drops by the amount and the fee. The
+    /// tez reach layer 1 only after the challenge window (about 14 days), so that is not waited
+    /// for. Shadownet's own Etherlink (a 7.x kernel) behaved the same on 26 November 2026.
+    @Test(.tags(.network), .liveNetwork, .timeLimit(.minutes(8)))
+    func withdrawsFromPreviewnetToTezos() async throws {
+        let layer1 = TaquitoChainService(network: Network.shadownetPreviewnet)
+        let layer2 = TaquitoChainService(network: try #require(Network.shadownetPreviewnet.layer2))
+        let material = try await KeyGenerator().generate(scheme: .tz1)
+        let wallet = Wallet(alias: "withdraw-test", address: Address(material.address), scheme: .tz1, publicKey: material.publicKey, keyKind: .unencrypted)
+        let signer = SigningKey.secret(material.secretKey, passphrase: nil, address: wallet.address)
+        let faucet = try #require(FaucetService(network: .shadownet))
+        _ = try await faucet.requestTez(to: wallet.address, amount: 10)
+        var funded = false
+        for _ in 0..<40 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.tezBalance(for: wallet.address), b.spendable >= 10 { funded = true; break } }
+        #expect(funded)
+        let deposit = try await layer1.estimateEtherlinkDeposit(from: wallet, amount: 3)
+        let sent = try await layer1.sendEtherlinkDeposit(from: wallet, signer: signer, amount: 3, limits: try #require(deposit.limits))
+        _ = try await layer1.waitForConfirmation(of: sent.hash)
+        var credited = false
+        for _ in 0..<45 { try await Task.sleep(for: .seconds(4)); if let b = try? await layer1.etherlinkBalance(for: wallet.address), b >= 3 { credited = true; break } }
+        #expect(credited)
+
+        let before = try await layer1.etherlinkBalance(for: wallet.address)
+        let estimate = try await layer2.estimateEtherlinkWithdrawal(from: wallet, amount: 1)
+        let withdrawal = try await layer2.sendEtherlinkWithdrawal(from: wallet, signer: signer, amount: 1, limits: try #require(estimate.limits))
+        print("etherlink withdrawal \(withdrawal.hash)")
+        #expect(try await layer2.waitForConfirmation(of: withdrawal.hash) > 0)
+        let after = try await layer1.etherlinkBalance(for: wallet.address)
+        // The amount and at most the approved fee: Etherlink 8.0 refunds unused gas.
+        #expect(before - after > 1 && before - after <= 1 + estimate.fee)
     }
 }

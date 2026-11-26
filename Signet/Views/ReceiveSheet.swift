@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Shows the selected wallet's address as a QR code and text so someone can send tez to it.
-/// **The Etherlink side described below is switched off** (`EtherlinkAlias.isOffered`): the
-/// alias derivation changes in Etherlink 8.0, so the sheet shows the Tezos address only.
+/// The Etherlink side uses Etherlink 8.0's alias (`EtherlinkAlias`); a network still on the old
+/// kernel shows a note instead of an address (`EtherlinkAliasStatus.awaitingUpgrade`).
 /// With Layer 2 on, the logo at the top left has a pop-up beside it (`ChainSidePicker`) that
 /// switches to the account's address on Etherlink's EVM side (`EtherlinkAlias`). That address
 /// is only shown once it exists on chain (`EtherlinkAliasStatus.linked`): until the account has
@@ -28,6 +28,8 @@ struct ReceiveSheet: View {
         /// estimated or sent until some are bridged across; the node's refusal is not shown.
         case unlinked(fee: Decimal?, problem: String?, unfunded: Bool = false)
         case linking
+        /// The network still runs a kernel older than Etherlink 8.0, whose alias is not the account's for long.
+        case awaitingUpgrade
         case failed(String)
     }
 
@@ -135,6 +137,10 @@ struct ReceiveSheet: View {
                 ProgressView().controlSize(.small)
                 Text("Linking to Etherlink…").font(.callout).foregroundStyle(.secondary)
                 if wallet.keyKind == .ledger { LedgerPromptLabel(text: "Confirm the link on your Ledger…") }
+            case .awaitingUpgrade:
+                Text("This account's address on Etherlink's EVM side is not available until this network upgrades to Etherlink 8.0, which changes how that address is made. Until then, receive on Etherlink with the account's Tezos address.")
+                    .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Button("Check again") { Task { await checkAlias() } }
             case .failed(let message):
                 Text(message).font(.callout).foregroundStyle(.red).multilineTextAlignment(.center)
                 Button("Try again") { Task { await checkAlias() } }
@@ -183,6 +189,7 @@ struct ReceiveSheet: View {
         do {
             guard let status = try await model.etherlinkAliasStatus() else { alias = .failed("Layer 2 is off for this network."); return }
             if case .linked(let evm) = status { alias = .linked(evm); return }
+            if status == .awaitingUpgrade { alias = .awaitingUpgrade; return }
             guard wallet.keyKind.canSign else { alias = .unlinked(fee: nil, problem: nil); return }
             // A fresh account has nothing on Etherlink to pay the link with: say so instead of
             // asking the node, whose refusal (an empty implicit contract) would read as a fault.

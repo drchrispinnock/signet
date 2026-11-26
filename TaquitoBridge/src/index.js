@@ -281,7 +281,7 @@ export {
 // ---- Ledger ------------------------------------------------------------------------------------
 import { signerFor, readOnlySigner } from "./signers.js";
 export { ledgerDevices, ledgerAppVersion, ledgerGetAddress } from "./ledger.js";
-export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, ETHERLINK_GATEWAY } from "./bridge.js";
+export { michelsonRoutingData, estimateEtherlinkDeposit, sendEtherlinkDeposit, estimateEtherlinkLink, sendEtherlinkLink, estimateEtherlinkWithdrawal, sendEtherlinkWithdrawal, ETHERLINK_GATEWAY } from "./bridge.js";
 export { tokenTransferParams, estimateTokenTransfer, sendTokenTransfer, BURN_ADDRESS, MAX_TOKENS_PER_TRANSFER } from "./tokens.js";
 export { governanceParams, estimateEtherlinkGovernance, sendEtherlinkGovernance, etherlinkVotingRights, getEtherlinkGovernanceState, periodAt, votersFrom, deriveState } from "./etherlink-governance.js";
 
