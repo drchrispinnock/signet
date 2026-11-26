@@ -48,7 +48,7 @@ struct ReceiveSheet: View {
                 Text("Receive")
                     .font(.title2.weight(.semibold))
                 HStack {
-                    ChainSidePicker(side: $side, canSwitch: showsEtherlink && model != nil)
+                    ChainSidePicker(side: $side, canSwitch: showsEtherlink && model != nil, layer2Name: "EVM")
                     Spacer()
                 }
             }

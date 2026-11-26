@@ -10,7 +10,8 @@ enum ChainSide: String, CaseIterable, Identifiable {
 
 /// The chain's logo and, when `canSwitch`, a standard pop-up button beside it (native bezel and
 /// arrows, so it is plainly a dropdown) to switch between Tezos and Etherlink. Used at the top
-/// left of the Receive and Send sheets.
+/// left of the Receive and Send sheets; Receive names the second side "EVM", since what it shows
+/// there is the account's address on Etherlink's EVM side.
 struct ChainSidePicker: View {
     @Binding var side: ChainSide
     var canSwitch: Bool
