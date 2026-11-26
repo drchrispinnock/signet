@@ -31,6 +31,11 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
     var iconURLs: [URL] = []
     /// `fa1.2` / `fa2` for tokens.
     var standard: String?
+    /// A token's balance in its smallest unit, exactly as the indexer gave it, and its decimal
+    /// places: what a transfer is made of (`amount` is only for display).
+    var rawAmount: String? = nil
+    var decimals = 0
+    var isFA12: Bool { standard?.lowercased() == "fa1.2" }
     /// Why the amount could not be read (the Etherlink node unreachable); the row shows this
     /// instead of a figure.
     var unavailable: String? = nil
@@ -75,6 +80,15 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
 
     /// The Shielded row before the TzEL wallet exists: always 0 tz.
     static let shieldedPlaceholder = AssetBalance(id: "shielded", kind: .shielded, name: "Shielded", symbol: "tz", amount: 0)
+
+    /// A smallest-unit amount as plain decimal text in whole units, every digit kept and no
+    /// grouping (`"1500000"` with 6 decimals is `"1.5"`), for an amount field.
+    static func plainAmount(raw: String, decimals: Int) -> String {
+        guard decimals > 0 else { return raw }
+        let padded = String(repeating: "0", count: max(0, decimals + 1 - raw.count)) + raw
+        let whole = padded.dropLast(decimals), fraction = padded.suffix(decimals).replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
+        return fraction.isEmpty ? String(whole) : "\(whole).\(fraction)"
+    }
 
     static func format(_ amount: Decimal, symbol: String) -> String {
         let formatter = NumberFormatter()

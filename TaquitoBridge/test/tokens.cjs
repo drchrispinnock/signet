@@ -64,6 +64,18 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
     assert.throws(() => tokens.tokenTransferParams(me, them, [], bad), /Not an amount of tez/, String(bad));
   }
   assert.throws(() => tokens.tokenTransferParams(me, them, [], null), /No tokens/);
+  // FA1.2: its own `transfer` per token, from the source, in order among the FA2 calls.
+  const fa12 = 'KT1PWx2mnDueood7fEmfbBDKx1D9BAnnXitn';
+  const mixed = plain(tokens.tokenTransferParams(me, them, [
+    { contract: a, tokenId: '7', amount: '1' }, { contract: fa12, tokenId: '0', amount: '150000000', standard: 'fa1.2' }, { contract: a, tokenId: '9', amount: '2' },
+  ], '5'));
+  assert.deepEqual(mixed.map((p) => p.to), [a, fa12, them]);
+  assert.deepEqual(mixed[1].parameter, { entrypoint: 'transfer', value: { prim: 'Pair', args: [{ string: me }, { prim: 'Pair', args: [{ string: them }, { int: '150000000' }] }] } });
+  assert.equal(mixed[0].parameter.value[0].args[1].length, 2);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '1', amount: '1', standard: 'fa1.2' }]), /no token id/);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '0', amount: '1', standard: 'fa3' }]), /Not a token standard/);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '0', amount: '1', standard: 'fa1.2' }, { contract: fa12, tokenId: '0', amount: '1' }]), /two standards/);
+  console.log('PASS FA1.2: a transfer of its own per token, from the source, checked like FA2');
   console.log('PASS move assets: the tez sweep is the last operation of the group and is checked like the tokens');
 
   // S14 for a batch: every operation carries its own approved figures, in order.

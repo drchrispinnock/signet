@@ -213,6 +213,8 @@ final class WalletViewModel {
     var isPresentingMoveAssets = false
     /// The NFTs a Transfer or Burn was started on from the grid's context menu; the sheet shows while set.
     var nftOperation: NFTOperation? = nil
+    /// The fungible token a Transfer was started on from the Assets tab; the sheet shows while set.
+    var tokenOperation: AssetBalance? = nil
     /// The tokens whose artwork is being downloaded, while the Download sheet is up.
     var nftDownload: NFTDownload? = nil
     var isPresentingShield = false

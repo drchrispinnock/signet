@@ -71,7 +71,7 @@ struct MoveAssetsSheet: View {
                     Section("Address book") { ForEach(others) { wallet in Text(title(wallet)).tag(Optional(wallet.id)) } }
                 }
             }
-            Text("Everything in the first account moves to the second: its tez and its NFTs on \(model.network.name)\(model.network.hasL2 ? " and on \(model.network.l2Name)" : ""). Fungible tokens and domains are not moved yet.")
+            Text("Everything in the first account moves to the second: its tez, tokens and NFTs on \(model.network.name)\(model.network.hasL2 ? " and on \(model.network.l2Name)" : ""). Domains are not moved yet.")
                 .font(.callout).foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
@@ -111,10 +111,14 @@ struct MoveAssetsSheet: View {
                     ForEach(plan.layers, id: \.layer) { layer in
                         Section(layer.name) {
                             LabeledContent("Tez", value: AssetBalance.format(layer.tez, symbol: "tz"))
+                            LabeledContent("Tokens", value: layer.tokens.isEmpty ? "None" : layer.tokens.count <= 3 ? layer.tokens.map(\.formattedAmount).joined(separator: ", ") : "\(layer.tokens.count) tokens")
                             LabeledContent("NFTs", value: layer.nfts.isEmpty ? "None" : "\(layer.nfts.count) (\(layer.editions) edition\(layer.editions == 1 ? "" : "s"))")
                             LabeledContent("Fees and storage", value: AssetBalance.format(layer.cost, symbol: "tz"))
                             if layer.batches.count > 1 {
-                                Text("\(layer.batches.count) operations, one after another (at most \(TokenTransferRequest.maxTokens) NFTs each).").font(.caption).foregroundStyle(.secondary)
+                                Text("\(layer.batches.count) operations, one after another (at most \(TokenTransferRequest.maxTokens) tokens and NFTs each).").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if !layer.tokensLeftBehind.isEmpty {
+                                Text("\(layer.tokensLeftBehind.count) token\(layer.tokensLeftBehind.count == 1 ? "'s" : "s'") exact balance is unknown, so \(layer.tokensLeftBehind.count == 1 ? "it stays" : "they stay").").font(.caption).foregroundStyle(.orange)
                             }
                             if !layer.leftBehind.isEmpty {
                                 Text("\(layer.leftBehind.count) NFT\(layer.leftBehind.count == 1 ? " is" : "s are") marked as not transferable and stay\(layer.leftBehind.count == 1 ? "s" : "").").font(.caption).foregroundStyle(.orange)

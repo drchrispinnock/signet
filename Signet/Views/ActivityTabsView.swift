@@ -28,7 +28,8 @@ struct ActivityTabsView: View {
                 TransactionListView(model: model)
             case .assets:
                 TokenListView(tokens: model.visibleTokens, isLoading: model.isLoading, state: model.portfolioState, network: model.network,
-                              layerEmptyText: model.layerEmptyText(for: "tokens"))
+                              layerEmptyText: model.layerEmptyText(for: "tokens"),
+                              actions: TokenActions(canTransfer: { model.canTransferToken($0) }, transfer: { model.tokenOperation = $0 }))
             case .nfts:
                 NFTGridView(nfts: model.visibleNFTs, isLoading: model.isLoading, state: model.portfolioState,
                             layerEmptyText: model.layerEmptyText(for: "NFTs"),
