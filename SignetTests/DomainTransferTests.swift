@@ -105,3 +105,29 @@ extension MoveAssetsTests {
         #expect(chain.sent.isEmpty)
     }
 }
+
+/// A refresh reads the Domains tab's list again once it has been read, so a transfer shows up
+/// when the indexer has caught up; a list never read is left to the tab.
+@MainActor
+struct DomainListRefreshTests {
+    final class Names: TestChainService, @unchecked Sendable {
+        var names: [TezosDomain] = []
+        func tezBalance(for address: Address) async throws -> TezBalance { TezBalance(spendable: 1) }
+        func tezosDomains(for address: Address) async throws -> [TezosDomain]? { names }
+    }
+
+    @Test func aRefreshPicksUpAChangedList() async throws {
+        let chain = Names()
+        chain.names = [DomainTransferTests.name("mytestdomain.tez", owner: WalletViewModel.sampleWallets[0].address)]
+        let model = WalletViewModel(wallets: WalletViewModel.sampleWallets, chain: chain)
+        await model.refreshDomainList()
+        #expect(model.currentDomainList == nil)                           // never read: nothing done
+        await model.loadDomainList()
+        guard case .loaded(let before)? = model.currentDomainList else { Issue.record("not loaded"); return }
+        #expect(before.count == 1)
+        chain.names = []                                                    // the name has gone
+        await model.refreshDomainList()
+        guard case .loaded(let after)? = model.currentDomainList else { Issue.record("not loaded"); return }
+        #expect(after.isEmpty)
+    }
+}

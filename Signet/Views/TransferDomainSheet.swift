@@ -199,7 +199,6 @@ struct TransferDomainSheet: View {
         do {
             let (hash, level) = try await model.transferTokens(request, on: 1, approved: approved, passphrase: needsPassphrase ? passphrase : nil)
             step = .done(hash: hash, level: level)
-            await model.reloadDomainList()
         } catch {
             errorMessage = error.localizedDescription
             submitted = nil

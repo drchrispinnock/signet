@@ -894,6 +894,7 @@ final class WalletViewModel {
             clearChainData()
             return
         }
+        Task { await refreshDomainList() }
         let chain = self.chain
         let layer2 = self.layer2Chain
         let address = mine.address

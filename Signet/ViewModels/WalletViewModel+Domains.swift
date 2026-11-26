@@ -42,6 +42,16 @@ extension WalletViewModel {
         return domain.isOwned(by: wallet.address) && !domain.isExpired()
     }
 
+    /// Reads the list again, quietly (the tab keeps showing the old one until the new one is
+    /// in), when it was already read for the selected account: every refresh does this, so a
+    /// transfer shows up once the Tezos Domains indexer has the block (`refreshAfterOperation`
+    /// refreshes again after 6 and 15 seconds). A failed read keeps the list as it was.
+    func refreshDomainList() async {
+        guard let wallet = selectedWallet, let key = domainListKey, domainList?.key == key, case .loaded = currentDomainList else { return }
+        guard let names = try? await chainService.tezosDomains(for: wallet.address), domainListKey == key else { return }
+        domainList = (key, .loaded(names))
+    }
+
     func reloadDomainList() async {
         domainList = nil
         await loadDomainList()
