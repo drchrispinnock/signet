@@ -812,11 +812,23 @@ automatic download is off by default. The updater is not started under the test 
   `operationContext(for:)` of the source before each, and reports each group to the sheet;
   a failure part way leaves what went through listed. Fungible tokens and domains are not
   moved yet. `MoveAssetsTests`; nothing has been exercised live yet.
-  **EVM alias (0.9.3; switched off November 2026).** `EtherlinkAlias.isOffered` is `false`, so
-  Receive shows the Tezos address only, with no chain picker and no "Link to Etherlink":
-  Etherlink 8.0 replaces the alias derivation below with a new, recoverable one (RFC-26051),
-  and an address shown or linked today would not be the account's after the upgrade. The
-  model, bridge and tests for it remain; turn it back on only with the new derivation.
+  **EVM alias (0.9.3; switched off November 2026, derivation moved to Etherlink 8.0).**
+  `EtherlinkAlias.isOffered` is `false`, so Receive shows the Tezos address only, with no
+  chain picker and no "Link to Etherlink", until Etherlink 8.0 ("Horus", activation planned
+  for 30 November 2026) is live on mainnet. `EtherlinkAlias.address(for:)` already computes
+  8.0's recoverable alias (RFC-26051, rescue accounts v1) for tz1–tz3: the CREATE2 address,
+  through the Safe singleton factory, of an EIP-1167 proxy to the account type's rescue
+  implementation with the 20-byte key hash appended, constants as in octez.js's `alias.js`;
+  tz4, tz5 and KT1 keep the old Keccak-256 of the base58 address (`legacyAddress`). The
+  vectors in `KeccakTests` were checked against octez.js and Previewnet's gateway. A node
+  still on the old kernel answers `resolveAddress` with the legacy address, which
+  `aliasStatus` turns into `EtherlinkAliasStatus.awaitingUpgrade`: Receive says the address
+  waits for the upgrade, and `linkToEtherlink` refuses (`ChainError.etherlinkAliasNotUpgraded`)
+  so no old alias is ever made. On 26 November 2026 Previewnet ran 8.0 (its gateway also has
+  a new `%materialize_alias (pair string string (option string))`, not used yet) and Shadownet
+  and mainnet Etherlink did not. `EtherlinkLiveTests.previewnetAnswersTheEtherlink8Alias` and
+  `linksAFreshAccountToItsEtherlinkAlias` (both on Previewnet) are the live checks; the
+  `%call_evm` no-op still links on 8.0. Turn `isOffered` on once mainnet has upgraded.
   What follows describes the feature as built. The account's EVM-side address is a pure function of the tz address, but
   the rollup only creates the account behind it (EIP-7702 delegation to the shared
   AliasForwarder, which passes tez on to the tz account) when the account makes its first

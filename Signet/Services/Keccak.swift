@@ -70,17 +70,72 @@ enum Keccak {
 }
 
 /// The account's address on Etherlink's EVM side, derived from its Tezos address (Tezos X
-/// "accounts and aliases"): the first 20 bytes of Keccak-256 over the base58 address string,
-/// which is what the EVM node's `tez_getTezosEthereumAddress` answers. Tez sent to it on the EVM
-/// side are forwarded to the account on the Michelson interface.
+/// "accounts and aliases"), as the EVM node's `tez_getTezosEthereumAddress` and the gateway's
+/// `resolveAddress` view answer. Tez sent to it on the EVM side are forwarded to the account on
+/// the Michelson interface.
+///
+/// **Etherlink 8.0 (RFC-26051, "rescue accounts v1")** made the alias of a tz1, tz2 or tz3
+/// account recoverable: it is the CREATE2 address, through the Safe singleton factory (at the
+/// same address on every EVM chain), of an EIP-1167 minimal proxy to the account type's
+/// rescue implementation with the 20-byte public key hash appended, so tez or tokens sent to it
+/// by mistake on another EVM chain can be recovered with the Tezos key:
+/// `keccak256(0xff ‖ factory ‖ salt ‖ keccak256(initcode))[12...]`. Other addresses (tz4, tz5,
+/// KT1) keep the first 20 bytes of Keccak-256 over the base58 address string, which was the
+/// alias of every address before 8.0 (`legacyAddress`). The constants are octez.js's
+/// (`@tezos-x/octez.js-utils` `alias.js`, 25.1.0-rc.1), and the results match what Previewnet's
+/// gateway answered for tz1, tz2, tz3 and tz4 (`KeccakTests`).
 enum EtherlinkAlias {
-    /// Whether Receive offers the EVM-side address and "Link to Etherlink". **Off:** Etherlink
-    /// 8.0 replaces this derivation with a new, recoverable alias (RFC-26051), so an address
-    /// shown or linked today would not be the account's address after the upgrade, and tez sent
-    /// to it could be stranded. Turn it back on only with the new derivation in place.
+    /// Whether Receive offers the EVM-side address and "Link to Etherlink". **Off** until
+    /// Etherlink 8.0 is active on mainnet: the derivation below is the new one, and a network
+    /// still on the old kernel reports `EtherlinkAliasStatus.awaitingUpgrade` rather than an
+    /// address, so nothing stale can be shown or linked even then.
     static let isOffered = false
 
+    /// Safe singleton factory.
+    static let factory = bytes("914d7fec6aac8cd542e72bca78b30650d45643d7")
+    /// `keccak256("tezosx.rescue.v1")`.
+    static let salt = bytes("9b8bb449a3d23b110d8c46424ba9b40748ac28bc7b99b7422a272950e17bb1d8")
+    /// Refuses to deploy where the guard address has code (Etherlink itself), then copies out the runtime.
+    static let clonePrefix = bytes("733822d2fe3dce6ce4f4c7f274e2415fa3fae66c3e3b15601e57600080fd5b604180602a6000396000f3")
+    static let cloneRuntimeHead = bytes("363d3d373d3d3d363d73")
+    static let cloneRuntimeTail = bytes("5af43d82803e903d91602b57fd5bf3")
+    /// The rescue implementation for each account type.
+    static func implementation(for scheme: AddressScheme) -> Data? {
+        switch scheme {
+        case .tz1: bytes("fee60e905d91905df9cd6bf8153976e9d77d5051")
+        case .tz2: bytes("47c81e55f51344d80a8e85c2add86257b51ea3d2")
+        case .tz3: bytes("894b62c61b208184b80fd72803811ba35d818112")
+        default: nil
+        }
+    }
+
+    /// The alias as Etherlink 8.0 derives it, lowercase `0x` hex.
     static func address(for account: Address) -> String {
-        "0x" + Keccak.hash256(Data(account.value.utf8)).prefix(20).map { String(format: "%02x", $0) }.joined()
+        guard let scheme = account.scheme, let implementation = implementation(for: scheme),
+              let decoded = Base58.checkDecode(account.value), decoded.count == 23
+        else { return legacyAddress(for: account) }
+        let pkh = Data(decoded.suffix(20))
+        let initcode = clonePrefix + cloneRuntimeHead + implementation + cloneRuntimeTail + pkh
+        let preimage = Data([0xff]) + factory + salt + Keccak.hash256(initcode)
+        return hex(Keccak.hash256(preimage).suffix(20))
+    }
+
+    /// The alias before Etherlink 8.0 (and still for tz4, tz5 and KT1): the first 20 bytes of
+    /// Keccak-256 over the base58 address. Kept to recognise a node that has not upgraded.
+    static func legacyAddress(for account: Address) -> String {
+        hex(Keccak.hash256(Data(account.value.utf8)).prefix(20))
+    }
+
+    private static func hex(_ data: Data) -> String { "0x" + data.map { String(format: "%02x", $0) }.joined() }
+
+    private static func bytes(_ hex: String) -> Data {
+        var data = Data(capacity: hex.count / 2)
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            data.append(UInt8(hex[index..<next], radix: 16)!)
+            index = next
+        }
+        return data
     }
 }

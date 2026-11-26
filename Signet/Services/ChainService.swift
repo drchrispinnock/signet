@@ -169,6 +169,8 @@ enum ChainError: LocalizedError, Equatable {
     case noEtherlinkBridge
     /// Asked of a layer 1 service: alias status and linking live on the Layer 2 node.
     case notALayer2Service
+    /// The Layer 2 node still derives EVM aliases as before Etherlink 8.0.
+    case etherlinkAliasNotUpgraded
     /// A token transfer with no tokens, a bad contract, token id or amount, or an amount of 0.
     case invalidTokenTransfer
     /// A node answered with another chain's id than the one pinned for it (S12).
@@ -186,6 +188,7 @@ enum ChainError: LocalizedError, Equatable {
         case .noEtherlinkNode: "Etherlink is not enabled for this network."
         case .noEtherlinkBridge: "Signet knows no Etherlink bridge for this network."
         case .notALayer2Service: "This needs the Layer 2 node."
+        case .etherlinkAliasNotUpgraded: "This network has not upgraded to Etherlink 8.0 yet, which changes the account's address on the EVM side. Linking waits for the upgrade."
         case .invalidTokenTransfer: "Choose at least one token and a whole number of editions, up to \(TokenTransferRequest.maxTokens) tokens at once."
         case .wrongChain(let expected, let found): "The node serves chain \(found), not \(expected)."
         case .proofOfPossessionRequired: "This account's first operation reveals its key with a proof of possession, which needs the secret key."
@@ -250,11 +253,15 @@ enum EtherlinkAliasStatus: Equatable, Sendable {
     case linked(evmAddress: String)
     /// Only derived so far: the account must link itself first.
     case unlinked(evmAddress: String)
+    /// The node still answers the alias from before Etherlink 8.0 (`EtherlinkAlias.legacyAddress`):
+    /// the network has not upgraded, so no alias is shown or linked until it does.
+    case awaitingUpgrade
 
     var isLinked: Bool { if case .linked = self { true } else { false } }
-    var evmAddress: String {
+    var evmAddress: String? {
         switch self {
         case .linked(let address), .unlinked(let address): address
+        case .awaitingUpgrade: nil
         }
     }
 }

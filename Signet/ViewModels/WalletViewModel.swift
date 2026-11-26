@@ -1419,11 +1419,15 @@ final class WalletViewModel {
     /// Links the selected account to its EVM alias: sends the gateway no-op from the account on
     /// the Layer 2 node with the approved `limits` and waits for the rollup block, after which
     /// `etherlinkAliasStatus` reports it linked. The account pays the fee on Etherlink, so it
-    /// needs a little tez there first (the Bridge sheet moves some).
+    /// needs a little tez there first (the Bridge sheet moves some). Refused while the node is
+    /// still on a kernel older than Etherlink 8.0 (`EtherlinkAliasStatus.awaitingUpgrade`).
     func linkToEtherlink(limits: OperationLimits?, passphrase: String?) async throws -> (hash: String, level: Int) {
         guard let wallet = selectedWallet, let chain = layer2Chain else { throw ChainError.noEtherlinkNode }
         guard let limits else { throw WalletError.notEstimated }
         guard wallet.address.isUsableOnEtherlink else { throw SendViewModel.SendError.noSecretKey }
+        // Never link on a kernel older than Etherlink 8.0: it would make the old alias, which
+        // stops being the account's at the upgrade.
+        if try await chain.etherlinkAliasStatus(for: wallet.address) == .awaitingUpgrade { throw ChainError.etherlinkAliasNotUpgraded }
         guard let signer = try signingKey(for: wallet, passphrase: passphrase) else { throw SendViewModel.SendError.noSecretKey }
         let sent = try await chain.sendEtherlinkLink(from: wallet, signer: signer, limits: limits)
         let level: Int
