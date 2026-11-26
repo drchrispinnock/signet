@@ -23,7 +23,17 @@ struct Layer2BrandingTests {
 
     #if canImport(AppKit)
     @Test func bothLogosAreBundled() {
-        for branding in Layer2Branding.allCases { #expect(NSImage(named: branding.logo) != nil, Comment(rawValue: branding.logo)) }
+        for branding in Layer2Branding.allCases {
+            #expect(NSImage(named: branding.logo) != nil, Comment(rawValue: branding.logo))
+            #expect(NSImage(named: branding.miniLogo) != nil, Comment(rawValue: branding.miniLogo))
+        }
+        // The tabs' Tezos X mark is its own asset with the bigger X.
+        #expect(Layer2Branding.tezosX.miniLogo == "TezosXMini" && Layer2Branding.etherlink.miniLogo == "EtherlinkLogo")
     }
     #endif
+
+    @Test func layerMarksAreLogosByDefault() {
+        #expect(LayerMarks.allCases.map(\.title) == ["tz", "L1/L2"])
+        #expect(LayerMarks(rawValue: "labels") == .labels && LayerMarks(rawValue: "x") == nil)
+    }
 }

@@ -83,6 +83,7 @@ struct SettingsView: View {
 
     @AppStorage(Layer2Branding.key) private var layer2Branding: Layer2Branding = .etherlink
     @AppStorage(ConsolidatedBalances.key) private var consolidatedBalances = false
+    @AppStorage(LayerMarks.key) private var layerMarks: LayerMarks = .logos
 
     /// Features being tried out; each says what it changes.
     private var experimentalSection: some View {
@@ -95,6 +96,15 @@ struct SettingsView: View {
             Text(layer2Branding == .tezosX
                  ? "The Layer 2 is called Tezos X throughout Signet and shown with the Tezos X logo. Only the name and logo change: nodes, contracts and accounts are the same."
                  : "The Layer 2 is called Etherlink, with Etherlink's logo.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Picker("Layer marks", selection: $layerMarks) {
+                ForEach(LayerMarks.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text(layerMarks == .logos
+                 ? "The Activity, Assets, NFTs and Domains tabs mark Tezos and \(Brand.l2) with their small logos."
+                 : "The Activity, Assets, NFTs and Domains tabs mark Tezos and \(Brand.l2) as L1 and L2.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Toggle("Consolidated balances", isOn: $consolidatedBalances)

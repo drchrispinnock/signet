@@ -42,28 +42,35 @@ struct ActivityTabsView: View {
     }
 }
 
-/// Two logo buttons, Tezos and Etherlink, each lit while that layer's holdings and operations
-/// are shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
+/// Two buttons, Tezos and Etherlink, each lit while that layer's holdings and operations are
+/// shown. Beside the activity picker while Layer 2 is on, so every tab can be cut to one chain.
+/// Each shows the layer's mark (`LayerMark`: a small logo, or L1 / L2).
 struct LayerToggles: View {
     @Binding var shown: Set<Int>
     var layer2Name = Brand.l2
+    @AppStorage(LayerMarks.key) private var marks: LayerMarks = .logos
 
     var body: some View {
         HStack(spacing: 4) {
-            toggle(layer: 1, logo: "TezosToken", name: "Tezos")
-            toggle(layer: 2, logo: Brand.l2Logo, name: layer2Name)
+            toggle(layer: 1, name: "Tezos")
+            toggle(layer: 2, name: layer2Name)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chains shown")
     }
 
-    private func toggle(layer: Int, logo: String, name: String) -> some View {
+    private func toggle(layer: Int, name: String) -> some View {
         Toggle(isOn: Binding(
             get: { shown.contains(layer) },
             set: { on in if on { shown.insert(layer) } else { shown.remove(layer) } }
         )) {
-            Image(nsImage: ChainSidePicker.smallLogo(logo, points: 16))
-                .opacity(shown.contains(layer) ? 1 : 0.45)
+            Group {
+                switch marks {
+                case .logos: Image(nsImage: ChainSidePicker.smallLogo(layer == 1 ? "TezosToken" : Brand.l2MiniLogo, points: 16))
+                case .labels: Text("L\(layer)").font(.caption.weight(.semibold).monospacedDigit())
+                }
+            }
+            .opacity(shown.contains(layer) ? 1 : 0.45)
         }
         .toggleStyle(.button)
         .controlSize(.small)
@@ -72,18 +79,31 @@ struct LayerToggles: View {
     }
 }
 
-/// A small Etherlink logo beside a layer 2 row's figure or on its tile: the same mark as the
-/// dashboard's Etherlink balance row, so a list reads "on Etherlink".
+/// The mark beside a layer 2 row's figure or on its tile, so a list reads "on Etherlink": the
+/// Layer 2's small logo, or an L2 capsule, as Settings' "Layer marks" says (`LayerMarks`).
 struct EtherlinkMark: View {
     var size: CGFloat = 14
+    @AppStorage(LayerMarks.key) private var marks: LayerMarks = .logos
 
     var body: some View {
-        Image(Brand.l2Logo)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
-            .help("On \(Brand.l2)")
-            .accessibilityHidden(true)
+        Group {
+            switch marks {
+            case .logos:
+                Image(Brand.l2MiniLogo)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            case .labels:
+                Text("L2")
+                    .font(.system(size: size * 0.62, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, size * 0.28)
+                    .frame(height: size)
+                    .background(Capsule().fill(Color.accentColor))
+            }
+        }
+        .help("On \(Brand.l2)")
+        .accessibilityHidden(true)
     }
 }
 
