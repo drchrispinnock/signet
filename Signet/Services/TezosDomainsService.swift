@@ -25,8 +25,16 @@ struct TezosDomainsService: Sendable {
         self.session = session
     }
 
+    /// Whether Tezos Domains knows this kind of address at all: tz1 to tz4 and KT1. Its API
+    /// refuses anything else (a tz5 is "unable to convert to Address"), and such an account
+    /// cannot own or be pointed at by a name, so it simply has none.
+    static func supports(_ address: Address) -> Bool {
+        address.isContract || [.tz1, .tz2, .tz3, .tz4].contains(address.scheme)
+    }
+
     /// The published `.tez` name for `address`, or `nil` when it has none.
     func reverseName(for address: Address) async throws -> String? {
+        guard Self.supports(address) else { return nil }
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -54,6 +62,7 @@ struct TezosDomainsService: Sendable {
 
     /// Every name `address` owns or that points at it, its reverse record first, then by name.
     func domains(of address: Address) async throws -> [TezosDomain] {
+        guard Self.supports(address) else { return [] }
         var items: [ListResponse.Item] = []
         var reverse: String?
         var ownedAfter: String?, pointingAfter: String?

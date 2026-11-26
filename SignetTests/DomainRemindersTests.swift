@@ -57,3 +57,19 @@ struct DomainRemindersTests {
         #expect(zip(plan.upcoming, plan.upcoming.dropFirst()).allSatisfy { $0.due <= $1.due })
     }
 }
+
+/// Tezos Domains refuses tz5 and tz6 addresses outright; Signet does not ask about them, so one
+/// such account never breaks the reminders, the Domains tab or the dashboard's name.
+struct TezosDomainsAddressTests {
+    @Test func onlyAddressesTezosDomainsKnowsAreAsked() async throws {
+        #expect(TezosDomainsService.supports(Address("tz1dCaMnnMJk76UodjewCK67ABiXWjcKj73N")))
+        #expect(TezosDomainsService.supports(Address("tz4E128TU3t1TdLCJEY4oHg8gZzZNoNBknwh")))
+        #expect(TezosDomainsService.supports(Address("KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton")))
+        let tz5 = Address("tz5gPthTHipBCx3PBp1asAzdCEJfDFLRPeBS")
+        #expect(!TezosDomainsService.supports(tz5))
+        // Answered without a request (the endpoint does not exist).
+        let service = TezosDomainsService(endpoint: URL(string: "https://offline.invalid/graphql")!)
+        #expect(try await service.domains(of: tz5).isEmpty)
+        #expect(try await service.reverseName(for: tz5) == nil)
+    }
+}

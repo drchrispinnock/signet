@@ -263,7 +263,9 @@ automatic download is off by default. The updater is not started under the test 
   reads mainnet Tezos Domains for every account and contract except address book entries,
   second-level names only, and answers `nil` (keep what is scheduled) when any read fails.
   Clicking a reminder opens the name on app.tezos.domains. "Send a test reminder" shows one
-  for the soonest name. `DomainRemindersTests`.
+  for the soonest name. `DomainRemindersTests`. The Tezos Domains API refuses tz5 and tz6
+  addresses (they cannot own names), so `TezosDomainsService.supports` keeps them from ever
+  being asked: they simply have no names (Domains tab, dashboard name and reminders alike).
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
