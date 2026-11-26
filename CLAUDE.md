@@ -632,7 +632,7 @@ automatic download is off by default. The updater is not started under the test 
 - **Experimental features.** Settings has an "Experimental Features" section. **Layer 2
   branding** (`Layer2Branding`, UserDefaults `layer2Branding`, Etherlink by default): with
   Tezos X chosen, every user-facing "Etherlink" reads "Tezos X" and the Etherlink logo becomes
-  `TezosXLogo` (the Tezos coin with a white X at its top right). User-facing text says
+  `TezosXLogo` (the Tezos coin with a yellow X at its top right). User-facing text says
   `\(Brand.l2)` and images use `Brand.l2Logo`, never the literal name or `EtherlinkLogo`;
   `Network.l2Name` follows the setting for Etherlink and keeps a rollup's own name (Previewnet).
   Code names, contracts, URLs and chain data stay Etherlink's. Changing it redraws the
