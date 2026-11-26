@@ -32,8 +32,17 @@ struct TokenTransferRequest: Hashable, Sendable {
 
     let to: Address
     let transfers: [TokenTransfer]
+    /// Move Assets: a tez transfer of this many mutez to `to`, sent last in the same group, so
+    /// the tokens and the account's tez go under one signature. `nil` for a plain token transfer.
+    var tezMutez: String? = nil
+
+    init(to: Address, transfers: [TokenTransfer], tezMutez: String? = nil) {
+        self.to = to; self.transfers = transfers; self.tezMutez = tezMutez
+    }
 
     var isBurn: Bool { to == Self.burnAddress }
+    /// Operations in the group, as the approved limits must list them: one per contract, then the tez.
+    var operationCount: Int { contracts.count + (tezMutez == nil ? 0 : 1) }
     var count: Int { transfers.count }
     /// The contracts called, one operation each, in the order they first appear.
     var contracts: [String] {
@@ -42,7 +51,9 @@ struct TokenTransferRequest: Hashable, Sendable {
         return seen
     }
     var isValid: Bool {
-        to.isValidAccount && !transfers.isEmpty && transfers.count <= Self.maxTokens && transfers.allSatisfy(\.isValid)
+        if let tezMutez, !(Mutez.isValid(tezMutez) && tezMutez != "0" && !tezMutez.hasPrefix("0") && (Int64(tezMutez) ?? .max) <= 9_007_199_254_740_991) { return false }
+        if tezMutez != nil, isBurn { return false }
+        return to.isValidAccount && (!transfers.isEmpty || tezMutez != nil) && transfers.count <= Self.maxTokens && transfers.allSatisfy(\.isValid)
     }
 
     /// As the bridge's `tokenTransferParams` reads the transfers.

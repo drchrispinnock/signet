@@ -210,6 +210,7 @@ final class WalletViewModel {
     var canProveSelectedKey: Bool { selectedWallet?.scheme == .tz4 && (canExportSelectedKey || selectedWallet?.remoteSigner != nil) }
     var isPresentingGovernance = false
     var isPresentingBridge = false
+    var isPresentingMoveAssets = false
     /// The NFTs a Transfer or Burn was started on from the grid's context menu; the sheet shows while set.
     var nftOperation: NFTOperation? = nil
     /// The tokens whose artwork is being downloaded, while the Download sheet is up.
@@ -1349,6 +1350,12 @@ final class WalletViewModel {
     /// The context a deposit would run in right now; `nil` when nothing is selected.
     var bridgeContext: BridgeContext? {
         selectedWallet.map { BridgeContext(wallet: $0, network: network, directoryRevision: walletDirectoryRevision, generation: operationGeneration) }
+    }
+
+    /// The context an operation from `wallet` would run in right now, for sheets whose source
+    /// account need not be the selected one (Move assets).
+    func operationContext(for wallet: Wallet) -> BridgeContext {
+        BridgeContext(wallet: wallet, network: network, directoryRevision: walletDirectoryRevision, generation: operationGeneration)
     }
 
     /// A deposit estimate together with the context it is valid for.

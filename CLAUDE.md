@@ -633,7 +633,7 @@ automatic download is off by default. The updater is not started under the test 
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
   share one item list, `OperationsMenuItems` in `WalletHeaderView.swift` (Create account, Import account, Connect Ledger, Scan QR code when a camera is attached, Rename account, Export secret key, Create proof of possession when the account is a tz4 whose key we hold | Add address, Remember key when session-only, Forget account |
-  dApps, Bridge when applicable | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
+  dApps, Bridge when applicable, Move assets | Shield tez, Unshield tez, Send shielded, Shielded address when shielding is on | Create multisig, Add multisig, Sign multisig transaction, Submit multisig
   transaction | Baking, Governance when applicable | Networks, Shielded settings, Settings, Refresh); only the Settings shortcut differs, since the app menu already
   has Cmd-comma. File has Create Backup (`backUp(force: true)`). Help has Getting Started and Signet Website (`websiteURL`,
   https://signetwallet.org) in place of the default help item (`HelpMenuItems`). Getting Started
@@ -793,6 +793,25 @@ automatic download is off by default. The updater is not started under the test 
   context and amount are still the same; `BridgeSheet` re-estimates whenever they change and
   retains the submitted account/network/amount for the result and explorer link.
   `EtherlinkLiveTests.sendsTezBetweenAccountsOnEtherlink` is the live round trip.
+  **Move assets.** "Move assets…" (both menus, under Bridge, enabled by
+  `WalletViewModel.canMoveAssets`) opens `MoveAssetsSheet`: From (an implicit account we can
+  sign for, `moveSources`, the selected one first) and To (any other implicit account in the
+  list or address book, `moveDestinations`; contracts are never offered), then a one-way
+  warning to accept, and a second one when Signet cannot sign for the destination
+  (`holdsKey(of:)`), then the review. `planMoveAssets` (`WalletViewModel+MoveAssets.swift`)
+  refuses staked or unstaking tez (frozen or finalizable) and a registered baker, and refuses
+  an NFT listing that is unavailable or partial (emptying the account would strand what was
+  not listed); it plans each layer, Tezos and (with Layer 2 on, both accounts tz1–tz3)
+  Etherlink, as FA2 transfers of every transferable NFT, all editions, in groups of at most
+  `maxTokens`, plus the tez sweep: `TokenTransferRequest.tezMutez` appends a plain tez
+  transfer to the recipient as the last operation of the last group (`tokenTransferParams`
+  in `src/tokens.js`; the request may then hold no tokens), priced with a 1 mutez placeholder
+  and sent as the spendable tez less every group's fee and storage burn. Soulbound NFTs
+  (`isTransferable` false) stay and are listed. `moveAssets` sends the groups one at a time
+  through `sendTokenTransfer` with the approved limits, waits for each block, checks the
+  `operationContext(for:)` of the source before each, and reports each group to the sheet;
+  a failure part way leaves what went through listed. Fungible tokens and domains are not
+  moved yet. `MoveAssetsTests`; nothing has been exercised live yet.
   **EVM alias (0.9.3; switched off November 2026).** `EtherlinkAlias.isOffered` is `false`, so
   Receive shows the Tezos address only, with no chain picker and no "Link to Etherlink":
   Etherlink 8.0 replaces the alias derivation below with a new, recoverable one (RFC-26051),

@@ -53,6 +53,19 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
   assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: a, tokenId: '1', amount: '1.5' }]), /Not an amount/);
   console.log('PASS tokens: FA2 transfer parameters, one call per contract, checked before any signer or node');
 
+  // Move Assets: the tez sweep rides last in the same group, to the same recipient, and may
+  // stand alone; a malformed or unsafe amount is refused before anything else.
+  const sweep = plain(tokens.tokenTransferParams(me, them, [{ contract: a, tokenId: '7', amount: '1' }, { contract: b, tokenId: '1', amount: '2' }], '1234567'));
+  assert.equal(sweep.length, 3);
+  assert.deepEqual(sweep[2], { kind: 'transaction', to: them, amount: 1234567, mutez: true });
+  assert.deepEqual(sweep.slice(0, 2).map((p) => p.to), [a, b]);
+  assert.deepEqual(plain(tokens.tokenTransferParams(me, them, [], '5')), [{ kind: 'transaction', to: them, amount: 5, mutez: true }]);
+  for (const bad of ['0', '-1', '1.5', '01', '', '9007199254740993', 5]) {
+    assert.throws(() => tokens.tokenTransferParams(me, them, [], bad), /Not an amount of tez/, String(bad));
+  }
+  assert.throws(() => tokens.tokenTransferParams(me, them, [], null), /No tokens/);
+  console.log('PASS move assets: the tez sweep is the last operation of the group and is checked like the tokens');
+
   // S14 for a batch: every operation carries its own approved figures, in order.
   assert.throws(() => ops.parseBatchLimits({ operations: [] }), /not estimated/);
   assert.throws(() => ops.parseBatchLimits({ operations: [{ feeMutez: '1', gasLimit: -1, storageLimit: 0 }] }), /gas limit/);
