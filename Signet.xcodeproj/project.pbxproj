@@ -30,6 +30,7 @@
 		14D59050B120D0DE900C0B08 /* WalletViewModel+Domains.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA703181376C3F34F32E32C /* WalletViewModel+Domains.swift */; };
 		15B6085B392A57A2CF3BC9F9 /* SendSheet+Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5133556944367214FA9041 /* SendSheet+Preview.swift */; };
 		15FF63E596D6B4BF37C12288 /* Profiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F69782E8214F5E7A8AFD15F /* Profiles.swift */; };
+		16E0C543F87194524EED1D24 /* PassphraseCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D31E2EFEDDFE6AB3FC7C9 /* PassphraseCache.swift */; };
 		176A2025E26E5BB0DDB5FEDB /* KeccakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73AC1D8BDD38FBB6CE11BEF5 /* KeccakTests.swift */; };
 		187F8A19861109D189ACEEA7 /* WalletHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075C70E256C22BF792C133B6 /* WalletHomeView.swift */; };
 		1989A008D2B48218806C9BF3 /* EndpointPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2480FCA7277757AFED969B9B /* EndpointPolicy.swift */; };
@@ -37,11 +38,13 @@
 		1A4899B4CD4C9D3184DE6D45 /* NodeStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */; };
 		1FD01BA37E823824E784F994 /* OctezConnectEndToEnd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */; };
 		200A996B9BB378A8A8B94907 /* DAppPairingLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DA319AA4EE1C529012FFFD /* DAppPairingLinkTests.swift */; };
+		21657CE642432486A6E34C3D /* PasswordField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9392B4A12AA3464ADEA9C2A /* PasswordField.swift */; };
 		24BFD9B2163DAC152D8E54F2 /* OctezConnectStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */; };
 		258B228FB6E654342B3331EB /* ProofOfPossessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */; };
 		2642CCC0385340DBDBB000C6 /* IPFS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4B9106C1A9902CED9500D0 /* IPFS.swift */; };
 		28011E6E2D2AB44E824900D1 /* BakingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A212889342C7C573BC835EB1 /* BakingSheet.swift */; };
 		297795808F6473E66D33DC6E /* KeyImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5C8A611C21731B24C6BE2F /* KeyImporter.swift */; };
+		2CDB61B2D4F95E3501C8B605 /* PassphraseCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2455C033CF7D0514A4294C2E /* PassphraseCacheTests.swift */; };
 		2D5D776B43B99FBC7D9DC68E /* CreateMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88E3C67501524EFC2417151 /* CreateMultisigSheet.swift */; };
 		2DB09F85CE60E8B10D4554C1 /* GettingStartedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED1887E4B6FF251D1DBA07B /* GettingStartedTests.swift */; };
 		30B219AC144FC83867374797 /* BuySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00D9FA8FA790B44780BF4BA /* BuySheet.swift */; };
@@ -237,6 +240,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		004D31E2EFEDDFE6AB3FC7C9 /* PassphraseCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassphraseCache.swift; sourceTree = "<group>"; };
 		0112E6B83F48D5B43089E13D /* TokenTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTransfer.swift; sourceTree = "<group>"; };
 		01914B49C96EFC525318E249 /* WalletViewModel+MoveAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WalletViewModel+MoveAssets.swift"; sourceTree = "<group>"; };
 		046B82438F96A071EF2BC434 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -264,6 +268,7 @@
 		1F65795A4757E28C3485E4E9 /* EtherlinkGovernance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernance.swift; sourceTree = "<group>"; };
 		1F797146AB3C1C9C258628CD /* AirGapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirGapTests.swift; sourceTree = "<group>"; };
 		201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctezConnectEndToEnd.swift; sourceTree = "<group>"; };
+		2455C033CF7D0514A4294C2E /* PassphraseCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassphraseCacheTests.swift; sourceTree = "<group>"; };
 		2480FCA7277757AFED969B9B /* EndpointPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointPolicy.swift; sourceTree = "<group>"; };
 		25F210FF1A834DF6C3D693B1 /* ConsolidatedBalancesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsolidatedBalancesTests.swift; sourceTree = "<group>"; };
 		26E6EF6FD6D02265B7A44DA6 /* ArtworkCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCache.swift; sourceTree = "<group>"; };
@@ -422,6 +427,7 @@
 		D5C9D3B9E3472F14CFB602CD /* ShieldedAddressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldedAddressSheet.swift; sourceTree = "<group>"; };
 		D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeStatusBar.swift; sourceTree = "<group>"; };
 		D88E3C67501524EFC2417151 /* CreateMultisigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateMultisigSheet.swift; sourceTree = "<group>"; };
+		D9392B4A12AA3464ADEA9C2A /* PasswordField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordField.swift; sourceTree = "<group>"; };
 		D9682C459E924F07DEF53FC3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D977091AD40A9EF61E257FD4 /* GovernanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GovernanceTests.swift; sourceTree = "<group>"; };
 		DC36C1C5F715582D49417430 /* TokenTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTransferTests.swift; sourceTree = "<group>"; };
@@ -512,6 +518,7 @@
 				FE05512B2CAEBD9F8232CC91 /* NetworksSheet.swift */,
 				278776717D4BD5F05FF06B65 /* NFTGridView.swift */,
 				D7E378D0D006F0FB2F6DEC15 /* NodeStatusBar.swift */,
+				D9392B4A12AA3464ADEA9C2A /* PasswordField.swift */,
 				19FF4835DC33D95B99532F4E /* ProofOfPossessionSheet.swift */,
 				525C79C726F273E9E3375452 /* ReceiveSheet.swift */,
 				1CBB198A5B2562C08A15115D /* RecoverySheet.swift */,
@@ -637,6 +644,7 @@
 				41AADDEDE2F5B7EE9F4DFF8F /* OctezConnectCryptoTests.swift */,
 				201473B9B33FBAB2EAF7811B /* OctezConnectEndToEnd.swift */,
 				D4940D1568DFE4D95E4DAF1D /* OctezConnectPairingDiagnostic.swift */,
+				2455C033CF7D0514A4294C2E /* PassphraseCacheTests.swift */,
 				A8A0D596353AD0772063881C /* PostQuantumSendTests.swift */,
 				822144910E1FB03FD7D270CA /* QRCodeTests.swift */,
 				4FED3AF0774BAE18B7179808 /* QRScanTests.swift */,
@@ -723,6 +731,7 @@
 				FD76C823B36485828A3E50A5 /* NodeMonitor.swift */,
 				431B3F62BFE0A8A65B9F194C /* OctezConnectStorage.swift */,
 				8E23BA77E2EE9A2D4326E404 /* OperationJournal.swift */,
+				004D31E2EFEDDFE6AB3FC7C9 /* PassphraseCache.swift */,
 				5DC50BA0743BD7F6C02007F2 /* PrivateFile.swift */,
 				4F69782E8214F5E7A8AFD15F /* Profiles.swift */,
 				154F15F54F99A00122AACE89 /* PublicHTTPClient.swift */,
@@ -990,6 +999,8 @@
 				1A4899B4CD4C9D3184DE6D45 /* NodeStatusBar.swift in Sources */,
 				24BFD9B2163DAC152D8E54F2 /* OctezConnectStorage.swift in Sources */,
 				93CA5BDA4B5439D81270BCAB /* OperationJournal.swift in Sources */,
+				16E0C543F87194524EED1D24 /* PassphraseCache.swift in Sources */,
+				21657CE642432486A6E34C3D /* PasswordField.swift in Sources */,
 				945A8B6A3D1933615DBBD5C5 /* PrivateFile.swift in Sources */,
 				15FF63E596D6B4BF37C12288 /* Profiles.swift in Sources */,
 				258B228FB6E654342B3331EB /* ProofOfPossessionSheet.swift in Sources */,
@@ -1101,6 +1112,7 @@
 				8A355CB2B0F501CE73EB27D0 /* OctezConnectCryptoTests.swift in Sources */,
 				1FD01BA37E823824E784F994 /* OctezConnectEndToEnd.swift in Sources */,
 				D5114AC1C526FA5C1E938482 /* OctezConnectPairingDiagnostic.swift in Sources */,
+				2CDB61B2D4F95E3501C8B605 /* PassphraseCacheTests.swift in Sources */,
 				F90384B120EBF0588BDE29CB /* PostQuantumSendTests.swift in Sources */,
 				49007ED6467AA6F2D6205E8C /* QRCodeTests.swift in Sources */,
 				3A6C9561CD52640CE935DC03 /* QRScanTests.swift in Sources */,

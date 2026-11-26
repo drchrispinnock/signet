@@ -66,6 +66,11 @@ struct SignetApp: App {
                     guard !Self.isTestHost, cameraWatcher == nil else { return }
                     cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
                 }
+                // Remembered passwords go when the Mac sleeps, its screens sleep or it locks.
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in model.forgetRememberedPassphrases() }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidSleepNotification)) { _ in model.forgetRememberedPassphrases() }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.sessionDidResignActiveNotification)) { _ in model.forgetRememberedPassphrases() }
+                .onReceive(DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screenIsLocked"))) { _ in model.forgetRememberedPassphrases() }
         }
         .windowResizability(.contentMinSize)
         .commands {

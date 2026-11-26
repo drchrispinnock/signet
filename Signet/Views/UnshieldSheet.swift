@@ -30,7 +30,7 @@ struct UnshieldSheet: View {
     private var shielded: AssetBalance? { model.assets.first { $0.kind == .shielded } }
     private var available: Decimal? { model.shieldedWallet.map { Decimal($0.availableMutez) / Mutez.perTez } }
     private var tokenIsSet: Bool { model.shieldedOperatorTokenIsSet(for: model.network) }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var amount: Decimal? {
         if let submitted { return submitted.amount }
@@ -169,7 +169,7 @@ struct UnshieldSheet: View {
                         if execution?.withdrawal.id == status.id, let execution, executing == nil {
                             HStack(spacing: 8) {
                                 Text("Tezos fee \(AssetBalance.format(execution.estimate.fee, symbol: "tz"))").font(.caption)
-                                if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $executionPassphrase).frame(width: 200) }
+                                if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $executionPassphrase).frame(width: 260) }
                                 Button("Confirm") { Task { await execute(execution) } }
                                     .controlSize(.small).buttonStyle(.borderedProminent)
                                     .disabled(needsPassphrase && executionPassphrase.isEmpty)

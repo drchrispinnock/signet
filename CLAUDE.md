@@ -237,6 +237,20 @@ automatic download is off by default. The updater is not started under the test 
   stored in octez format. Both paths end in `WalletViewModel.importAccount(alias:material:…)`,
   which can encrypt the key for storage like Create account. `KeyImporter` is the protocol
   (`BridgeKeyImporter`, `MockKeyImporter`). **Session-only keys (0.8.3).** The sheet's "Keep the key" choice (in the wallet directory, or only until Signet quits) makes a paper key: `importAccount(…keepForSession: true)` puts it in `SessionKeyStore` (`Signet/Services/SessionKeys.swift`, `mlock`ed bytes wiped on forget) instead of the store, `Wallet.isSessionOnly` marks it, and `WalletViewModel.wallets` is the stored list plus `sessionWallets`. It signs, exports, renames and forgets like a stored key (encrypted in memory too when a password is given) but is never written to the directory or a backup and is gone at quit; the header tags it with an orange "Session only" lozenge. "Remember key…" (both menus, above Forget, shown only while the selected account is session-only: `canRememberSelectedKey`) opens `RememberKeySheet` and `rememberSelectedWallet(storePassphrase:)` moves the key into the directory as it is held, or encrypts a clear one with the password offered there (on by default on mainnet); the session entry is pinned first, removed only if unchanged after the encryption wait, and put back if the store refuses it. `SignetApp.init` sets `RLIMIT_CORE` to 0 so no core dump can carry it. Every entry has an identity and a generation that each change bumps, `add` never replaces a taken alias or address, and Forget pins a `RemovalSnapshot` before the password check and removes only that exact entry afterwards (`remove(matching:)`, S07); `importAccount` rechecks alias and address after its encryption await.
+- **Remembered passwords.** Settings > Passwords, "Remember passwords" 0 to 60 minutes
+  (`PasswordCacheSettings`, UserDefaults `passwordCacheMinutes`, 0 by default; ignored under
+  the test host). `WalletViewModel.signingKey(for:passphrase:)`, which every signing path uses
+  (Send, dApps, multisig, staking, bridge, tokens, domains, shielded, Buy's check, proofs of
+  possession), remembers a typed password only after a background `keyImporter.decrypt` finds
+  it opens the key, and when none is typed uses a remembered one. `PassphraseCache`
+  (`Signet/Services/PassphraseCache.swift`) holds each in a `SessionSecret` (locked, wiped)
+  keyed by account and tied to a SHA-256 of the encrypted key it opened, so a changed key is
+  never handed it; the time runs from when it was typed. It is forgotten on expiry, a change
+  of the setting, a wallet directory switch, Forget account, the Mac sleeping, its screens
+  sleeping, the session resigning or the screen locking (`SignetApp`), and by "Forget
+  remembered passwords". Sheets ask `needsPassphrase(for:)` and show `PasswordField`
+  ("Remembered until 14:05", Forget) in place of the field. Export secret key and Forget
+  account do not use it and always ask. `PassphraseCacheTests`.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be

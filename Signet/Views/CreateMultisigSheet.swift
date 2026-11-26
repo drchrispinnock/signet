@@ -45,7 +45,7 @@ struct CreateMultisigSheet: View {
     @State private var created: MultisigContract?
 
     private var payer: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { payer?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: payer) }
     private var signsOnLedger: Bool { payer?.keyKind == .ledger }
     private var keys: [String] { signers.compactMap(\.key) }
     /// Tez to move into the contract when it is created; `nil` when the field is not a number ≥ 0.
@@ -156,7 +156,7 @@ struct CreateMultisigSheet: View {
             } else if allResolved, threshold <= keys.count, amount != nil {
                 LabeledContent("Fee") { ProgressView().controlSize(.small) }
             }
-            if needsPassphrase, let payer { SecureField("Password for “\(payer.alias)”", text: $passphrase) }
+            if let payer, payer.keyKind == .encrypted { PasswordField(model: model, wallet: payer, text: $passphrase) }
             if signsOnLedger, isWorking { LedgerPromptLabel(text: "Confirm the origination on your Ledger…") }
             Text("The contract holds tez; spending needs \(threshold) of the \(signers.count) signers. octez-client recognises it as a multisig too.")
                 .font(.callout).foregroundStyle(.secondary)

@@ -27,7 +27,7 @@ struct EtherlinkGovernanceView: View {
     @State private var loadTask: Task<Void, Never>?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var processes: [EtherlinkGovernance.Process] { model.network.etherlinkGovernanceProcesses }
 
@@ -233,7 +233,7 @@ struct EtherlinkGovernanceView: View {
                     HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Estimating…").foregroundStyle(.secondary) }
                 }
             }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)

@@ -33,7 +33,7 @@ struct MoveAssetsSheet: View {
     private var source: Wallet? { plan?.source ?? model.moveSources.first { $0.id == sourceID } }
     private var destination: Wallet? { plan?.destination ?? model.moveDestinations(from: source).first { $0.id == destinationID } }
     private var destinationHoldsKey: Bool { destination.map(WalletViewModel.holdsKey(of:)) ?? true }
-    private var needsPassphrase: Bool { source?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: source) }
     private var signsOnLedger: Bool { source?.keyKind == .ledger }
 
     var body: some View {
@@ -135,7 +135,7 @@ struct MoveAssetsSheet: View {
                     if !plan.notes.isEmpty {
                         Section { ForEach(plan.notes, id: \.self) { Text($0).font(.callout).foregroundStyle(.orange) } }
                     }
-                    if needsPassphrase, let source { SecureField("Password for “\(source.alias)”", text: $passphrase) }
+                    if let source, source.keyKind == .encrypted { PasswordField(model: model, wallet: source, text: $passphrase) }
                 }
                 .formStyle(.grouped)
                 .frame(maxHeight: 360)

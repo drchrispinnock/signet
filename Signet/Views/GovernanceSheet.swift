@@ -68,7 +68,7 @@ struct TezosGovernanceView: View {
     @State private var errorMessage: String?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
 
     var body: some View {
@@ -243,7 +243,7 @@ struct TezosGovernanceView: View {
                 LabeledContent("Ballot", value: vote.title)
             }
             LabeledContent("Fee", value: "None (voting operations are free)")
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)

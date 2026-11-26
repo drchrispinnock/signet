@@ -16,6 +16,7 @@ struct SettingsView: View {
             if let backupDirectory = model.backupDirectory {
                 backupSection(backupDirectory)
             }
+            passwordsSection
             nftSection
             updatesSection
             experimentalSection
@@ -42,6 +43,27 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
         }
+    }
+
+    @AppStorage(PasswordCacheSettings.key) private var passwordMinutes = 0
+
+    /// How long a wallet password, once typed and found to be right, is remembered.
+    private var passwordsSection: some View {
+        Section {
+            Stepper(value: Binding(get: { passwordMinutes }, set: { passwordMinutes = min(max($0, PasswordCacheSettings.range.lowerBound), PasswordCacheSettings.range.upperBound) }),
+                    in: PasswordCacheSettings.range) {
+                LabeledContent("Remember passwords", value: passwordMinutes == 0 ? "Never" : passwordMinutes == 1 ? "1 minute" : "\(passwordMinutes) minutes")
+            }
+            Text(passwordMinutes == 0
+                 ? "Every operation from an encrypted account asks for its password."
+                 : "Once you type an account's password and it opens the key, Signet keeps it in memory for \(passwordMinutes) minute\(passwordMinutes == 1 ? "" : "s") and does not ask again. It is never written to disk, and it is forgotten when the time is up, when the Mac sleeps or locks, or when Signet quits. Exporting a key and forgetting an account always ask.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Button("Forget remembered passwords") { model.forgetRememberedPassphrases() }
+        } header: {
+            Text("Passwords")
+        }
+        .onChange(of: passwordMinutes) { model.forgetRememberedPassphrases() }
     }
 
     @AppStorage(NFTDownloadSettings.arrangeByAddressKey) private var arrangeNFTsByAddress = true

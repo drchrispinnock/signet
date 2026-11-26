@@ -22,7 +22,7 @@ struct StakingSheet: View {
     private var wallet: Wallet? { model.selectedWallet }
     private var info: DelegateInfo? { model.delegateInfo }
     private var balance: TezBalance? { model.tezBalance }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var canOperate: Bool { wallet?.keyKind.canSign == true }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var watchOnlyNote: String {
@@ -219,7 +219,7 @@ struct StakingSheet: View {
             if case .stake(let a) = op { LabeledContent("Amount", value: AssetBalance.format(a, symbol: "tz")) }
             if case .unstake(let a) = op { LabeledContent("Amount", value: AssetBalance.format(a, symbol: "tz")) }
             if let estimate { LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz")) } else { LabeledContent("Fee") { ProgressView().controlSize(.small) } }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)

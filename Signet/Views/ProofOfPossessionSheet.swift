@@ -16,7 +16,7 @@ struct ProofOfPossessionSheet: View {
     @State private var errorMessage: String?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
