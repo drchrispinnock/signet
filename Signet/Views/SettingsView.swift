@@ -82,6 +82,7 @@ struct SettingsView: View {
     }
 
     @AppStorage(Layer2Branding.key) private var layer2Branding: Layer2Branding = .etherlink
+    @AppStorage(ConsolidatedBalances.key) private var consolidatedBalances = false
 
     /// Features being tried out; each says what it changes.
     private var experimentalSection: some View {
@@ -94,6 +95,12 @@ struct SettingsView: View {
             Text(layer2Branding == .tezosX
                  ? "The Layer 2 is called Tezos X throughout Signet and shown with the Tezos X logo. Only the name and logo change: nodes, contracts and accounts are the same."
                  : "The Layer 2 is called Etherlink, with Etherlink's logo.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Toggle("Consolidated balances", isOn: $consolidatedBalances)
+            Text(consolidatedBalances
+                 ? "The dashboard shows one tez balance: everything the account holds on Tezos, on \(Brand.l2) and shielded. Expand it to see spendable, staked, \(Brand.l2) and shielded separately."
+                 : "Tez, \(Brand.l2) and shielded balances each have their own row.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         } header: {
