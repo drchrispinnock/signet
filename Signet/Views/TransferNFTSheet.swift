@@ -38,7 +38,7 @@ struct TransferNFTSheet: View {
     private var isBurn: Bool { operation.kind == .burn }
     private var wallet: Wallet? { submitted?.context.wallet ?? model.selectedWallet }
     private var network: Network { model.tokenNetwork(on: operation.layer) }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var title: String {
         let what = operation.nfts.count == 1 ? "NFT" : "\(operation.nfts.count) NFTs"
@@ -159,7 +159,7 @@ struct TransferNFTSheet: View {
                     else { ProgressView().controlSize(.small) }
                 }
             }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if !model.canTransferTokens(on: operation.layer) {
                 Text(operation.layer == 2 ? "Transfers on \(Brand.l2) need Layer 2 on and a tz1, tz2 or tz3 account Signet can sign for." : "Signet cannot sign for this account.")
                     .font(.callout).foregroundStyle(.orange)

@@ -40,7 +40,7 @@ struct ReceiveSheet: View {
         }
     }
     private var qrImage: NSImage? { address.flatMap { QRCode.image(for: $0, size: 220) } }
-    private var needsPassphrase: Bool { wallet.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model?.needsPassphrase(for: wallet) ?? (wallet.keyKind == .encrypted) }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -154,9 +154,8 @@ struct ReceiveSheet: View {
                 } else if wallet.keyKind.canSign {
                     Text("Linking sends a small no-op call from this account on \(Brand.l2). It needs a little tez there to pay the fee (use Bridge… first).")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    if needsPassphrase {
-                        SecureField("Password", text: $passphrase, prompt: Text("Password for \(wallet.alias)"))
-                            .textFieldStyle(.roundedBorder).frame(maxWidth: 260)
+                    if wallet.keyKind == .encrypted, let model {
+                        PasswordField(model: model, wallet: wallet, text: $passphrase).frame(maxWidth: 320)
                     }
                     if let problem { Text(problem).font(.callout).foregroundStyle(.orange).multilineTextAlignment(.center) }
                     Button(fee.map { "Link to \(Brand.l2) (fee \(AssetBalance.format($0, symbol: "tz")))" } ?? "Link to \(Brand.l2)") { Task { await link(limits: nil) } }

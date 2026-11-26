@@ -33,7 +33,7 @@ struct TransferTokenSheet: View {
 
     private var wallet: Wallet? { submitted?.context.wallet ?? model.selectedWallet }
     private var network: Network { model.tokenNetwork(on: token.layer) }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var symbol: String { token.symbol.isEmpty ? token.name : token.symbol }
 
@@ -126,7 +126,7 @@ struct TransferTokenSheet: View {
                     else { ProgressView().controlSize(.small) }
                 }
             }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if !model.canTransferToken(token) {
                 Text(token.layer == 2 ? "Transfers on \(Brand.l2) need Layer 2 on and a tz1, tz2 or tz3 account Signet can sign for." : "Signet cannot sign for this account.")
                     .font(.callout).foregroundStyle(.orange)

@@ -93,6 +93,12 @@ final class WalletViewModel {
     /// Paper keys imported for this run only: in memory, never in the directory or a backup.
     private(set) var sessionWallets: [Wallet] = []
     private let sessionKeys = SessionKeyStore()
+    /// Wallet passwords remembered for a few minutes (Settings > Passwords), memory only.
+    private let passphraseCache = PassphraseCache()
+    /// Bumped whenever a remembered password appears or goes, so password fields redraw.
+    private(set) var passphraseCacheRevision = 0
+    /// Minutes a typed password is remembered (`PasswordCacheSettings`); tests pass their own.
+    let passwordCacheMinutes: @MainActor () -> Int
     /// Named contracts (octez-client `contracts` aliases): the KT1 entries of the address book,
     /// which is where created and added multisigs go.
     var multisigContracts: [MultisigContract] {
@@ -702,8 +708,10 @@ final class WalletViewModel {
         startDApps: Bool = false,
         shieldedStoreFactory: (@Sendable (URL?, String) -> any ShieldedWalletStore)? = nil,
         shieldedRollupFactory: (@Sendable (ShieldedConfig) -> any ShieldedRollup)? = nil,
-        shieldedBridge: TaquitoBridge = .shared
+        shieldedBridge: TaquitoBridge = .shared,
+        passwordCacheMinutes: (@MainActor () -> Int)? = nil
     ) {
+        self.passwordCacheMinutes = passwordCacheMinutes ?? { PasswordCacheSettings.minutes() }
         self.backupSettings = backupSettings
         self.shieldedStoreFactory = shieldedStoreFactory ?? { _, _ in InMemoryShieldedWalletStore() }
         self.shieldedRollupFactory = shieldedRollupFactory ?? { config in RollupNodeService(config: config) }
@@ -772,6 +780,8 @@ final class WalletViewModel {
         if startDApps, !self.wallets.isEmpty {
             Task { await dapps.start() }
         }
+
+        passphraseCache.onChange = { [weak self] in self?.passphraseCacheRevision += 1 }
 
         // A new head means balances or history may have moved; refresh (not while one is running).
         nodeMonitor.onNewHead = { [weak self] _ in
@@ -852,6 +862,7 @@ final class WalletViewModel {
         let directory = url.standardizedFileURL
         guard directory != walletDirectory?.standardizedFileURL else { return }
         walletDirectoryRevision = UUID()
+        passphraseCache.forgetAll()
         directorySettings.set(directory)
         let stores = storeFactory(directory)
         walletStore = stores.wallets
@@ -1087,6 +1098,7 @@ final class WalletViewModel {
         // entries against the password-verified snapshot under the same lock as deletion.
         guard walletDirectoryRevision == revision else { throw WalletError.directoryChanged }
         try store.remove(wallet, matching: snapshot)
+        passphraseCache.forget(wallet.address)
         wallets = (try? store.load()) ?? wallets.filter { $0.id != wallet.id }
         selectAfterRemoval()
         await backUp()
@@ -1104,6 +1116,7 @@ final class WalletViewModel {
             _ = try await keyImporter.decrypt(secretKey: snapshot.secretKey, passphrase: passphrase)
         }
         try sessionKeys.remove(matching: snapshot)
+        passphraseCache.forget(snapshot.wallet.address)
         sessionWallets = sessionKeys.wallets
         selectAfterRemoval()
     }
@@ -1603,9 +1616,21 @@ final class WalletViewModel {
 
     func signingKey(for wallet: Wallet, passphrase: String?) throws -> SigningKey? {
         switch wallet.keyKind {
-        case .unencrypted, .encrypted:
+        case .unencrypted:
             guard let secretKey = try softwareSecret(for: wallet) else { return nil }
-            return .secret(secretKey, passphrase: wallet.keyKind == .encrypted ? passphrase : nil, address: wallet.address)
+            return .secret(secretKey, passphrase: nil, address: wallet.address)
+        case .encrypted:
+            guard let secretKey = try softwareSecret(for: wallet) else { return nil }
+            // A typed password wins and, once found to open this key, is remembered; none
+            // typed falls back to a remembered one, for this exact key only.
+            if let typed = passphrase, !typed.isEmpty {
+                rememberIfCorrect(typed, for: wallet, encryptedKey: secretKey)
+                return .secret(secretKey, passphrase: typed, address: wallet.address)
+            }
+            guard let remembered = passphraseCache.passphrase(for: wallet.address, encryptedKey: secretKey) else {
+                return .secret(secretKey, passphrase: passphrase, address: wallet.address)
+            }
+            return .secret(secretKey, passphrase: remembered, address: wallet.address)
         case .ledger:
             guard let key = wallet.ledgerKey else { return nil }
             return .ledger(key, address: wallet.address)
@@ -1617,6 +1642,41 @@ final class WalletViewModel {
             return .remote(signer, publicKey: publicKey)
         case .unknown, .none:
             return nil
+        }
+    }
+
+    // MARK: Remembered passwords (Settings > Passwords)
+
+    /// Whether an operation from `wallet` must ask for its password: an encrypted key with no
+    /// password remembered for it.
+    func needsPassphrase(for wallet: Wallet?) -> Bool {
+        guard let wallet, wallet.keyKind == .encrypted else { return false }
+        return rememberedPassphraseExpiry(for: wallet) == nil
+    }
+
+    /// When the password remembered for `wallet` expires, or `nil` when none is.
+    func rememberedPassphraseExpiry(for wallet: Wallet) -> Date? {
+        _ = passphraseCacheRevision
+        guard wallet.keyKind == .encrypted else { return nil }
+        return passphraseCache.expiry(for: wallet.address)
+    }
+
+    func forgetRememberedPassphrase(for wallet: Wallet) { passphraseCache.forget(wallet.address) }
+
+    /// Wipes every remembered password: the setting changed, the Mac slept or locked, or the
+    /// user asked.
+    func forgetRememberedPassphrases() { passphraseCache.forgetAll() }
+
+    /// Remembers `passphrase` once it is found to open `encryptedKey` (a wrong one is never
+    /// kept), for as long as the setting says when it was typed.
+    private func rememberIfCorrect(_ passphrase: String, for wallet: Wallet, encryptedKey: String) {
+        let minutes = passwordCacheMinutes()
+        guard minutes > 0, passphraseCache.passphrase(for: wallet.address, encryptedKey: encryptedKey) != passphrase else { return }
+        let importer = keyImporter
+        let typedAt = Date()
+        Task { [weak self] in
+            guard (try? await importer.decrypt(secretKey: encryptedKey, passphrase: passphrase)) != nil, let self else { return }
+            self.passphraseCache.store(passphrase, for: wallet.address, encryptedKey: encryptedKey, minutes: minutes, now: typedAt)
         }
     }
 

@@ -31,7 +31,7 @@ struct TransferDomainSheet: View {
     }
 
     private var wallet: Wallet? { submitted?.context.wallet ?? model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var isSubdomain: Bool { domain.tokenId == nil }
 
@@ -103,7 +103,7 @@ struct TransferDomainSheet: View {
                     else { ProgressView().controlSize(.small) }
                 }
             }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)

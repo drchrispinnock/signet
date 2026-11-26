@@ -29,7 +29,7 @@ struct BuySheet: View {
 
     private var wallet: Wallet? { model.selectedWallet }
     private var canSign: Bool { wallet?.keyKind.signsMessages == true }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
 
     var body: some View {
@@ -137,8 +137,8 @@ struct BuySheet: View {
             if let wallet {
                 LabeledContent("Deliver to") { Text(wallet.address.value).font(.callout.monospaced()).textSelection(.enabled) }
             }
-            if needsPassphrase, let wallet {
-                SecureField("Password for “\(wallet.alias)”", text: $passphrase)
+            if let wallet, wallet.keyKind == .encrypted {
+                PasswordField(model: model, wallet: wallet, text: $passphrase)
                 Text("Signet signs a short message with this key so \(provider.title) knows the address is yours.").font(.callout).foregroundStyle(.secondary)
             } else if signsOnLedger {
                 Text("Your Ledger will ask you to sign a short message proving the address is yours.").font(.callout).foregroundStyle(.secondary)
