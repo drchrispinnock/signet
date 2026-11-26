@@ -74,6 +74,7 @@
 		4AED8C1726FA50A22393D834 /* NFT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D36824F9FB49AF03A6D12F1 /* NFT.swift */; };
 		4EC9E16CA50BB4796AE325A2 /* AddMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12936EA2EEA811A1C3BCFDE3 /* AddMultisigSheet.swift */; };
 		4F54FA31553D267CCB65ED14 /* TezBalanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615D6FE8AD0414A111187FBF /* TezBalanceTests.swift */; };
+		50792839D535B3E943B28407 /* TransferDomainSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AE14F055F056CF294DCFA48 /* TransferDomainSheet.swift */; };
 		51D8E8DE8DC6F580C62DBABA /* BridgeCallGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6305BDC41C24FAC7DBF78148 /* BridgeCallGate.swift */; };
 		537E3E8FC9A4C84599B3378A /* EtherlinkGovernanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */; };
 		549E4EA4DCDCD46B1447352D /* KeyGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CA0D84FD7F3A725FAF0B7C /* KeyGenerator.swift */; };
@@ -150,6 +151,7 @@
 		A888988B53D51769A9E2D113 /* TezosClientStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741349B359248E0F53BDF375 /* TezosClientStore.swift */; };
 		ACEAAC8FFE30340375E93D64 /* GettingStartedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FE2BC2AF8F71DD92C4A9BF /* GettingStartedView.swift */; };
 		ACEEFBEA79DEAC5A35BA2E00 /* SignMultisigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479C31CB30B47664A4643F4E /* SignMultisigSheet.swift */; };
+		AD54FF4DB11D7541ECBC485C /* DomainTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E360948819674817D50E6D77 /* DomainTransferTests.swift */; };
 		B0B8A57CA49F1283360DDEE7 /* MoveAssetsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0FBD7900ADEBC132288CA8 /* MoveAssetsSheet.swift */; };
 		B33F90DC44E83C36FEF20A5A /* AirGapSigning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDD61FE37E24016D53B9855 /* AirGapSigning.swift */; };
 		B3ACE292159C9962F4C1E185 /* LedgerHID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B85C43802035F011273672C /* LedgerHID.swift */; };
@@ -268,6 +270,7 @@
 		26EB7BB81FBD6E133CC3E8B2 /* TzKTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TzKTService.swift; sourceTree = "<group>"; };
 		278776717D4BD5F05FF06B65 /* NFTGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFTGridView.swift; sourceTree = "<group>"; };
 		2A5BBFB074C40EFAD3D902C8 /* SendShieldedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendShieldedSheet.swift; sourceTree = "<group>"; };
+		2AE14F055F056CF294DCFA48 /* TransferDomainSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferDomainSheet.swift; sourceTree = "<group>"; };
 		2BFC096350A1E5116FAF29AA /* TransferTokenSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferTokenSheet.swift; sourceTree = "<group>"; };
 		31DF1DB7E8B576A9A34CA12C /* AuditRepairTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRepairTests.swift; sourceTree = "<group>"; };
 		31E5FB64C56750FA8FF662CD /* Markua.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Markua.swift; sourceTree = "<group>"; };
@@ -429,6 +432,7 @@
 		DFB37E0605BAF6FC87E509D6 /* BridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeTests.swift; sourceTree = "<group>"; };
 		E1810F9AF003509FECD05CD5 /* KeyGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGeneratorTests.swift; sourceTree = "<group>"; };
 		E2389D0BF8966ADDADD5041E /* DelegateRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegateRowView.swift; sourceTree = "<group>"; };
+		E360948819674817D50E6D77 /* DomainTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainTransferTests.swift; sourceTree = "<group>"; };
 		E4642B38EA68894E8C2B1C5B /* ForgetAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgetAccountSheet.swift; sourceTree = "<group>"; };
 		E4D40B17B45C19919EA6F806 /* Multisig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Multisig.swift; sourceTree = "<group>"; };
 		E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherlinkGovernanceTests.swift; sourceTree = "<group>"; };
@@ -526,6 +530,7 @@
 				997C7488AEC3F1BA0DC68305 /* SubmitMultisigSheet.swift */,
 				D9682C459E924F07DEF53FC3 /* Theme.swift */,
 				5FC9EC06EA2E130C77234325 /* TokenListView.swift */,
+				2AE14F055F056CF294DCFA48 /* TransferDomainSheet.swift */,
 				F2277C3A0121B9095EB1B35C /* TransferNFTSheet.swift */,
 				2BFC096350A1E5116FAF29AA /* TransferTokenSheet.swift */,
 				9AECB242F13564C4E0715C4D /* UnshieldSheet.swift */,
@@ -609,6 +614,7 @@
 				4FC5EC72CF05A4295B4E4DA2 /* DAppStartupTests.swift */,
 				3E46F73256A892AA7016BC04 /* DAppTests.swift */,
 				6A04241607A50B6B10366EF0 /* DomainsTabTests.swift */,
+				E360948819674817D50E6D77 /* DomainTransferTests.swift */,
 				766EF1D905BA708A70AD1DC1 /* EncryptedKeyTests.swift */,
 				E5783D543AC1CCB9DECBA9F7 /* EtherlinkGovernanceTests.swift */,
 				6F326EFF5948C06B4E3F0080 /* EtherlinkTests.swift */,
@@ -1025,6 +1031,7 @@
 				DE5D3C7C410E55183127DCFA /* TokenMetadataResolver.swift in Sources */,
 				B4879498749B6A09EF28AFE0 /* TokenTransfer.swift in Sources */,
 				C4D72615EE6CDE9929FCAEA6 /* Transfer.swift in Sources */,
+				50792839D535B3E943B28407 /* TransferDomainSheet.swift in Sources */,
 				E00C1D36FA26AB318459B871 /* TransferNFTSheet.swift in Sources */,
 				D3F37A23CC524419D22E090E /* TransferTokenSheet.swift in Sources */,
 				07EF5A22F9510DA8E3633808 /* TzKTService.swift in Sources */,
@@ -1070,6 +1077,7 @@
 				200A996B9BB378A8A8B94907 /* DAppPairingLinkTests.swift in Sources */,
 				F8A1236DC9F093F43745C925 /* DAppStartupTests.swift in Sources */,
 				D773B43372E1FBDED1176B97 /* DAppTests.swift in Sources */,
+				AD54FF4DB11D7541ECBC485C /* DomainTransferTests.swift in Sources */,
 				B8AC048520810D1A15C24AC9 /* DomainsTabTests.swift in Sources */,
 				0D1CBA87D5C676173EF6E37B /* EncryptedKeyTests.swift in Sources */,
 				537E3E8FC9A4C84599B3378A /* EtherlinkGovernanceTests.swift in Sources */,

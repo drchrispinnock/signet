@@ -74,6 +74,10 @@ struct DomainRowView: View {
         .padding(.vertical, 8)
         .contentShape(Rectangle())
         .contextMenu {
+            if model.canTransferDomain(domain) {
+                Button("Transfer…") { model.domainOperation = domain }
+                Divider()
+            }
             Button("Copy Name") { copy(domain.name) }
             if let address = domain.address { Button("Copy Address It Points To") { copy(address.value) } }
             if let url = domain.appURL { Button("Open on Tezos Domains") { NSWorkspace.shared.open(url) } }

@@ -35,6 +35,13 @@ extension WalletViewModel {
         domainList = (key, state)
     }
 
+    /// Whether the selected account can hand `domain` to someone: Tezos Domains on this network,
+    /// a key Signet signs with, and a name the account owns that has not expired.
+    func canTransferDomain(_ domain: TezosDomain) -> Bool {
+        guard network.tezosDomainsURL != nil, let wallet = selectedWallet, wallet.keyKind.canSign, !wallet.address.isContract else { return false }
+        return domain.isOwned(by: wallet.address) && !domain.isExpired()
+    }
+
     func reloadDomainList() async {
         domainList = nil
         await loadDomainList()

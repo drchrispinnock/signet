@@ -16,6 +16,12 @@ struct MoveAssetsTests {
         var balance = TezBalance(spendable: 10)
         var nftList: [NFT] = []
         var tokenList: [AssetBalance] = []
+        var domainList: [TezosDomain] = []
+        var domainsFail = false
+        func tezosDomains(for address: Address) async throws -> [TezosDomain]? {
+            if domainsFail { throw URLError(.cannotConnectToHost) }
+            return domainList
+        }
         var state: Portfolio.State = .complete
         var isBaker = false
         private var _sent: [TokenTransferRequest] = []

@@ -215,6 +215,8 @@ final class WalletViewModel {
     var nftOperation: NFTOperation? = nil
     /// The fungible token a Transfer was started on from the Assets tab; the sheet shows while set.
     var tokenOperation: AssetBalance? = nil
+    /// The name a Transfer was started on from the Domains tab; the sheet shows while set.
+    var domainOperation: TezosDomain? = nil
     /// The tokens whose artwork is being downloaded, while the Download sheet is up.
     var nftDownload: NFTDownload? = nil
     var isPresentingShield = false
