@@ -743,7 +743,28 @@ automatic download is off by default. The updater is not started under the test 
   call order: an FA2 contract once at its first transfer, an FA1.2 call per transfer).
   `TokenTransferTests`; on 26 November 2026 a mixed FA2 + FA1.2 + tez group went through
   `TaquitoChainService` on Shadownet (`ooy7taSk…`, against minimal test contracts, not a
-  TzKT-recognised token) and both ledgers moved exactly. **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts/<account address>` (or straight into `nfts` when Settings' "Arrange NFTs by address" is off; `NFTDownloadSettings`, UserDefaults `arrangeNFTsByAddress`, on by default; files saved before are not moved) as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
+  TzKT-recognised token) and both ledgers moved exactly.
+  **Domain transfers.** A right-click on a Domains-tab name the account owns and that has not
+  expired (`canTransferDomain`, mainnet only) offers Transfer…, which opens
+  `TransferDomainSheet` (`domainOperation`). `TezosDomain.transferParts(from:to:pointAtRecipient:)`
+  decides what goes: a second-level name moves as its FA2 token on the NameRegistry
+  `KT1GBZmS…` (`tokenId` from the Tezos Domains API), which changes the owner but **not** where
+  the name points (checked on twenty recent mainnet transfers), so "Point it at the new
+  account" (on by default) first calls `update_record` on the UpdateRecord proxy `KT1H1Mqm…`
+  (`DomainRecordUpdate`: the name as UTF-8 bytes, the new address, the current owner, and the
+  record's `data`, which `update_record` replaces as a whole and so is sent back unchanged).
+  A subdomain has no token and is handed over by `update_record` with the new owner alone.
+  The records ride in `TokenTransferRequest.records`, first in the group (only the owner may
+  make them; the bridge's `domainRecordCall`, keys in byte order). Changing the address
+  clears the old account's reverse record on its own. Move assets moves every live name the
+  source owns, pointed at the destination, with all records in the first group; expired names
+  and names that only point at the account stay and are listed; an unreadable name list stops
+  the move. `DomainTransferTests`. Live on mainnet, 26 November 2026: `mytestdomain.tez` went from
+  `tz1Uckcy…` to `tz1dCaMn…` pointed at it (`ooRTDQSf…`, `update_record` then the FA2
+  transfer); owner and address moved and the old account's reverse record cleared itself.
+  Every refresh also re-reads the Domains tab's list once it has been read
+  (`refreshDomainList`, quietly), so a transfer appears when the indexer has the block.
+  **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts/<account address>` (or straight into `nfts` when Settings' "Arrange NFTs by address" is off; `NFTDownloadSettings`, UserDefaults `arrangeNFTsByAddress`, on by default; files saved before are not moved) as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
   schemes, tz1 first and recommended; tz6 is not offered) is reached from the hamburger menu, the
   Operations menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
@@ -859,7 +880,8 @@ automatic download is off by default. The updater is not started under the test 
   a failure part way leaves what went through listed. Fungible tokens and domains are not
   moved yet. Fungible tokens move too: every Assets-tab token with an exact balance
   (`AssetBalance.rawAmount`), all of it, in the same groups as the NFTs; one without is
-  listed as staying. `MoveAssetsTests`; nothing has been exercised live yet.
+  listed as staying. Tezos Domains names move too (see Domain transfers).
+  `MoveAssetsTests`; nothing has been exercised live yet.
   **EVM alias (0.9.3; derivation moved to Etherlink 8.0, November 2026).**
   `EtherlinkAlias.isOffered` is `true` again: Receive offers the EVM side wherever Layer 2 is
   on, and each network shows the address once its node runs Etherlink 8.0 ("Horus", mainnet

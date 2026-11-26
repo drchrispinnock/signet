@@ -78,7 +78,7 @@ struct TezosDomainsService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 20
-        let fields = "items { name address owner expiresAtUtc } pageInfo { hasNextPage endCursor }"
+        let fields = "items { name address owner expiresAtUtc tokenId data { key rawValue } } pageInfo { hasNextPage endCursor }"
         let order = "order: { field: NAME, direction: ASC }"
         let query = """
         query($a: Address!, $s: String!, $ownedAfter: String, $pointingAfter: String, $owned: Boolean!, $pointing: Boolean!) {
@@ -127,18 +127,27 @@ struct TezosDomainsService: Sendable {
         var byName: [String: TezosDomain] = [:]
         for item in items {
             guard let name = item.name, !name.isEmpty, byName[name] == nil else { continue }
-            byName[name] = TezosDomain(name: name, address: item.address.map(Address.init), owner: item.owner.map(Address.init),
-                                       expires: item.expiresAtUtc.flatMap { iso.date(from: $0) }, isReverseRecord: name == reverse)
+            var domain = TezosDomain(name: name, address: item.address.map(Address.init), owner: item.owner.map(Address.init),
+                                     expires: item.expiresAtUtc.flatMap { iso.date(from: $0) }, isReverseRecord: name == reverse)
+            domain.tokenId = item.tokenId
+            domain.data = Dictionary((item.data ?? []).compactMap { entry in entry.key.flatMap { key in entry.rawValue.map { (key, $0) } } }, uniquingKeysWith: { first, _ in first })
+            byName[name] = domain
         }
         return byName.values.sorted { ($0.isReverseRecord ? 0 : 1, $0.name) < ($1.isReverseRecord ? 0 : 1, $1.name) }
     }
 
     struct ListResponse: Decodable {
         struct Item: Decodable {
+            struct DataItem: Decodable {
+                let key: String?
+                let rawValue: String?
+            }
             let name: String?
             let address: String?
             let owner: String?
             let expiresAtUtc: String?
+            var tokenId: Int? = nil
+            var data: [DataItem]? = nil
         }
         struct PageInfo: Decodable {
             let hasNextPage: Bool?

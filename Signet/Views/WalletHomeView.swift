@@ -83,6 +83,7 @@ struct WalletHomeView: View {
         .sheet(isPresented: $model.isPresentingMoveAssets) { MoveAssetsSheet(model: model) }
         .sheet(item: $model.nftOperation) { operation in TransferNFTSheet(model: model, operation: operation) }
         .sheet(item: $model.tokenOperation) { token in TransferTokenSheet(model: model, token: token) }
+        .sheet(item: $model.domainOperation) { domain in TransferDomainSheet(model: model, domain: domain) }
         .sheet(item: $model.nftDownload) { download in DownloadNFTsSheet(downloader: model.nftDownloader, download: download) }
         .sheet(isPresented: $model.isPresentingShield) { ShieldSheet(model: model) }
         .sheet(isPresented: $model.isPresentingUnshield) { UnshieldSheet(model: model) }

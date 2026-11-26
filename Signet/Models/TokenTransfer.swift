@@ -72,15 +72,29 @@ struct TokenTransferRequest: Hashable, Sendable {
     /// Move Assets: a tez transfer of this many mutez to `to`, sent last in the same group, so
     /// the tokens and the account's tez go under one signature. `nil` for a plain token transfer.
     var tezMutez: String? = nil
+    /// Tezos Domains `update_record` calls, sent first (only the current owner may make them).
+    var records: [DomainRecordUpdate] = []
 
-    init(to: Address, transfers: [TokenTransfer], tezMutez: String? = nil) {
-        self.to = to; self.transfers = transfers; self.tezMutez = tezMutez
+    init(to: Address, transfers: [TokenTransfer], tezMutez: String? = nil, records: [DomainRecordUpdate] = []) {
+        self.to = to; self.transfers = transfers; self.tezMutez = tezMutez; self.records = records
+    }
+
+    /// As the bridge's `tokenTransferParams` reads the records.
+    var recordsJSON: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(data: (try? encoder.encode(records)) ?? Data("[]".utf8), encoding: .utf8) ?? "[]"
+    }
+    /// The arguments after the transfers that the bridge's estimate and send take: the tez (""
+    /// for none) and the records, each only when needed.
+    var extraBridgeArguments: [String] {
+        records.isEmpty ? (tezMutez.map { [$0] } ?? []) : [tezMutez ?? "", recordsJSON]
     }
 
     var isBurn: Bool { to == Self.burnAddress }
     /// Operations in the group, as the approved limits must list them: one per FA2 contract and
     /// one per FA1.2 transfer, in the order they first appear, then the tez.
-    var operationCount: Int { contracts.count + (tezMutez == nil ? 0 : 1) }
+    var operationCount: Int { records.count + contracts.count + (tezMutez == nil ? 0 : 1) }
     var count: Int { transfers.count }
     /// The contract of each token call, as the bridge builds them: an FA2 contract once, at its
     /// first transfer; an FA1.2 contract once per transfer (its `transfer` moves one amount).
@@ -97,7 +111,8 @@ struct TokenTransferRequest: Hashable, Sendable {
         guard standardsAgree else { return false }
         if let tezMutez, !(Mutez.isValid(tezMutez) && tezMutez != "0" && !tezMutez.hasPrefix("0") && (Int64(tezMutez) ?? .max) <= 9_007_199_254_740_991) { return false }
         if tezMutez != nil, isBurn { return false }
-        return to.isValidAccount && (!transfers.isEmpty || tezMutez != nil) && transfers.count <= Self.maxTokens && transfers.allSatisfy(\.isValid)
+        return to.isValidAccount && (!transfers.isEmpty || tezMutez != nil || !records.isEmpty) && transfers.count <= Self.maxTokens
+            && transfers.allSatisfy(\.isValid) && records.allSatisfy(\.isValid)
     }
 
     /// As the bridge's `tokenTransferParams` reads the transfers.
@@ -105,6 +120,23 @@ struct TokenTransferRequest: Hashable, Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return String(data: (try? encoder.encode(transfers)) ?? Data("[]".utf8), encoding: .utf8) ?? "[]"
+    }
+}
+
+/// A Tezos Domains record change: `update_record` on the UpdateRecord proxy, as the bridge's
+/// `domainRecordCall` builds it. `data` (key to hex bytes) replaces the record's data as a
+/// whole, so it carries the existing entries.
+struct DomainRecordUpdate: Hashable, Sendable, Codable {
+    let proxy: String
+    let name: String
+    let address: String?
+    let owner: String
+    var data: [String: String] = [:]
+
+    var isValid: Bool {
+        Address(proxy).isContract && !name.isEmpty && name.count <= 255 && name == name.lowercased()
+            && Address(owner).isValidAccount && (address.map { Address($0).isValidAccount } ?? true)
+            && data.values.allSatisfy { $0.count.isMultiple(of: 2) && $0.allSatisfy(\.isHexDigit) && $0 == $0.lowercased() }
     }
 }
 
