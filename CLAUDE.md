@@ -643,7 +643,12 @@ automatic download is off by default. The updater is not started under the test 
   become one tez row (`AssetBalance.consolidated`, applied in `AssetListView`) whose amount
   is all of them and whose breakdown is spendable, staked, unstaking, then a line per folded
   row; an unreadable row adds nothing and its line says "unavailable". Tokens are untouched.
-  `ConsolidatedBalancesTests`.
+  `ConsolidatedBalancesTests`. **Layer marks** (`LayerMarks`, UserDefaults `layerMarks`, "tz"
+  by default): how the Activity, Assets, NFTs and Domains tabs mark a layer, in `LayerToggles`
+  and in `EtherlinkMark` on layer 2 rows and tiles: the small logos (Tezos X uses
+  `TezosXMini`, `Layer2Branding.miniLogo`, the coin with a much bigger yellow X and a smaller
+  ꜩ, since the full logo is hard to tell from the Tezos coin at 16 points), or the text L1 /
+  L2 (an accent-coloured L2 capsule on rows and tiles).
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`

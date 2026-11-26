@@ -27,6 +27,15 @@ enum Layer2Branding: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The asset for the 14 to 16 point marks on the tabs: Tezos X's has a much bigger X
+    /// (`TezosXMini`), or it is hard to tell from the Tezos coin at that size.
+    var miniLogo: String {
+        switch self {
+        case .etherlink: "EtherlinkLogo"
+        case .tezosX: "TezosXMini"
+        }
+    }
+
     /// The stored choice. The test host shares the app's UserDefaults, so under it the
     /// standard defaults are ignored and the default branding is used (other defaults, as the
     /// tests pass them, are read as usual).
@@ -34,6 +43,17 @@ enum Layer2Branding: String, CaseIterable, Identifiable, Sendable {
         if defaults == .standard, SignetApp.isTestHost { return .etherlink }
         return defaults.string(forKey: key).flatMap(Layer2Branding.init(rawValue:)) ?? .etherlink
     }
+}
+
+/// Experimental (Settings > Experimental Features): how the Activity, Assets, NFTs and Domains
+/// tabs mark a layer, in the layer toggles and on layer 2 rows and tiles: the chains' small
+/// logos ("tz", the default) or the plain text L1 / L2. Kept in UserDefaults.
+enum LayerMarks: String, CaseIterable, Identifiable, Sendable {
+    case logos, labels
+
+    static let key = "layerMarks"
+    var id: String { rawValue }
+    var title: String { self == .logos ? "tz" : "L1/L2" }
 }
 
 /// Experimental (Settings > Experimental Features): show tez, Layer 2 and Shielded as one
@@ -46,4 +66,5 @@ enum ConsolidatedBalances {
 enum Brand {
     static var l2: String { Layer2Branding.current().name }
     static var l2Logo: String { Layer2Branding.current().logo }
+    static var l2MiniLogo: String { Layer2Branding.current().miniLogo }
 }
