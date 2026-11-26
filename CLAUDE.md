@@ -697,7 +697,7 @@ automatic download is off by default. The updater is not started under the test 
   `TezosDomainsService` and omitted when the address has no reverse record; a hamburger menu
   reserved for other actions, not wallet switching),
   `ActionButtonsView` (Send, Receive, Buy/Get, Stake; Receive opens `ReceiveSheet` with a Core Image QR
-  code of the address, and with Layer 2 on (and `EtherlinkAlias.isOffered`, which is off until Etherlink 8.0's new alias is implemented) the logo at its top left is a menu that switches to
+  code of the address, and with Layer 2 on (and `EtherlinkAlias.isOffered`, on since the Etherlink 8.0 alias went in) the logo at its top left is a menu that switches to
   the account's address on Etherlink's EVM side, `EtherlinkAlias.address(for:)`: the first 20
   bytes of Keccak-256 over the base58 address string, as the EVM node's
   `tez_getTezosEthereumAddress` answers, computed by `Keccak.swift` since CryptoKit has none; on testnets Buy becomes Get and opens `FaucetSheet`, which drives
@@ -812,10 +812,10 @@ automatic download is off by default. The updater is not started under the test 
   `operationContext(for:)` of the source before each, and reports each group to the sheet;
   a failure part way leaves what went through listed. Fungible tokens and domains are not
   moved yet. `MoveAssetsTests`; nothing has been exercised live yet.
-  **EVM alias (0.9.3; switched off November 2026, derivation moved to Etherlink 8.0).**
-  `EtherlinkAlias.isOffered` is `false`, so Receive shows the Tezos address only, with no
-  chain picker and no "Link to Etherlink", until Etherlink 8.0 ("Horus", activation planned
-  for 30 November 2026) is live on mainnet. `EtherlinkAlias.address(for:)` already computes
+  **EVM alias (0.9.3; derivation moved to Etherlink 8.0, November 2026).**
+  `EtherlinkAlias.isOffered` is `true` again: Receive offers the EVM side wherever Layer 2 is
+  on, and each network shows the address once its node runs Etherlink 8.0 ("Horus", mainnet
+  activation planned for 30 November 2026). `EtherlinkAlias.address(for:)` computes
   8.0's recoverable alias (RFC-26051, rescue accounts v1) for tz1–tz3: the CREATE2 address,
   through the Safe singleton factory, of an EIP-1167 proxy to the account type's rescue
   implementation with the 20-byte key hash appended, constants as in octez.js's `alias.js`;
@@ -828,7 +828,7 @@ automatic download is off by default. The updater is not started under the test 
   a new `%materialize_alias (pair string string (option string))`, not used yet) and Shadownet
   and mainnet Etherlink did not. `EtherlinkLiveTests.previewnetAnswersTheEtherlink8Alias` and
   `linksAFreshAccountToItsEtherlinkAlias` (both on Previewnet) are the live checks; the
-  `%call_evm` no-op still links on 8.0. Turn `isOffered` on once mainnet has upgraded.
+  `%call_evm` no-op still links on 8.0.
   What follows describes the feature as built. The account's EVM-side address is a pure function of the tz address, but
   the rollup only creates the account behind it (EIP-7702 delegation to the shared
   AliasForwarder, which passes tez on to the tz account) when the account makes its first

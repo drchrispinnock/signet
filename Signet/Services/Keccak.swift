@@ -85,11 +85,11 @@ enum Keccak {
 /// (`@tezos-x/octez.js-utils` `alias.js`, 25.1.0-rc.1), and the results match what Previewnet's
 /// gateway answered for tz1, tz2, tz3 and tz4 (`KeccakTests`).
 enum EtherlinkAlias {
-    /// Whether Receive offers the EVM-side address and "Link to Etherlink". **Off** until
-    /// Etherlink 8.0 is active on mainnet: the derivation below is the new one, and a network
-    /// still on the old kernel reports `EtherlinkAliasStatus.awaitingUpgrade` rather than an
-    /// address, so nothing stale can be shown or linked even then.
-    static let isOffered = false
+    /// Whether Receive offers the EVM-side address and "Link to Etherlink". On: the derivation
+    /// below is Etherlink 8.0's, and a network still on the old kernel reports
+    /// `EtherlinkAliasStatus.awaitingUpgrade` rather than an address, so Receive shows a note
+    /// there and linking is refused; nothing stale can be shown or linked.
+    static let isOffered = true
 
     /// Safe singleton factory.
     static let factory = bytes("914d7fec6aac8cd542e72bca78b30650d45643d7")

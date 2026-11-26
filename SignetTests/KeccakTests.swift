@@ -14,9 +14,10 @@ struct KeccakTests {
         #expect(hex(Keccak.hash256(long)) == "96ea54061def936c4be90b518992fdc6f12f535068a256229aca54267b4d084d")
     }
 
-    /// The EVM alias stays off in Receive until Etherlink 8.0 is active on mainnet.
-    @Test func theEvmAliasIsNotOfferedBeforeEtherlink8() {
-        #expect(EtherlinkAlias.isOffered == false)
+    /// Receive offers the EVM alias: only Etherlink 8.0's derivation is ever shown, and an old
+    /// kernel's answer becomes `awaitingUpgrade` (`EtherlinkAliasTests`).
+    @Test func theEvmAliasIsOfferedWithTheEtherlink8Derivation() {
+        #expect(EtherlinkAlias.isOffered)
     }
 
     /// Etherlink 8.0's recoverable aliases for tz1–tz3 and the unchanged one for tz4 and KT1:

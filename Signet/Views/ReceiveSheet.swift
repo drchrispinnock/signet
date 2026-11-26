@@ -1,10 +1,8 @@
 import SwiftUI
 
 /// Shows the selected wallet's address as a QR code and text so someone can send tez to it.
-/// **The Etherlink side described below is switched off** (`EtherlinkAlias.isOffered`) until
-/// Etherlink 8.0, which changes the alias derivation, is active on mainnet; the sheet shows the
-/// Tezos address only. Once on, a network still on the old kernel shows a note instead of an
-/// address (`EtherlinkAliasStatus.awaitingUpgrade`).
+/// The Etherlink side uses Etherlink 8.0's alias (`EtherlinkAlias`); a network still on the old
+/// kernel shows a note instead of an address (`EtherlinkAliasStatus.awaitingUpgrade`).
 /// With Layer 2 on, the logo at the top left has a pop-up beside it (`ChainSidePicker`) that
 /// switches to the account's address on Etherlink's EVM side (`EtherlinkAlias`). That address
 /// is only shown once it exists on chain (`EtherlinkAliasStatus.linked`): until the account has
