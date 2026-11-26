@@ -76,6 +76,7 @@ struct WalletHomeView: View {
             ScanQRSheet(model: model)
         }
         .sheet(isPresented: $model.isPresentingBridge) { BridgeSheet(model: model) }
+        .sheet(isPresented: $model.isPresentingMoveAssets) { MoveAssetsSheet(model: model) }
         .sheet(item: $model.nftOperation) { operation in TransferNFTSheet(model: model, operation: operation) }
         .sheet(item: $model.nftDownload) { download in DownloadNFTsSheet(downloader: model.nftDownloader, download: download) }
         .sheet(isPresented: $model.isPresentingShield) { ShieldSheet(model: model) }

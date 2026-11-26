@@ -227,6 +227,8 @@ struct OperationsMenuItems: View {
             if model.canBridge {
                 Button("Bridge…") { model.isPresentingBridge = true }
             }
+            Button("Move assets…") { model.isPresentingMoveAssets = true }
+                .disabled(!model.canMoveAssets)
             if model.canShield {
                 Divider()
                 Button("Shield tez…") { model.isPresentingShield = true }

@@ -488,9 +488,10 @@ struct TaquitoChainService: ChainService {
         guard request.isValid else { throw ChainError.invalidTokenTransfer }
         let publicKey = try Self.publicKeyArgument(for: wallet)
         try await verifyChain()
-        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateTokenTransfer", [network.rpcURL.absoluteString, wallet.address.value, publicKey, request.to.value, request.transfersJSON], timeout: 120) }
+        let args: [any Sendable] = [network.rpcURL.absoluteString, wallet.address.value, publicKey, request.to.value, request.transfersJSON] + (request.tezMutez.map { [$0] as [any Sendable] } ?? [])
+        let result = try await TaquitoBridge.BridgeError.typed { try await bridge.call("estimateTokenTransfer", args, timeout: 120) }
         guard let fee = Mutez.toTez(result["feeMutez"]?.stringValue), let burn = Mutez.toTez(result["burnMutez"]?.stringValue), let limits = BatchLimits(result["limits"]),
-              limits.operations.count == request.contracts.count
+              limits.operations.count == request.operationCount
         else { throw TaquitoBridge.BridgeError.javaScript("unexpected estimate payload: \(String(describing: result))") }
         return TokenTransferEstimate(fee: fee, burn: burn, limits: limits)
     }
@@ -498,7 +499,9 @@ struct TaquitoChainService: ChainService {
     func sendTokenTransfer(_ request: TokenTransferRequest, from wallet: Wallet, signer: SigningKey, limits: BatchLimits) async throws -> SentOperation {
         guard request.isValid else { throw ChainError.invalidTokenTransfer }
         try await verifyChain()
-        let result = try await signing { try await bridge.sign("sendTokenTransfer", [network.rpcURL.absoluteString, signer.bridgeSpec, request.to.value, request.transfersJSON, limits.json]) }
+        guard limits.operations.count == request.operationCount else { throw ChainError.invalidTokenTransfer }
+        let args: [any Sendable] = [network.rpcURL.absoluteString, signer.bridgeSpec, request.to.value, request.transfersJSON, limits.json] + (request.tezMutez.map { [$0] as [any Sendable] } ?? [])
+        let result = try await signing { try await bridge.sign("sendTokenTransfer", args) }
         guard let sent = SentOperation(result) else {
             throw TaquitoBridge.BridgeError.javaScript("unexpected token transfer payload: \(String(describing: result))")
         }
