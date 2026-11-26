@@ -37,6 +37,10 @@ targets:
       - path: manuscript/resources/110
         type: folder
         buildPhase: resources
+      # The chapter also shows the Networks sheet from chapter 120's pictures.
+      - path: manuscript/resources/120
+        type: folder
+        buildPhase: resources
       # The shielded wallet's hashing: optimised in every configuration (44 million hashes per address).
       - path: Signet/Services/tzel_blake2s.c
         compilerFlags: "-O3"
