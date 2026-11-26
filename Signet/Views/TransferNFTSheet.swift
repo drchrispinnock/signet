@@ -42,7 +42,7 @@ struct TransferNFTSheet: View {
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var title: String {
         let what = operation.nfts.count == 1 ? "NFT" : "\(operation.nfts.count) NFTs"
-        return (isBurn ? "Burn " : "Transfer ") + what + (operation.layer == 2 ? " on Etherlink" : "")
+        return (isBurn ? "Burn " : "Transfer ") + what + (operation.layer == 2 ? " on \(Brand.l2)" : "")
     }
 
     /// The request as composed, once it is complete and sound.
@@ -161,7 +161,7 @@ struct TransferNFTSheet: View {
             }
             if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
             if !model.canTransferTokens(on: operation.layer) {
-                Text(operation.layer == 2 ? "Transfers on Etherlink need Layer 2 on and a tz1, tz2 or tz3 account Signet can sign for." : "Signet cannot sign for this account.")
+                Text(operation.layer == 2 ? "Transfers on \(Brand.l2) need Layer 2 on and a tz1, tz2 or tz3 account Signet can sign for." : "Signet cannot sign for this account.")
                     .font(.callout).foregroundStyle(.orange)
             }
         }

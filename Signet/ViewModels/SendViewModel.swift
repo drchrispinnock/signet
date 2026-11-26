@@ -160,7 +160,7 @@ final class SendViewModel {
 
         let typed = Address(text)
         if typed.isValidAccount, !accepts(typed) {
-            errorMessage = "On Etherlink, send only to tz1, tz2 or tz3 accounts."
+            errorMessage = "On \(Brand.l2), send only to tz1, tz2 or tz3 accounts."
         } else if typed.isValidAccount {
             resolve(typed)
         } else if text.lowercased().hasSuffix(".tez"), text.count > 4 {

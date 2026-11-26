@@ -12,6 +12,8 @@ struct GovernanceSheet: View {
         case tezos = "Tezos"
         case etherlink = "Etherlink"
         var id: String { rawValue }
+        /// The tab's label: the Layer 2 follows the branding setting.
+        var title: String { self == .tezos ? rawValue : Brand.l2 }
     }
 
     @State private var tab: Tab = .tezos
@@ -34,7 +36,7 @@ struct GovernanceSheet: View {
             }
             if showsTabs {
                 Picker("", selection: $tab) {
-                    ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Tab.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -111,7 +113,7 @@ struct TezosGovernanceView: View {
     @ViewBuilder
     private var overview: some View {
         if model.delegateInfo?.isBaker != true {
-            Label("Tezos protocol voting is for bakers. This account is not a baker, so it can only vote on Etherlink.", systemImage: "info.circle")
+            Label("Tezos protocol voting is for bakers. This account is not a baker, so it can only vote on \(Brand.l2).", systemImage: "info.circle")
                 .foregroundStyle(.secondary)
         } else if let loadError {
             Label(loadError, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)

@@ -327,9 +327,9 @@ final class WalletViewModel {
     func layerEmptyText(for noun: String) -> String? {
         guard filtersLayers else { return nil }
         switch shownLayers {
-        case []: return "Select Tezos or Etherlink to show \(noun)."
+        case []: return "Select Tezos or \(Brand.l2) to show \(noun)."
         case [1]: return "No \(noun) on Tezos in this account."
-        case [2]: return "No \(noun) on Etherlink in this account."
+        case [2]: return "No \(noun) on \(Brand.l2) in this account."
         default: return nil
         }
     }

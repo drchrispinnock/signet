@@ -87,7 +87,7 @@ struct EtherlinkGovernanceView: View {
                 periodSection(state)
                 if !state.canVote {
                     Section {
-                        Label("This account has no voting power on Etherlink: it is neither a baker in this period's listings nor a voting key that a baker has delegated to and that has claimed its rights.", systemImage: "info.circle")
+                        Label("This account has no voting power on \(Brand.l2): it is neither a baker in this period's listings nor a voting key that a baker has delegated to and that has claimed its rights.", systemImage: "info.circle")
                             .foregroundStyle(.secondary)
                     }
                 } else if state.periodKind == .proposal {
