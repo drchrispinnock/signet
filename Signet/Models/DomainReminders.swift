@@ -2,7 +2,10 @@ import Foundation
 
 /// When to remind the user that a Tezos Domains name they own is about to expire: 2 months,
 /// 1 month, 2 weeks and 1 week before, then every day for the last 6 days and on the day
-/// itself, each at 9:00 local time. Pure, so the schedule can be tested.
+/// itself, each at 9:00 local time. Pure and platform-free, so the Windows and GTK versions
+/// can follow the same rules: at startup and once a day while running, `plan` says which
+/// reminder is due and not yet shown (only the latest, so a week away gives one notice, not a
+/// backlog), and `isDueSoon` which names the dashboard lists.
 enum DomainReminders {
     /// How far before the expiry a reminder comes, and how it is said.
     struct Lead: Hashable, Sendable {
@@ -47,8 +50,26 @@ enum DomainReminders {
         .sorted { $0.due < $1.due }
     }
 
-    /// What to do now for the names: the reminders still to come (to schedule, earliest
-    /// first, at most `limit`), and the latest one already due but not yet shown (to show at
+    /// Whether `expires` is close enough to be mentioned: its first reminder (2 months before)
+    /// has come and it has not expired.
+    static func isDueSoon(_ expires: Date, now: Date, calendar: Calendar = .current) -> Bool {
+        guard expires > now, let first = reminders(name: "", expires: expires, calendar: calendar).first else { return false }
+        return first.due <= now
+    }
+
+    /// "in 12 days", "tomorrow", "today", counted in calendar days.
+    static func phrase(until expires: Date, now: Date, calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: expires)).day ?? 0
+        switch days {
+        case ..<1: return "today"
+        case 1: return "tomorrow"
+        default: return "in \(days) days"
+        }
+    }
+
+    /// What to do now for the names: the reminders still to come (earliest first, at most
+    /// `limit`; Signet does not schedule them, but a platform that can might), and the latest
+    /// one already due but not yet shown (to show at
     /// once, so a name first seen a few days before it expires is still mentioned). Expired
     /// names give nothing.
     static func plan(_ names: [(name: String, expires: Date)], shown: Set<String>, now: Date, calendar: Calendar = .current, limit: Int = 60)

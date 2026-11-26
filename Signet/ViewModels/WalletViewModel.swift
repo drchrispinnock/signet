@@ -223,6 +223,10 @@ final class WalletViewModel {
     var tokenOperation: AssetBalance? = nil
     /// The name a Transfer was started on from the Domains tab; the sheet shows while set.
     var domainOperation: TezosDomain? = nil
+    /// Names the user's accounts own that expire within two months (domain expiry reminders),
+    /// soonest first; the dashboard lists them until renewed or dismissed for the session.
+    var expiringDomains: [DomainReminderService.OwnedName] = []
+    var expiringDomainsDismissed = false
     /// The tokens whose artwork is being downloaded, while the Download sheet is up.
     var nftDownload: NFTDownload? = nil
     var isPresentingShield = false

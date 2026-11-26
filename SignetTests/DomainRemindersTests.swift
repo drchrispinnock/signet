@@ -50,6 +50,15 @@ struct DomainRemindersTests {
         #expect(early.overdue.isEmpty && early.upcoming.count == 11)
     }
 
+    @Test func theDashboardListsNamesWithinTwoMonths() {
+        #expect(!DomainReminders.isDueSoon(Self.expires, now: Self.date("2027-09-25T12:00:00Z"), calendar: Self.calendar))
+        #expect(DomainReminders.isDueSoon(Self.expires, now: Self.date("2027-09-26T10:00:00Z"), calendar: Self.calendar))
+        #expect(!DomainReminders.isDueSoon(Self.expires, now: Self.date("2027-11-27T00:00:00Z"), calendar: Self.calendar))
+        #expect(DomainReminders.phrase(until: Self.expires, now: Self.date("2027-11-14T08:00:00Z"), calendar: Self.calendar) == "in 12 days")
+        #expect(DomainReminders.phrase(until: Self.expires, now: Self.date("2027-11-25T23:00:00Z"), calendar: Self.calendar) == "tomorrow")
+        #expect(DomainReminders.phrase(until: Self.expires, now: Self.date("2027-11-26T08:00:00Z"), calendar: Self.calendar) == "today")
+    }
+
     @Test func atMostTheLimitIsScheduledEarliestFirst() {
         let names = (0..<10).map { (name: "n\($0).tez", expires: Self.date("2027-11-26T22:33:52Z").addingTimeInterval(Double($0) * 86_400)) }
         let plan = DomainReminders.plan(names, shown: [], now: Self.date("2027-01-01T00:00:00Z"), calendar: Self.calendar, limit: 60)

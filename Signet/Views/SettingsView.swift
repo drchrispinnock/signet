@@ -74,7 +74,7 @@ struct SettingsView: View {
         Section {
             Toggle("Remind me before my Tezos Domains names expire", isOn: $domainReminders)
             Text(domainReminders
-                 ? "Signet notifies you 2 months, 1 month, 2 weeks and 1 week before a name one of your accounts owns expires, then every day for the last week, at 9:00. The reminders come even when Signet is not running; it looks again at launch and once a day, so a renewal moves them. Clicking one opens the name on Tezos Domains. macOS asks once whether Signet may notify you."
+                 ? "Signet reminds you 2 months, 1 month, 2 weeks and 1 week before a name one of your accounts owns expires, then every day for the last week. It checks when it starts and once a day while it runs, and shows the reminder then: a notification, and the name on the dashboard until it is renewed. Clicking a notification opens the name on Tezos Domains. macOS asks once whether Signet may notify you."
                  : "No reminders about Tezos Domains names.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

@@ -129,6 +129,9 @@ struct WalletHomeView: View {
                     NetworkBadgeMenu(model: model)
                     AppMenuButton(model: model)
                 }
+                if !model.expiringDomains.isEmpty, !model.expiringDomainsDismissed {
+                    ExpiringDomainsNotice(model: model)
+                }
                 ActionButtonsView(model: model)
                 if model.accountNotOnChain {
                     AccountNotOnChainView(model: model, wallet: wallet)
@@ -142,6 +145,35 @@ struct WalletHomeView: View {
                 NoWalletsView(model: model)
             }
         }
+    }
+}
+
+/// The user's Tezos Domains names that expire within two months, on the dashboard, soonest
+/// first, each with a Renew link to Tezos Domains; dismissable for the session.
+struct ExpiringDomainsNotice: View {
+    @Bindable var model: WalletViewModel
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "calendar.badge.exclamationmark").foregroundStyle(.orange).font(.title3)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(model.expiringDomains.prefix(3)) { name in
+                    HStack(spacing: 6) {
+                        Text("\(name.name) expires \(DomainReminders.phrase(until: name.expires, now: Date()))").font(.callout.weight(.medium))
+                        Text("· \(name.owner)").font(.callout).foregroundStyle(.secondary)
+                        if let url = URL(string: "https://app.tezos.domains/domain/\(name.name)") { Link("Renew", destination: url).font(.callout) }
+                    }
+                }
+                if model.expiringDomains.count > 3 {
+                    Text("and \(model.expiringDomains.count - 3) more").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button { model.expiringDomainsDismissed = true } label: { Image(systemName: "xmark") }
+                .buttonStyle(.borderless).help("Hide until Signet starts again")
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.1)))
     }
 }
 

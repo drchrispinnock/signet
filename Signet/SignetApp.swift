@@ -58,11 +58,15 @@ struct SignetApp: App {
     // Tezos Domains expiry reminders (Settings > Notifications). Not under the test host.
     @AppStorage(DomainReminderSettings.key) private var domainRemindersOn = true
 
-    /// Looks up the names the user's accounts own and replaces the scheduled reminders.
-    @MainActor private func scheduleDomainReminders() async {
+    /// Looks up the names the user's accounts own, lists those due soon on the dashboard and
+    /// shows any reminder now due.
+    @MainActor private func checkDomainReminders() async {
         let service = DomainReminderService.shared
-        guard domainRemindersOn else { await service.removeScheduled(); return }
-        if let names = await model.ownedDomainNamesForReminders() { await service.update(names) }
+        guard domainRemindersOn else { model.expiringDomains = []; await service.removeScheduled(); return }
+        guard let names = await model.ownedDomainNamesForReminders() else { return }
+        let now = Date()
+        model.expiringDomains = names.filter { DomainReminders.isDueSoon($0.expires, now: now) }.sorted { $0.expires < $1.expires }
+        await service.deliverDue(names, now: now)
     }
 
     var body: some Scene {
@@ -75,15 +79,16 @@ struct SignetApp: App {
                     guard !Self.isTestHost, cameraWatcher == nil else { return }
                     cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
                 }
-                // Domain expiry reminders: at launch, then once a day while Signet runs.
+                // Domain expiry reminders: at launch, then once a day while Signet runs. Only what
+                // is due is shown, at once; nothing is scheduled for later (as on Windows and GTK).
                 .task {
                     guard !Self.isTestHost else { return }
                     while !Task.isCancelled {
-                        await scheduleDomainReminders()
+                        await checkDomainReminders()
                         try? await Task.sleep(for: .seconds(24 * 3600))
                     }
                 }
-                .onChange(of: domainRemindersOn) { Task { await scheduleDomainReminders() } }
+                .onChange(of: domainRemindersOn) { Task { await checkDomainReminders() } }
                 // Remembered passwords go when the Mac sleeps, its screens sleep or it locks.
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in model.forgetRememberedPassphrases() }
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidSleepNotification)) { _ in model.forgetRememberedPassphrases() }

@@ -253,19 +253,23 @@ automatic download is off by default. The updater is not started under the test 
   account do not use it and always ask. `PassphraseCacheTests`.
 - **Domain expiry reminders.** Settings > Notifications, "Remind me before my Tezos Domains
   names expire" (`DomainReminderSettings`, UserDefaults `domainExpiryReminders`, on by
-  default). `DomainReminders` (pure) gives each name's reminders: 2 months, 1 month, 2 weeks,
-  1 week, then 6 to 1 days and the day itself, at 9:00 local time. `DomainReminderService`
-  (`.shared`, never under the test host) schedules those still to come as macOS user
-  notifications (`UNCalendarNotificationTrigger`, so they appear without Signet running),
-  replacing the previous set on every scan, earliest 60 only (the system's per-app limit), and
-  shows the latest one already due at once, once (`domainExpiryRemindersShown`). `SignetApp`
-  scans at launch and every 24 hours while running: `WalletViewModel.ownedDomainNamesForReminders`
-  reads mainnet Tezos Domains for every account and contract except address book entries,
-  second-level names only, and answers `nil` (keep what is scheduled) when any read fails.
-  Clicking a reminder opens the name on app.tezos.domains. "Send a test reminder" shows one
-  for the soonest name. `DomainRemindersTests`. The Tezos Domains API refuses tz5 and tz6
-  addresses (they cannot own names), so `TezosDomainsService.supports` keeps them from ever
-  being asked: they simply have no names (Domains tab, dashboard name and reminders alike).
+  default). Reminders are 2 months, 1 month, 2 weeks, 1 week, then 6 to 1 days and the day
+  itself. **Nothing is scheduled ahead** (decided 26 November 2026 so Windows and GTK, which
+  cannot schedule, behave the same): `SignetApp` checks at launch and every 24 hours while
+  running. `WalletViewModel.ownedDomainNamesForReminders` reads mainnet Tezos Domains for every
+  account and contract except address book entries (second-level names; `nil`, keep things as
+  they are, when a read fails). Then (1) `model.expiringDomains` holds the names within two
+  months (`DomainReminders.isDueSoon`) and the dashboard shows `ExpiringDomainsNotice` ("x.tez
+  expires in 12 days · owner · Renew", dismissable for the session); (2)
+  `DomainReminderService.deliverDue` shows at once, as a macOS notification, the latest
+  reminder due for each name that has not been shown (`DomainReminders.plan(...).overdue`;
+  shown ids, which carry the expiry so a renewal starts afresh, are kept in UserDefaults
+  `domainExpiryRemindersShown`). Clicking a notification opens app.tezos.domains. "Send a test
+  reminder" shows one for the soonest name. **Porting:** the rules are `DomainReminders`
+  (pure); a port needs the shown-ids store, the dashboard notice and an immediate
+  notification (toast on Windows, `GNotification` on GTK). `DomainRemindersTests`. The Tezos
+  Domains API refuses tz5 and tz6 addresses (they cannot own names), so
+  `TezosDomainsService.supports` keeps them from ever being asked: they simply have no names.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
