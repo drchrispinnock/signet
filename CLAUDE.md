@@ -251,6 +251,27 @@ automatic download is off by default. The updater is not started under the test 
   remembered passwords". Sheets ask `needsPassphrase(for:)` and show `PasswordField`
   ("Remembered until 14:05", Forget) in place of the field. Export secret key and Forget
   account do not use it and always ask. `PassphraseCacheTests`.
+- **Domain expiry reminders.** Settings > Notifications, "Remind me before my Tezos Domains
+  names expire" (`DomainReminderSettings`, UserDefaults `domainExpiryReminders`, on by
+  default). Reminders are 2 months, 1 month, 2 weeks, 1 week, then 6 to 1 days and the day
+  itself. **Nothing is scheduled ahead** (decided 26 November 2026 so Windows and GTK, which
+  cannot schedule, behave the same): `SignetApp` checks at launch and every 24 hours while
+  running. `WalletViewModel.ownedDomainNamesForReminders` reads mainnet Tezos Domains for every
+  account and contract except address book entries (second-level names; `nil`, keep things as
+  they are, when a read fails). Then (1) `model.expiringDomains` holds the names within two
+  months (`DomainReminders.isDueSoon`) and the dashboard shows `ExpiringDomainsNotice` ("x.tez
+  expires in 12 days · owner · Renew", dismissable for the session); (2)
+  `DomainReminderService.deliverDue` puts up, **inside the app**, one alert (an `NSAlert` sheet
+  on the main window, waiting while any other sheet or alert is attached to it) with the latest
+  reminder due for each name that has not been shown (`DomainReminders.plan(...).overdue`), with
+  Renew… (app.tezos.domains) and OK; shown ids, which carry the expiry so a renewal starts
+  afresh, are kept in UserDefaults `domainExpiryRemindersShown` and recorded once the alert is
+  up. No system notification and no permission prompt (decided 27 November 2026); an earlier
+  development build's scheduled notifications are removed. "Show a test reminder" puts one up
+  for the soonest name. **Porting:** the rules are `DomainReminders` (pure); a port needs the
+  shown-ids store, the dashboard notice and an alert in its main window. `DomainRemindersTests`. The Tezos
+  Domains API refuses tz5 and tz6 addresses (they cannot own names), so
+  `TezosDomainsService.supports` keeps them from ever being asked: they simply have no names.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
