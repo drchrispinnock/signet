@@ -16,8 +16,11 @@ struct SettingsView: View {
             if let backupDirectory = model.backupDirectory {
                 backupSection(backupDirectory)
             }
+            passwordsSection
+            notificationsSection
             nftSection
             updatesSection
+            experimentalSection
             developerSection
         }
         .formStyle(.grouped)
@@ -41,6 +44,57 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             Toggle("Show the disclaimer at launch", isOn: $showsDisclaimer)
         }
+    }
+
+    @AppStorage(PasswordCacheSettings.key) private var passwordMinutes = 0
+
+    /// How long a wallet password, once typed and found to be right, is remembered.
+    private var passwordsSection: some View {
+        Section {
+            Stepper(value: Binding(get: { passwordMinutes }, set: { passwordMinutes = min(max($0, PasswordCacheSettings.range.lowerBound), PasswordCacheSettings.range.upperBound) }),
+                    in: PasswordCacheSettings.range) {
+                LabeledContent("Remember passwords", value: passwordMinutes == 0 ? "Never" : passwordMinutes == 1 ? "1 minute" : "\(passwordMinutes) minutes")
+            }
+            Text(passwordMinutes == 0
+                 ? "Every operation from an encrypted account asks for its password."
+                 : "Once you type an account's password and it opens the key, Signet keeps it in memory for \(passwordMinutes) minute\(passwordMinutes == 1 ? "" : "s") and does not ask again. It is never written to disk, and it is forgotten when the time is up, when the Mac sleeps or locks, or when Signet quits. Exporting a key and forgetting an account always ask.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Button("Forget remembered passwords") { model.forgetRememberedPassphrases() }
+        } header: {
+            Text("Passwords")
+        }
+        .onChange(of: passwordMinutes) { model.forgetRememberedPassphrases() }
+    }
+
+    @AppStorage(DomainReminderSettings.key) private var domainReminders = true
+    @State private var testReminderNote: String?
+
+    private var notificationsSection: some View {
+        Section {
+            Toggle("Remind me before my Tezos Domains names expire", isOn: $domainReminders)
+            Text(domainReminders
+                 ? "Signet reminds you 2 months, 1 month, 2 weeks and 1 week before a name one of your accounts owns expires, then every day for the last week. It checks when it starts and once a day while it runs: a reminder that is due appears as an alert, with Renew to open the name on Tezos Domains, and the name stays on the dashboard until it is renewed. Nothing reaches you while Signet is closed."
+                 : "No reminders about Tezos Domains names.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if domainReminders, !SignetApp.isTestHost {
+                HStack {
+                    Button("Show a test reminder") { Task { await sendTestReminder() } }
+                    if let testReminderNote { Text(testReminderNote).font(.callout).foregroundStyle(.secondary) }
+                }
+            }
+        } header: {
+            Text("Notifications")
+        }
+    }
+
+    private func sendTestReminder() async {
+        testReminderNote = "Looking up your names…"
+        guard let names = await model.ownedDomainNamesForReminders() else { testReminderNote = "Tezos Domains could not be read."; return }
+        guard !names.isEmpty else { testReminderNote = "None of your accounts owns a Tezos Domains name."; return }
+        testReminderNote = nil
+        if !(await DomainReminderService.shared.showTest(names)) { testReminderNote = "None of your names is still current." }
     }
 
     @AppStorage(NFTDownloadSettings.arrangeByAddressKey) private var arrangeNFTsByAddress = true
@@ -77,6 +131,43 @@ struct SettingsView: View {
             Text("New releases are fetched from GitHub and verified against the key built into the app before they are installed. Only Signet itself is replaced; your accounts stay in the wallet folder.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @AppStorage(Layer2Branding.key) private var layer2Branding: Layer2Branding = .etherlink
+    @AppStorage(ConsolidatedBalances.key) private var consolidatedBalances = false
+    @AppStorage(LayerMarks.key) private var layerMarks: LayerMarks = .logos
+
+    /// Features being tried out; each says what it changes.
+    private var experimentalSection: some View {
+        Section {
+            Picker("Layer 2 branding", selection: $layer2Branding) {
+                ForEach(Layer2Branding.allCases) { branding in
+                    Label { Text(branding.name) } icon: { Image(branding.logo).resizable().frame(width: 16, height: 16) }.tag(branding)
+                }
+            }
+            Text(layer2Branding == .tezosX
+                 ? "The Layer 2 is called Tezos X throughout Signet and shown with the Tezos X logo. Only the name and logo change: nodes, contracts and accounts are the same."
+                 : "The Layer 2 is called Etherlink, with Etherlink's logo.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Picker("Layer marks", selection: $layerMarks) {
+                ForEach(LayerMarks.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text(layerMarks == .logos
+                 ? "The Activity, Assets, NFTs and Domains tabs mark Tezos and \(Brand.l2) with their small logos."
+                 : "The Activity, Assets, NFTs and Domains tabs mark Tezos and \(Brand.l2) as L1 and L2.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Toggle("Consolidated balances", isOn: $consolidatedBalances)
+            Text(consolidatedBalances
+                 ? "The dashboard shows one tez balance: everything the account holds on Tezos, on \(Brand.l2) and shielded. Expand it to see spendable, staked, \(Brand.l2) and shielded separately."
+                 : "Tez, \(Brand.l2) and shielded balances each have their own row.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Experimental Features")
         }
     }
 

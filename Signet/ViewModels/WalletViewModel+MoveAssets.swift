@@ -1,8 +1,9 @@
 import Foundation
 
-/// Move assets: everything one of our accounts holds goes to another account in the list, tez
-/// and NFTs, on Tezos and (with Layer 2 on) on Etherlink. Fungible tokens and domains come
-/// later. Each layer is one operation group, the NFT transfers first and the tez sweep last
+/// Move assets: everything one of our accounts holds goes to another account in the list, tez,
+/// fungible tokens, NFTs and (on mainnet) the Tezos Domains names it owns, pointed at the new
+/// account, on Tezos and (with Layer 2 on) on Etherlink.
+/// Each layer is one operation group, the token and NFT transfers first and the tez sweep last
 /// (`TokenTransferRequest.tezMutez`), under one signature, with the approved limits (S14) and
 /// bound to the context it was planned in (S31). A layer holding more than
 /// `TokenTransferRequest.maxTokens` NFTs takes several groups, the sweep riding on the last.
@@ -17,6 +18,7 @@ extension WalletViewModel {
         case staked(alias: String, staked: Decimal, unstaking: Decimal)
         case baker(alias: String)
         case nftsUnknown(layer: String, reason: String)
+        case domainsUnknown(reason: String)
         case cannotPayFees(layer: String)
         case nothingToMove
 
@@ -31,8 +33,9 @@ extension WalletViewModel {
                     + ". Staked tez cannot be moved by a transfer: unstake, wait for the tez to be finalizable, finalize them in Stake, then move the assets. Nothing was moved."
             case .baker(let alias): "“\(alias)” is a registered baker, and a baker's account cannot be emptied. Nothing was moved."
             case .nftsUnknown(let layer, let reason): "Signet could not list every NFT on \(layer) (\(reason)), so it will not empty the account and leave them without tez for fees. Nothing was moved."
+            case .domainsUnknown(let reason): "Signet could not list the account's Tezos Domains names (\(reason)), so it will not empty the account and leave them with no tez to move them later. Nothing was moved."
             case .cannotPayFees(let layer): "There is not enough tez on \(layer) to pay for moving its NFTs. Nothing was moved."
-            case .nothingToMove: "There is nothing to move: no tez and no NFTs that can be transferred."
+            case .nothingToMove: "There is nothing to move: no tez, tokens or NFTs that can be transferred."
             }
         }
     }
@@ -55,10 +58,18 @@ extension WalletViewModel {
             let nfts: [NFT]
             /// NFTs whose metadata says they cannot be transferred; they stay behind.
             let leftBehind: [NFT]
+            /// Fungible tokens moved, all of each.
+            var tokens: [AssetBalance] = []
+            /// Tokens whose exact balance the indexer did not give; they stay behind.
+            var tokensLeftBehind: [AssetBalance] = []
+            /// Tezos Domains names moved, each pointed at the destination.
+            var domains: [TezosDomain] = []
+            /// Names the account owns that have expired, and names that only point at it.
+            var domainsLeftBehind: [TezosDomain] = []
             let batches: [Batch]
             /// Fees and storage burn of every group on this layer.
             var cost: Decimal { batches.reduce(0) { $0 + $1.estimate.total } }
-            var editions: Int { batches.reduce(0) { $0 + $1.request.transfers.reduce(0) { $0 + (Int($1.amount) ?? 0) } } }
+            var editions: Int { nfts.reduce(0) { $0 + NSDecimalNumber(decimal: $1.balance).intValue } }
         }
         let source: Wallet
         let destination: Wallet
@@ -114,11 +125,16 @@ extension WalletViewModel {
             spendable = 0
         }
         if spendable > 0, try await chain.delegateInfo(for: source.address).baker != nil { throw MoveAssetsError.baker(alias: source.alias) }
-        let l1NFTs = try await Self.movableNFTs(chain.portfolio(for: source.address), layer: network.name)
+        let l1Holdings = try await Self.holdings(chain.portfolio(for: source.address), layer: network.name)
+        var names: [TezosDomain] = []
+        if network.tezosDomainsURL != nil {
+            do { names = try await chain.tezosDomains(for: source.address) ?? [] } catch { throw MoveAssetsError.domainsUnknown(reason: error.localizedDescription) }
+        }
 
         var layers: [MoveAssetsPlan.Layer] = []
         var notes: [String] = []
-        if let layer = try await planLayer(1, name: network.name, network: network, chain: chain, source: source, to: destination.address, spendable: spendable, nfts: l1NFTs) {
+        if let layer = try await planLayer(1, name: network.name, network: network, chain: chain, source: source, to: destination.address, spendable: spendable,
+                                           nfts: l1Holdings.nfts, tokens: l1Holdings.tokens, domains: names) {
             layers.append(layer)
         }
 
@@ -127,10 +143,10 @@ extension WalletViewModel {
             let name = network.l2Name
             let l2Spendable = try await chain.etherlinkBalance(for: source.address)
             let portfolio = try await l2Chain.portfolio(for: source.address)
-            let l2NFTs = try await Self.movableNFTs(portfolio.onLayer2(), layer: name)
-            if l2Spendable > 0 || !l2NFTs.isEmpty {
+            let l2 = try Self.holdings(portfolio.onLayer2(), layer: name)
+            if l2Spendable > 0 || !l2.nfts.isEmpty || !l2.tokens.isEmpty {
                 if destination.address.isUsableOnEtherlink {
-                    if let layer = try await planLayer(2, name: name, network: l2Network, chain: l2Chain, source: source, to: destination.address, spendable: l2Spendable, nfts: l2NFTs) {
+                    if let layer = try await planLayer(2, name: name, network: l2Network, chain: l2Chain, source: source, to: destination.address, spendable: l2Spendable, nfts: l2.nfts, tokens: l2.tokens) {
                         layers.append(layer)
                     }
                 } else {
@@ -173,11 +189,11 @@ extension WalletViewModel {
         wallets.contains { $0.id == wallet.id && $0.address == wallet.address }
     }
 
-    /// Every NFT of a complete listing; an indexer that is off, unreachable or cut short is an
-    /// error, since emptying the account would strand whatever was not listed.
-    private static func movableNFTs(_ portfolio: Portfolio, layer: String) throws -> [NFT] {
+    /// Every NFT and fungible token of a complete listing; an indexer that is off, unreachable
+    /// or cut short is an error, since emptying the account would strand whatever was not listed.
+    private static func holdings(_ portfolio: Portfolio, layer: String) throws -> (nfts: [NFT], tokens: [AssetBalance]) {
         switch portfolio.state {
-        case .complete: return portfolio.nfts
+        case .complete: return (portfolio.nfts, portfolio.tokens)
         case .partial(let fetched): throw MoveAssetsError.nftsUnknown(layer: layer, reason: "the indexer holds more than the \(fetched) read")
         case .unavailable(let reason): throw MoveAssetsError.nftsUnknown(layer: layer, reason: reason)
         }
@@ -187,37 +203,54 @@ extension WalletViewModel {
     /// The sweep is priced with a 1 mutez placeholder (gas and storage do not depend on the
     /// amount), then the amount is the spendable tez less every group's fee and storage burn.
     /// `nil` when the layer holds nothing to move.
-    private func planLayer(_ layer: Int, name: String, network: Network, chain: any ChainService, source: Wallet, to destination: Address, spendable: Decimal, nfts: [NFT]) async throws -> MoveAssetsPlan.Layer? {
+    private func planLayer(_ layer: Int, name: String, network: Network, chain: any ChainService, source: Wallet, to destination: Address, spendable: Decimal,
+                           nfts: [NFT], tokens: [AssetBalance] = [], domains: [TezosDomain] = []) async throws -> MoveAssetsPlan.Layer? {
         let movable = nfts.filter { $0.isTransferable && $0.balance >= 1 }
         let leftBehind = nfts.filter { !$0.isTransferable }
-        let transfers = movable.map { TokenTransfer(nft: $0, amount: NSDecimalNumber(decimal: $0.balance).intValue) }
+        let tokenTransfers = tokens.compactMap { token -> (AssetBalance, TokenTransfer)? in
+            guard let raw = token.rawAmount, raw != "0", let transfer = TokenTransfer(token: token, rawAmount: raw), transfer.isValid else { return nil }
+            return (token, transfer)
+        }
+        let movedTokens = tokenTransfers.map(\.0)
+        let tokensLeft = tokens.filter { token in token.rawAmount != "0" && !movedTokens.contains(token) }
+        // Names the account owns, each handed over and pointed at the destination: the record
+        // updates must run while the account still owns them, so they all go in the first group.
+        let domainParts = domains.compactMap { domain in domain.transferParts(from: source.address, to: destination, pointAtRecipient: true).map { (domain, $0) } }
+        let movedDomains = domainParts.map(\.0)
+        let domainsLeft = domains.filter { !movedDomains.contains($0) }
+        let records = domainParts.flatMap(\.1.records)
+        let transfers = tokenTransfers.map(\.1) + domainParts.flatMap(\.1.transfers) + movable.map { TokenTransfer(nft: $0, amount: NSDecimalNumber(decimal: $0.balance).intValue) }
         var chunks = stride(from: 0, to: transfers.count, by: TokenTransferRequest.maxTokens).map { Array(transfers[$0..<min($0 + TokenTransferRequest.maxTokens, transfers.count)]) }
         if chunks.isEmpty { chunks = [[]] }
         let spendableMutez = Int64(Mutez.fromTez(spendable)) ?? 0
-        guard spendableMutez > 0 || !transfers.isEmpty else { return nil }
+        guard spendableMutez > 0 || !transfers.isEmpty || !records.isEmpty else { return nil }
+        func request(_ index: Int, tez: String? = nil) -> TokenTransferRequest {
+            TokenTransferRequest(to: destination, transfers: chunks[index], tezMutez: tez, records: index == 0 ? records : [])
+        }
 
         var batches: [MoveAssetsPlan.Batch] = []
-        for chunk in chunks.dropLast() {
-            let request = TokenTransferRequest(to: destination, transfers: chunk)
+        for index in chunks.indices.dropLast() {
+            let request = request(index)
             batches.append(.init(request: request, estimate: try await chain.estimateTokenTransfer(request, from: source)))
         }
-        let last = chunks.last ?? []
+        let lastIndex = chunks.count - 1
         var tez: Decimal = 0
         if spendableMutez > 0 {
-            let priced = try await chain.estimateTokenTransfer(TokenTransferRequest(to: destination, transfers: last, tezMutez: "1"), from: source)
+            let priced = try await chain.estimateTokenTransfer(request(lastIndex, tez: "1"), from: source)
             let cost = batches.reduce(Decimal(0)) { $0 + $1.estimate.total } + priced.total
             let amount = spendableMutez - (Int64(Mutez.fromTez(cost)) ?? .max)
             if amount > 0 {
-                batches.append(.init(request: TokenTransferRequest(to: destination, transfers: last, tezMutez: String(amount)), estimate: priced))
+                batches.append(.init(request: request(lastIndex, tez: String(amount)), estimate: priced))
                 tez = Decimal(amount) / Mutez.perTez
             }
         }
-        if tez == 0, !last.isEmpty {
-            let request = TokenTransferRequest(to: destination, transfers: last)
+        if tez == 0, !chunks[lastIndex].isEmpty || (lastIndex == 0 && !records.isEmpty) {
+            let request = request(lastIndex)
             batches.append(.init(request: request, estimate: try await chain.estimateTokenTransfer(request, from: source)))
         }
         guard !batches.isEmpty else { return nil }
-        let plan = MoveAssetsPlan.Layer(layer: layer, name: name, network: network, chain: chain, balance: spendable, tez: tez, nfts: movable, leftBehind: leftBehind, batches: batches)
+        let plan = MoveAssetsPlan.Layer(layer: layer, name: name, network: network, chain: chain, balance: spendable, tez: tez, nfts: movable, leftBehind: leftBehind,
+                                        tokens: movedTokens, tokensLeftBehind: tokensLeft, domains: movedDomains, domainsLeftBehind: domainsLeft, batches: batches)
         guard plan.cost + tez <= spendable else { throw MoveAssetsError.cannotPayFees(layer: name) }
         return plan
     }

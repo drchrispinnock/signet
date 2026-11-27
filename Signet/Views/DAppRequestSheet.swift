@@ -238,14 +238,14 @@ struct DAppRequestSheet: View {
     @ViewBuilder
     private func passphraseField(for source: Address) -> some View {
         if let wallet = dapps.wallet(for: source), wallet.keyKind == .encrypted {
-            SecureField("Password for “\(wallet.alias)”", text: $passphrase)
+            PasswordField(model: model, wallet: wallet, text: $passphrase)
         }
     }
 
     private var needsPassphrase: Bool {
         switch request {
         case .operation(_, _, _, _, let source, _), .signPayload(_, _, let source, _, _):
-            return dapps.wallet(for: source)?.keyKind == .encrypted
+            return model.needsPassphrase(for: dapps.wallet(for: source))
         default:
             return false
         }

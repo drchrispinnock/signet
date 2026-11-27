@@ -35,7 +35,7 @@ struct SignMultisigSheet: View {
     private var destinationAddress: Address { Address(destination.trimmingCharacters(in: .whitespacesAndNewlines)) }
     private var bakerAddress: Address { Address(baker.trimmingCharacters(in: .whitespacesAndNewlines)) }
     private var signers: [Wallet] { info?.signers(among: model.wallets) ?? [] }
-    private var needsPassphrase: Bool { signer?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: signer) }
     private var signsOnLedger: Bool { signer?.keyKind == .ledger }
     private var pending: [MultisigProposal] { model.currentMultisigProposals.filter { $0.contractAddress == contract?.address.value } }
     /// What the form describes, when it is complete.
@@ -149,7 +149,7 @@ struct SignMultisigSheet: View {
                 ForEach(signers) { w in Text("\(w.alias)  \(w.address.shortened())").tag(Optional(w)) }
             }
             .onChange(of: signers) { _, new in if signer.map({ !new.contains($0) }) ?? true { signer = new.first } }
-            if needsPassphrase, let signer { SecureField("Password for “\(signer.alias)”", text: $passphrase) }
+            if let signer, signer.keyKind == .encrypted { PasswordField(model: model, wallet: signer, text: $passphrase) }
             if signsOnLedger, isWorking { LedgerPromptLabel(text: "Sign on your Ledger…") }
             Text("Nothing is sent yet. Your signature goes to whoever submits the transaction, together with the other signers' signatures.")
                 .font(.callout).foregroundStyle(.secondary)

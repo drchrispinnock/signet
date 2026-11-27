@@ -15,6 +15,8 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
         let id: String
         let label: String
         let amount: Decimal
+        /// Why the amount could not be read; the line shows "unavailable" instead of a figure.
+        var unavailable: String? = nil
     }
 
     var id: String
@@ -29,6 +31,11 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
     var iconURLs: [URL] = []
     /// `fa1.2` / `fa2` for tokens.
     var standard: String?
+    /// A token's balance in its smallest unit, exactly as the indexer gave it, and its decimal
+    /// places: what a transfer is made of (`amount` is only for display).
+    var rawAmount: String? = nil
+    var decimals = 0
+    var isFA12: Bool { standard?.lowercased() == "fa1.2" }
     /// Why the amount could not be read (the Etherlink node unreachable); the row shows this
     /// instead of a figure.
     var unavailable: String? = nil
@@ -49,8 +56,39 @@ struct AssetBalance: Identifiable, Hashable, Sendable {
         return copy
     }
 
+    /// Experimental "Consolidated balances": the tez, Layer 2 and Shielded rows become one tez
+    /// row whose amount is everything the account holds in tez, and whose breakdown is the tez
+    /// lines (spendable, staked, unstaking) followed by one line per other row. A row that could
+    /// not be read adds nothing to the total and its line says so. Token rows are left as they
+    /// are; without a tez row (an account not on chain) nothing is folded.
+    static func consolidated(_ assets: [AssetBalance]) -> [AssetBalance] {
+        guard let tez = assets.first(where: { $0.kind == .tez }), tez.unavailable == nil else { return assets }
+        let folded = assets.filter { $0.kind == .etherlink || $0.kind == .shielded }
+        guard !folded.isEmpty else { return assets }
+        var details = tez.details.isEmpty ? [Detail(id: "spendable", label: "Spendable", amount: tez.amount)] : tez.details
+        var total = tez.amount
+        for row in folded {
+            details.append(Detail(id: row.id, label: row.name, amount: row.unavailable == nil ? row.amount : 0, unavailable: row.unavailable))
+            if row.unavailable == nil { total += row.amount }
+        }
+        var merged = AssetBalance(id: tez.id, kind: .tez, name: tez.name, symbol: tez.symbol, amount: total, details: details)
+        merged.layer = tez.layer
+        var result = [merged]
+        result.append(contentsOf: assets.filter { $0.kind != .tez && $0.kind != .etherlink && $0.kind != .shielded })
+        return result
+    }
+
     /// The Shielded row before the TzEL wallet exists: always 0 tz.
     static let shieldedPlaceholder = AssetBalance(id: "shielded", kind: .shielded, name: "Shielded", symbol: "tz", amount: 0)
+
+    /// A smallest-unit amount as plain decimal text in whole units, every digit kept and no
+    /// grouping (`"1500000"` with 6 decimals is `"1.5"`), for an amount field.
+    static func plainAmount(raw: String, decimals: Int) -> String {
+        guard decimals > 0 else { return raw }
+        let padded = String(repeating: "0", count: max(0, decimals + 1 - raw.count)) + raw
+        let whole = padded.dropLast(decimals), fraction = padded.suffix(decimals).replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
+        return fraction.isEmpty ? String(whole) : "\(whole).\(fraction)"
+    }
 
     static func format(_ amount: Decimal, symbol: String) -> String {
         let formatter = NumberFormatter()

@@ -15,13 +15,20 @@ struct MoveAssetsTests {
         private let lock = NSLock()
         var balance = TezBalance(spendable: 10)
         var nftList: [NFT] = []
+        var tokenList: [AssetBalance] = []
+        var domainList: [TezosDomain] = []
+        var domainsFail = false
+        func tezosDomains(for address: Address) async throws -> [TezosDomain]? {
+            if domainsFail { throw URLError(.cannotConnectToHost) }
+            return domainList
+        }
         var state: Portfolio.State = .complete
         var isBaker = false
         private var _sent: [TokenTransferRequest] = []
         var sent: [TokenTransferRequest] { lock.withLock { _sent } }
 
         func tezBalance(for address: Address) async throws -> TezBalance { balance }
-        func portfolio(for address: Address) async throws -> Portfolio { Portfolio(tokens: [], nfts: nftList, state: state) }
+        func portfolio(for address: Address) async throws -> Portfolio { Portfolio(tokens: tokenList, nfts: nftList, state: state) }
         func delegateInfo(for address: Address) async throws -> DelegateInfo {
             isBaker ? DelegateInfo(delegate: address, baker: .init(deactivated: false, gracePeriod: nil, consensusKey: nil, pendingConsensusKeys: [], companionKey: nil, pendingCompanionKeys: []), delegateAcceptsStaking: nil)
                     : DelegateInfo(delegate: nil, baker: nil, delegateAcceptsStaking: nil)

@@ -50,6 +50,35 @@ struct TezosDomain: Identifiable, Equatable, Sendable {
     let expires: Date?
     /// The name this account publishes as its own (reverse record).
     let isReverseRecord: Bool
+    /// The name's FA2 token in the Tezos Domains registry: second-level names only (`nil` for a
+    /// subdomain, which changes hands through `update_record` instead).
+    var tokenId: Int? = nil
+    /// The record's data (key to hex bytes), which `update_record` replaces as a whole, so a
+    /// transfer sends it back unchanged.
+    var data: [String: String] = [:]
+
+    func isExpired(at now: Date = Date()) -> Bool { expires.map { $0 <= now } ?? false }
+
+    /// Tezos Domains' mainnet contracts: the NameRegistry, whose FA2 `transfer` moves a
+    /// second-level name's token (and with it the ownership), and the UpdateRecord proxy.
+    static let registry = "KT1GBZmSxmnKJXGMdMLbugPfLyUPmuLSMwKS"
+    static let updateRecordProxy = "KT1H1MqmUM4aK9i1833EBmYCCEfkbt6ZdSBc"
+
+    /// What hands this name from `owner` to `recipient`, or `nil` when `owner` does not hold it
+    /// or it has expired. A second-level name moves as its FA2 token, which changes the owner
+    /// but not where the name points; with `pointAtRecipient` an `update_record` setting the
+    /// address to the recipient goes first (only the owner may make it). A subdomain has no
+    /// token and changes owner through `update_record` alone. The record's data is kept.
+    func transferParts(from owner: Address, to recipient: Address, pointAtRecipient: Bool, now: Date = Date())
+        -> (records: [DomainRecordUpdate], transfers: [TokenTransfer])? {
+        guard isOwned(by: owner), !isExpired(at: now), owner != recipient else { return nil }
+        if let tokenId {
+            let record = DomainRecordUpdate(proxy: Self.updateRecordProxy, name: name, address: recipient.value, owner: owner.value, data: data)
+            return (pointAtRecipient ? [record] : [], [TokenTransfer(contract: Self.registry, tokenId: String(tokenId), amount: "1")])
+        }
+        let target = pointAtRecipient ? recipient.value : address?.value
+        return ([DomainRecordUpdate(proxy: Self.updateRecordProxy, name: name, address: target, owner: recipient.value, data: data)], [])
+    }
 
     func isOwned(by account: Address) -> Bool { owner == account }
     func pointsAt(_ account: Address) -> Bool { address == account }

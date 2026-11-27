@@ -188,7 +188,7 @@ struct TzKTService: Sendable {
             let symbol = metadata?.symbol?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
             let name = metadata?.name?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
             let icons = [metadata?.thumbnailUri, metadata?.icon, metadata?.displayUri].compactMap { $0 }.flatMap(IPFS.candidateURLs(for:))
-            return AssetBalance(
+            var balance = AssetBalance(
                 id: "\(contract):\(row.token.tokenId)",
                 kind: .token(contract: contract, tokenId: row.token.tokenId),
                 name: name ?? symbol ?? Address(contract).shortened(),
@@ -197,6 +197,9 @@ struct TzKTService: Sendable {
                 iconURLs: icons,
                 standard: row.token.standard
             )
+            balance.rawAmount = TokenTransfer.isNat(row.balance) ? row.balance : nil
+            balance.decimals = decimals
+            return balance
         }
         .sorted { $0.amount > $1.amount }
     }

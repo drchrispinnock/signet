@@ -72,7 +72,10 @@ final class SendViewModel {
     var amountText = ""
     /// Password for an encrypted sender key; asked for on the confirm step.
     var passphrase = ""
-    var needsPassphrase: Bool { sender.keyKind == .encrypted }
+    var needsPassphrase: Bool { sender.keyKind == .encrypted && rememberedPassphraseExpiry(sender) == nil }
+    /// Until when a password is remembered for an account (Settings > Passwords), if it is;
+    /// the model's answer.
+    var rememberedPassphraseExpiry: @MainActor (Wallet) -> Date? = { _ in nil }
     /// The estimate needs the sender's proof of possession (an unrevealed tz4 account) and the
     /// key is encrypted, so the password is asked for on the compose step already.
     private(set) var needsPassphraseForProof = false
@@ -160,7 +163,7 @@ final class SendViewModel {
 
         let typed = Address(text)
         if typed.isValidAccount, !accepts(typed) {
-            errorMessage = "On Etherlink, send only to tz1, tz2 or tz3 accounts."
+            errorMessage = "On \(Brand.l2), send only to tz1, tz2 or tz3 accounts."
         } else if typed.isValidAccount {
             resolve(typed)
         } else if text.lowercased().hasSuffix(".tez"), text.count > 4 {

@@ -12,6 +12,8 @@ struct GovernanceSheet: View {
         case tezos = "Tezos"
         case etherlink = "Etherlink"
         var id: String { rawValue }
+        /// The tab's label: the Layer 2 follows the branding setting.
+        var title: String { self == .tezos ? rawValue : Brand.l2 }
     }
 
     @State private var tab: Tab = .tezos
@@ -34,7 +36,7 @@ struct GovernanceSheet: View {
             }
             if showsTabs {
                 Picker("", selection: $tab) {
-                    ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Tab.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -66,7 +68,7 @@ struct TezosGovernanceView: View {
     @State private var errorMessage: String?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
 
     var body: some View {
@@ -111,7 +113,7 @@ struct TezosGovernanceView: View {
     @ViewBuilder
     private var overview: some View {
         if model.delegateInfo?.isBaker != true {
-            Label("Tezos protocol voting is for bakers. This account is not a baker, so it can only vote on Etherlink.", systemImage: "info.circle")
+            Label("Tezos protocol voting is for bakers. This account is not a baker, so it can only vote on \(Brand.l2).", systemImage: "info.circle")
                 .foregroundStyle(.secondary)
         } else if let loadError {
             Label(loadError, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
@@ -241,7 +243,7 @@ struct TezosGovernanceView: View {
                 LabeledContent("Ballot", value: vote.title)
             }
             LabeledContent("Fee", value: "None (voting operations are free)")
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)

@@ -237,6 +237,41 @@ automatic download is off by default. The updater is not started under the test 
   stored in octez format. Both paths end in `WalletViewModel.importAccount(alias:material:…)`,
   which can encrypt the key for storage like Create account. `KeyImporter` is the protocol
   (`BridgeKeyImporter`, `MockKeyImporter`). **Session-only keys (0.8.3).** The sheet's "Keep the key" choice (in the wallet directory, or only until Signet quits) makes a paper key: `importAccount(…keepForSession: true)` puts it in `SessionKeyStore` (`Signet/Services/SessionKeys.swift`, `mlock`ed bytes wiped on forget) instead of the store, `Wallet.isSessionOnly` marks it, and `WalletViewModel.wallets` is the stored list plus `sessionWallets`. It signs, exports, renames and forgets like a stored key (encrypted in memory too when a password is given) but is never written to the directory or a backup and is gone at quit; the header tags it with an orange "Session only" lozenge. "Remember key…" (both menus, above Forget, shown only while the selected account is session-only: `canRememberSelectedKey`) opens `RememberKeySheet` and `rememberSelectedWallet(storePassphrase:)` moves the key into the directory as it is held, or encrypts a clear one with the password offered there (on by default on mainnet); the session entry is pinned first, removed only if unchanged after the encryption wait, and put back if the store refuses it. `SignetApp.init` sets `RLIMIT_CORE` to 0 so no core dump can carry it. Every entry has an identity and a generation that each change bumps, `add` never replaces a taken alias or address, and Forget pins a `RemovalSnapshot` before the password check and removes only that exact entry afterwards (`remove(matching:)`, S07); `importAccount` rechecks alias and address after its encryption await.
+- **Remembered passwords.** Settings > Passwords, "Remember passwords" 0 to 60 minutes
+  (`PasswordCacheSettings`, UserDefaults `passwordCacheMinutes`, 0 by default; ignored under
+  the test host). `WalletViewModel.signingKey(for:passphrase:)`, which every signing path uses
+  (Send, dApps, multisig, staking, bridge, tokens, domains, shielded, Buy's check, proofs of
+  possession), remembers a typed password only after a background `keyImporter.decrypt` finds
+  it opens the key, and when none is typed uses a remembered one. `PassphraseCache`
+  (`Signet/Services/PassphraseCache.swift`) holds each in a `SessionSecret` (locked, wiped)
+  keyed by account and tied to a SHA-256 of the encrypted key it opened, so a changed key is
+  never handed it; the time runs from when it was typed. It is forgotten on expiry, a change
+  of the setting, a wallet directory switch, Forget account, the Mac sleeping, its screens
+  sleeping, the session resigning or the screen locking (`SignetApp`), and by "Forget
+  remembered passwords". Sheets ask `needsPassphrase(for:)` and show `PasswordField`
+  ("Remembered until 14:05", Forget) in place of the field. Export secret key and Forget
+  account do not use it and always ask. `PassphraseCacheTests`.
+- **Domain expiry reminders.** Settings > Notifications, "Remind me before my Tezos Domains
+  names expire" (`DomainReminderSettings`, UserDefaults `domainExpiryReminders`, on by
+  default). Reminders are 2 months, 1 month, 2 weeks, 1 week, then 6 to 1 days and the day
+  itself. **Nothing is scheduled ahead** (decided 26 November 2026 so Windows and GTK, which
+  cannot schedule, behave the same): `SignetApp` checks at launch and every 24 hours while
+  running. `WalletViewModel.ownedDomainNamesForReminders` reads mainnet Tezos Domains for every
+  account and contract except address book entries (second-level names; `nil`, keep things as
+  they are, when a read fails). Then (1) `model.expiringDomains` holds the names within two
+  months (`DomainReminders.isDueSoon`) and the dashboard shows `ExpiringDomainsNotice` ("x.tez
+  expires in 12 days · owner · Renew", dismissable for the session); (2)
+  `DomainReminderService.deliverDue` puts up, **inside the app**, one alert (an `NSAlert` sheet
+  on the main window, waiting while any other sheet or alert is attached to it) with the latest
+  reminder due for each name that has not been shown (`DomainReminders.plan(...).overdue`), with
+  Renew… (app.tezos.domains) and OK; shown ids, which carry the expiry so a renewal starts
+  afresh, are kept in UserDefaults `domainExpiryRemindersShown` and recorded once the alert is
+  up. No system notification and no permission prompt (decided 27 November 2026); an earlier
+  development build's scheduled notifications are removed. "Show a test reminder" puts one up
+  for the soonest name. **Porting:** the rules are `DomainReminders` (pure); a port needs the
+  shown-ids store, the dashboard notice and an alert in its main window. `DomainRemindersTests`. The Tezos
+  Domains API refuses tz5 and tz6 addresses (they cannot own names), so
+  `TezosDomainsService.supports` keeps them from ever being asked: they simply have no names.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and
   encrypted keys only) opens `ExportKeySheet`: a warning, the password for encrypted keys (the
   bridge's `decryptSecretKey` opens them; the clear key is shown and the encrypted form can be
@@ -629,6 +664,26 @@ automatic download is off by default. The updater is not started under the test 
   own reason, which octez writes as a BSON document in the error trace (`SignerWire.errorReason`).
   `AirGapTests` uses vectors made with
   `@airgap/serializer` 0.14.0 and `@ngraveio/bc-ur` 1.1.13.
+- **Experimental features.** Settings has an "Experimental Features" section. **Layer 2
+  branding** (`Layer2Branding`, UserDefaults `layer2Branding`, Etherlink by default): with
+  Tezos X chosen, every user-facing "Etherlink" reads "Tezos X" and the Etherlink logo becomes
+  `TezosXLogo` (the Tezos coin with a yellow X at its top right). User-facing text says
+  `\(Brand.l2)` and images use `Brand.l2Logo`, never the literal name or `EtherlinkLogo`;
+  `Network.l2Name` follows the setting for Etherlink and keeps a rollup's own name (Previewnet).
+  Code names, contracts, URLs and chain data stay Etherlink's. Changing it redraws the
+  dashboard and refreshes (`WalletHomeView`); open sheets pick it up when reopened. The test
+  host shares the app's UserDefaults, so under it the stored branding is ignored.
+  `Layer2BrandingTests`. **Consolidated balances** (`ConsolidatedBalances`, UserDefaults
+  `consolidatedBalances`, off by default): the dashboard's tez, Layer 2 and Shielded rows
+  become one tez row (`AssetBalance.consolidated`, applied in `AssetListView`) whose amount
+  is all of them and whose breakdown is spendable, staked, unstaking, then a line per folded
+  row; an unreadable row adds nothing and its line says "unavailable". Tokens are untouched.
+  `ConsolidatedBalancesTests`. **Layer marks** (`LayerMarks`, UserDefaults `layerMarks`, "tz"
+  by default): how the Activity, Assets, NFTs and Domains tabs mark a layer, in `LayerToggles`
+  and in `EtherlinkMark` on layer 2 rows and tiles: the small logos (Tezos X uses
+  `TezosXMini`, `Layer2Branding.miniLogo`, the coin with a much bigger yellow X and a smaller
+  ꜩ, since the full logo is hard to tell from the Tezos coin at 16 points), or the text L1 /
+  L2 (an accent-coloured L2 capsule on rows and tiles).
 - **Appearance.** `Appearance` (OS / Light / Dark) lives in UserDefaults and is applied app-wide via
   `NSApp.appearance` by the `appliesStoredAppearance()` modifier on the root views.
 - **Menus.** The burger menu (`AppMenuButton`) and the menu-bar "Operations" menu in `SignetApp`
@@ -710,7 +765,41 @@ automatic download is off by default. The updater is not started under the test 
   `TzKTService.fungibleTokens`: anything with decimal places or FA1.2, amount divided by the
   decimals, logo from thumbnailUri/icon, kept in `WalletViewModel.tokens`, not in the top balance
   list; **metadata fallback (0.9.11):** a balance row TzKT reports with `metadata` null (an indexer without a metadata resolver, such as Etherlink's TzKT, or a very fresh mint) is filled by `TokenMetadataResolver` before classification: the contract's `token_metadata` big map entry is read through the same indexer (`TzKTService.tokenInfo`, hex-decoded `token_info`), its `""` URI is fetched from the IPFS gateways or a public HTTPS address through `PublicHTTPClient` with a 256 KB cap and a JSON budget (`tezos-storage:` is not followed), direct `token_info` entries override the document, at most 12 rows are resolved per load and hits and misses are cached in `TokenMetadataCache` for the process; `Metadata` decodes leniently, with `decimals` a number or a string) and `NFTGridView` (a scrolling grid fed by `TzKTService`: tokens with zero
-  decimals and an image, newest first by the balance row's `lastTime` across both layers (`Portfolio.newestFirst`), a video or sound artifact (`NFT.isMoving`, from the artifact's format) wearing a play badge since its tile is only a still, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast); `TzKTService.bestImageURLs` lists displayUri first, because marketplaces often use a generic thumbnail, then thumbnailUri, then an image artifactUri, each on every gateway, and the loader answers a gateway's "too large" (curl exit 63 past `maxBytes`, 8 MB, mapped to `ImageLoader.Fetch.tooLarge`) by skipping that content on the other gateways and moving to the next image, since collections such as Collect United ship 11 to 15 MB display renders with 200 KB thumbnails). **Artwork cache.** The production loader (`ImageLoader.shared`) keeps every downsampled thumbnail on disk in `ArtworkCache` (`Signet/Services/ArtworkCache.swift`, `~/Library/Caches/Signet/artwork`, `nil` under the test host): IPFS content is keyed by its `<cid>[/path]`, so one entry answers every gateway's URL and never expires, other HTTPS artwork (avatars) is keyed by URL and expires after a week, "too large" is remembered for 30 days so the oversized renders cost no request on later launches, entries are `PrivateFile` PNGs, the folder is capped at 256 MB with the oldest removed first (`prune`, once per process before the first write), and the loader checks the disk for every candidate before asking the network. `ArtworkCacheTests` covers it). **NFT operations (0.9.13).** Tiles select like Finder files (click, Cmd-click, Shift-click; `NFTGridView.selection`) and a right-click opens `NFTContextMenu` for the clicked tile, or for the whole selection when the tile is in it: Transfer… and Burn… (both for one or many tokens, never across the two layers at once, never for a token whose TZIP-21 `isTransferable` is false, `NFT.isTransferable`, and only when `WalletViewModel.canTransferTokens(on:)` says the account can sign on that layer), then for a single token Open in Explorer (`Network.explorerURL(token:id:)`, tzkt.io's token page), Open on objkt.com (`objktURL`, mainnet layer 1 only), View Artwork (`NFT.artifactURLs`, the full artifact on a gateway) and the copies, then Select All / Deselect All. Both operations open `TransferNFTSheet` on `WalletViewModel.nftOperation` (`NFTOperation`: kind, tokens, layer): a stepper per token held in several editions, the recipient resolved by a `SendViewModel` as the Send sheet does (names, suggestions, tz1–tz3 only on Etherlink), or for a burn the burn address `tz1burnburnburnburnburnburnburjAYjjX` (what objkt burns to; FA2 has no standard burn entrypoint) behind an "I understand" toggle, the fee and storage burn, the password or Ledger prompt, the result with the explorer link. The chain call is `ChainService.estimateTokenTransfer` / `sendTokenTransfer` on a `TokenTransferRequest` (recipient plus `TokenTransfer` rows, at most 100): the bridge's `src/tokens.js` builds one FA2 `transfer` call per contract (`tokenTransferParams`, `from_` always the signer's own address) and sends them as one operation group through the batch form of the approved-limits path (`operations.js`: `approvedBatchEstimate`, `parseBatchLimits`, `checkApprovedBatch`, `sendApprovedBatch`; Swift `BatchLimits`, one fee/gas/storage per operation plus the reveal budget, S14) with `sendTokenTransfer` a signing call; `WalletViewModel.estimateTokenTransfer(_:on:)` returns a `TokenTransferApproval` bound to the request, layer and `BridgeContext`, and `transferTokens` refuses any other (S31). `NFTOperationTests` and `test/tokens.cjs` cover it; a live transfer has not been exercised yet. **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts/<account address>` (or straight into `nfts` when Settings' "Arrange NFTs by address" is off; `NFTDownloadSettings`, UserDefaults `arrangeNFTsByAddress`, on by default; files saved before are not moved) as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
+  decimals and an image, newest first by the balance row's `lastTime` across both layers (`Portfolio.newestFirst`), a video or sound artifact (`NFT.isMoving`, from the artifact's format) wearing a play badge since its tile is only a still, `ipfs://` expanded to one URL per gateway by `IPFS.candidateURLs` and loaded by `ImageLoader`, which tries them in order and downsamples (ipfs.io rate-limits, Filebase is fast); `TzKTService.bestImageURLs` lists displayUri first, because marketplaces often use a generic thumbnail, then thumbnailUri, then an image artifactUri, each on every gateway, and the loader answers a gateway's "too large" (curl exit 63 past `maxBytes`, 8 MB, mapped to `ImageLoader.Fetch.tooLarge`) by skipping that content on the other gateways and moving to the next image, since collections such as Collect United ship 11 to 15 MB display renders with 200 KB thumbnails). **Artwork cache.** The production loader (`ImageLoader.shared`) keeps every downsampled thumbnail on disk in `ArtworkCache` (`Signet/Services/ArtworkCache.swift`, `~/Library/Caches/Signet/artwork`, `nil` under the test host): IPFS content is keyed by its `<cid>[/path]`, so one entry answers every gateway's URL and never expires, other HTTPS artwork (avatars) is keyed by URL and expires after a week, "too large" is remembered for 30 days so the oversized renders cost no request on later launches, entries are `PrivateFile` PNGs, the folder is capped at 256 MB with the oldest removed first (`prune`, once per process before the first write), and the loader checks the disk for every candidate before asking the network. `ArtworkCacheTests` covers it). **NFT operations (0.9.13).** Tiles select like Finder files (click, Cmd-click, Shift-click; `NFTGridView.selection`) and a right-click opens `NFTContextMenu` for the clicked tile, or for the whole selection when the tile is in it: Transfer… and Burn… (both for one or many tokens, never across the two layers at once, never for a token whose TZIP-21 `isTransferable` is false, `NFT.isTransferable`, and only when `WalletViewModel.canTransferTokens(on:)` says the account can sign on that layer), then for a single token Open in Explorer (`Network.explorerURL(token:id:)`, tzkt.io's token page), Open on objkt.com (`objktURL`, mainnet layer 1 only), View Artwork (`NFT.artifactURLs`, the full artifact on a gateway) and the copies, then Select All / Deselect All. Both operations open `TransferNFTSheet` on `WalletViewModel.nftOperation` (`NFTOperation`: kind, tokens, layer): a stepper per token held in several editions, the recipient resolved by a `SendViewModel` as the Send sheet does (names, suggestions, tz1–tz3 only on Etherlink), or for a burn the burn address `tz1burnburnburnburnburnburnburjAYjjX` (what objkt burns to; FA2 has no standard burn entrypoint) behind an "I understand" toggle, the fee and storage burn, the password or Ledger prompt, the result with the explorer link. The chain call is `ChainService.estimateTokenTransfer` / `sendTokenTransfer` on a `TokenTransferRequest` (recipient plus `TokenTransfer` rows, at most 100): the bridge's `src/tokens.js` builds one FA2 `transfer` call per contract (`tokenTransferParams`, `from_` always the signer's own address) and sends them as one operation group through the batch form of the approved-limits path (`operations.js`: `approvedBatchEstimate`, `parseBatchLimits`, `checkApprovedBatch`, `sendApprovedBatch`; Swift `BatchLimits`, one fee/gas/storage per operation plus the reveal budget, S14) with `sendTokenTransfer` a signing call; `WalletViewModel.estimateTokenTransfer(_:on:)` returns a `TokenTransferApproval` bound to the request, layer and `BridgeContext`, and `transferTokens` refuses any other (S31). `NFTOperationTests` and `test/tokens.cjs` cover it; a live transfer has not been exercised yet.
+  **Fungible token transfers.** A right-click on an Assets-tab row offers Transfer… when
+  `WalletViewModel.canTransferToken` (the account signs on the token's layer and TzKT gave its
+  exact balance: `AssetBalance.rawAmount` and `decimals`, kept by `TzKTService.fungibleTokens`)
+  and sets `tokenOperation`, which opens `TransferTokenSheet`: an amount in the token's own
+  units turned into the smallest unit exactly (`TokenTransfer.rawAmount(from:decimals:)`, no
+  floating point; Max is the raw balance), the recipient as in Send, the fee and storage burn.
+  It goes through `estimateTokenTransfer` / `transferTokens` like NFTs. `TokenTransfer.standard`
+  is `nil` for FA2 and `"fa1.2"` for FA1.2, whose `transfer (pair from (pair to value))` is one
+  call per token (`tokenTransferParams`; `TokenTransferRequest.contracts` mirrors the bridge's
+  call order: an FA2 contract once at its first transfer, an FA1.2 call per transfer).
+  `TokenTransferTests`; on 26 November 2026 a mixed FA2 + FA1.2 + tez group went through
+  `TaquitoChainService` on Shadownet (`ooy7taSk…`, against minimal test contracts, not a
+  TzKT-recognised token) and both ledgers moved exactly.
+  **Domain transfers.** A right-click on a Domains-tab name the account owns and that has not
+  expired (`canTransferDomain`, mainnet only) offers Transfer…, which opens
+  `TransferDomainSheet` (`domainOperation`). `TezosDomain.transferParts(from:to:pointAtRecipient:)`
+  decides what goes: a second-level name moves as its FA2 token on the NameRegistry
+  `KT1GBZmS…` (`tokenId` from the Tezos Domains API), which changes the owner but **not** where
+  the name points (checked on twenty recent mainnet transfers), so "Point it at the new
+  account" (on by default) first calls `update_record` on the UpdateRecord proxy `KT1H1Mqm…`
+  (`DomainRecordUpdate`: the name as UTF-8 bytes, the new address, the current owner, and the
+  record's `data`, which `update_record` replaces as a whole and so is sent back unchanged).
+  A subdomain has no token and is handed over by `update_record` with the new owner alone.
+  The records ride in `TokenTransferRequest.records`, first in the group (only the owner may
+  make them; the bridge's `domainRecordCall`, keys in byte order). Changing the address
+  clears the old account's reverse record on its own. Move assets moves every live name the
+  source owns, pointed at the destination, with all records in the first group; expired names
+  and names that only point at the account stay and are listed; an unreadable name list stops
+  the move. `DomainTransferTests`. Live on mainnet, 26 November 2026: `mytestdomain.tez` went from
+  `tz1Uckcy…` to `tz1dCaMn…` pointed at it (`ooRTDQSf…`, `update_record` then the FA2
+  transfer); owner and address moved and the old account's reverse record cleared itself.
+  Every refresh also re-reads the Domains tab's list once it has been read
+  (`refreshDomainList`, quietly), so a transfer appears when the indexer has the block.
+  **Download** (the same menu, one or many tokens) saves the full artifact, or the display image when the metadata names none, through `NFTDownloader` (`Signet/Services`: the pinned `PublicHTTPClient`, gateways in turn, 256 MB cap, too large on one gateway is too large on all) into `<wallet directory>/nfts/<account address>` (or straight into `nfts` when Settings' "Arrange NFTs by address" is off; `NFTDownloadSettings`, UserDefaults `arrangeNFTsByAddress`, on by default; files saved before are not moved) as `<name> (<contract> <id>).<ext>`, the extension from the gateway's content type, else the declared format, else the URL (`fileExtension`); `DownloadNFTsSheet` on `WalletViewModel.nftDownload` shows a row per token, three at a time, with Show in Finder; the folder is not backed up. `NFTDownloadTests` covers naming, the gateway fallback and the refusals. `CreateWalletSheet` (key type is a dropdown of the supported
   schemes, tz1 first and recommended; tz6 is not offered) is reached from the hamburger menu, the
   Operations menu or Cmd-N; with no wallets `NoWalletsView` replaces the dashboard. `AddAddressSheet`
   (hamburger menu, Cmd-Shift-N) adds an address-book entry: an octez watch-only alias written to
@@ -824,7 +913,10 @@ automatic download is off by default. The updater is not started under the test 
   through `sendTokenTransfer` with the approved limits, waits for each block, checks the
   `operationContext(for:)` of the source before each, and reports each group to the sheet;
   a failure part way leaves what went through listed. Fungible tokens and domains are not
-  moved yet. `MoveAssetsTests`; nothing has been exercised live yet.
+  moved yet. Fungible tokens move too: every Assets-tab token with an exact balance
+  (`AssetBalance.rawAmount`), all of it, in the same groups as the NFTs; one without is
+  listed as staying. Tezos Domains names move too (see Domain transfers).
+  `MoveAssetsTests`; nothing has been exercised live yet.
   **EVM alias (0.9.3; derivation moved to Etherlink 8.0, November 2026).**
   `EtherlinkAlias.isOffered` is `true` again: Receive offers the EVM side wherever Layer 2 is
   on, and each network shows the address once its node runs Etherlink 8.0 ("Horus", mainnet
@@ -1034,7 +1126,7 @@ automatic download is off by default. The updater is not started under the test 
 
 ## Taquito bridge
 
-**The library is octez.js, not Taquito (November 2026).** `@tezos-x/octez.js` 25.1.0-rc.1 (a release candidate, pinned exactly; move to 25.1.0 when it ships) is
+**The library is octez.js, not Taquito (November 2026).** `@tezos-x/octez.js` 25.1.0-rc.2 (a release candidate, pinned exactly; move to 25.1.0 when it ships) is
 Trilitech's fork of Taquito with the same API under other package names (`@taquito/taquito` →
 `@tezos-x/octez.js`, `@taquito/<x>` → `@tezos-x/octez.js-<x>`); where this file says Taquito,
 read octez.js. The Swift names (`TaquitoBridge`, `TaquitoChainService`, `taquito-bridge.js`)

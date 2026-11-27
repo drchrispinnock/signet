@@ -28,7 +28,7 @@ struct BridgeSheet: View {
 
     private var wallet: Wallet? { submitted?.context.wallet ?? model.selectedWallet }
     private var network: Network { submitted?.context.network ?? model.network }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var spendable: Decimal? { model.tezBalance?.spendable }
     private var etherlink: AssetBalance? { model.assets.first { $0.kind == .etherlink } }
@@ -104,9 +104,9 @@ struct BridgeSheet: View {
             }
             .buttonStyle(.borderless)
             .disabled(step != .compose)
-            .help(direction == .toEtherlink ? "Tezos to Etherlink. Click to reverse." : "Etherlink to Tezos. Click to reverse.")
-            .accessibilityLabel(direction == .toEtherlink ? "Direction: Tezos to Etherlink" : "Direction: Etherlink to Tezos")
-            side(image: "EtherlinkLogo", title: network.l2Name, balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
+            .help(direction == .toEtherlink ? "Tezos to \(Brand.l2). Click to reverse." : "\(Brand.l2) to Tezos. Click to reverse.")
+            .accessibilityLabel(direction == .toEtherlink ? "Direction: Tezos to \(Brand.l2)" : "Direction: \(Brand.l2) to Tezos")
+            side(image: Brand.l2Logo, title: network.l2Name, balance: etherlink.map { $0.unavailable == nil ? $0.formattedAmount : "—" }, note: "on the rollup")
         }
         .frame(maxWidth: .infinity)
     }
@@ -157,7 +157,7 @@ struct BridgeSheet: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
             }
-            if directionAvailable, needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if directionAvailable, let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if !model.canBridge {
                 Text("Bridging needs Layer 2 on for this network and a tz1, tz2 or tz3 account Signet can sign for.").font(.callout).foregroundStyle(.orange)
             }

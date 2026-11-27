@@ -20,6 +20,13 @@ extension WalletViewModel {
         return layer == 1
     }
 
+    /// Whether a fungible token from the Assets tab can be transferred: the account can sign on
+    /// its layer and the indexer gave its exact balance.
+    func canTransferToken(_ token: AssetBalance) -> Bool {
+        guard case .token = token.kind, let raw = token.rawAmount, raw != "0" else { return false }
+        return canTransferTokens(on: token.layer)
+    }
+
     /// Saves artwork into the `nfts` folder of the wallet directory in use, in the selected
     /// account's own folder there while "Arrange NFTs by address" is on.
     var nftDownloader: NFTDownloader { nftDownloader(arrangedByAddress: NFTDownloadSettings.arrangesByAddress()) }

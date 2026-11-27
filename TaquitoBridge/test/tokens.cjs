@@ -60,10 +60,44 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
   assert.deepEqual(sweep[2], { kind: 'transaction', to: them, amount: 1234567, mutez: true });
   assert.deepEqual(sweep.slice(0, 2).map((p) => p.to), [a, b]);
   assert.deepEqual(plain(tokens.tokenTransferParams(me, them, [], '5')), [{ kind: 'transaction', to: them, amount: 5, mutez: true }]);
-  for (const bad of ['0', '-1', '1.5', '01', '', '9007199254740993', 5]) {
+  for (const bad of ['0', '-1', '1.5', '01', '9007199254740993', 5]) {
     assert.throws(() => tokens.tokenTransferParams(me, them, [], bad), /Not an amount of tez/, String(bad));
   }
+  // An empty amount is no tez at all (how Swift says so when it also sends domain records).
+  assert.throws(() => tokens.tokenTransferParams(me, them, [], ''), /No tokens/);
   assert.throws(() => tokens.tokenTransferParams(me, them, [], null), /No tokens/);
+  // FA1.2: its own `transfer` per token, from the source, in order among the FA2 calls.
+  const fa12 = 'KT1PWx2mnDueood7fEmfbBDKx1D9BAnnXitn';
+  const mixed = plain(tokens.tokenTransferParams(me, them, [
+    { contract: a, tokenId: '7', amount: '1' }, { contract: fa12, tokenId: '0', amount: '150000000', standard: 'fa1.2' }, { contract: a, tokenId: '9', amount: '2' },
+  ], '5'));
+  assert.deepEqual(mixed.map((p) => p.to), [a, fa12, them]);
+  assert.deepEqual(mixed[1].parameter, { entrypoint: 'transfer', value: { prim: 'Pair', args: [{ string: me }, { prim: 'Pair', args: [{ string: them }, { int: '150000000' }] }] } });
+  assert.equal(mixed[0].parameter.value[0].args[1].length, 2);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '1', amount: '1', standard: 'fa1.2' }]), /no token id/);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '0', amount: '1', standard: 'fa3' }]), /Not a token standard/);
+  assert.throws(() => tokens.tokenTransferParams(me, them, [{ contract: fa12, tokenId: '0', amount: '1', standard: 'fa1.2' }, { contract: fa12, tokenId: '0', amount: '1' }]), /two standards/);
+  console.log('PASS FA1.2: a transfer of its own per token, from the source, checked like FA2');
+  // Tezos Domains: update_record calls go first, the name as UTF-8 bytes, data keys in byte order,
+  // exactly the shape of a real mainnet call (tezos-domains-testing.tez, 26 November 2026).
+  const proxy = 'KT1H1MqmUM4aK9i1833EBmYCCEfkbt6ZdSBc', registry = 'KT1GBZmSxmnKJXGMdMLbugPfLyUPmuLSMwKS';
+  const withDomain = plain(tokens.tokenTransferParams(me, them, [{ contract: registry, tokenId: '143032', amount: '1' }], '', JSON.stringify([
+    { proxy, name: 'captstake.tez', address: them, owner: me, data: { 'web:redirect_url': '22', 'openid:website': '2268' } },
+  ])));
+  assert.deepEqual(withDomain.map((p) => [p.to, p.parameter.entrypoint]), [[proxy, 'update_record'], [registry, 'transfer']]);
+  assert.deepEqual(withDomain[0].parameter.value, { prim: 'Pair', args: [
+    { bytes: Buffer.from('captstake.tez').toString('hex') },
+    { prim: 'Pair', args: [{ prim: 'Some', args: [{ string: them }] }, { prim: 'Pair', args: [{ string: me },
+      [{ prim: 'Elt', args: [{ string: 'openid:website' }, { bytes: '2268' }] }, { prim: 'Elt', args: [{ string: 'web:redirect_url' }, { bytes: '22' }] }]] }] }] });
+  // A subdomain changes owner by the record alone; no token, no tez.
+  const sub = plain(tokens.tokenTransferParams(me, them, [], '', [{ proxy, name: 'a.captstake.tez', owner: them }]));
+  assert.equal(sub.length, 1);
+  assert.deepEqual(sub[0].parameter.value.args[1], { prim: 'Pair', args: [{ prim: 'None' }, { prim: 'Pair', args: [{ string: them }, []] }] });
+  for (const bad of [{ proxy: me, name: 'x.tez', owner: me }, { proxy, name: '', owner: me }, { proxy, name: 'Caps.tez', owner: me },
+                     { proxy, name: 'x.tez', owner: 'tz1nope' }, { proxy, name: 'x.tez', owner: me, data: { k: 'zz' } }]) {
+    assert.throws(() => tokens.domainRecordCall(bad), /Not/, JSON.stringify(bad));
+  }
+  console.log('PASS domains: update_record goes first with the name as UTF-8 bytes and the data map sorted');
   console.log('PASS move assets: the tez sweep is the last operation of the group and is checked like the tokens');
 
   // S14 for a batch: every operation carries its own approved figures, in order.

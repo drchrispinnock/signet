@@ -136,7 +136,7 @@ struct NFTContextMenu: View {
         if !sameLayer { return "Choose NFTs on one chain at a time" }
         if !transferable { return targets.count == 1 ? "This token cannot be transferred" : "One of these tokens cannot be transferred" }
         if targets.count > TokenTransferRequest.maxTokens { return "At most \(TokenTransferRequest.maxTokens) NFTs at once" }
-        if let actions, !actions.canOperate(layer) { return layer == 2 ? "Signet cannot sign for this account on Etherlink" : "Signet cannot sign for this account" }
+        if let actions, !actions.canOperate(layer) { return layer == 2 ? "Signet cannot sign for this account on \(Brand.l2)" : "Signet cannot sign for this account" }
         return nil
     }
 
@@ -197,9 +197,9 @@ struct NFTTileView: View {
                 .truncationMode(.tail)
                 .foregroundStyle(isSelected ? .primary : .secondary)
         }
-        .help((nft.isLayer2 ? "On Etherlink\n" : "") + "\(nft.name)\n\(nft.contract) #\(nft.tokenId)")
+        .help((nft.isLayer2 ? "On \(Brand.l2)\n" : "") + "\(nft.name)\n\(nft.contract) #\(nft.tokenId)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(nft.name + (nft.isMoving ? ", video or sound" : "") + (nft.isLayer2 ? ", on Etherlink" : ""))
+        .accessibilityLabel(nft.name + (nft.isMoving ? ", video or sound" : "") + (nft.isLayer2 ? ", on \(Brand.l2)" : ""))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

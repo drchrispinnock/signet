@@ -1,6 +1,13 @@
 import SwiftUI
 
-/// The Assets tab: fungible (DeFi) token balances with their logos.
+/// What a token row's menu can start, from the model.
+struct TokenActions {
+    let canTransfer: (AssetBalance) -> Bool
+    let transfer: (AssetBalance) -> Void
+}
+
+/// The Assets tab: fungible (DeFi) token balances with their logos. A right-click offers
+/// Transfer… when the account can sign for the token's layer.
 struct TokenListView: View {
     let tokens: [AssetBalance]
     let isLoading: Bool
@@ -8,6 +15,7 @@ struct TokenListView: View {
     let network: Network
     /// What to say instead of "No tokens" when the layer toggles leave the tab empty.
     var layerEmptyText: String? = nil
+    var actions: TokenActions? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,7 +29,7 @@ struct TokenListView: View {
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {
                         ForEach(tokens) { token in
-                            TokenRowView(token: token, network: network)
+                            TokenRowView(token: token, network: network, actions: actions)
                             Divider().padding(.leading, 56)
                         }
                     }
@@ -57,6 +65,7 @@ extension Portfolio.State {
 struct TokenRowView: View {
     let token: AssetBalance
     let network: Network
+    var actions: TokenActions? = nil
 
     private var contract: String? {
         if case .token(let contract, _) = token.kind { return contract }
@@ -97,8 +106,12 @@ struct TokenRowView: View {
             }
         }
         .padding(.vertical, 8)
-        .help((token.isLayer2 ? "On Etherlink\n" : "") + (contract.map { "\(token.name)\n\($0)" } ?? token.name))
+        .help((token.isLayer2 ? "On \(Brand.l2)\n" : "") + (contract.map { "\(token.name)\n\($0)" } ?? token.name))
         .contextMenu {
+            if let actions, actions.canTransfer(token) {
+                Button("Transfer…") { actions.transfer(token) }
+                Divider()
+            }
             if let contract {
                 Button("Copy contract address") {
                     NSPasteboard.general.clearContents()
@@ -110,7 +123,7 @@ struct TokenRowView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(token.name) \(token.formattedAmount)\(token.isLayer2 ? ", on Etherlink" : "")")
+        .accessibilityLabel("\(token.name) \(token.formattedAmount)\(token.isLayer2 ? ", on \(Brand.l2)" : "")")
     }
 
     @ViewBuilder

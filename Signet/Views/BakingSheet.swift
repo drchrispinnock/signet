@@ -27,7 +27,7 @@ struct BakingSheet: View {
 
     private var wallet: Wallet? { model.selectedWallet }
     private var baker: DelegateInfo.Baker? { model.delegateInfo?.baker }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var canOperate: Bool { wallet?.keyKind.canSign == true }
     /// Quantumnet has no companion keys; consensus keys there may be tz6 (XMSS).
@@ -247,7 +247,7 @@ struct BakingSheet: View {
     private var proofNeeded: Bool { pickedIsBLS }
     private var proofAvailable: Bool {
         guard proofNeeded else { return true }
-        if let w = chosenKeyWallet, w.scheme == .tz4, w.keyKind.canSign { return w.keyKind != .encrypted || !keyPassphrase.isEmpty }
+        if let w = chosenKeyWallet, w.scheme == .tz4, w.keyKind.canSign { return !model.needsPassphrase(for: w) || !keyPassphrase.isEmpty }
         return !pastedProof.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
@@ -266,7 +266,7 @@ struct BakingSheet: View {
             lookupStatus
             if proofNeeded {
                 if let w = chosenKeyWallet, w.scheme == .tz4, w.keyKind.canSign {
-                    if w.keyKind == .encrypted { SecureField("Password for “\(w.alias)” (to prove possession)", text: $keyPassphrase) }
+                    if w.keyKind == .encrypted { PasswordField(model: model, wallet: w, text: $keyPassphrase, label: "Password for “\(w.alias)” (to prove possession)") }
                     else { Text("Signet will produce the BLS proof of possession from this account's key.").font(.callout).foregroundStyle(.secondary) }
                 } else {
                     TextField("Proof of possession (BLsig…)", text: $pastedProof).font(.callout.monospaced()).autocorrectionDisabled()
@@ -320,7 +320,7 @@ struct BakingSheet: View {
             default: EmptyView()
             }
             if let estimate { LabeledContent("Fee", value: AssetBalance.format(estimate.fee, symbol: "tz")) } else { LabeledContent("Fee") { ProgressView().controlSize(.small) } }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)
@@ -364,7 +364,7 @@ struct BakingSheet: View {
             var proof: String?
             if pickedIsBLS {
                 if let keyWallet = chosenKeyWallet, keyWallet.scheme == .tz4, keyWallet.keyKind.canSign {
-                    proof = try await model.proofOfPossession(for: keyWallet, passphrase: keyWallet.keyKind == .encrypted ? keyPassphrase : nil)
+                    proof = try await model.proofOfPossession(for: keyWallet, passphrase: model.needsPassphrase(for: keyWallet) ? keyPassphrase : nil)
                 } else {
                     proof = pastedProof.trimmingCharacters(in: .whitespaces)
                 }

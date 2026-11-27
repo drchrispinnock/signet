@@ -27,7 +27,7 @@ struct EtherlinkGovernanceView: View {
     @State private var loadTask: Task<Void, Never>?
 
     private var wallet: Wallet? { model.selectedWallet }
-    private var needsPassphrase: Bool { wallet?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: wallet) }
     private var signsOnLedger: Bool { wallet?.keyKind == .ledger }
     private var processes: [EtherlinkGovernance.Process] { model.network.etherlinkGovernanceProcesses }
 
@@ -87,7 +87,7 @@ struct EtherlinkGovernanceView: View {
                 periodSection(state)
                 if !state.canVote {
                     Section {
-                        Label("This account has no voting power on Etherlink: it is neither a baker in this period's listings nor a voting key that a baker has delegated to and that has claimed its rights.", systemImage: "info.circle")
+                        Label("This account has no voting power on \(Brand.l2): it is neither a baker in this period's listings nor a voting key that a baker has delegated to and that has claimed its rights.", systemImage: "info.circle")
                             .foregroundStyle(.secondary)
                     }
                 } else if state.periodKind == .proposal {
@@ -233,7 +233,7 @@ struct EtherlinkGovernanceView: View {
                     HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Estimating…").foregroundStyle(.secondary) }
                 }
             }
-            if needsPassphrase, let wallet { SecureField("Password for “\(wallet.alias)”", text: $passphrase) }
+            if let wallet, wallet.keyKind == .encrypted { PasswordField(model: model, wallet: wallet, text: $passphrase) }
             if signsOnLedger { Text("Your Ledger will show this operation for approval.").font(.callout).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped).scrollDisabled(true)

@@ -40,7 +40,7 @@ struct ReceiveSheet: View {
         }
     }
     private var qrImage: NSImage? { address.flatMap { QRCode.image(for: $0, size: 220) } }
-    private var needsPassphrase: Bool { wallet.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model?.needsPassphrase(for: wallet) ?? (wallet.keyKind == .encrypted) }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -48,7 +48,7 @@ struct ReceiveSheet: View {
                 Text("Receive")
                     .font(.title2.weight(.semibold))
                 HStack {
-                    ChainSidePicker(side: $side, canSwitch: showsEtherlink && model != nil)
+                    ChainSidePicker(side: $side, canSwitch: showsEtherlink && model != nil, layer2Name: "EVM")
                     Spacer()
                 }
             }
@@ -63,7 +63,7 @@ struct ReceiveSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Text("on Etherlink").font(.callout).foregroundStyle(.secondary)
+                    Text("on \(Brand.l2)").font(.callout).foregroundStyle(.secondary)
                 }
             }
 
@@ -132,34 +132,33 @@ struct ReceiveSheet: View {
             switch alias {
             case .checking:
                 ProgressView().controlSize(.small)
-                Text("Checking whether this account is known on Etherlink…").font(.callout).foregroundStyle(.secondary)
+                Text("Checking whether this account is known on \(Brand.l2)…").font(.callout).foregroundStyle(.secondary)
             case .linking:
                 ProgressView().controlSize(.small)
-                Text("Linking to Etherlink…").font(.callout).foregroundStyle(.secondary)
+                Text("Linking to \(Brand.l2)…").font(.callout).foregroundStyle(.secondary)
                 if wallet.keyKind == .ledger { LedgerPromptLabel(text: "Confirm the link on your Ledger…") }
             case .awaitingUpgrade:
-                Text("This account's address on Etherlink's EVM side is not available until this network upgrades to Etherlink 8.0, which changes how that address is made. Until then, receive on Etherlink with the account's Tezos address.")
+                Text("This account's address on \(Brand.l2)'s EVM side is not available until this network upgrades to \(Brand.l2) 8.0, which changes how that address is made. Until then, receive on \(Brand.l2) with the account's Tezos address.")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Button("Check again") { Task { await checkAlias() } }
             case .failed(let message):
                 Text(message).font(.callout).foregroundStyle(.red).multilineTextAlignment(.center)
                 Button("Try again") { Task { await checkAlias() } }
             case .unlinked(let fee, let problem, let unfunded):
-                Text("This account has no address on Etherlink's EVM side yet. Etherlink creates one the first time the account calls across from its Tezos side; tez sent there before that would be stuck at an address nobody controls.")
+                Text("This account has no address on \(Brand.l2)'s EVM side yet. \(Brand.l2) creates one the first time the account calls across from its Tezos side; tez sent there before that would be stuck at an address nobody controls.")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if unfunded {
-                    Text("Linking sends a small no-op call from this account on Etherlink, paid there, and this account holds no tez on Etherlink yet. Use Bridge… in the menu to move a little across, then come back here.")
+                    Text("Linking sends a small no-op call from this account on \(Brand.l2), paid there, and this account holds no tez on \(Brand.l2) yet. Use Bridge… in the menu to move a little across, then come back here.")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Button("Check again") { Task { await checkAlias() } }
                 } else if wallet.keyKind.canSign {
-                    Text("Linking sends a small no-op call from this account on Etherlink. It needs a little tez there to pay the fee (use Bridge… first).")
+                    Text("Linking sends a small no-op call from this account on \(Brand.l2). It needs a little tez there to pay the fee (use Bridge… first).")
                         .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    if needsPassphrase {
-                        SecureField("Password", text: $passphrase, prompt: Text("Password for \(wallet.alias)"))
-                            .textFieldStyle(.roundedBorder).frame(maxWidth: 260)
+                    if wallet.keyKind == .encrypted, let model {
+                        PasswordField(model: model, wallet: wallet, text: $passphrase).frame(maxWidth: 320)
                     }
                     if let problem { Text(problem).font(.callout).foregroundStyle(.orange).multilineTextAlignment(.center) }
-                    Button(fee.map { "Link to Etherlink (fee \(AssetBalance.format($0, symbol: "tz")))" } ?? "Link to Etherlink") { Task { await link(limits: nil) } }
+                    Button(fee.map { "Link to \(Brand.l2) (fee \(AssetBalance.format($0, symbol: "tz")))" } ?? "Link to \(Brand.l2)") { Task { await link(limits: nil) } }
                         .buttonStyle(.borderedProminent)
                         .disabled(fee == nil || (needsPassphrase && passphrase.isEmpty))
                 } else {
@@ -177,7 +176,7 @@ struct ReceiveSheet: View {
         case .tezos:
             "Only send tez and Tezos tokens to this address\(domains.isEmpty ? "." : ", or to \(domains[0]).")"
         case .etherlink:
-            "This account's address on Etherlink's EVM side. Tez sent to it on Etherlink are forwarded to this account; its own address on Etherlink's Michelson side is the Tezos one."
+            "This account's address on \(Brand.l2)'s EVM side. Tez sent to it on \(Brand.l2) are forwarded to this account; its own address on \(Brand.l2)'s Michelson side is the Tezos one."
         }
     }
 

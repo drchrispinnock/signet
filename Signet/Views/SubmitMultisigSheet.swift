@@ -17,7 +17,7 @@ struct SubmitMultisigSheet: View {
     private var proposals: [MultisigProposal] { model.currentMultisigProposals }
     private var proposal: MultisigProposal? { proposals.first { $0.id == proposalID } }
     private var submitters: [Wallet] { model.wallets.filter { $0.keyKind.canSign && $0.publicKey != nil } }
-    private var needsPassphrase: Bool { submitter?.keyKind == .encrypted }
+    private var needsPassphrase: Bool { model.needsPassphrase(for: submitter) }
     private var signsOnLedger: Bool { submitter?.keyKind == .ledger }
     private var canSubmit: Bool {
         proposal?.isReady == true && submitter != nil && estimate != nil && !isWorking && !(needsPassphrase && passphrase.isEmpty)
@@ -75,7 +75,7 @@ struct SubmitMultisigSheet: View {
                 } else {
                     Text("\(proposal.missing) more signature\(proposal.missing == 1 ? "" : "s") needed before this can be submitted.").font(.callout).foregroundStyle(.secondary)
                 }
-                if needsPassphrase, let submitter { SecureField("Password for “\(submitter.alias)”", text: $passphrase) }
+                if let submitter, submitter.keyKind == .encrypted { PasswordField(model: model, wallet: submitter, text: $passphrase) }
                 if signsOnLedger, isWorking { LedgerPromptLabel(text: "Confirm on your Ledger…") }
                 Text("The submitting account pays the fee; the multisig does the rest. Signatures are checked against the multisig's keys before anything is sent.")
                     .font(.callout).foregroundStyle(.secondary)

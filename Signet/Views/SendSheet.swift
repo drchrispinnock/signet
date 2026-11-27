@@ -46,7 +46,7 @@ struct SendSheet: View {
     }
 
     private static func makeSend(model: WalletViewModel, sender: Wallet, wallets: [Wallet], context: SideContext) -> SendViewModel {
-        SendViewModel(
+        let send = SendViewModel(
             sender: sender,
             wallets: wallets,
             chain: context.chain,
@@ -55,6 +55,8 @@ struct SendSheet: View {
             signerProvider: { [model] wallet, passphrase in try model.signingKey(for: wallet, passphrase: passphrase) },
             proofProvider: { [model] wallet, passphrase in try await model.proofOfPossession(for: wallet, passphrase: passphrase) }
         )
+        send.rememberedPassphraseExpiry = { [model] in model.rememberedPassphraseExpiry(for: $0) }
+        return send
     }
 
     var body: some View {
@@ -279,6 +281,9 @@ struct ConfirmTransferView: View {
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { if !send.passphrase.isEmpty { Task { await send.send() } } }
             }
+        } else if send.sender.keyKind == .encrypted, let until = send.rememberedPassphraseExpiry(send.sender) {
+            Label("Password remembered until \(until.formatted(date: .omitted, time: .shortened))", systemImage: "key.fill")
+                .font(.callout).foregroundStyle(.secondary)
         }
 
         if let error = send.errorMessage {
