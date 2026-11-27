@@ -62,7 +62,7 @@ struct SignetApp: App {
     /// shows any reminder now due.
     @MainActor private func checkDomainReminders() async {
         let service = DomainReminderService.shared
-        guard domainRemindersOn else { model.expiringDomains = []; await service.removeScheduled(); return }
+        guard domainRemindersOn else { model.expiringDomains = []; return }
         guard let names = await model.ownedDomainNamesForReminders() else { return }
         let now = Date()
         model.expiringDomains = names.filter { DomainReminders.isDueSoon($0.expires, now: now) }.sorted { $0.expires < $1.expires }
@@ -79,8 +79,8 @@ struct SignetApp: App {
                     guard !Self.isTestHost, cameraWatcher == nil else { return }
                     cameraWatcher = CameraWatcher { [model] hasCamera in model.hasCamera = hasCamera }
                 }
-                // Domain expiry reminders: at launch, then once a day while Signet runs. Only what
-                // is due is shown, at once; nothing is scheduled for later (as on Windows and GTK).
+                // Domain expiry reminders: at launch, then once a day while Signet runs. What is due
+                // goes up as an alert in the app; nothing is scheduled (as on Windows and GTK).
                 .task {
                     guard !Self.isTestHost else { return }
                     while !Task.isCancelled {

@@ -3,8 +3,8 @@ import Testing
 @testable import Signet
 
 /// Domain expiry reminders: 2 months, 1 month, 2 weeks, 1 week, then daily for the last six
-/// days and on the day, at 9:00; what is still to come is scheduled, the latest one already due
-/// is shown once, expired names give nothing.
+/// days and on the day, at 9:00; the latest one already due is shown once (as an alert in the
+/// app), expired names give nothing.
 struct DomainRemindersTests {
     static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -64,6 +64,27 @@ struct DomainRemindersTests {
         let plan = DomainReminders.plan(names, shown: [], now: Self.date("2027-01-01T00:00:00Z"), calendar: Self.calendar, limit: 60)
         #expect(plan.upcoming.count == 60)
         #expect(zip(plan.upcoming, plan.upcoming.dropFirst()).allSatisfy { $0.due <= $1.due })
+    }
+
+    /// The service hands back what is due once; after it is marked shown, nothing until the next
+    /// reminder, and names no longer owned drop out of the record. Off means nothing at all.
+    @MainActor @Test func dueRemindersAreShownOnce() throws {
+        let suite = "DomainRemindersTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let service = DomainReminderService(defaults: defaults)
+        let names = [DomainReminderService.OwnedName(name: "a.tez", expires: Self.expires, owner: "Main"),
+                     DomainReminderService.OwnedName(name: "b.tez", expires: Self.expires.addingTimeInterval(400 * 86_400), owner: "Main")]
+        let now = Self.date("2027-11-21T12:00:00Z")
+        let due = service.due(names, now: now)
+        #expect(due.map(\.name) == ["a.tez"])
+        service.markShown(due, owned: names)
+        #expect(service.due(names, now: now).isEmpty)
+        #expect(service.due(names, now: now.addingTimeInterval(86_400)).count == 1)
+        service.markShown(due, owned: [names[1]])
+        #expect(defaults.stringArray(forKey: DomainReminderSettings.shownKey) == [])
+        defaults.set(false, forKey: DomainReminderSettings.key)
+        #expect(service.due(names, now: now.addingTimeInterval(86_400)).isEmpty)
     }
 }
 

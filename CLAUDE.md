@@ -261,13 +261,15 @@ automatic download is off by default. The updater is not started under the test 
   they are, when a read fails). Then (1) `model.expiringDomains` holds the names within two
   months (`DomainReminders.isDueSoon`) and the dashboard shows `ExpiringDomainsNotice` ("x.tez
   expires in 12 days · owner · Renew", dismissable for the session); (2)
-  `DomainReminderService.deliverDue` shows at once, as a macOS notification, the latest
-  reminder due for each name that has not been shown (`DomainReminders.plan(...).overdue`;
-  shown ids, which carry the expiry so a renewal starts afresh, are kept in UserDefaults
-  `domainExpiryRemindersShown`). Clicking a notification opens app.tezos.domains. "Send a test
-  reminder" shows one for the soonest name. **Porting:** the rules are `DomainReminders`
-  (pure); a port needs the shown-ids store, the dashboard notice and an immediate
-  notification (toast on Windows, `GNotification` on GTK). `DomainRemindersTests`. The Tezos
+  `DomainReminderService.deliverDue` puts up, **inside the app**, one alert (an `NSAlert` sheet
+  on the main window, waiting while any other sheet or alert is attached to it) with the latest
+  reminder due for each name that has not been shown (`DomainReminders.plan(...).overdue`), with
+  Renew… (app.tezos.domains) and OK; shown ids, which carry the expiry so a renewal starts
+  afresh, are kept in UserDefaults `domainExpiryRemindersShown` and recorded once the alert is
+  up. No system notification and no permission prompt (decided 27 November 2026); an earlier
+  development build's scheduled notifications are removed. "Show a test reminder" puts one up
+  for the soonest name. **Porting:** the rules are `DomainReminders` (pure); a port needs the
+  shown-ids store, the dashboard notice and an alert in its main window. `DomainRemindersTests`. The Tezos
   Domains API refuses tz5 and tz6 addresses (they cannot own names), so
   `TezosDomainsService.supports` keeps them from ever being asked: they simply have no names.
 - **Export (0.6).** "Export secret key…" (both menus, after Rename; enabled for clear and

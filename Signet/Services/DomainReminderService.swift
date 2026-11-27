@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Settings > Notifications: whether Signet reminds the user before a Tezos Domains name one
 /// of their accounts owns expires. On by default; in UserDefaults.
@@ -11,14 +11,15 @@ enum DomainReminderSettings {
     static func isOn(_ defaults: UserDefaults = .standard) -> Bool { defaults.object(forKey: key) as? Bool ?? true }
 }
 
-/// Puts `DomainReminders` into macOS notifications. Signet checks at launch and once a day
-/// while it runs (`SignetApp`) and shows at once the reminder that is due for each name and has
-/// not been shown yet; nothing is scheduled for later, so every platform can behave the same
-/// (GTK has no way to schedule a notification). The dashboard lists the names that are due
-/// soon besides. Clicking a notification opens the name on Tezos Domains. Never used under the
-/// test host.
+/// Shows `DomainReminders` inside Signet. Signet checks at launch and once a day while it runs
+/// (`SignetApp`); a reminder that is due for a name and has not been shown yet goes up as an
+/// alert on the main window, once, with Renew (opens the name on Tezos Domains) and OK. Nothing
+/// is scheduled and no system notification is used, so every platform behaves the same and no
+/// permission is asked for. The alert waits while another sheet or alert is up on the window,
+/// so it never lands on top of a half-finished operation. The dashboard lists the names due
+/// soon besides. Never used under the test host.
 @MainActor
-final class DomainReminderService: NSObject, UNUserNotificationCenterDelegate {
+final class DomainReminderService {
     /// One name to remind about: what it is called, when it expires, and whose it is.
     struct OwnedName: Sendable, Hashable, Identifiable {
         let name: String
@@ -27,90 +28,107 @@ final class DomainReminderService: NSObject, UNUserNotificationCenterDelegate {
         var id: String { name }
     }
 
-    /// The one the app uses; made on first use (never under the test host).
+    /// The one the app uses (never under the test host).
     static let shared = DomainReminderService()
 
-    private let center = UNUserNotificationCenter.current()
     private let defaults: UserDefaults
-    /// What the last check found the system allows.
-    private(set) var authorization: UNAuthorizationStatus = .notDetermined
+    private var presenting = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        super.init()
-        center.delegate = self
     }
 
-    /// Shows the reminders now due for `names` and not shown before, each once. With the
-    /// setting off it does nothing.
-    func deliverDue(_ names: [OwnedName], now: Date = Date()) async {
-        // An earlier build scheduled reminders ahead; they are not wanted any more.
-        await removeScheduled()
-        guard DomainReminderSettings.isOn(defaults), !names.isEmpty else { return }
+    /// The reminders now due for `names` and not shown before (the latest one per name).
+    func due(_ names: [OwnedName], now: Date = Date()) -> [DomainReminders.Reminder] {
+        guard DomainReminderSettings.isOn(defaults), !names.isEmpty else { return [] }
+        let shown = Set(defaults.stringArray(forKey: DomainReminderSettings.shownKey) ?? [])
+        return DomainReminders.plan(names.map { ($0.name, $0.expires) }, shown: shown, now: now).overdue
+    }
+
+    /// Records `reminders` as shown, keeping the record to names still owned.
+    func markShown(_ reminders: [DomainReminders.Reminder], owned names: [OwnedName]) {
         var shown = Set(defaults.stringArray(forKey: DomainReminderSettings.shownKey) ?? [])
-        let due = DomainReminders.plan(names.map { ($0.name, $0.expires) }, shown: shown, now: now).overdue
-        guard !due.isEmpty, await allowed() else { return }
-        let owners = Dictionary(names.map { ($0.name, $0.owner) }, uniquingKeysWith: { first, _ in first })
-        for reminder in due {
-            try? await center.add(UNNotificationRequest(identifier: reminder.id, content: content(reminder, owner: owners[reminder.name] ?? ""), trigger: nil))
-            shown.insert(reminder.id)
-        }
-        // Keep the record of shown reminders small: only names still owned matter.
+        shown.formUnion(reminders.map(\.id))
         let live = Set(names.map(\.name))
-        defaults.set(Array(shown.filter { id in live.contains { id.hasPrefix("domain-expiry|\($0)|") } }.sorted().suffix(500)), forKey: DomainReminderSettings.shownKey)
+        defaults.set(Array(shown.filter { id in live.contains { id.hasPrefix("domain-expiry|\($0)|") } }.sorted().suffix(500)),
+                     forKey: DomainReminderSettings.shownKey)
     }
 
-    /// Asks macOS once; `true` when Signet may notify.
-    private func allowed() async -> Bool {
-        var status = await center.notificationSettings().authorizationStatus
-        if status == .notDetermined {
-            _ = try? await center.requestAuthorization(options: [.alert, .sound])
-            status = await center.notificationSettings().authorizationStatus
-        }
-        authorization = status
-        return status == .authorized || status == .provisional
+    /// Shows the reminders now due for `names` and not shown before, in one alert, once.
+    func deliverDue(_ names: [OwnedName], now: Date = Date()) async {
+        await Self.removeOldNotifications()
+        let reminders = due(names, now: now)
+        guard !reminders.isEmpty, !presenting else { return }
+        presenting = true
+        defer { presenting = false }
+        // Marked shown once the alert is actually up, so a quit before then shows it next time.
+        guard let window = await Self.freeMainWindow() else { return }
+        markShown(reminders, owned: names)
+        let (alert, url) = Self.alert(reminders, names: names)
+        await Self.present(alert, opening: url, on: window)
     }
 
-    /// Shows a reminder at once for the name that expires soonest, so the user can see what
-    /// reminders look like and that macOS lets them through. `false` when there is no name or
-    /// notifications are not allowed.
-    func sendTest(_ names: [OwnedName], now: Date = Date()) async -> Bool {
-        guard await allowed(),
-              let soonest = names.filter({ $0.expires > now }).min(by: { $0.expires < $1.expires }),
-              let reminder = DomainReminders.reminders(name: soonest.name, expires: soonest.expires).first(where: { $0.due > now }) ?? DomainReminders.reminders(name: soonest.name, expires: soonest.expires).last
-        else { return false }
-        let content = content(reminder, owner: soonest.owner)
-        content.title = "Test: " + content.title
-        try? await center.add(UNNotificationRequest(identifier: "domain-expiry-test|\(UUID().uuidString)", content: content, trigger: nil))
+    /// Shows the alert for the soonest-expiring name now, as a test. `false` with no name.
+    func showTest(_ names: [OwnedName], now: Date = Date()) async -> Bool {
+        guard let soonest = names.filter({ $0.expires > now }).min(by: { $0.expires < $1.expires }) else { return false }
+        let all = DomainReminders.reminders(name: soonest.name, expires: soonest.expires)
+        guard let reminder = all.first(where: { $0.due > now }) ?? all.last else { return false }
+        let (alert, url) = Self.alert([reminder], names: [soonest])
+        alert.messageText = "Test: " + alert.messageText
+        guard var window = NSApp.keyWindow ?? NSApp.mainWindow else { return false }
+        while let sheet = window.attachedSheet { window = sheet }
+        await Self.present(alert, opening: url, on: window)
         return true
     }
 
-    func removeScheduled() async {
-        let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix("domain-expiry|") }
-        center.removePendingNotificationRequests(withIdentifiers: ids)
+    private static func alert(_ reminders: [DomainReminders.Reminder], names: [OwnedName]) -> (NSAlert, URL?) {
+        let owners = Dictionary(names.map { ($0.name, $0.owner) }, uniquingKeysWith: { first, _ in first })
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        if reminders.count == 1, let reminder = reminders.first {
+            alert.messageText = reminder.title
+            alert.informativeText = reminder.body(owner: owners[reminder.name] ?? "")
+            alert.addButton(withTitle: "Renew…")
+        } else {
+            let sorted = reminders.sorted { $0.expires < $1.expires }
+            alert.messageText = "\(sorted.count) of your Tezos Domains names expire soon"
+            alert.informativeText = sorted.map { "\($0.name) expires \($0.lead.phrase) (\($0.expires.formatted(date: .abbreviated, time: .omitted)), \(owners[$0.name] ?? ""))" }
+                .joined(separator: "\n") + "\n\nRenew them on Tezos Domains to keep them."
+            alert.addButton(withTitle: "Open Tezos Domains")
+        }
+        alert.addButton(withTitle: "OK")
+        alert.buttons.last?.keyEquivalent = "\r"
+        alert.buttons.first?.keyEquivalent = ""
+        let url = URL(string: reminders.count == 1 ? "https://app.tezos.domains/domain/\(reminders[0].name)" : "https://app.tezos.domains/")
+        return (alert, url)
     }
 
-    private func content(_ reminder: DomainReminders.Reminder, owner: String) -> UNMutableNotificationContent {
-        let content = UNMutableNotificationContent()
-        content.title = reminder.title
-        content.body = reminder.body(owner: owner)
-        content.sound = .default
-        content.threadIdentifier = "domain-expiry"
-        content.userInfo = ["url": "https://app.tezos.domains/domain/\(reminder.name)"]
-        return content
+    private static func present(_ alert: NSAlert, opening url: URL?, on window: NSWindow) async {
+        let response = await withCheckedContinuation { continuation in
+            alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+        }
+        if response == .alertFirstButtonReturn, let url {
+            NSWorkspace.shared.open(url)
+        }
     }
 
-    // MARK: UNUserNotificationCenterDelegate
-
-    /// Shown even while Signet is in front.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+    /// Signet's main window once nothing is attached to it (no sheet, no alert), checked every
+    /// few seconds; `nil` if the task is cancelled first.
+    private static func freeMainWindow() async -> NSWindow? {
+        while !Task.isCancelled {
+            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true && $0.isVisible }) ?? NSApp.mainWindow,
+               window.attachedSheet == nil, window.isVisible {
+                return window
+            }
+            try? await Task.sleep(for: .seconds(3))
+        }
+        return nil
     }
 
-    /// Clicking a reminder opens the name on Tezos Domains, where it can be renewed.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let text = response.notification.request.content.userInfo["url"] as? String, let url = URL(string: text),
-              url.scheme == "https", url.host() == "app.tezos.domains" else { return }
-        await MainActor.run { _ = NSWorkspace.shared.open(url) }
+    /// An earlier development build scheduled macOS notifications ahead; remove any left over.
+    private static func removeOldNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix("domain-expiry") }
+        if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
     }
 }
