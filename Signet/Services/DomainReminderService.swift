@@ -1,6 +1,10 @@
+#if canImport(AppKit)
 import AppKit
 import Foundation
 @preconcurrency import UserNotifications
+#else
+import Foundation
+#endif
 
 /// Settings > Notifications: whether Signet reminds the user before a Tezos Domains name one
 /// of their accounts owns expires. On by default; in UserDefaults.
@@ -54,6 +58,7 @@ final class DomainReminderService {
                      forKey: DomainReminderSettings.shownKey)
     }
 
+    #if canImport(AppKit)
     /// Shows the reminders now due for `names` and not shown before, in one alert, once.
     func deliverDue(_ names: [OwnedName], now: Date = Date()) async {
         await Self.removeOldNotifications()
@@ -131,4 +136,52 @@ final class DomainReminderService {
         let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix("domain-expiry") }
         if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
     }
+    #else
+    /// What the alert says: its title and text, the first button's title and what it opens.
+    struct Alert: Sendable {
+        var title: String
+        var message: String
+        let firstButton: String
+        let url: URL?
+    }
+
+    /// Shows the reminders now due for `names` and not shown before, in one alert, once. Off
+    /// the Mac the port waits for its main window (`freeMainWindow`) and shows the alert
+    /// (`present`).
+    func deliverDue(_ names: [OwnedName], now: Date = Date()) async {
+        let reminders = due(names, now: now)
+        guard !reminders.isEmpty, !presenting else { return }
+        presenting = true
+        defer { presenting = false }
+        // Marked shown once the alert is actually up, so a quit before then shows it next time.
+        guard await Self.freeMainWindow() else { return }
+        markShown(reminders, owned: names)
+        await Self.present(Self.alert(reminders, names: names), onTop: false)
+    }
+
+    /// Shows the alert for the soonest-expiring name now, as a test. `false` with no name.
+    func showTest(_ names: [OwnedName], now: Date = Date()) async -> Bool {
+        guard let soonest = names.filter({ $0.expires > now }).min(by: { $0.expires < $1.expires }) else { return false }
+        let all = DomainReminders.reminders(name: soonest.name, expires: soonest.expires)
+        guard let reminder = all.first(where: { $0.due > now }) ?? all.last else { return false }
+        var alert = Self.alert([reminder], names: [soonest])
+        alert.title = "Test: " + alert.title
+        await Self.present(alert, onTop: true)
+        return true
+    }
+
+    static func alert(_ reminders: [DomainReminders.Reminder], names: [OwnedName]) -> Alert {
+        let owners = Dictionary(names.map { ($0.name, $0.owner) }, uniquingKeysWith: { first, _ in first })
+        let url = URL(string: reminders.count == 1 ? "https://app.tezos.domains/domain/\(reminders[0].name)" : "https://app.tezos.domains/")
+        if reminders.count == 1, let reminder = reminders.first {
+            return Alert(title: reminder.title, message: reminder.body(owner: owners[reminder.name] ?? ""),
+                         firstButton: "Renew…", url: url)
+        }
+        let sorted = reminders.sorted { $0.expires < $1.expires }
+        return Alert(title: "\(sorted.count) of your Tezos Domains names expire soon",
+                     message: sorted.map { "\($0.name) expires \($0.lead.phrase) (\($0.expires.formatted(date: .abbreviated, time: .omitted)), \(owners[$0.name] ?? ""))" }
+                         .joined(separator: "\n") + "\n\nRenew them on Tezos Domains to keep them.",
+                     firstButton: "Open Tezos Domains", url: url)
+    }
+    #endif
 }

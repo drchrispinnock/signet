@@ -1,4 +1,8 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// Settings > Passwords: how many minutes (0 to 60) a wallet password, once typed and found to
